@@ -50,8 +50,18 @@ Changes vs the original proposed order, and why:
 - **Exit:** `docker compose up` + API/worker start; `/health/ready` green; one sample event goes from outbox to a BullMQ handler in an integration test; boundary lint fails on a deliberate violation.
 
 ### P1 — Auth + Users
-- `users` (profile, privacy settings), `auth` (identities, sessions, JWT, refresh rotation with reuse detection), Google adapter, a `FakeProvider` adapter for tests, session list/revoke, `GET/PATCH /me`, account deletion request (fan-out handlers stubbed per module as modules arrive).
-- **Exit:** e2e: sign in with fake Google token → `/me` → refresh → reuse old refresh → family revoked; WS handshake guard tested with a dummy gateway.
+- `users` (profile, privacy settings), `auth` (identities, sessions, JWT, refresh rotation with reuse detection), Google adapter, a dev/test fake sign-in, session list/revoke, `GET/PATCH /me`, account deletion request (fan-out handlers stubbed per module as modules arrive).
+- **Exit:** e2e: sign in with a test-signed Google token → `/me` → refresh → reuse old refresh → family revoked; WS handshake guard tested with a dummy gateway.
+- **Delivered in 4 PRs** (each reviewed and merged before the next):
+
+| PR | Scope | Learning cards |
+|---|---|---|
+| P1.1 Design | Phone sign-in removed (ADR-0012); this plan; P1 notes in `04-auth.md` §11 | none (docs only) |
+| P1.2 Schema + tokens | `users`, `user_profiles`, `user_privacy_settings`, `auth_identities`, `sessions` + migration; JWT key config + `keys:generate`; token service (sign/verify access JWT, generate/hash refresh tokens) | JWT, hashing tokens at rest |
+| P1.3 Sign-in + refresh | Google ID token verifier, dev/test fake sign-in, `SignInWithVerifiedIdentity`, `POST /v1/auth/google`, `POST /v1/auth/refresh` with rotation and reuse detection | OpenID Connect token verification, refresh rotation, row locking |
+| P1.4 Guards + me | Global `JwtAuthGuard` + `@Public()`, `POST /v1/auth/logout`, sessions list/revoke, `GET/PATCH /v1/me`, `DELETE /v1/me` (request only), WS handshake guard, rate limits on `/v1/auth/*`, exit e2e | Authentication vs authorization, rate limiting, soft delete |
+
+- **Not in P1:** Facebook and X (P11), identity linking/unlinking (needs a second provider, P11), `favouriteTeamId` (needs `teams`, added in P2), deletion finalization after the grace period (P12).
 
 ### P2 — Football mock data + simulator
 - Competitions/seasons/teams/players/matches/squads with AR/EN names; `FootballDataProvider` + `MockFootballProvider`; `ApplyProviderMatchUpdate` with versioning; lifecycle events via outbox; simulator CLI commands and scenarios.

@@ -114,3 +114,12 @@ Rules (Recommended, they protect against account takeover):
 - Development: `.env` (git-ignored) with provider client IDs/secrets for test apps, JWT signing keys generated locally (`npm run keys:generate`, planned). `.env.example` documents every variable with fake values.
 - Configuration is validated at boot (schema); the app refuses to start with missing secrets in production.
 - Production (later): the host's secret store or an encrypted env file; key rotation through `kid`.
+
+## 11. P1 implementation notes
+
+- **Signing keys:** ES256. `JWT_PRIVATE_KEY` (PEM, current key) and `JWT_KEY_ID`; verification also accepts `JWT_PREVIOUS_PUBLIC_KEY` during a rotation. `npm run keys:generate` writes a fresh pair into the local `.env`. Tests generate keys at runtime. `JWT_ISSUER`, `JWT_AUDIENCE` and token lifetimes are config.
+- **Google config:** `GOOGLE_CLIENT_IDS` (comma-separated: Android, iOS, web). The verifier takes its JWKS source and issuer from config, so tests sign Google-shaped ID tokens with a local key and exercise the real verification code.
+- **Fake sign-in (dev and test only):** `POST /v1/_dev/auth/sign-in {subject, displayName?}` → `SignInWithVerifiedIdentity(GOOGLE, "dev:" + subject)`. Lives in the dev module, so it is absent in production (same switch as `/v1/_dev/*`). Lets the mobile app sign in before Google OAuth clients exist.
+- **New user = one transaction:** `users` + `user_profiles` + `user_privacy_settings` + `auth_identities` + first `sessions` row. Display name from the provider hint, else a generated `Player-xxxx`.
+- **Refresh:** lock the presented session row (`SELECT … FOR UPDATE`) so two parallel refreshes with the same token cannot both succeed; the loser sees a rotated token and the family is revoked.
+- **Deletion in P1:** `DELETE /v1/me` sets `PENDING_DELETION`, revokes all sessions and writes a `UserDeletionRequested` outbox event. Signing in during the grace period cancels it (status back to `ACTIVE`). Anonymization and finalization arrive with the modules that own the data (P12 end-to-end).
