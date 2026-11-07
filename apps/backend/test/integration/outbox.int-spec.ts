@@ -1,6 +1,6 @@
 import { Test, type TestingModule } from '@nestjs/testing';
 import { TransactionHost } from '@nestjs-cls/transactional';
-import { Queue, Worker } from 'bullmq';
+import { type Queue, Worker } from 'bullmq';
 import { randomUUID } from 'node:crypto';
 import { CoreModule } from '../../src/shared/infrastructure/core.module';
 import { AppConfig } from '../../src/shared/infrastructure/config';
