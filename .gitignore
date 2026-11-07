@@ -37,3 +37,7 @@ apps/mobile/build/
 !.vscode/extensions.json
 # local claude settings
 .claude/settings.local.json
+
+# backend generated code
+apps/backend/src/generated/
+apps/backend/*.tsbuildinfo
