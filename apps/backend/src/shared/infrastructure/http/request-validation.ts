@@ -12,7 +12,8 @@ export class RequestValidationException extends BadRequestException {
 export function flattenValidationErrors(errors: ValidationError[], parentPath = ''): FieldError[] {
   return errors.flatMap((error) => {
     const segment = /^\d+$/.test(error.property) ? `[${error.property}]` : error.property;
-    const path = parentPath === '' ? segment : segment.startsWith('[') ? `${parentPath}${segment}` : `${parentPath}.${segment}`;
+    const path =
+      parentPath === '' ? segment : segment.startsWith('[') ? `${parentPath}${segment}` : `${parentPath}.${segment}`;
     const own = Object.entries(error.constraints ?? {}).map(([code, message]) => ({ field: path, code, message }));
     return [...own, ...flattenValidationErrors(error.children ?? [], path)];
   });

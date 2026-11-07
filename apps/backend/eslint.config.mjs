@@ -4,7 +4,9 @@ import prettier from 'eslint-config-prettier';
 import tseslint from 'typescript-eslint';
 
 export default defineConfig(
-  { ignores: ['dist/', 'dist-worker/', 'coverage/', 'src/generated/', '*.config.js', 'jest.*.js', 'eslint.config.mjs'] },
+  {
+    ignores: ['dist/', 'dist-worker/', 'coverage/', 'src/generated/', '*.config.js', 'jest.*.js', 'eslint.config.mjs'],
+  },
   js.configs.recommended,
   tseslint.configs.recommendedTypeChecked,
   {

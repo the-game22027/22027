@@ -3,13 +3,7 @@ import type { Request, Response } from 'express';
 import { ClsService } from 'nestjs-cls';
 import { DomainError } from '@shared/kernel';
 import { resolveRequestId } from '../request-context/request-id';
-import {
-  codeForHttpStatus,
-  PROBLEM_JSON,
-  type ProblemDetails,
-  STATUS_BY_KIND,
-  titleFromCode,
-} from './problem-details';
+import { codeForHttpStatus, PROBLEM_JSON, type ProblemDetails, STATUS_BY_KIND, titleFromCode } from './problem-details';
 import { RequestValidationException } from './request-validation';
 
 /**

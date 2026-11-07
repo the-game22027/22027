@@ -22,7 +22,15 @@ describe('log redaction', () => {
       body: { refreshToken: 'nested-refresh', code: '123456', password: 'hunter2' },
       deep: { auth: { idToken: 'deep-id-token' } },
     });
-    for (const secret of ['eyJsecret', 'secret-cookie', 'top-secret-token', 'nested-refresh', '123456', 'hunter2', 'deep-id-token']) {
+    for (const secret of [
+      'eyJsecret',
+      'secret-cookie',
+      'top-secret-token',
+      'nested-refresh',
+      '123456',
+      'hunter2',
+      'deep-id-token',
+    ]) {
       expect(line).not.toContain(secret);
     }
     expect(line).toContain('[REDACTED]');

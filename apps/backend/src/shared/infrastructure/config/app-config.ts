@@ -14,7 +14,10 @@ const configSchema = z.object({
   WORKER_PORT: z.coerce.number().int().min(1).max(65535).default(3100),
   DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
   REDIS_URL: z.url({ protocol: /^rediss?$/ }),
-  HTTP_BODY_LIMIT: z.string().regex(/^\d+(b|kb|mb)$/i, 'e.g. 100kb').default('100kb'),
+  HTTP_BODY_LIMIT: z
+    .string()
+    .regex(/^\d+(b|kb|mb)$/i, 'e.g. 100kb')
+    .default('100kb'),
   OUTBOX_POLL_INTERVAL_MS: z.coerce.number().int().min(50).default(1000),
   OUTBOX_BATCH_SIZE: z.coerce.number().int().min(1).max(1000).default(100),
 });
