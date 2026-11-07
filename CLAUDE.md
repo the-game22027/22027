@@ -18,7 +18,7 @@ A football-focused **social gaming platform** (not a CRUD app, not a simple quiz
 - Friends (mutual), privacy-aware prediction visibility.
 - A fact-first football knowledge database that feeds an offline question generator.
 
-Current phase: **Phase 0 foundation implemented (backend skeleton); next: Phase 1 auth + users**. See `docs/ROADMAP.md`.
+Current phase: **Phase 1 auth + users, in 4 PRs (P1.1 design → P1.4 guards + me)**. See `docs/ROADMAP.md`.
 
 ## 2. Hard constraints (do not violate)
 
@@ -71,7 +71,7 @@ the-game/
 - Errors: domain errors extend `DomainError` (`@shared/kernel`) with a stable `code` and a `kind` (`CONFLICT`, `NOT_FOUND`, …), never an HTTP status; one global filter maps `kind` to HTTP and renders RFC 9457 problem+json (`docs/api/API.md` §4).
 - Transactions: `@nestjs-cls/transactional` with the Prisma adapter. Outbox rows are written in the same transaction as the state change.
 - Time-critical checks (kickoff lock, voting window) use the **database clock** (`now()`) inside the write statement, not `Date.now()` in Node.
-- Logging: `nestjs-pino`, structured JSON, `requestId` propagated, never log tokens/OTPs/phone numbers in full.
+- Logging: `nestjs-pino`, structured JSON, `requestId` propagated, never log tokens, auth codes or personal data in full.
 - Tests: domain rules → unit tests (no Nest, no DB). Repositories/transactions/concurrency → integration tests against real Postgres/Redis via Testcontainers. Flows → e2e with Supertest and `socket.io-client`.
 - Git: never commit to `main` directly. Branch `feat/<phase>-<topic>`, `fix/…`, `docs/…`, `chore/…`; Conventional Commits (`feat(predictions): …`); one PR per coherent change using `.github/pull_request_template.md`. **Merge with a merge commit, never squash or rebase** (`git merge --no-ff`, or `gh pr merge --merge`), so every individual commit stays visible in `main`'s history under its merge commit. Because each commit is kept, every commit must be meaningful: one logical step, a Conventional Commit message, building and passing tests on its own where practical; clean up WIP commits before opening the PR. Roadmap phases are GitHub milestones (`P0 …`), issues use `type:*` and `area:<module>` labels. Commit scopes name the area: `feat(backend/predictions): …`, `feat(mobile): …`, `docs(api): …`. Each app keeps its own toolchain (no root build orchestrator); CI jobs are path-filtered per app. A contract change updates `docs/api/`, the backend and the regenerated mobile client in the same PR when possible. Remote: `github.com/the-game22027/the-game`.
 
