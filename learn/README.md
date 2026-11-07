@@ -25,10 +25,11 @@ Rules: no history lessons, no filler, max ~30 lines. If it needs more, it is two
 | [backend/](backend/) | Server-side building blocks: APIs, errors, events, config, auth |
 | [database/](database/) | Schema design, migrations, transactions, indexes, locking |
 | [testing/](testing/) | Test levels, test design, test tooling |
+| [security/](security/) | Auth, tokens, keys, secrets, common attacks |
 | [devops/](devops/) | CI/CD, Docker, health checks, monitoring, deployment |
 | [mobile/](mobile/) | Flutter side: API client, state, real-time, store release |
 
-New tracks (for example `security/`) are added when the first card needs one.
+New tracks are added when the first card needs one.
 
 ## Index
 
@@ -46,3 +47,5 @@ New tracks (for example `security/`) are added when the first card needs one.
 | [testing/testing-levels](testing/testing-levels.md) | P0 | Unit for rules, integration for the DB, e2e for flows |
 | [devops/ci](devops/ci.md) | P0 | Every PR proves the code still works |
 | [devops/health-checks](devops/health-checks.md) | P0 | Live = process is up; ready = it can serve traffic |
+| [security/jwt](security/jwt.md) | P1 | Signed, readable, short-lived; verify alg, iss, aud, exp |
+| [security/hashing-tokens-at-rest](security/hashing-tokens-at-rest.md) | P1 | Store SHA-256 of the token, never the token |
