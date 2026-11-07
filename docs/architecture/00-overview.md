@@ -88,8 +88,8 @@ Not planned (rejected by the product owner, 2026-11-07): Daily Quiz, solo/practi
 | K-07 | Prize competitions have legal/app-store requirements (official rules, store "not a sponsor" statement) | Non-technical; track before the first prize |
 | K-08 | Four OAuth providers is a lot of security-sensitive code for a solo developer | Phase them; consider an identity broker (DEC-25) |
 | K-09 | **Question volume.** Battles can be played without limit, so an active player sees hundreds of questions a week. A small bank causes repeats, which reward memorizing over knowledge | Per-player exposure exclusion (DEC-44); the knowledge-base pipeline targets thousands of questions before launch (Track D); `question_stats` flags overexposed questions |
-| K-10 | **Collusion and farming in prize-linked leaderboards:** friends throwing games in private rooms, second accounts, easy bot wins | Points per battle mode are rule-set values; recommended none for rooms and bots (DEC-41); prize eligibility checks (`06-cross-cutting.md` §1.2) |
-| K-11 | Undisclosed bots damage trust and may break store or consumer rules in a game with prizes | Recommend clearly labeled bots (DEC-40) |
+| K-10 | **Collusion and farming in prize-linked leaderboards:** friends throwing games in private rooms, second accounts, easy bot wins | Points per battle mode are rule-set values; none for rooms and bots (Decided, DEC-41); prize eligibility checks (`06-cross-cutting.md` §1.2) |
+| K-11 | Undisclosed bots damage trust and may break store or consumer rules in a game with prizes | Bots always labeled (Decided, DEC-40) |
 
 ## 6. System architecture
 
