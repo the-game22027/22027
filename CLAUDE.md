@@ -68,7 +68,7 @@ the-game/
 - IDs: UUID v7 generated in the application (`shared/kernel/id.ts`), stored as `uuid`.
 - All timestamps `timestamptz`, UTC in storage and API (ISO-8601 with `Z`). Period/timezone logic only in the leaderboard period calculator.
 - Validation: `class-validator` DTOs at the edge; invariants enforced again in domain.
-- Errors: domain errors are typed classes with stable `code` strings; mapped to RFC 9457 problem+json by one global filter (`docs/api/API.md` §4).
+- Errors: domain errors extend `DomainError` (`@shared/kernel`) with a stable `code` and a `kind` (`CONFLICT`, `NOT_FOUND`, …), never an HTTP status; one global filter maps `kind` to HTTP and renders RFC 9457 problem+json (`docs/api/API.md` §4).
 - Transactions: `@nestjs-cls/transactional` with the Prisma adapter. Outbox rows are written in the same transaction as the state change.
 - Time-critical checks (kickoff lock, voting window) use the **database clock** (`now()`) inside the write statement, not `Date.now()` in Node.
 - Logging: `nestjs-pino`, structured JSON, `requestId` propagated, never log tokens/OTPs/phone numbers in full.
