@@ -24,7 +24,8 @@
     "depcheck:boundaries": "depcruise src --config .dependency-cruiser.cjs",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:deploy": "prisma migrate deploy"
+    "prisma:deploy": "prisma migrate deploy",
+    "keys:generate": "node scripts/generate-jwt-keys.mts"
   },
   "dependencies": {
     "@bull-board/api": "9.11.0",

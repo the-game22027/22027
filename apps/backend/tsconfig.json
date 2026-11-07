@@ -26,5 +26,5 @@
       "@generated/*": ["./src/generated/*"]
     }
   },
-  "include": ["src/**/*", "test/**/*", "prisma.config.ts", "jest*.config.ts"]
+  "include": ["src/**/*", "test/**/*", "scripts/**/*", "prisma.config.ts", "jest*.config.ts"]
 }

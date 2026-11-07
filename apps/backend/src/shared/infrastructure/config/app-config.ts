@@ -1,4 +1,19 @@
+import { createPrivateKey, createPublicKey } from 'node:crypto';
 import { z } from 'zod';
+
+/** `.env` files hold a PEM on one line with literal `\n`; restore the real line breaks. */
+const pem = z.string().transform((value) => value.replace(/\\n/g, '\n'));
+
+function isKey(parse: (pem: string) => { asymmetricKeyType?: string; asymmetricKeyDetails?: { namedCurve?: string } }) {
+  return (value: string): boolean => {
+    try {
+      const key = parse(value);
+      return key.asymmetricKeyType === 'ec' && key.asymmetricKeyDetails?.namedCurve === 'prime256v1';
+    } catch {
+      return false;
+    }
+  };
+}
 
 /**
  * Every environment variable the backend reads, validated once at boot. Nothing else in the
@@ -7,20 +22,42 @@ import { z } from 'zod';
  * zod was chosen over class-validator here because one schema gives both runtime validation and the
  * inferred TypeScript type, and the config is plain data with no DTO/decorator needs.
  */
-const configSchema = z.object({
-  NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
-  LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
-  API_PORT: z.coerce.number().int().min(1).max(65535).default(3000),
-  WORKER_PORT: z.coerce.number().int().min(1).max(65535).default(3100),
-  DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
-  REDIS_URL: z.url({ protocol: /^rediss?$/ }),
-  HTTP_BODY_LIMIT: z
-    .string()
-    .regex(/^\d+(b|kb|mb)$/i, 'e.g. 100kb')
-    .default('100kb'),
-  OUTBOX_POLL_INTERVAL_MS: z.coerce.number().int().min(50).default(1000),
-  OUTBOX_BATCH_SIZE: z.coerce.number().int().min(1).max(1000).default(100),
-});
+const configSchema = z
+  .object({
+    NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
+    LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
+    API_PORT: z.coerce.number().int().min(1).max(65535).default(3000),
+    WORKER_PORT: z.coerce.number().int().min(1).max(65535).default(3100),
+    DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
+    REDIS_URL: z.url({ protocol: /^rediss?$/ }),
+    HTTP_BODY_LIMIT: z
+      .string()
+      .regex(/^\d+(b|kb|mb)$/i, 'e.g. 100kb')
+      .default('100kb'),
+    OUTBOX_POLL_INTERVAL_MS: z.coerce.number().int().min(50).default(1000),
+    OUTBOX_BATCH_SIZE: z.coerce.number().int().min(1).max(1000).default(100),
+
+    // Access tokens: ES256 (04-auth.md §5, §11). Generate a local pair with `npm run keys:generate`.
+    JWT_PRIVATE_KEY: pem.refine(isKey(createPrivateKey), 'must be a P-256 (ES256) private key in PEM format'),
+    JWT_KEY_ID: z.string().min(1),
+    JWT_PREVIOUS_PUBLIC_KEY: pem
+      .refine(isKey(createPublicKey), 'must be a P-256 (ES256) public key in PEM format')
+      .optional(),
+    JWT_PREVIOUS_KEY_ID: z.string().min(1).optional(),
+    JWT_ISSUER: z.string().min(1).default('the-game-api'),
+    JWT_AUDIENCE: z.string().min(1).default('the-game-app'),
+    ACCESS_TOKEN_TTL_SECONDS: z.coerce.number().int().min(60).default(900),
+    REFRESH_TOKEN_SLIDING_DAYS: z.coerce.number().int().min(1).default(60),
+    REFRESH_TOKEN_ABSOLUTE_DAYS: z.coerce.number().int().min(1).default(180),
+  })
+  .refine((env) => (env.JWT_PREVIOUS_PUBLIC_KEY === undefined) === (env.JWT_PREVIOUS_KEY_ID === undefined), {
+    message: 'set both or neither (key rotation)',
+    path: ['JWT_PREVIOUS_KEY_ID'],
+  })
+  .refine((env) => env.REFRESH_TOKEN_ABSOLUTE_DAYS >= env.REFRESH_TOKEN_SLIDING_DAYS, {
+    message: 'must be at least REFRESH_TOKEN_SLIDING_DAYS',
+    path: ['REFRESH_TOKEN_ABSOLUTE_DAYS'],
+  });
 
 type ConfigEnv = z.infer<typeof configSchema>;
 
@@ -33,6 +70,16 @@ export class AppConfig {
   readonly redisUrl: string;
   readonly httpBodyLimit: string;
   readonly outbox: { readonly pollIntervalMs: number; readonly batchSize: number };
+  readonly jwt: {
+    readonly privateKeyPem: string;
+    readonly keyId: string;
+    /** Still accepted for verification during a key rotation. */
+    readonly previous?: { readonly keyId: string; readonly publicKeyPem: string };
+    readonly issuer: string;
+    readonly audience: string;
+    readonly accessTokenTtlSeconds: number;
+  };
+  readonly refreshToken: { readonly slidingDays: number; readonly absoluteDays: number };
 
   constructor(env: ConfigEnv) {
     this.nodeEnv = env.NODE_ENV;
@@ -43,6 +90,17 @@ export class AppConfig {
     this.redisUrl = env.REDIS_URL;
     this.httpBodyLimit = env.HTTP_BODY_LIMIT;
     this.outbox = { pollIntervalMs: env.OUTBOX_POLL_INTERVAL_MS, batchSize: env.OUTBOX_BATCH_SIZE };
+    this.jwt = {
+      privateKeyPem: env.JWT_PRIVATE_KEY,
+      keyId: env.JWT_KEY_ID,
+      ...(env.JWT_PREVIOUS_PUBLIC_KEY && env.JWT_PREVIOUS_KEY_ID
+        ? { previous: { keyId: env.JWT_PREVIOUS_KEY_ID, publicKeyPem: env.JWT_PREVIOUS_PUBLIC_KEY } }
+        : {}),
+      issuer: env.JWT_ISSUER,
+      audience: env.JWT_AUDIENCE,
+      accessTokenTtlSeconds: env.ACCESS_TOKEN_TTL_SECONDS,
+    };
+    this.refreshToken = { slidingDays: env.REFRESH_TOKEN_SLIDING_DAYS, absoluteDays: env.REFRESH_TOKEN_ABSOLUTE_DAYS };
   }
 
   get isProduction(): boolean {
