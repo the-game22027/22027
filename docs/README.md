@@ -5,6 +5,7 @@ Status: **Architecture Design v0.1 (2026-11-07)**. Everything marked *Pending* n
 
 ## Read in this order
 
+0. [`PRD.md`](PRD.md): what the product does in v1.0, user stories, decided rules, open items by phase.
 1. [`architecture/00-overview.md`](architecture/00-overview.md): vision, scope split (confirmed / MVP / future), assumptions, risks, system diagrams.
 2. [`architecture/01-modules.md`](architecture/01-modules.md): module catalog, ownership, dependency rules, events, folder layout.
 3. [`architecture/02-database.md`](architecture/02-database.md): ERD, tables, constraints, indexes, retention.
