@@ -1,0 +1,24 @@
+# dependencies & builds
+node_modules/
+dist/
+coverage/
+.turbo/
+# env & secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+# python (data pipeline)
+__pycache__/
+.venv/
+*.pyc
+data/raw_downloads/
+data/bundles/*.jsonl
+# OS / editors
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+# local claude settings
+.claude/settings.local.json

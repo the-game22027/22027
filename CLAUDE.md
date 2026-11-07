@@ -1,0 +1,120 @@
+# CLAUDE.md — Football Social Prediction & Trivia Game
+
+This file is the always-loaded project memory for Claude Code and any coding agent.
+Read it fully before proposing designs, writing code, or writing prompts for other agents.
+Deeper references live in `docs/` (index: `docs/README.md`).
+
+---
+
+## 1. What we are building
+
+A football-focused **social gaming platform** (not a CRUD app, not a simple quiz app):
+
+- Match predictions (top-5 European leagues + national teams), private by default, editable until kickoff.
+- Man of the Match (MOTM) community voting, open for 1 hour after the authoritative match end.
+- **Core:** football trivia **battles** against other players, any time, **real-time only** over WebSockets: random 1v1 matchmaking with a bot fallback, and private rooms joined with a code. No Daily Quiz, no solo mode, no async play (ADR-0010).
+- Private leagues (prediction and battle competitions).
+- Leaderboards: weekly, monthly, seasonal, all-time. Monthly leader gets a prize.
+- Friends (mutual), privacy-aware prediction visibility.
+- A fact-first football knowledge database that feeds an offline question generator.
+
+Current phase: **Architecture Design → Phase 0 foundation**. See `docs/ROADMAP.md`.
+
+## 2. Hard constraints (do not violate)
+
+1. **Stack is fixed:** Node.js + TypeScript + NestJS, PostgreSQL + Prisma, Redis + BullMQ (only where justified), WebSockets (Socket.IO via `@nestjs/websockets`), Python for football data ingestion, Ollama for local AI, Docker Compose, OpenAPI/Swagger, Jest. Do **not** switch language, ORM, or framework.
+2. **Modular monolith.** No microservices, no Kafka, no event sourcing, no distributed real-time cluster until a measured bottleneck justifies it (`docs/adr/0001-modular-monolith.md`).
+3. **Zero budget.** No paid service may be *required* for development: no paid LLM APIs, paid football APIs, paid SMS, paid hosting, paid monitoring. Paid things are allowed only as optional production adapters behind a port, clearly labeled.
+4. **Mock football data first.** Real data replaces mocks later through the `FootballDataProvider` port.
+5. **The LLM is never on the gameplay request path.** Question generation is offline. The API must work with Ollama switched off.
+6. **The backend is authoritative** for: prediction lock (kickoff), MOTM voting window, battle state/timing/scoring (including bots), room membership, scores, leaderboards. Never trust client clocks or client-computed results.
+7. **Never invent open business rules.** Anything listed in `docs/DECISIONS.md` as TBD stays TBD: make it configuration (`scoring_rule_sets`, battle/room/matchmaking/bot config JSON) or an explicit `// TODO(DECISION-xx)` — never a hard-coded constant or a DB constraint.
+
+## 3. Architecture rules
+
+- Layering inside every module: `presentation → application → domain`; `infrastructure` implements ports defined in `application`/`domain`.
+- **Domain layer imports nothing from** NestJS, Prisma, Redis, BullMQ, Socket.IO, Ollama, or `process.env`. Plain TypeScript only. Time comes from an injected `Clock`.
+- Modules talk to each other only through the target module's public entry (`src/modules/<name>/index.ts`): application facades, query services, DTO types, event types. Never import another module's `domain/`, `infrastructure/`, or Prisma models directly.
+- Each table has exactly **one owning module**. Other modules never write to it; they read through the owner's query interface. FKs across modules are allowed (single database).
+- Cross-module async reactions use the **transactional outbox** (`outbox_events`) → BullMQ dispatch. Handlers must be idempotent. Same-request needs use direct facade calls.
+- Scores from every game mode go into the append-only **points ledger** (`point_entries`). Leaderboards are projections of the ledger, rebuildable at any time.
+- Avoid speculative abstractions. A port/interface must solve a real problem (testing time, swapping mock→real provider, single→multi instance). No generic `BaseRepository<T>`.
+- Full rules: `docs/architecture/01-modules.md`.
+
+## 4. Repository layout (target)
+
+```
+the-game/
+├── CLAUDE.md                 # this file
+├── docs/                     # architecture, API contract, decisions, ADRs, roadmap
+├── apps/backend/             # NestJS modular monolith (api + worker entrypoints)
+│   ├── src/main.api.ts       # HTTP + WebSocket process
+│   ├── src/main.worker.ts    # BullMQ processors + schedulers
+│   ├── src/modules/<module>/{domain,application,infrastructure,presentation}/
+│   ├── src/shared/           # kernel (Clock, ids, errors) + infra (prisma, redis, logger, outbox)
+│   ├── prisma/               # schema (one file per module), migrations, seed
+│   └── test/                 # e2e + integration (Testcontainers)
+├── data/                     # Python: football knowledge DB ingestion + question generation
+│   ├── ingest/  generate/  kb_migrations/  bundles/
+├── docker-compose.yml        # postgres, redis, (optional) ollama, prometheus, grafana
+└── .claude/skills/           # project skills: new-module, adr, agent-prompt
+```
+
+## 5. Coding conventions
+
+- TypeScript `strict: true`. No `any` in domain/application code.
+- File names `kebab-case.ts`; classes `PascalCase`; DB tables/columns `snake_case` (Prisma `@@map`/`@map`); API JSON `camelCase`.
+- IDs: UUID v7 generated in the application (`shared/kernel/id.ts`), stored as `uuid`.
+- All timestamps `timestamptz`, UTC in storage and API (ISO-8601 with `Z`). Period/timezone logic only in the leaderboard period calculator.
+- Validation: `class-validator` DTOs at the edge; invariants enforced again in domain.
+- Errors: domain errors are typed classes with stable `code` strings; mapped to RFC 9457 problem+json by one global filter (`docs/api/API.md` §4).
+- Transactions: `@nestjs-cls/transactional` with the Prisma adapter. Outbox rows are written in the same transaction as the state change.
+- Time-critical checks (kickoff lock, voting window) use the **database clock** (`now()`) inside the write statement, not `Date.now()` in Node.
+- Logging: `nestjs-pino`, structured JSON, `requestId` propagated, never log tokens/OTPs/phone numbers in full.
+- Tests: domain rules → unit tests (no Nest, no DB). Repositories/transactions/concurrency → integration tests against real Postgres/Redis via Testcontainers. Flows → e2e with Supertest and `socket.io-client`.
+- Git: never commit to `main` directly. Branch `feat/<phase>-<topic>`, `fix/…`, `docs/…`, `chore/…`; Conventional Commits (`feat(predictions): …`); one PR per coherent change using `.github/pull_request_template.md`; squash-merge. Roadmap phases are GitHub milestones (`P0 …`), issues use `type:*` and `area:<module>` labels. Remote: `github.com/the-game22027/game-backend` (mobile app: `game-mobile`).
+
+## 6. Commands (fill in as they become real)
+
+```bash
+docker compose up -d postgres redis         # local infra
+cd apps/backend && npm run start:api:dev     # API + WS
+cd apps/backend && npm run start:worker:dev  # background worker
+npm run test / test:integration / test:e2e
+npx prisma migrate dev                       # schema change
+npm run cli -- mock:simulate-match <id>      # drive mock match lifecycle (planned)
+npm run cli -- questions:import <bundle>     # import a validated question bundle (planned)
+```
+Update this section when commands change. Do not document commands that do not exist yet as if they work.
+
+## 7. Working agreement with the user (mentorship mode)
+
+- The user is a backend + mobile developer using this project as a serious learning journey.
+- **Talk to the user in English.** Be direct and precise, explain WHY and the trade-offs.
+- **Do not blindly agree.** If a request is a bad idea, say so, explain why, propose a better option.
+- Prompts written for coding agents: **professional English**, self-contained (the agent has not seen this conversation), with context, scope, constraints, expected behavior, acceptance criteria, tests, and explicit non-goals. Use the `agent-prompt` skill.
+- Do not start implementation code for a phase before its design section exists in `docs/`.
+- When an open decision blocks work: list options + trade-offs + a recommended default, keep it **Pending** in `docs/DECISIONS.md`, and continue with the default behind configuration.
+
+## 8. Where things are documented
+
+| Topic | File |
+|---|---|
+| Docs index | `docs/README.md` |
+| Vision, scope, assumptions, risks, system diagrams | `docs/architecture/00-overview.md` |
+| Modules, boundaries, dependency rules, events | `docs/architecture/01-modules.md` |
+| Database design + ERD | `docs/architecture/02-database.md` |
+| Prediction / MOTM / quiz battle (matchmaking, rooms, bots, engine) / Leaderboard / League workflows | `docs/architecture/03-workflows.md` |
+| Authentication and sessions | `docs/architecture/04-auth.md` |
+| Background jobs | `docs/architecture/05-background-jobs.md` |
+| Security, scalability, observability, testing | `docs/architecture/06-cross-cutting.md` |
+| Football data, knowledge DB, question generation | `docs/architecture/07-football-data-and-questions.md` |
+| REST contract | `docs/api/API.md` |
+| WebSocket (quiz battles + room lobby) contract | `docs/api/WEBSOCKET.md` |
+| Open decisions register | `docs/DECISIONS.md` |
+| Architecture Decision Records | `docs/adr/` |
+| Roadmap and phase exit criteria | `docs/ROADMAP.md` |
+| Domain vocabulary | `docs/GLOSSARY.md` |
+| Ready-to-use agent prompts | `docs/prompts/` |
+
+When a design changes, update the relevant doc **and** add/supersede an ADR in the same change.
