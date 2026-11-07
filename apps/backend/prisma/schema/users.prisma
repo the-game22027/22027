@@ -1,0 +1,52 @@
+// Owned by the users module (docs/architecture/02-database.md §4.1). Only `users` writes these tables.
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  PENDING_DELETION
+  DELETED
+
+  @@map("user_status")
+}
+
+model User {
+  id        String     @id @db.Uuid
+  status    UserStatus @default(ACTIVE)
+  createdAt DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt DateTime?  @map("deleted_at") @db.Timestamptz(3)
+
+  profile         UserProfile?
+  privacySettings UserPrivacySettings?
+
+  @@map("users")
+}
+
+model UserProfile {
+  userId      String   @id @map("user_id") @db.Uuid
+  /// 1..40 characters, validated in the application.
+  displayName String   @map("display_name")
+  /// Optional public handle, unique ignoring case.
+  username    String?  @unique @db.Citext
+  avatarUrl   String?  @map("avatar_url")
+  /// 'ar' | 'en'. Arabic first.
+  locale      String   @default("ar")
+  countryCode String?  @map("country_code") @db.Char(2)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  // favourite_team_id arrives in P2 with the teams table.
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_profiles")
+}
+
+model UserPrivacySettings {
+  userId               String   @id @map("user_id") @db.Uuid
+  /// Unused in v1.0: visibility is fixed to friends-after-kickoff (DEC-21). Kept for future settings.
+  predictionVisibility String?  @map("prediction_visibility")
+  updatedAt            DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_privacy_settings")
+}
