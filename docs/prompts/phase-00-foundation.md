@@ -35,7 +35,7 @@ Constraints that are not negotiable:
 7. **Outbox + BullMQ:**
    - Prisma model + migration for `outbox_events` as specified in `docs/architecture/02-database.md` §4.13.
    - `OutboxWriter` (application-facing service) that inserts events inside the current transaction.
-   - `OutboxPublisher` loop (worker only): claims unpublished rows with `FOR UPDATE SKIP LOCKED` in batches, adds BullMQ jobs to subscriber queues with `jobId = <eventId>:<subscriber>`, marks rows published, records `attempts`/`last_error` on failure.
+   - `OutboxPublisher` loop (worker only): claims unpublished rows with `FOR UPDATE SKIP LOCKED` in batches, adds BullMQ jobs to subscriber queues with `jobId = <eventId>__<subscriber>` (BullMQ rejects `:` in custom ids), marks rows published, records `attempts`/`last_error` on failure.
    - A simple subscription registry: handlers declare which event types they consume and which queue they run on.
    - BullMQ defaults from `docs/architecture/05-background-jobs.md` §4 (attempts, exponential backoff with jitter, retention).
    - Bull Board mounted at `/admin/queues` only when `NODE_ENV !== 'production'`.

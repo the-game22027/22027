@@ -243,7 +243,7 @@ src/modules/predictions/
 ### 6.1 Mechanism (ADR-0004)
 
 - Use cases write `outbox_events` rows **in the same transaction** as the state change.
-- The worker's outbox publisher claims unpublished rows (`FOR UPDATE SKIP LOCKED`), adds a BullMQ job per subscriber queue with `jobId = <eventId>:<subscriber>` (dedup), and marks the row published.
+- The worker's outbox publisher claims unpublished rows (`FOR UPDATE SKIP LOCKED`), adds a BullMQ job per subscriber queue with `jobId = <eventId>__<subscriber>` (dedup; BullMQ rejects `:` in custom job ids), and marks the row published.
 - Delivery is **at-least-once**. Every handler is idempotent through natural unique keys (for example `point_entries(source_type, source_id, rule_set_id)`).
 - Event payloads are small, versioned (`type`, `version`, `occurredAt`, `aggregateId`, `data`), and contain IDs, not full entities.
 

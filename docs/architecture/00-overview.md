@@ -165,7 +165,7 @@ sequenceDiagram
   UC->>DB: BEGIN; state change; INSERT outbox_events; COMMIT
   loop every ~1s
     OP->>DB: SELECT ... FOR UPDATE SKIP LOCKED (unpublished)
-    OP->>Q: add job (jobId = outbox event id)
+    OP->>Q: add one job per subscriber (jobId = eventId__subscriber)
     OP->>DB: mark published_at
   end
   Q->>H: deliver job (at-least-once)
