@@ -56,7 +56,9 @@ function render(exception: unknown): Captured {
 }
 
 describe('ProblemDetailsFilter', () => {
-  beforeAll(() => Logger.overrideLogger(false));
+  beforeAll(() => {
+    Logger.overrideLogger(false);
+  });
 
   it('maps a domain error by kind, keeping its stable code', () => {
     const { status, contentType, body } = render(new PredictionLockedError());
