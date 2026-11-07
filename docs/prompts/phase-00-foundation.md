@@ -9,7 +9,7 @@
 You are implementing the foundation of a **Football Social Prediction & Trivia Game** backend: a NestJS **modular monolith** (TypeScript) with PostgreSQL (Prisma), Redis, and BullMQ. Future modules include auth, users, football (matches), predictions, MOTM voting, question bank, real-time quiz battles (Socket.IO; random matchmaking, private rooms, bot opponents; the only quiz mode), points ledger, leaderboards, leagues, and social. **This phase builds only the skeleton and cross-cutting infrastructure that every module will use.** The repository already contains `CLAUDE.md` and `docs/` with the architecture. Read `CLAUDE.md`, `docs/architecture/01-modules.md`, `docs/architecture/05-background-jobs.md` and `docs/architecture/06-cross-cutting.md` before writing code, and follow them.
 
 Constraints that are not negotiable:
-- Stack: Node.js LTS, TypeScript (`strict`), NestJS (latest stable), Prisma (latest stable), PostgreSQL 16+, Redis 7+, BullMQ, Jest. Do not introduce another ORM, framework, or language.
+- Stack: Node.js 24 LTS, TypeScript (`strict`), NestJS (latest stable), Prisma (latest stable), PostgreSQL 16+, Redis 7+, BullMQ, Jest. Do not introduce another ORM, framework, or language.
 - Zero budget: only free/open-source dependencies and local Docker services.
 - No business features in this phase (no users, matches, predictions...).
 - Domain layer code must never import NestJS, Prisma, Redis, BullMQ, or read `process.env`.

@@ -18,7 +18,7 @@ A football-focused **social gaming platform** (not a CRUD app, not a simple quiz
 - Friends (mutual), privacy-aware prediction visibility.
 - A fact-first football knowledge database that feeds an offline question generator.
 
-Current phase: **Architecture Design → Phase 0 foundation**. See `docs/ROADMAP.md`.
+Current phase: **Phase 0 foundation implemented (backend skeleton); next: Phase 1 auth + users**. See `docs/ROADMAP.md`.
 
 ## 2. Hard constraints (do not violate)
 
@@ -75,17 +75,37 @@ the-game/
 - Tests: domain rules → unit tests (no Nest, no DB). Repositories/transactions/concurrency → integration tests against real Postgres/Redis via Testcontainers. Flows → e2e with Supertest and `socket.io-client`.
 - Git: never commit to `main` directly. Branch `feat/<phase>-<topic>`, `fix/…`, `docs/…`, `chore/…`; Conventional Commits (`feat(predictions): …`); one PR per coherent change using `.github/pull_request_template.md`. **Merge with a merge commit, never squash or rebase** (`git merge --no-ff`, or `gh pr merge --merge`), so every individual commit stays visible in `main`'s history under its merge commit. Because each commit is kept, every commit must be meaningful: one logical step, a Conventional Commit message, building and passing tests on its own where practical; clean up WIP commits before opening the PR. Roadmap phases are GitHub milestones (`P0 …`), issues use `type:*` and `area:<module>` labels. Commit scopes name the area: `feat(backend/predictions): …`, `feat(mobile): …`, `docs(api): …`. Each app keeps its own toolchain (no root build orchestrator); CI jobs are path-filtered per app. A contract change updates `docs/api/`, the backend and the regenerated mobile client in the same PR when possible. Remote: `github.com/the-game22027/the-game`.
 
-## 6. Commands (fill in as they become real)
+## 6. Commands
+
+Requires **Node 24 LTS** (`.node-version`; `fnm use` / `nvm use`) and Docker. NestJS 12 is ESM-only and Jest needs Node 24.9+ to load it.
 
 ```bash
-docker compose up -d postgres redis         # local infra
-cd apps/backend && npm run start:api:dev     # API + WS
-cd apps/backend && npm run start:worker:dev  # background worker
-npm run test / test:integration / test:e2e
-npx prisma migrate dev                       # schema change
-npm run cli -- mock:simulate-match <id>      # drive mock match lifecycle (planned)
-npm run cli -- questions:import <bundle>     # import a validated question bundle (planned)
+# one-time
+docker compose up -d postgres redis          # Postgres on localhost:5440, Redis on localhost:6379
+cd apps/backend && cp .env.example .env && npm install   # postinstall runs prisma generate
+npm run prisma:deploy                        # apply migrations
+
+# run (from apps/backend)
+npm run start:api:dev        # API + WS on :3000  → /health/ready, /docs, /admin/queues, /metrics
+npm run start:worker:dev     # worker on :3100    → outbox publisher, /health/ready, /metrics
+
+# quality (from apps/backend)
+npm run lint | format | format:check | typecheck
+npm run depcheck:boundaries  # module boundary rules (dependency-cruiser)
+npm test                     # unit
+npm run test:integration     # Testcontainers: real Postgres + Redis (Docker required)
+npm run test:e2e             # full HTTP flows, Testcontainers
+
+# database (from apps/backend)
+npm run prisma:migrate -- --name <change>    # create + apply a migration in dev
+npm run prisma:generate
+
+# optional infrastructure (repo root)
+docker compose --profile observability up -d # Prometheus :9090, Grafana :3001
+docker compose --profile ai up -d ollama     # local LLM for the offline question pipeline
 ```
+
+Planned, not implemented yet: `npm run cli -- mock:simulate-match <id>` (P2), `npm run cli -- questions:import <bundle>` (P5).
 Update this section when commands change. Do not document commands that do not exist yet as if they work.
 
 ## 7. Working agreement with the user (mentorship mode)

@@ -10,11 +10,11 @@ The API contract in `docs/api/` is the source of truth for both the backend and 
 
 ## Status
 
-**Architecture design v0.1 is complete; implementation starts with Phase 0 (foundation).** No application code yet. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
+**Phase 0 (backend foundation) is in place;** business features start with Phase 1. Run it: see `CLAUDE.md` §6. See [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
 ## Stack
 
-Mobile: Flutter (`apps/mobile`). Backend: NestJS + TypeScript (modular monolith) · PostgreSQL + Prisma · Redis + BullMQ · Socket.IO · Python (knowledge-base ingestion and offline question generation) · Ollama (local, optional, never on the request path) · Docker Compose · Jest. Zero-budget: no paid service is required for development.
+Mobile: Flutter (`apps/mobile`). Backend: Node 24 LTS · NestJS 12 + TypeScript (modular monolith) · PostgreSQL + Prisma · Redis + BullMQ · Socket.IO · Python (knowledge-base ingestion and offline question generation) · Ollama (local, optional, never on the request path) · Docker Compose · Jest. Zero-budget: no paid service is required for development.
 
 ## Where to start
 
