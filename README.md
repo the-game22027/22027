@@ -37,4 +37,4 @@ docs/           architecture, API contract, decisions, ADRs, roadmap
 
 ## Contributing workflow
 
-Branch from `main` (`feat/…`, `fix/…`, `docs/…`, `chore/…`), use [Conventional Commits](https://www.conventionalcommits.org/) with an area scope (`feat(mobile): …`, `feat(backend/battles): …`), open a pull request using the template, and squash-merge. A design change updates the relevant doc and adds an ADR in the same PR.
+Branch from `main` (`feat/…`, `fix/…`, `docs/…`, `chore/…`), use [Conventional Commits](https://www.conventionalcommits.org/) with an area scope (`feat(mobile): …`, `feat(backend/battles): …`), open a pull request using the template, and merge it with a merge commit (`--no-ff`; squash and rebase merges are disabled) so each commit stays visible in history. A design change updates the relevant doc and adds an ADR in the same PR.
