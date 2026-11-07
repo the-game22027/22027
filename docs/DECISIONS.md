@@ -4,6 +4,8 @@ Every business rule that is **not decided** lives here. Code must treat these as
 
 Status values: **Pending** (default in use, awaiting approval) · **Decided (date)** · **Deferred** (not needed until a later phase).
 
+**Tuning values are deferred (product owner, 2026-11-07):** counts, durations, point values, wait times and windows (e.g. DEC-01, DEC-22 limits, DEC-24 N days, DEC-28, DEC-31, DEC-32, DEC-33 values, DEC-38 size, DEC-39 wait, DEC-43, DEC-44 window) are decided at playtesting, before release. Until then they live in config with obviously fake `DEV_ONLY` seed values. Only structural rules (what happens, who can do what) are decided during design.
+
 When a decision is made: update its row (status, chosen option, date), update the config default, and add an ADR if it changes architecture.
 
 ## Predictions
