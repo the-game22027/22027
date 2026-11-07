@@ -1,6 +1,6 @@
 # Documentation Index
 
-Technical reference for the Football Social Prediction & Trivia Game.
+Technical reference for the Football Social Prediction & Trivia Game. The repository is a monorepo: `apps/backend`, `apps/mobile`, `data/`, `docs/` (ADR-0011).
 Status: **Architecture Design v0.1 (2026-11-07)**. Everything marked *Pending* needs the product owner's approval.
 
 ## Read in this order

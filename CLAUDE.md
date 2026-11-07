@@ -8,7 +8,7 @@ Deeper references live in `docs/` (index: `docs/README.md`).
 
 ## 1. What we are building
 
-A football-focused **social gaming platform** (not a CRUD app, not a simple quiz app):
+A football-focused **social gaming platform** (not a CRUD app, not a simple quiz app). This is a **monorepo** holding the backend, the mobile app, the data pipeline and the docs (ADR-0011):
 
 - Match predictions (top-5 European leagues + national teams), private by default, editable until kickoff.
 - Man of the Match (MOTM) community voting, open for 1 hour after the authoritative match end.
@@ -22,13 +22,13 @@ Current phase: **Architecture Design → Phase 0 foundation**. See `docs/ROADMAP
 
 ## 2. Hard constraints (do not violate)
 
-1. **Stack is fixed:** Node.js + TypeScript + NestJS, PostgreSQL + Prisma, Redis + BullMQ (only where justified), WebSockets (Socket.IO via `@nestjs/websockets`), Python for football data ingestion, Ollama for local AI, Docker Compose, OpenAPI/Swagger, Jest. Do **not** switch language, ORM, or framework.
+1. **Stack is fixed:** Node.js + TypeScript + NestJS, PostgreSQL + Prisma, Redis + BullMQ (only where justified), WebSockets (Socket.IO via `@nestjs/websockets`), Python for football data ingestion, Ollama for local AI, Docker Compose, OpenAPI/Swagger, Jest. Do **not** switch language, ORM, or framework. Mobile app: **Flutter** in `apps/mobile` (assumption A-09, confirm before scaffolding).
 2. **Modular monolith.** No microservices, no Kafka, no event sourcing, no distributed real-time cluster until a measured bottleneck justifies it (`docs/adr/0001-modular-monolith.md`).
 3. **Zero budget.** No paid service may be *required* for development: no paid LLM APIs, paid football APIs, paid SMS, paid hosting, paid monitoring. Paid things are allowed only as optional production adapters behind a port, clearly labeled.
 4. **Mock football data first.** Real data replaces mocks later through the `FootballDataProvider` port.
 5. **The LLM is never on the gameplay request path.** Question generation is offline. The API must work with Ollama switched off.
 6. **The backend is authoritative** for: prediction lock (kickoff), MOTM voting window, battle state/timing/scoring (including bots), room membership, scores, leaderboards. Never trust client clocks or client-computed results.
-7. **Never invent open business rules.** Anything listed in `docs/DECISIONS.md` as TBD stays TBD: make it configuration (`scoring_rule_sets`, battle/room/matchmaking/bot config JSON) or an explicit `// TODO(DECISION-xx)` — never a hard-coded constant or a DB constraint.
+7. **Never invent open business rules.** Anything listed in `docs/DECISIONS.md` as TBD stays TBD: make it configuration (`scoring_rule_sets`, battle/room/matchmaking/bot config JSON) or an explicit `// TODO(DEC-xx)` — never a hard-coded constant or a DB constraint.
 
 ## 3. Architecture rules
 
@@ -41,12 +41,13 @@ Current phase: **Architecture Design → Phase 0 foundation**. See `docs/ROADMAP
 - Avoid speculative abstractions. A port/interface must solve a real problem (testing time, swapping mock→real provider, single→multi instance). No generic `BaseRepository<T>`.
 - Full rules: `docs/architecture/01-modules.md`.
 
-## 4. Repository layout (target)
+## 4. Repository layout (target, monorepo — ADR-0011)
 
 ```
 the-game/
 ├── CLAUDE.md                 # this file
 ├── docs/                     # architecture, API contract, decisions, ADRs, roadmap
+├── apps/mobile/              # Flutter app; REST client generated from the backend's openapi.json
 ├── apps/backend/             # NestJS modular monolith (api + worker entrypoints)
 │   ├── src/main.api.ts       # HTTP + WebSocket process
 │   ├── src/main.worker.ts    # BullMQ processors + schedulers
@@ -72,7 +73,7 @@ the-game/
 - Time-critical checks (kickoff lock, voting window) use the **database clock** (`now()`) inside the write statement, not `Date.now()` in Node.
 - Logging: `nestjs-pino`, structured JSON, `requestId` propagated, never log tokens/OTPs/phone numbers in full.
 - Tests: domain rules → unit tests (no Nest, no DB). Repositories/transactions/concurrency → integration tests against real Postgres/Redis via Testcontainers. Flows → e2e with Supertest and `socket.io-client`.
-- Git: never commit to `main` directly. Branch `feat/<phase>-<topic>`, `fix/…`, `docs/…`, `chore/…`; Conventional Commits (`feat(predictions): …`); one PR per coherent change using `.github/pull_request_template.md`; squash-merge. Roadmap phases are GitHub milestones (`P0 …`), issues use `type:*` and `area:<module>` labels. Remote: `github.com/the-game22027/game-backend` (mobile app: `game-mobile`).
+- Git: never commit to `main` directly. Branch `feat/<phase>-<topic>`, `fix/…`, `docs/…`, `chore/…`; Conventional Commits (`feat(predictions): …`); one PR per coherent change using `.github/pull_request_template.md`; squash-merge. Roadmap phases are GitHub milestones (`P0 …`), issues use `type:*` and `area:<module>` labels. Commit scopes name the area: `feat(backend/predictions): …`, `feat(mobile): …`, `docs(api): …`. Each app keeps its own toolchain (no root build orchestrator); CI jobs are path-filtered per app. A contract change updates `docs/api/`, the backend and the regenerated mobile client in the same PR when possible. Remote: `github.com/the-game22027/the-game`.
 
 ## 6. Commands (fill in as they become real)
 
