@@ -8,7 +8,7 @@
 - Dedupe queue jobs by id: our outbox job id is `<eventId>__<subscriber>`, so BullMQ ignores a second add.
 - Write conditional updates: `UPDATE … WHERE status <> 'VOID'`.
 
-**In our code:** `outboxJobId` in [outbox-event.ts](../apps/backend/src/shared/infrastructure/outbox/outbox-event.ts); the "publish twice" test in [outbox.int-spec.ts](../apps/backend/test/integration/outbox.int-spec.ts).
+**In our code:** `outboxJobId` in [outbox-event.ts](../../apps/backend/src/shared/infrastructure/outbox/outbox-event.ts); the "publish twice" test in [outbox.int-spec.ts](../../apps/backend/test/integration/outbox.int-spec.ts).
 
 **Watch out:** "check if it exists, then insert" is not idempotent under concurrency (two requests both see "not exists"). Use a unique constraint.
 

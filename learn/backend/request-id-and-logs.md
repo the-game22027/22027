@@ -9,7 +9,7 @@
 - Log JSON (pino), not text: machines can filter `requestId = "abc"`.
 - **Redact** secrets before they reach the logs: tokens, auth codes, passwords.
 
-**In our code:** [request-id.ts](../apps/backend/src/shared/infrastructure/request-context/request-id.ts), [logger-options.ts](../apps/backend/src/shared/infrastructure/logging/logger-options.ts) (redaction), `traceId` in problem+json.
+**In our code:** [request-id.ts](../../apps/backend/src/shared/infrastructure/request-context/request-id.ts), [logger-options.ts](../../apps/backend/src/shared/infrastructure/logging/logger-options.ts) (redaction), `traceId` in problem+json.
 
 **Watch out:** validate the incoming id (charset, length). Otherwise attackers can inject fake log lines.
 

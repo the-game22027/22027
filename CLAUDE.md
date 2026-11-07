@@ -111,7 +111,7 @@ Update this section when commands change. Do not document commands that do not e
 ## 7. Working agreement with the user (mentorship mode)
 
 - The user is a backend + mobile developer using this project as a serious learning journey.
-- **Teach while building.** The user is learning backend, DevOps and software engineering (already a mobile developer). For every feature or bug fix, name the concepts involved and add or update a card in `learn/` (format and index in `learn/README.md`): one concept per file, to the point, max ~30 lines, linked to our real code. No long explanations of easy things.
+- **Teach while building.** The user is learning backend, DevOps and software engineering (already a mobile developer). For every feature or bug fix, name the concepts involved and add or update a card in the matching track folder of `learn/` (`backend/`, `database/`, `devops/`, `mobile/`, …; format and index in `learn/README.md`): one concept per file, to the point, max ~30 lines, linked to our real code. No long explanations of easy things.
 - **Talk to the user in English.** Be direct and precise, explain WHY and the trade-offs.
 - **Do not blindly agree.** If a request is a bad idea, say so, explain why, propose a better option.
 - Prompts written for coding agents: **professional English**, self-contained (the agent has not seen this conversation), with context, scope, constraints, expected behavior, acceptance criteria, tests, and explicit non-goals. Use the `agent-prompt` skill.

@@ -8,7 +8,7 @@
 - The worker polls unpublished rows with `FOR UPDATE SKIP LOCKED` (two workers never grab the same row), adds BullMQ jobs, and marks the rows published.
 - Delivery is **at-least-once**: a job can arrive twice, so handlers must be [idempotent](idempotency.md).
 
-**In our code:** [outbox.writer.ts](../apps/backend/src/shared/infrastructure/outbox/outbox.writer.ts) (throws outside a transaction), [outbox.publisher.ts](../apps/backend/src/shared/infrastructure/outbox/outbox.publisher.ts), [outbox.int-spec.ts](../apps/backend/test/integration/outbox.int-spec.ts).
+**In our code:** [outbox.writer.ts](../../apps/backend/src/shared/infrastructure/outbox/outbox.writer.ts) (throws outside a transaction), [outbox.publisher.ts](../../apps/backend/src/shared/infrastructure/outbox/outbox.publisher.ts), [outbox.int-spec.ts](../../apps/backend/test/integration/outbox.int-spec.ts).
 
 **Watch out:** never call Redis or HTTP *inside* the DB transaction. It holds locks while waiting on the network.
 

@@ -8,7 +8,7 @@
 - Modules talk only through the other module's `index.ts` (its public API), or through events.
 - A tool (dependency-cruiser) fails the build when someone breaks a wall.
 
-**In our code:** [.dependency-cruiser.cjs](../apps/backend/.dependency-cruiser.cjs), [ADR-0001](../docs/adr/0001-modular-monolith.md), `npm run depcheck:boundaries`.
+**In our code:** [.dependency-cruiser.cjs](../../apps/backend/.dependency-cruiser.cjs), [ADR-0001](../../docs/adr/0001-modular-monolith.md), `npm run depcheck:boundaries`.
 
 **Watch out:** walls only work if they are enforced by a tool. Rules in a doc alone get broken in a week.
 

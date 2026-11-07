@@ -8,7 +8,7 @@
 - A **port** is an interface the inner layer defines (`Clock`, `FootballDataProvider`). `infrastructure` implements it (`SystemClock`, `MockFootballProvider`).
 - Dependencies point inward only. The domain never imports NestJS, Prisma or `process.env`.
 
-**In our code:** [clock.ts](../apps/backend/src/shared/kernel/clock.ts) (port `Clock`, adapters `SystemClock` and `FixedClock` for tests), [modules/README.md](../apps/backend/src/modules/README.md).
+**In our code:** [clock.ts](../../apps/backend/src/shared/kernel/clock.ts) (port `Clock`, adapters `SystemClock` and `FixedClock` for tests), [modules/README.md](../../apps/backend/src/modules/README.md).
 
 **Watch out:** don't add a port "just in case". Add one only to swap an implementation or to control time or randomness in tests.
 

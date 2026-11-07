@@ -8,7 +8,7 @@
 - `/health/ready` pings Postgres and Redis with timeouts. If it fails, stop sending traffic but don't restart.
 - Ready returns `503` with the per-dependency result, so you see *which* dependency is down.
 
-**In our code:** [health.controller.ts](../apps/backend/src/shared/infrastructure/health/health.controller.ts), [redis.health.ts](../apps/backend/src/shared/infrastructure/health/redis.health.ts), [health.int-spec.ts](../apps/backend/test/integration/health.int-spec.ts).
+**In our code:** [health.controller.ts](../../apps/backend/src/shared/infrastructure/health/health.controller.ts), [redis.health.ts](../../apps/backend/src/shared/infrastructure/health/redis.health.ts), [health.int-spec.ts](../../apps/backend/test/integration/health.int-spec.ts).
 
 **Watch out:** every check needs a timeout. A hanging ping makes the health endpoint hang too.
 

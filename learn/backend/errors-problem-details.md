@@ -8,7 +8,7 @@
 - `ProblemDetailsFilter` (`@Catch()`) maps `kind` → status and renders `application/problem+json`: `type`, `title`, `status`, `code`, `instance`, `traceId`.
 - Unknown errors become `500 INTERNAL` with no internals leaked.
 
-**In our code:** [domain-error.ts](../apps/backend/src/shared/kernel/domain-error.ts), [problem-details.ts](../apps/backend/src/shared/infrastructure/http/problem-details.ts), [problem-details.filter.ts](../apps/backend/src/shared/infrastructure/http/problem-details.filter.ts).
+**In our code:** [domain-error.ts](../../apps/backend/src/shared/kernel/domain-error.ts), [problem-details.ts](../../apps/backend/src/shared/infrastructure/http/problem-details.ts), [problem-details.filter.ts](../../apps/backend/src/shared/infrastructure/http/problem-details.filter.ts).
 
 **Watch out:** clients should branch on `code`, never on the `title` text (it can change or be translated).
 

@@ -8,7 +8,7 @@
 - `npm run prisma:deploy` (`migrate deploy`) applies pending migrations without generating anything. Use it in CI, tests and production.
 - Prisma records applied migrations in `_prisma_migrations`.
 
-**In our code:** [prisma/migrations/](../apps/backend/prisma/migrations/), [global-setup.ts](../apps/backend/test/support/global-setup.ts) (runs `migrate deploy` on the test container).
+**In our code:** [prisma/migrations/](../../apps/backend/prisma/migrations/), [global-setup.ts](../../apps/backend/test/support/global-setup.ts) (runs `migrate deploy` on the test container).
 
 **Watch out:** never edit a migration that is already merged. Write a new one. On big tables, a column with a default or a new index can lock writes: split risky changes into steps.
 

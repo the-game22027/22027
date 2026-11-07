@@ -9,7 +9,7 @@
 - For interfaces (which don't exist at runtime) use a **token**: `@Inject(CLOCK) clock: Clock`.
 - Default scope is a singleton: one instance for the whole app.
 
-**In our code:** [outbox.writer.ts](../apps/backend/src/shared/infrastructure/outbox/outbox.writer.ts) (constructor gets `TransactionHost`, `ID_GENERATOR`, `CLOCK`), [kernel.module.ts](../apps/backend/src/shared/infrastructure/kernel/kernel.module.ts).
+**In our code:** [outbox.writer.ts](../../apps/backend/src/shared/infrastructure/outbox/outbox.writer.ts) (constructor gets `TransactionHost`, `ID_GENERATOR`, `CLOCK`), [kernel.module.ts](../../apps/backend/src/shared/infrastructure/kernel/kernel.module.ts).
 
 **Watch out:** a singleton must not keep per-request state in fields. Use the request context (CLS) instead.
 

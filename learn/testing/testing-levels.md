@@ -8,7 +8,7 @@
 - **Integration** (`*.int-spec.ts`): real Postgres and Redis in throwaway Docker containers (Testcontainers). Tests transactions, `SKIP LOCKED`, queues.
 - **E2E** (`*.e2e-spec.ts`): boot the real app, call HTTP with Supertest, assert status and body.
 
-**In our code:** [outbox.int-spec.ts](../apps/backend/test/integration/outbox.int-spec.ts) caught a real deadlock; [http.e2e-spec.ts](../apps/backend/test/e2e/http.e2e-spec.ts); [global-setup.ts](../apps/backend/test/support/global-setup.ts).
+**In our code:** [outbox.int-spec.ts](../../apps/backend/test/integration/outbox.int-spec.ts) caught a real deadlock; [http.e2e-spec.ts](../../apps/backend/test/e2e/http.e2e-spec.ts); [global-setup.ts](../../apps/backend/test/support/global-setup.ts).
 
 **Watch out:** a test that never fails proves nothing. Break the code once on purpose and watch the test go red.
 
