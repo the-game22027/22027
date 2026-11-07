@@ -36,7 +36,7 @@
 | **Outbox** | `outbox_events` table written in the same transaction as a state change, published to BullMQ by the worker |
 | **Public entry** | A module's `index.ts`, the only thing other modules may import |
 | **Provider (football)** | Source of operational match data behind `FootballDataProvider` (mock now) |
-| **Provider (auth)** | Google, Facebook, X, phone: sources of verified identities |
+| **Provider (auth)** | Google, Facebook, X (Apple pending, DEC-48): sources of verified identities |
 | **Identity** | `(provider, provider_subject)` pointing to one internal user |
 | **Session family** | Chain of rotated refresh tokens; reuse of an old one revokes the whole family |
 | **Knowledge base (KB)** | `football_kb` database of verified football facts with provenance, owned by the Python pipeline |

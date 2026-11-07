@@ -76,8 +76,6 @@ Content-Type: application/problem+json
 | `ACCOUNT_EXISTS_FOR_EMAIL` | 409 | Verified email belongs to another account (`linkWith` hint) |
 | `IDENTITY_ALREADY_LINKED` | 409 | Provider identity belongs to another user |
 | `LAST_IDENTITY` | 409 | Cannot unlink the only identity |
-| `OTP_INVALID` / `OTP_EXPIRED` | 400 | Phone verification |
-| `OTP_TOO_MANY_ATTEMPTS` | 429 | Attempts exhausted |
 | `REFRESH_TOKEN_REUSED` | 401 | Rotated token presented again (session family revoked) |
 | `MATCH_NOT_PREDICTABLE` | 409 | Match status not `SCHEDULED` (postponed, cancelled...) |
 | `PREDICTION_LOCKED` | 409 | Kickoff reached |
@@ -111,7 +109,7 @@ interface SessionInfo { id: string; platform?: string; deviceName?: string; crea
 
 // ---- Users ----
 interface Me { id: string; displayName: string; username?: string | null; avatarUrl?: string | null; locale: 'ar' | 'en';
-  favouriteTeamId?: string | null; identities: { id: string; provider: 'GOOGLE'|'FACEBOOK'|'X'|'PHONE'; label: string }[];
+  favouriteTeamId?: string | null; identities: { id: string; provider: 'GOOGLE'|'FACEBOOK'|'X'; label: string }[];
   privacy: { predictionVisibility: string | null } }
 interface PublicUser { id: string; displayName: string; username?: string | null; avatarUrl?: string | null }
 
@@ -188,8 +186,6 @@ Legend: **Auth** P = public, U = authenticated user. **MVP** ✅ / Future 🔜.
 | ✅ | POST | `/v1/auth/google` | P | `{idToken}` → `AuthTokens` (`201` new user / `200` existing) |
 | ✅ | POST | `/v1/auth/facebook` | P | `{accessToken}` or `{authenticationToken, nonce}` |
 | ✅ | POST | `/v1/auth/x` | P | `{code, codeVerifier, redirectUri}` |
-| ✅ | POST | `/v1/auth/phone/otp` | P | `{phone}` → `202`; strict rate limit; same response whether or not an account exists |
-| ✅ | POST | `/v1/auth/phone/verify` | P | `{phone, code}` → `AuthTokens` |
 | ✅ | POST | `/v1/auth/refresh` | P (refresh token) | `{refreshToken}` → `AuthTokens` (rotation) |
 | ✅ | POST | `/v1/auth/logout` | U | Revoke current session → `204` |
 | ✅ | GET | `/v1/auth/sessions` | U | `SessionInfo[]` |
@@ -321,7 +317,6 @@ Mock match control and question import are **CLI commands**, not HTTP endpoints,
 | Route group | Limit |
 |---|---|
 | Global per IP | 300 req/min |
-| `POST /auth/phone/otp` | 1/min and 5/hour per phone; 20/hour per IP |
 | `POST /auth/*` other | 20/min per IP |
 | User search | 30/min per user |
 | Friend requests / league joins | 30/hour per user |

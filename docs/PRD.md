@@ -34,7 +34,7 @@ Assumptions: native mobile apps on Android and iOS (A-01, Flutter A-09); one pla
 
 | # | Feature | Section |
 |---|---|---|
-| F1 | Accounts and sign-in (Google, phone, Facebook, X) | 5.1 |
+| F1 | Accounts and sign-in (Google, Facebook, X) | 5.1 |
 | F2 | Matches and predictions | 5.2 |
 | F3 | Man of the Match voting | 5.3 |
 | F4 | Quiz battles: random matchmaking, bots, private rooms (**core**) | 5.4 |
@@ -50,16 +50,16 @@ Each feature lists user stories, the rules that apply (decided or open), and acc
 ### 5.1 F1 — Accounts and sign-in
 
 **Stories**
-- As a new user, I sign in with Google, Facebook, X or my phone number, without creating a password.
+- As a new user, I sign in with Google, Facebook or X, without creating a password or typing a code.
 - As a user, I link several sign-in methods to one account and unlink any but the last.
 - As a user, I see my active sessions, sign out of one or all, and delete my account.
 
 **Rules**
-- All four providers ship in v1.0 (DEC-26). Accounts are never merged automatically by email (`04-auth.md`).
+- Google, Facebook and X ship in v1.0 (DEC-26). No phone number sign-in, so no SMS cost (ADR-0012). Accounts are never merged automatically by email (`04-auth.md`).
 - Account deletion anonymizes the profile; points history stays for leaderboard integrity (`04-auth.md` §8).
 - Profile: display name, optional username, avatar, language (Arabic default), favourite team.
 
-**Open:** production SMS vendor for phone codes (DEC-26, paid, decide before release); identity broker approach (DEC-25, recommended in-house).
+**Open:** Sign in with Apple for the iOS release (DEC-48, App Store guideline 4.8); identity broker approach (DEC-25, recommended in-house).
 
 ### 5.2 F2 — Matches and predictions
 
@@ -164,7 +164,7 @@ Each feature lists user stories, the rules that apply (decided or open), and acc
 | Language | Arabic (default, right-to-left) and English throughout, including questions and team/player names |
 | Real-time | Battles stay consistent through duplicate, late and lost messages and short disconnects (`api/WEBSOCKET.md`) |
 | Scale at launch | < 50k registered, < 2k concurrent, < 200 concurrent battles on one server (A-07); scaling path in `06-cross-cutting.md` |
-| Cost | No paid service needed during development; release costs are store accounts, a server, a domain, backups, SMS and possibly football data |
+| Cost | No paid service needed during development; release costs are store accounts, a server, a domain, backups and possibly football data |
 | Legal | Official prize rules and store requirements before the first prize (K-07); data source licences respected (attribution screen) |
 
 ## 7. Success metrics (Recommended)
@@ -185,7 +185,7 @@ Each feature lists user stories, the rules that apply (decided or open), and acc
 | P4 Leaderboards | DEC-15/16 timezone and boundaries, DEC-17 season, DEC-23 tie-breaks, DEC-47 prize per board |
 | Playtesting (before release) | All tuning values: DEC-01, DEC-22, DEC-24, DEC-28, DEC-31, DEC-32, DEC-33, DEC-38, DEC-39, DEC-42, DEC-43, DEC-44 |
 | R1 Real data | DEC-45 provider, DEC-27 lineups source |
-| R2 Store release | DEC-26 SMS vendor, DEC-35 prize fulfillment, prize legal rules (K-07) |
+| R2 Store release | DEC-48 Sign in with Apple, DEC-35 prize fulfillment, prize legal rules (K-07) |
 | P1 Auth (technical) | DEC-25 identity broker (recommended in-house) |
 
 Full option lists and recommendations: `DECISIONS.md`. Risks: `architecture/00-overview.md` §5.

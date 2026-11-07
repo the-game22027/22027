@@ -13,19 +13,19 @@
 | Input validation | Global `ValidationPipe({whitelist: true, forbidNonWhitelisted: true, transform: true})`; domain re-validates invariants; size limits on bodies (e.g., 100 KB) |
 | WebSocket validation | Every message validated against a DTO; unknown events ignored and counted; per-socket message rate limit; payload size limit |
 | Replays and duplicates | Natural idempotency (PUT semantics, unique keys), `Idempotency-Key` for non-idempotent POSTs, `clientMsgId` for socket answers |
-| Rate limiting | `@nestjs/throttler` with Redis storage: global per-IP baseline, strict limits on `/auth/phone/otp`, `/auth/*`, user search, friend requests, league joins, room joins (code guessing) |
+| Rate limiting | `@nestjs/throttler` with Redis storage: global per-IP baseline, strict limits on `/auth/*`, user search, friend requests, league joins, room joins (code guessing) |
 | SQL injection | Prisma parameterization; `$queryRaw` with tagged templates only (never `$queryRawUnsafe` with user input) |
 | Secrets | Not in git; validated at boot; dev-only adapters refuse to run in production |
 | Transport | HTTPS only in deployed environments; HSTS; WSS for sockets |
 | Headers / CORS | `helmet`; CORS allow-list (mobile apps do not need CORS; the future web app does) |
-| Logging hygiene | pino redaction for `authorization`, tokens, OTPs, phone numbers (mask all but the last 2 digits), emails |
+| Logging hygiene | pino redaction for `authorization`, tokens, authorization codes, emails |
 | Abuse | User blocks; report-question endpoint (feeds question disable); friend request rate limits |
 | Account takeover | See `04-auth.md` §9 |
 | Dependencies | `npm audit` / Dependabot in CI (free) |
 
 ### 1.2 Future enhancements
 
-App attestation (Play Integrity / App Attest) for OTP and battles; anomaly detection for battle cheating (answer-time distributions, answers faster than reading time, pairs of accounts that meet unusually often in rooms or matchmaking); device fingerprint limits per account for prize eligibility; admin audit log; WAF/CDN in front of the API; regular key rotation.
+App attestation (Play Integrity / App Attest) for sign-in and battles; anomaly detection for battle cheating (answer-time distributions, answers faster than reading time, pairs of accounts that meet unusually often in rooms or matchmaking); device fingerprint limits per account for prize eligibility; admin audit log; WAF/CDN in front of the API; regular key rotation.
 
 ### 1.3 Fair-play notes for trivia (product + tech)
 
@@ -63,7 +63,7 @@ One API process (HTTP + WS), one worker process, one Postgres, one Redis, on one
 
 - Every list endpoint uses keyset pagination over an index; no `OFFSET` beyond small pages.
 - Every query on a hot path has an index in `02-database.md`; new queries add their index in the same migration.
-- Transactions are short; no network calls (providers, SMS) inside a transaction.
+- Transactions are short; no network calls (sign-in providers) inside a transaction.
 - Use `EXPLAIN ANALYZE` in integration tests for the 5 hottest queries (leaderboard page, my rank, friends' predictions for a match, matches by date, battle question selection with recent-exposure exclusion).
 
 ### 2.4 Caching strategy
@@ -109,7 +109,7 @@ Business rules and workflows are where bugs cost the most (wrong points, leaked 
 | Concurrency | Races that matter | Integration tests firing parallel requests | 50 parallel edits around kickoff → none accepted after `kickoff_at`; duplicate votes → one row; two battle answers same round → first wins; two joins for the last room seat → one `ROOM_FULL`; double start → one battle; parallel friend requests A→B and B→A → one pending/friendship |
 | E2E (HTTP) | Full flows through the API | Supertest against a booted app + Testcontainers | Sign in (fake provider adapter) → predict → simulate match → scoring job → leaderboard shows points |
 | WebSocket | Battle and lobby protocol | `socket.io-client` in tests, fake clock for round and bot timers | Pairing, bot fallback after the wait, room lobby pushes, 3-player room battle, ready timeout with partial readiness, answer ack, duplicate `clientMsgId`, late answer, disconnect → reconnect → resync snapshot, forfeit after grace |
-| Auth | Verification adapters and session logic | Unit with signed test JWTs (local JWKS), integration for refresh rotation | Wrong `aud` rejected; refresh reuse revokes family; OTP attempts lockout |
+| Auth | Verification adapters and session logic | Unit with signed test JWTs (local JWKS), integration for refresh rotation | Wrong `aud` rejected; refresh reuse revokes family |
 | Contract | OpenAPI document stays in sync | Generate the spec in CI and diff it; fail on breaking changes without a version bump | |
 
 ### 4.2 Rules

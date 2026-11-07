@@ -13,7 +13,7 @@ users (1) ──< sessions (rotating refresh tokens, one per device sign-in)
 ```
 
 - One internal `users.id` is the identity used everywhere. Provider identities are **credentials pointing at a user**, never user records themselves.
-- `provider_subject` is the provider's stable user id (Google `sub`, Facebook user id, X user id) or the verified E.164 number for `PHONE`. Never use email as the key: it can change and is not always provided (X, phone).
+- `provider_subject` is the provider's stable user id (Google `sub`, Facebook user id, X user id). Never use email as the key: it can change and is not always provided (X, Facebook).
 
 ## 3. Provider flows (A-01: native mobile clients)
 
@@ -43,21 +43,20 @@ All flows end in the same use case: `SignInWithVerifiedIdentity(provider, subjec
 4. Subject = X user id. Do not rely on email from X.
 5. Risk: X developer API access tiers and rate limits change frequently; verify the current free-tier allowance for user lookups before relying on X sign-in at scale (DEC-26).
 
-### 3.4 Phone number
+### 3.4 No phone number sign-in; Sign in with Apple pending (DEC-48)
 
-1. `POST /v1/auth/phone/otp {phone}` → normalize to E.164 (`libphonenumber-js`), check country allow-list and rate limits (per number, per IP, per device), generate a 6-digit code with a CSPRNG, store `sha256(code + pepper)` in Redis `otp:signin:{e164}` with TTL (Recommended 5 min) and an attempt counter, and send via the `SmsSender` port.
-2. `POST /v1/auth/phone/verify {phone, code}` → constant-time compare, max attempts (Recommended 5) then lock for a cooldown, delete the key on success, then `SignInWithVerifiedIdentity(PHONE, e164)`.
-3. **Zero budget:** `ConsoleSmsSender` (logs the code in development only; refuses to start in production). Real SMS costs money in production: a paid provider, or an identity service's phone auth (DEC-26). Also guard against **SMS pumping fraud** (attackers trigger OTPs to premium numbers): country allow-list, per-IP/device limits, and later app attestation (Play Integrity / App Attest, both free).
+- **Phone number + SMS code sign-in was removed (ADR-0012):** every SMS costs money, and it adds OTP brute-force and SMS pumping risks. There is no `PHONE` provider, no OTP and no `SmsSender` port.
+- **Sign in with Apple (pending, DEC-48):** App Store guideline 4.8 requires it (or an equivalent privacy-focused option) for an iOS app that offers Google, Facebook or X. If accepted, it follows the Google pattern: the native SDK returns an identity token (JWT); `POST /v1/auth/apple {identityToken, nonce}`; the backend verifies it against Apple's JWKS (`iss` = `https://appleid.apple.com`, `aud` = our bundle id, `nonce`). Subject = `sub`. Email can be a private relay address and is sent only on the first sign-in.
 
 ### 3.5 Identity broker option (DEC-25)
 
 | Option | Pros | Cons |
 |---|---|---|
-| **A. In-house verification (Recommended)** | No vendor dependency, free, full control, fits the stack | We own security-sensitive code for four providers; phone still needs an SMS vendor |
-| B. Firebase Authentication as broker; backend verifies Firebase ID tokens | Social logins handled for us; mature mobile SDKs | Vendor lock-in; phone auth has usage costs beyond a free quota; user records in two places |
+| **A. In-house verification (Recommended)** | No vendor dependency, free, full control, fits the stack | We own security-sensitive code for three providers (four with Apple, DEC-48) |
+| B. Firebase Authentication as broker; backend verifies Firebase ID tokens | Social logins handled for us; mature mobile SDKs | Vendor lock-in; user records in two places |
 | C. Self-hosted broker (Keycloak, Supabase Auth/GoTrue, Ory Kratos) | Free, open source | Another service to run and secure, often heavier than the problem |
 
-Recommendation: **A**, phased (Google → phone with console SMS → Facebook → X). The `SignInWithVerifiedIdentity` boundary means switching to B later only replaces the verification adapters.
+Recommendation: **A**, phased (Google → Facebook → X). The `SignInWithVerifiedIdentity` boundary means switching to B later only replaces the verification adapters.
 
 ## 4. Account linking and duplicates
 
@@ -68,7 +67,6 @@ Rules (Recommended, they protect against account takeover):
 3. **Linking requires two proofs:** an authenticated session (proof of the existing account) plus a fresh credential for the new provider: `POST /v1/me/identities/{provider}`. If that identity already belongs to another user → `409 IDENTITY_ALREADY_LINKED`.
 4. **Unlinking** is allowed only if at least one identity remains: `DELETE /v1/me/identities/{identityId}`.
 5. **Merging two existing accounts** (both with data) is out of MVP scope: support-assisted, future.
-6. **Phone number recycling:** carriers reassign numbers. If a phone identity has not been used for a long time and the account also has a social identity, require the social sign-in to re-confirm (future hardening; documented risk).
 
 ## 5. Sessions and tokens
 
@@ -97,7 +95,7 @@ Rules (Recommended, they protect against account takeover):
 
 ## 8. Account recovery and deletion
 
-- **Recovery:** social providers own their recovery. Phone users recover by re-verifying the number. Encourage linking a second identity in the profile UI.
+- **Recovery:** social providers own their recovery. Encourage linking a second identity in the profile UI.
 - **Deletion (required by both app stores):** `DELETE /v1/me` (requires a recent sign-in, e.g. token issued in the last 10 minutes, or a re-verification) → `users.status = PENDING_DELETION`, publish `UserDeleted`. Handlers revoke sessions, delete identities, remove friendships, requests and blocks, leave leagues (ownership transfer or archive per DEC-22), and anonymize the profile. Ledger entries, votes and snapshots keep the same `user_id` but show "Deleted user", which keeps leaderboards and prize history consistent. After a grace period (Recommended 30 days, cancellable by signing in), status becomes `DELETED`.
 
 ## 9. Account takeover threat checklist (MVP)
@@ -106,15 +104,13 @@ Rules (Recommended, they protect against account takeover):
 |---|---|
 | Forged provider token | Verify signature, `aud`, `iss`, `exp`; Facebook `app_id`; X code exchange server-side with PKCE |
 | Account hijack through email-based auto-linking | Never auto-link (§4) |
-| OTP brute force | 6 digits, TTL, max attempts, cooldown, per-IP limits |
-| SMS pumping | Country allow-list, rate limits, attestation later |
 | Stolen refresh token | Rotation + reuse detection + session revocation |
 | Token leakage in logs | Redaction rules in pino; no tokens in URLs |
 | Session fixation via WebSocket | Token in handshake auth only; re-validation on refresh |
-| Credential stuffing | Not applicable (no passwords), which is a deliberate benefit of this provider set |
+| Credential stuffing, code brute force | Not applicable (no passwords, no one-time codes), which is a deliberate benefit of this provider set |
 
 ## 10. Secrets
 
 - Development: `.env` (git-ignored) with provider client IDs/secrets for test apps, JWT signing keys generated locally (`npm run keys:generate`, planned). `.env.example` documents every variable with fake values.
-- Configuration is validated at boot (schema); the app refuses to start with missing secrets or with `ConsoleSmsSender` in production.
+- Configuration is validated at boot (schema); the app refuses to start with missing secrets in production.
 - Production (later): the host's secret store or an encrypted env file; key rotation through `kid`.

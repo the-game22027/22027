@@ -50,8 +50,8 @@ Changes vs the original proposed order, and why:
 - **Exit:** `docker compose up` + API/worker start; `/health/ready` green; one sample event goes from outbox to a BullMQ handler in an integration test; boundary lint fails on a deliberate violation.
 
 ### P1 — Auth + Users
-- `users` (profile, privacy settings), `auth` (identities, sessions, JWT, refresh rotation with reuse detection), Google adapter, phone OTP with `ConsoleSmsSender`, a `FakeProvider` adapter for tests, session list/revoke, `GET/PATCH /me`, account deletion request (fan-out handlers stubbed per module as modules arrive).
-- **Exit:** e2e: sign in with fake Google token → `/me` → refresh → reuse old refresh → family revoked; OTP lockout test; WS handshake guard tested with a dummy gateway.
+- `users` (profile, privacy settings), `auth` (identities, sessions, JWT, refresh rotation with reuse detection), Google adapter, a `FakeProvider` adapter for tests, session list/revoke, `GET/PATCH /me`, account deletion request (fan-out handlers stubbed per module as modules arrive).
+- **Exit:** e2e: sign in with fake Google token → `/me` → refresh → reuse old refresh → family revoked; WS handshake guard tested with a dummy gateway.
 
 ### P2 — Football mock data + simulator
 - Competitions/seasons/teams/players/matches/squads with AR/EN names; `FootballDataProvider` + `MockFootballProvider`; `ApplyProviderMatchUpdate` with versioning; lifecycle events via outbox; simulator CLI commands and scenarios.
@@ -98,7 +98,7 @@ Changes vs the original proposed order, and why:
 - **Exit:** linking rules tested (no auto-merge, last-identity protection).
 
 ### P12 — Production hardening
-- Rate limit tuning, app attestation for OTP (optional), backups, metrics dashboards, load test of leaderboard pages, matchmaking and concurrent battles, deployment scripts, licence/attribution screen, account deletion end-to-end, security review.
+- Rate limit tuning, app attestation for sign-in and battles (optional), backups, metrics dashboards, load test of leaderboard pages, matchmaking and concurrent battles, deployment scripts, licence/attribution screen, account deletion end-to-end, security review.
 - **Exit:** checklist in `06-cross-cutting.md` §1.1 fully satisfied; restore-from-backup drill done.
 
 ## Mobile track (Flutter, `apps/mobile`)
@@ -110,7 +110,7 @@ Each mobile phase starts once the backend phase it consumes is merged. The API c
 - **Exit:** app runs on Android and iOS simulators against the local backend, `/health` call works, RTL layout verified.
 
 ### M1 — Sign-in and profile (after P1)
-- Google and phone OTP sign-in, refresh rotation, sessions list, profile and privacy settings, account deletion.
+- Google sign-in, refresh rotation, sessions list, profile and privacy settings, account deletion.
 - **Exit:** sign in → kill the app → reopen still signed in; refresh reuse forces sign-out.
 
 ### M2 — Matches, predictions, leaderboards (after P3 + P4)
@@ -141,13 +141,13 @@ Each mobile phase starts once the backend phase it consumes is merged. The API c
 - **Google Play closed test:** new personal developer accounts must run a closed test with a minimum number of testers (currently 12) for 14 days before production access. Plan the calendar time; verify the current rule when registering.
 - **Exit:** app approved on both stores; staged rollout started.
 
-**Zero budget ends at release.** Unavoidable costs: store accounts, a server, a domain, backups, and SMS if phone sign-in stays.
+**Zero budget ends at release.** Unavoidable costs: store accounts, a server, a domain, and backups. No SMS: phone sign-in was removed (ADR-0012).
 
 ## Release scope (Decided 2026-11-07, DEC-46)
 
 **v1.0 contains everything:** P0-P12, Track D, M0-M5 (plus Facebook/X screens in the mobile sign-in flow), R1, R2. Consequences:
 - R1 must also deliver timely **lineups** for MOTM candidates (DEC-27), not only fixtures and results. This is the riskiest release dependency (K-02).
-- All four sign-in providers ship at launch (DEC-26). Production SMS vendor still to choose.
+- Google, Facebook and X sign-in ship at launch (DEC-26, ADR-0012). The iOS release also needs Sign in with Apple (DEC-48, App Store guideline 4.8).
 
 ## Order of work and rough effort
 

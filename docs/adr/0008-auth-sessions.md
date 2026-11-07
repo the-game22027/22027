@@ -1,6 +1,6 @@
 # ADR-0008: In-house provider verification, short-lived JWT access tokens, rotating opaque refresh tokens
 
-- **Status:** Proposed
+- **Status:** Proposed; the phone OTP part is superseded by ADR-0012 (no phone sign-in)
 - **Date:** 2026-11-07
 - **Related:** DEC-25, DEC-26, 04-auth.md
 
