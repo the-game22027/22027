@@ -26,7 +26,7 @@ When a decision is made: update its row (status, chosen option, date), update th
 | DEC-06 | Anonymity / visibility of tallies | Hidden until close then shares · live shares · winner only | Hidden until close, then winner + shares; individual votes never public | MOTM config | Pending |
 | DEC-07 | Verified account required to vote | Any account · phone-verified · account age ≥ N days | Any active account (low friction); revisit if abuse appears | MOTM config | Pending |
 | DEC-08 | MOTM and points: predicting the MOTM (when?) and/or points for voting | No points · MOTM prediction before kickoff scored against community result · points for voting with the majority | No points until decided; `MOTM` pick type disabled | Prediction + MOTM config | Pending |
-| DEC-27 | Production source of MOTM candidates (squads) | Paid live provider · current squads from Wikidata (lower quality) · manual entry | Decide before leaving mock data (risk K-02) | `FootballDataProvider` adapter | Deferred |
+| DEC-27 | Production source of MOTM candidates (squads) | Paid live provider · current squads from Wikidata (lower quality) · manual entry | **Now a v1.0 release blocker** (MOTM ships in v1.0, DEC-46). Decide together with DEC-45 (risk K-02) | `FootballDataProvider` adapter | Pending |
 | DEC-29 | End-time correction after the poll was finalized | Keep result · reopen · recompute with votes inside the corrected window | Keep result, log the correction | MOTM policy | Pending |
 
 ## Quiz battles (real-time PvP, the only quiz mode, ADR-0010)
@@ -73,14 +73,14 @@ Confirmed on 2026-11-07 by the product owner: no Daily Quiz, no solo mode, no as
 | ID | Decision | Options | Recommended default | Lives in | Status |
 |---|---|---|---|---|---|
 | DEC-25 | Identity broker | In-house verification · Firebase Auth · self-hosted broker | In-house (`04-auth.md` §3.5) | Auth adapters | Pending |
-| DEC-26 | Providers at MVP launch and production phone OTP | All four at once · phased · phone optional | Phased: Google + phone (console SMS in dev) → Facebook → X. Production SMS vendor chosen before launch (paid) | Auth config | Pending |
+| DEC-26 | Providers at launch and production phone OTP | All four at once · phased · phone optional | **Providers decided (2026-11-07, via DEC-46): all four (Google, phone, Facebook, X) are in v1.0**; built in order Google + phone → Facebook → X. Still pending: the production SMS vendor (paid) | Auth config | Decided in part |
 
 ## Release
 
 | ID | Decision | Options | Recommended default | Lives in | Status |
 |---|---|---|---|---|---|
 | DEC-45 | Production football data provider (fixtures, live results) | A free tier of a football API (check commercial-use terms and delays) · paid API · semi-manual entry for a limited set of competitions | Shortlist free tiers in R1, verify licence and latency, keep the mock for dev; budget for paid data if no free licence allows commercial use | `FootballDataProvider` adapter | Pending |
-| DEC-46 | Release scope | Everything in one release · staged releases | Staged: v1.0 = core loop + quiz battles + rooms; v1.1 = MOTM + leagues; v1.2 = Facebook + X (`ROADMAP.md` "Release scope") | Roadmap | Pending |
+| DEC-46 | Release scope | Everything in one release · staged releases | **Chosen: everything in v1.0** (predictions, MOTM, battles with matchmaking/bots/rooms, friends, leagues, leaderboards, all four sign-in providers) | Roadmap | Decided (2026-11-07) |
 
 ## Withdrawn
 

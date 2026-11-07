@@ -27,11 +27,11 @@ Guiding principles:
 | Football data | Mock data first; free legal datasets later | Provider for live results in production |
 | AI | Local Ollama, offline only | Model choice |
 
-### 2.2 MVP implementation scope (Recommended)
+### 2.2 v1.0 scope (Decided 2026-11-07: everything ships in v1.0, DEC-46)
 
-The smallest product that is fun and demonstrates the core loop:
+All items below ship in the first public release. The list is the build order:
 
-1. Auth: **Google + phone (dev OTP stub)** first, then X and Facebook adapters (same identity model, so adding them later does not change the schema). See DEC-26.
+1. Auth: **Google + phone (dev OTP stub)** first, then Facebook and X adapters, all before release (same identity model, so adding them later does not change the schema). See DEC-26.
 2. Mock competitions, teams, players, matches + a CLI simulator that drives the match lifecycle.
 3. Predictions with server-side kickoff lock, revisions, and a pluggable scoring rule set.
 4. Points ledger + weekly/monthly/seasonal/all-time leaderboards (global).

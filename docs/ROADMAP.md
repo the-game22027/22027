@@ -143,17 +143,15 @@ Each mobile phase starts once the backend phase it consumes is merged. The API c
 
 **Zero budget ends at release.** Unavoidable costs: store accounts, a server, a domain, backups, and SMS if phone sign-in stays.
 
-## Release scope (Recommended, DEC-46)
+## Release scope (Decided 2026-11-07, DEC-46)
 
-| Release | Contains | Why |
-|---|---|---|
-| **v1.0** | P0-P8, Track D, M0-M4, R1, P12, R2 | The full core loop: predict → points → rank, plus quiz battles with bots and private rooms. Fastest path to real users |
-| v1.1 | P9 + P10 + M5 (MOTM, leagues) | MOTM needs timely lineups that free data sources lack (risk K-02, DEC-27); leagues are more valuable once there are users to invite |
-| v1.2 | P11 (Facebook, X sign-in) | Google + phone cover the launch market (DEC-26) |
+**v1.0 contains everything:** P0-P12, Track D, M0-M5 (plus Facebook/X screens in the mobile sign-in flow), R1, R2. Consequences:
+- R1 must also deliver timely **lineups** for MOTM candidates (DEC-27), not only fixtures and results. This is the riskiest release dependency (K-02).
+- All four sign-in providers ship at launch (DEC-26). Production SMS vendor still to choose.
 
 ## Order of work and rough effort
 
-Estimates are **focused working days for one developer using coding agents**, including tests. At 5 focused days per week, v1.0 is roughly 4-5 months; v1.1 adds about 3 weeks.
+Estimates are **focused working days for one developer using coding agents**, including tests. At 5 focused days per week, v1.0 (everything) is roughly **5-6 months**.
 
 | Stage | Phases (in order) | Focused days |
 |---|---|---|
@@ -161,8 +159,8 @@ Estimates are **focused working days for one developer using coding agents**, in
 | B. Predict → points → rank | P1, M1, P2, P3, P4, M2 | 23-33 |
 | C. Quiz battles (core) | P5, P6, M3, P7, P8, M4 | 27-38 |
 | Parallel content | Track D (start during stage B; keep going until launch volume, K-09) | 10-15 |
-| D. Release v1.0 | R1, P12, R2 | 12-20 + 14 days closed test |
-| E. v1.1 / v1.2 | P9, P10, M5, P11 | 14-22 |
+| D. Rest of the product | P9, P10, M5, P11 (+ Facebook/X in the app) | 14-22 |
+| E. Release v1.0 | R1 (fixtures, results, lineups), P12, R2 | 12-20 + 14 days closed test |
 
 ## Deferred (Future)
 Notifications, direct room invites via push, activity feed, share cards for X, achievements, skill rating for matchmaking and bots, admin dashboard, prize fulfillment, real football data provider, multi-instance WebSockets, semantic dedup with local embeddings.
