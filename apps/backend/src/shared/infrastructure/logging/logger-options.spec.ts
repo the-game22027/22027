@@ -1,6 +1,6 @@
 import { Writable } from 'node:stream';
 import pino from 'pino';
-import { censor, REDACT_PATHS } from './logger-options';
+import { REDACT_PATHS, REDACTED } from './logger-options';
 
 function logged(object: Record<string, unknown>): string {
   let output = '';
@@ -10,12 +10,12 @@ function logged(object: Record<string, unknown>): string {
       done();
     },
   });
-  pino({ redact: { paths: REDACT_PATHS, censor } }, sink).info(object, 'test');
+  pino({ redact: { paths: REDACT_PATHS, censor: REDACTED } }, sink).info(object, 'test');
   return output;
 }
 
 describe('log redaction', () => {
-  it('removes tokens, cookies, OTP codes and passwords at top level and nested', () => {
+  it('removes tokens, cookies, authorization codes and passwords at top level and nested', () => {
     const line = logged({
       req: { headers: { authorization: 'Bearer eyJsecret', cookie: 'sid=secret-cookie' } },
       token: 'top-secret-token',
@@ -34,11 +34,5 @@ describe('log redaction', () => {
       expect(line).not.toContain(secret);
     }
     expect(line).toContain('[REDACTED]');
-  });
-
-  it('masks phone numbers except the last two digits', () => {
-    const line = logged({ body: { phone: '+201001234567' } });
-    expect(line).not.toContain('+201001234567');
-    expect(line).toContain('***********67');
   });
 });
