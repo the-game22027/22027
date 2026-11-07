@@ -75,6 +75,13 @@ Confirmed on 2026-11-07 by the product owner: no Daily Quiz, no solo mode, no as
 | DEC-25 | Identity broker | In-house verification · Firebase Auth · self-hosted broker | In-house (`04-auth.md` §3.5) | Auth adapters | Pending |
 | DEC-26 | Providers at MVP launch and production phone OTP | All four at once · phased · phone optional | Phased: Google + phone (console SMS in dev) → Facebook → X. Production SMS vendor chosen before launch (paid) | Auth config | Pending |
 
+## Release
+
+| ID | Decision | Options | Recommended default | Lives in | Status |
+|---|---|---|---|---|---|
+| DEC-45 | Production football data provider (fixtures, live results) | A free tier of a football API (check commercial-use terms and delays) · paid API · semi-manual entry for a limited set of competitions | Shortlist free tiers in R1, verify licence and latency, keep the mock for dev; budget for paid data if no free licence allows commercial use | `FootballDataProvider` adapter | Pending |
+| DEC-46 | Release scope | Everything in one release · staged releases | Staged: v1.0 = core loop + quiz battles + rooms; v1.1 = MOTM + leagues; v1.2 = Facebook + X (`ROADMAP.md` "Release scope") | Roadmap | Pending |
+
 ## Withdrawn
 
 IDs are never reused, so old references stay unambiguous.

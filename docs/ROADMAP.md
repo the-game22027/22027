@@ -101,5 +101,68 @@ Changes vs the original proposed order, and why:
 - Rate limit tuning, app attestation for OTP (optional), backups, metrics dashboards, load test of leaderboard pages, matchmaking and concurrent battles, deployment scripts, licence/attribution screen, account deletion end-to-end, security review.
 - **Exit:** checklist in `06-cross-cutting.md` §1.1 fully satisfied; restore-from-backup drill done.
 
+## Mobile track (Flutter, `apps/mobile`)
+
+Each mobile phase starts once the backend phase it consumes is merged. The API contract is already written, so screens can be built against it with mocked responses even earlier.
+
+### M0 — Mobile foundation (after P0)
+- Decide and record (ADR): Flutter version (pinned with `fvm`), application id, state-management and navigation libraries. `flutter create` in `apps/mobile`; dev/prod flavors; Arabic + English with RTL; generated REST client from the backend `openapi.json`; secure token storage; error mapping from problem+json `code`; path-filtered CI (`flutter analyze`, tests).
+- **Exit:** app runs on Android and iOS simulators against the local backend, `/health` call works, RTL layout verified.
+
+### M1 — Sign-in and profile (after P1)
+- Google and phone OTP sign-in, refresh rotation, sessions list, profile and privacy settings, account deletion.
+- **Exit:** sign in → kill the app → reopen still signed in; refresh reuse forces sign-out.
+
+### M2 — Matches, predictions, leaderboards (after P3 + P4)
+- Fixtures by date and competition, prediction editor locked by server `predictable` + `serverTime`, own history with scores, the four leaderboard periods, my rank.
+- **Exit:** full predict → simulate match → see points and rank flow on a device.
+
+### M3 — Quiz battles UI (after P6) — CORE
+- Socket client per `WEBSOCKET.md`: matchmaking screen with bot fallback, battle screen with server-synced countdown, round results, placements, bot label, reconnect and resync, `GET /me/play-state` resume.
+- **Exit:** two devices play a full battle; airplane mode for 5 seconds mid-round recovers via resync; a bot battle shows the bot badge.
+
+### M4 — Friends and private rooms (after P7 + P8)
+- User search, friend requests, blocks, friends' predictions; create room, share code, lobby, host start, rematch.
+- **Exit:** three devices play a room battle started from a shared code.
+
+### M5 — MOTM and leagues (after P9 + P10)
+- MOTM voting screen with window countdown and results; league create/join/leaderboard.
+- **Exit:** vote inside the window; a league ranking matches the backend.
+
+## Release track
+
+### R1 — Real football data provider (blocker for any public release)
+- Mock data is useless in production. Choose a provider (DEC-45), implement its `FootballDataProvider` adapter, sync jobs, and attribution screen. Check its licence for commercial use before writing code.
+- **Exit:** a real matchday syncs fixtures and results automatically; predictions score from real results.
+
+### R2 — Store release
+- Accounts: Google Play (one-time fee) and Apple Developer (yearly fee). Privacy policy and terms pages; official prize rules (risk K-07); store listings in Arabic and English; app icons and screenshots.
+- Production deploy (P12 checklist), crash reporting with a free tier, backups verified.
+- **Google Play closed test:** new personal developer accounts must run a closed test with a minimum number of testers (currently 12) for 14 days before production access. Plan the calendar time; verify the current rule when registering.
+- **Exit:** app approved on both stores; staged rollout started.
+
+**Zero budget ends at release.** Unavoidable costs: store accounts, a server, a domain, backups, and SMS if phone sign-in stays.
+
+## Release scope (Recommended, DEC-46)
+
+| Release | Contains | Why |
+|---|---|---|
+| **v1.0** | P0-P8, Track D, M0-M4, R1, P12, R2 | The full core loop: predict → points → rank, plus quiz battles with bots and private rooms. Fastest path to real users |
+| v1.1 | P9 + P10 + M5 (MOTM, leagues) | MOTM needs timely lineups that free data sources lack (risk K-02, DEC-27); leagues are more valuable once there are users to invite |
+| v1.2 | P11 (Facebook, X sign-in) | Google + phone cover the launch market (DEC-26) |
+
+## Order of work and rough effort
+
+Estimates are **focused working days for one developer using coding agents**, including tests. At 5 focused days per week, v1.0 is roughly 4-5 months; v1.1 adds about 3 weeks.
+
+| Stage | Phases (in order) | Focused days |
+|---|---|---|
+| A. Foundation | P0, M0 | 5-8 |
+| B. Predict → points → rank | P1, M1, P2, P3, P4, M2 | 23-33 |
+| C. Quiz battles (core) | P5, P6, M3, P7, P8, M4 | 27-38 |
+| Parallel content | Track D (start during stage B; keep going until launch volume, K-09) | 10-15 |
+| D. Release v1.0 | R1, P12, R2 | 12-20 + 14 days closed test |
+| E. v1.1 / v1.2 | P9, P10, M5, P11 | 14-22 |
+
 ## Deferred (Future)
 Notifications, direct room invites via push, activity feed, share cards for X, achievements, skill rating for matchmaking and bots, admin dashboard, prize fulfillment, real football data provider, multi-instance WebSockets, semantic dedup with local embeddings.
