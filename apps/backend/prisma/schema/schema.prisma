@@ -1,0 +1,13 @@
+// Generator and datasource only. Models live in one file per owning module (e.g. shared.prisma),
+// following docs/architecture/02-database.md. The connection URL is set in prisma.config.ts.
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../../src/generated/prisma"
+  moduleFormat = "cjs"
+  runtime      = "nodejs"
+}
+
+datasource db {
+  provider = "postgresql"
+}

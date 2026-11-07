@@ -12,7 +12,7 @@
 
 | Workload | Trigger | Mechanism | Queue | Idempotency | Notes |
 |---|---|---|---|---|---|
-| Outbox publishing | New `outbox_events` rows | Polling loop in the worker (~1s) | → subscriber queues | `jobId = eventId:subscriber` | `FOR UPDATE SKIP LOCKED` so several workers can run |
+| Outbox publishing | New `outbox_events` rows | Polling loop in the worker (~1s) | → subscriber queues | `jobId = <eventId>__<subscriber>` | `FOR UPDATE SKIP LOCKED` so several workers can run |
 | Football sync (mock now) | Schedule | BullMQ job scheduler | `football-sync` | Provider `version`/`provider_updated_at` checks | Mock provider reads seed files; the simulator CLI drives live states |
 | Score match predictions | `MatchFinished`, `MatchResultCorrected`, `ScoringRuleSetActivated` | Event handler | `predictions` | PK `(prediction_id, rule_set_id, match_result_version)` | Pages of 1,000; resumable |
 | Void predictions | `MatchCancelled`, postponement policy | Event handler | `predictions` | Conditional update `status <> 'VOID'` | |

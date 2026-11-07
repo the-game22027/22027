@@ -9,7 +9,7 @@
 You are implementing the foundation of a **Football Social Prediction & Trivia Game** backend: a NestJS **modular monolith** (TypeScript) with PostgreSQL (Prisma), Redis, and BullMQ. Future modules include auth, users, football (matches), predictions, MOTM voting, question bank, real-time quiz battles (Socket.IO; random matchmaking, private rooms, bot opponents; the only quiz mode), points ledger, leaderboards, leagues, and social. **This phase builds only the skeleton and cross-cutting infrastructure that every module will use.** The repository already contains `CLAUDE.md` and `docs/` with the architecture. Read `CLAUDE.md`, `docs/architecture/01-modules.md`, `docs/architecture/05-background-jobs.md` and `docs/architecture/06-cross-cutting.md` before writing code, and follow them.
 
 Constraints that are not negotiable:
-- Stack: Node.js LTS, TypeScript (`strict`), NestJS (latest stable), Prisma (latest stable), PostgreSQL 16+, Redis 7+, BullMQ, Jest. Do not introduce another ORM, framework, or language.
+- Stack: Node.js 24 LTS, TypeScript (`strict`), NestJS (latest stable), Prisma (latest stable), PostgreSQL 16+, Redis 7+, BullMQ, Jest. Do not introduce another ORM, framework, or language.
 - Zero budget: only free/open-source dependencies and local Docker services.
 - No business features in this phase (no users, matches, predictions...).
 - Domain layer code must never import NestJS, Prisma, Redis, BullMQ, or read `process.env`.
@@ -35,7 +35,7 @@ Constraints that are not negotiable:
 7. **Outbox + BullMQ:**
    - Prisma model + migration for `outbox_events` as specified in `docs/architecture/02-database.md` §4.13.
    - `OutboxWriter` (application-facing service) that inserts events inside the current transaction.
-   - `OutboxPublisher` loop (worker only): claims unpublished rows with `FOR UPDATE SKIP LOCKED` in batches, adds BullMQ jobs to subscriber queues with `jobId = <eventId>:<subscriber>`, marks rows published, records `attempts`/`last_error` on failure.
+   - `OutboxPublisher` loop (worker only): claims unpublished rows with `FOR UPDATE SKIP LOCKED` in batches, adds BullMQ jobs to subscriber queues with `jobId = <eventId>__<subscriber>` (BullMQ rejects `:` in custom ids), marks rows published, records `attempts`/`last_error` on failure.
    - A simple subscription registry: handlers declare which event types they consume and which queue they run on.
    - BullMQ defaults from `docs/architecture/05-background-jobs.md` §4 (attempts, exponential backoff with jitter, retention).
    - Bull Board mounted at `/admin/queues` only when `NODE_ENV !== 'production'`.

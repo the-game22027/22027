@@ -8,7 +8,7 @@
 A finished match must reliably trigger scoring and MOTM voting; a completed battle must reliably reach the ledger. Writing to the DB and enqueueing to Redis separately can lose events (crash between the two) or emit events for rolled-back changes.
 
 ## Decision
-Use cases insert `outbox_events` in the same DB transaction as the state change. A worker loop publishes them to BullMQ queues (`FOR UPDATE SKIP LOCKED`, `jobId = eventId:subscriber`). Delivery is at-least-once; handlers are idempotent via natural unique keys.
+Use cases insert `outbox_events` in the same DB transaction as the state change. A worker loop publishes them to BullMQ queues (`FOR UPDATE SKIP LOCKED`, `jobId = <eventId>__<subscriber>`; BullMQ rejects `:` in custom ids). Delivery is at-least-once; handlers are idempotent via natural unique keys.
 
 ## Alternatives considered
 | Option | Why not |

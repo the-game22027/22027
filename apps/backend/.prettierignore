@@ -1,0 +1,6 @@
+dist/
+dist-worker/
+coverage/
+src/generated/
+prisma/migrations/
+package-lock.json

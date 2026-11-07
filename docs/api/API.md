@@ -96,7 +96,11 @@ Content-Type: application/problem+json
 | `LEAGUE_INVITE_INVALID` | 404 | Unknown/expired/revoked code |
 | `LEAGUE_ALREADY_MEMBER` | 409 | |
 | `LEAGUE_OWNER_MUST_TRANSFER` | 409 | Owner leaving without transferring |
-| `INTERNAL` | 500 | Unexpected; includes `traceId` |
+| `BAD_REQUEST` | 400 | Malformed request body (e.g. invalid JSON) |
+| `METHOD_NOT_ALLOWED` | 405 | |
+| `PAYLOAD_TOO_LARGE` | 413 | Body above the configured limit (`HTTP_BODY_LIMIT`, default 100 KB) |
+| `UNSUPPORTED_MEDIA_TYPE` | 415 | |
+| `INTERNAL` | 500 | Unexpected; includes `traceId`, never internals |
 
 ## 5. Core DTOs (shapes)
 
@@ -305,7 +309,7 @@ Matchmaking can also be joined over WS (`matchmaking:join`). Room lifecycle is R
 
 | | Method | Path | Auth | Purpose / notes |
 |---|---|---|---|---|
-| ✅ | GET | `/health/live`, `/health/ready` | P | Not versioned |
+| ✅ | GET | `/health/live`, `/health/ready` | P | Not versioned. `ready` checks Postgres and Redis; on failure it returns `503` with the Terminus per-dependency result, not problem+json |
 | ✅ | GET | `/metrics` | internal network only | Prometheus |
 | ✅ | GET | `/admin/queues` | dev only (admin later) | Bull Board |
 | ✅ | GET | `/docs` | dev/staging | Swagger UI |
