@@ -58,7 +58,7 @@ sequenceDiagram
 
 1. **Retrieve match:** `GET /v1/matches/{id}` returns `kickoffAt`, `status`, `predictable` (computed server-side) and `serverTime`. The client may show a countdown but the server decides.
 2. **Submit:** `PUT /v1/matches/{id}/prediction` (idempotent by nature: same body twice = same state).
-3. **Validate:** DTO shape → domain validation against the active prediction config (which pick types are enabled/required: DEC-03; score bounds).
+3. **Validate:** DTO shape → domain validation against the active prediction config (Decided, DEC-03: an `EXACT_SCORE` pick is required; the outcome is derived from it; score bounds).
 4. **Save:** a single transaction: conditional upsert of `predictions` (the statement in `02-database.md` §5), replace `prediction_picks`, append `prediction_revisions`.
 5. **Edit:** same endpoint; revision increments. A no-op edit (identical picks) returns 200 without a new revision (compare with the last snapshot).
 6. **Lock:** implicit at `kickoff_at`. `MatchStarted` only drives UX and visibility, not correctness.
@@ -100,7 +100,7 @@ No transaction spans modules except through the outbox. Scoring 50k predictions 
 | Cancelled | Void (`status=VOID`), supersede any ledger entries with zero | Void |
 | Abandoned mid-match | (a) void; (b) wait for replay; (c) score with the score at abandonment | (b), then (a) after N days |
 | Delayed result | Nothing to do: scoring is triggered by `MatchFinished`, whenever it arrives. Leaderboard finalization waits a grace window (DEC-28) |
-| Which score counts in knockout games (90' vs extra time vs penalties) | Configured in the prediction rule set (`resultBasis`) | Regular time + extra time, penalties excluded (common convention; confirm) |
+| Which score counts in knockout games (90' vs extra time vs penalties) | Configured in the prediction rule set (`resultBasis`) | **Decided (DEC-02):** regular time + extra time, penalty shootouts excluded |
 
 ---
 
@@ -352,10 +352,7 @@ canView(viewer, owner, match, ownerSettings, platformDefault):
   if viewer == owner → true
   if blocked(viewer, owner) → false
   if not areFriends(viewer, owner) → false            (Confirmed: friends only)
-  mode = ownerSettings.predictionVisibility ?? platformDefault   (DEC-21)
-  if mode == FRIENDS_AFTER_LOCK → match.kickoff_at <= now
-  if mode == FRIENDS_ALWAYS → true
-  if mode == PRIVATE → false
+  return match.kickoff_at <= now                       (Decided, DEC-21: friends after kickoff)
 ```
 
-Recommended default: `FRIENDS_AFTER_LOCK`, because seeing friends' picks before kickoff enables copying in leagues (risk K-03). Every read path (`friends' predictions for a match`, `a user's prediction history`, future feed and share cards) must go through this policy and has its own integration test.
+Decided (DEC-21): friends see predictions only after kickoff, with no per-user setting in v1.0, because seeing friends' picks before kickoff enables copying in leagues (risk K-03). Every read path (`friends' predictions for a match`, `a user's prediction history`, future feed and share cards) must go through this policy and has its own integration test.

@@ -128,7 +128,7 @@ user_profiles (
   IX user_profiles USING gin (display_name gin_trgm_ops)   -- friend search
 user_privacy_settings (
   user_id uuid PK FK → users ON DELETE CASCADE,
-  prediction_visibility text NULL,      -- NULL = platform default from config (DEC-21)
+  prediction_visibility text NULL,      -- unused in v1.0: visibility is fixed to friends-after-kickoff (DEC-21); kept for future settings
   updated_at timestamptz
 )
 ```

@@ -10,10 +10,10 @@ When a decision is made: update its row (status, chosen option, date), update th
 
 | ID | Decision | Options | Recommended default | Lives in | Status |
 |---|---|---|---|---|---|
-| DEC-01 | Prediction scoring formula: points for exact score, correct result, bonuses, penalties | Any weights; per-competition multipliers possible | None: rule set config must be filled by the product owner. Dev seed uses obviously fake values flagged `DEV_ONLY` | `scoring_rule_sets` (`PREDICTION`) | Pending |
-| DEC-02 | Which score counts in knockout matches | 90' only · 90' + extra time · including penalties | 90' + extra time, penalties excluded | Prediction rule set `resultBasis` | Pending |
-| DEC-03 | Which prediction types are mandatory | Result only · score only · both required · either | Exact score required, result derived from it (fewer taps) | Prediction config `requiredPicks` | Pending |
-| DEC-21 | Prediction visibility to friends | Friends after kickoff · friends always · user-selectable among these · private option | Friends **after kickoff** (prevents copying in leagues); user may choose PRIVATE | Platform default + `user_privacy_settings` | Pending |
+| DEC-01 | Prediction scoring formula: points for exact score, correct result, bonuses, penalties | Any weights; per-competition multipliers possible | None: rule set config must be filled by the product owner. Dev seed uses obviously fake values flagged `DEV_ONLY`. Product owner chose to decide later (2026-11-07); options offered: exact 3 / result 1 · exact 5 / goal diff 3 / result 2 · exact 10 / result 5 / +1 per team goals | `scoring_rule_sets` (`PREDICTION`) | Pending |
+| DEC-02 | Which score counts in knockout matches | 90' only · 90' + extra time · including penalties | **Chosen: 90' + extra time; penalty shootouts excluded** (a 1-1 decided on penalties is a draw) | Prediction rule set `resultBasis` | Decided (2026-11-07) |
+| DEC-03 | Which prediction types are mandatory | Result only · score only · both required · either | **Chosen: exact score only;** the result (home/draw/away) is derived from it. `RESULT` is never entered separately | Prediction config `requiredPicks` | Decided (2026-11-07) |
+| DEC-21 | Prediction visibility to friends | Friends after kickoff · friends always · user-selectable among these · private option | **Chosen: friends see predictions only after kickoff.** Fixed platform rule, no per-user setting in v1.0 (prevents copying in leagues and the prize race) | `PredictionVisibilityPolicy` | Decided (2026-11-07) |
 | DEC-24 | Postponement, kickoff change, cancellation, abandonment | See `03-workflows.md` §1.5 | Keep predictions on kickoff change; carry over on reschedule; void if not rescheduled in N days; void on cancel | Prediction policy config | Pending |
 
 ## MOTM
