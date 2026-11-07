@@ -5,7 +5,16 @@ import tseslint from 'typescript-eslint';
 
 export default defineConfig(
   {
-    ignores: ['dist/', 'dist-worker/', 'coverage/', 'src/generated/', '*.config.js', 'jest.*.js', 'eslint.config.mjs'],
+    ignores: [
+      'dist/',
+      'dist-worker/',
+      'coverage/',
+      'src/generated/',
+      '*.config.js',
+      'jest.*.js',
+      'eslint.config.mjs',
+      '.dependency-cruiser.cjs',
+    ],
   },
   js.configs.recommended,
   tseslint.configs.recommendedTypeChecked,
@@ -26,6 +35,17 @@ export default defineConfig(
     // classes must stay value imports in providers, controllers and modules.
     files: ['src/**/*.ts'],
     rules: { '@typescript-eslint/consistent-type-imports': 'off' },
+  },
+  {
+    // Only the config loader and bootstrap read the environment; everything else injects AppConfig.
+    files: ['src/**/*.ts'],
+    ignores: ['src/shared/infrastructure/config/**', 'src/bootstrap/**'],
+    rules: {
+      'no-restricted-properties': [
+        'error',
+        { object: 'process', property: 'env', message: 'Inject AppConfig instead of reading process.env.' },
+      ],
+    },
   },
   {
     files: ['**/*.spec.ts', 'test/**/*.ts'],
