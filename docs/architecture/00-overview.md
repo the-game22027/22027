@@ -21,7 +21,7 @@ Guiding principles:
 | MOTM | All users vote; after the match; window = 1 hour after authoritative end; aggregate community result | Aggregation, ties, vote changes, anonymity, verification, points, prediction timing |
 | Quiz battles (**core**) | Football trivia played **against other players, any time, real-time only** (ADR-0010). Random matchmaking (1v1); private rooms with a unique code to invite friends; a bot when no human opponent is available. Multilingual (AR/EN) questions. **No** Daily Quiz, **no** solo mode, **no** async play | Round count, timers, scoring, room size, bot wait and disclosure, points per mode, repetition (DEC-31..33, 37..44) |
 | Private leagues | Members, owner, predictions **and** battle competitions | Invitations, limits, duration, scoring, visibility, permissions |
-| Leaderboards | Weekly, monthly, seasonal, all-time; monthly leader gets a prize | Boundaries, timezone, season definition, aggregation, tie-breaks, combined vs separate |
+| Leaderboards | Weekly, monthly, seasonal, all-time; **two separate boards: predictions and battles** (DEC-18); monthly leader gets a prize | Boundaries, timezone, season definition, tie-breaks, prize per board (DEC-47) |
 | Social | Friends; friends can view predictions | Feed, sharing, achievements, following |
 | Auth | Google, X, Facebook, phone number | Identity broker choice (DEC-25), linking UX |
 | Football data | Mock data first; free legal datasets later | Provider for live results in production |

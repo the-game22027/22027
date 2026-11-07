@@ -300,7 +300,7 @@ Options considered:
 
 **Choose B.** Optionally add Redis ZSET as a cache in front of hot global boards later (measured need only).
 
-Incremental update: on `PointsRecorded` (batch of entries), for each entry determine `periodKey`s for all kinds × categories it contributes to (DEC-18 defines which categories exist and whether OVERALL sums them), then:
+Incremental update: on `PointsRecorded` (batch of entries), for each entry determine `periodKey`s for all kinds × categories it contributes to (Decided, DEC-18: `PREDICTIONS` and `BATTLES` only; prediction points feed the first, battle points the second), then:
 
 ```sql
 INSERT INTO leaderboard_entries (period_id, user_id, points, last_scored_at, updated_at)

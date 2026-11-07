@@ -34,7 +34,7 @@ PostgreSQL (16+), managed by Prisma migrations. One **app** database (this docum
 | `game_type` | `PREDICTION`, `MOTM`, `BATTLE` | Also used as point category (`QUIZ` removed with the Daily Quiz, ADR-0010) |
 | `rule_set_status` | `DRAFT`, `ACTIVE`, `RETIRED` | |
 | `leaderboard_kind` | `WEEKLY`, `MONTHLY`, `SEASONAL`, `ALL_TIME` | Confirmed four periods |
-| `leaderboard_category` | `OVERALL`, `PREDICTIONS`, `BATTLES` | Which ones are live is DEC-18 |
+| `leaderboard_category` | `PREDICTIONS`, `BATTLES` | Decided (DEC-18): two separate boards, no overall |
 | `period_status` | `OPEN`, `CLOSED`, `FINALIZED` | |
 | `league_role` | `OWNER`, `ADMIN`, `MEMBER` | Permissions per role: DEC-22 |
 | `membership_status` | `ACTIVE`, `LEFT`, `REMOVED` | |
