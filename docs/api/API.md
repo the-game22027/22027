@@ -123,7 +123,7 @@ interface MatchDetail extends MatchSummary { endedAt?: string | null; venue?: st
 
 // ---- Predictions ----
 type Pick =
-  | { type: 'RESULT'; outcome: 'HOME' | 'DRAW' | 'AWAY' }
+  | { type: 'RESULT'; outcome: 'HOME' | 'DRAW' | 'AWAY' }   // response only: derived from EXACT_SCORE (DEC-03)
   | { type: 'EXACT_SCORE'; home: number; away: number }
   | { type: 'MOTM'; playerId: string };            // disabled until DEC-08
 interface SubmitPredictionRequest { picks: Pick[] }
@@ -199,7 +199,7 @@ Legend: **Auth** P = public, U = authenticated user. **MVP** ✅ / Future 🔜.
 |---|---|---|---|---|
 | ✅ | GET | `/v1/me` | U | `Me` |
 | ✅ | PATCH | `/v1/me` | U | displayName, username, avatarUrl, locale, favouriteTeamId |
-| ✅ | PATCH | `/v1/me/privacy` | U | `predictionVisibility` (only values allowed by DEC-21 config) |
+| 🔜 | PATCH | `/v1/me/privacy` | U | Future privacy settings. Prediction visibility is fixed in v1.0 (DEC-21: friends after kickoff) |
 | ✅ | DELETE | `/v1/me` | U (recent auth) | Account deletion → `202` |
 | ✅ | GET | `/v1/users/{userId}` | U | `PublicUser` (+ friendship status) |
 | ✅ | GET | `/v1/users?query=&cursor=` | U | Search by display name/username; rate limited; excludes blocked |

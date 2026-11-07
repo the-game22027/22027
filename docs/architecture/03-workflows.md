@@ -58,7 +58,7 @@ sequenceDiagram
 
 1. **Retrieve match:** `GET /v1/matches/{id}` returns `kickoffAt`, `status`, `predictable` (computed server-side) and `serverTime`. The client may show a countdown but the server decides.
 2. **Submit:** `PUT /v1/matches/{id}/prediction` (idempotent by nature: same body twice = same state).
-3. **Validate:** DTO shape → domain validation against the active prediction config (which pick types are enabled/required: DEC-03; score bounds).
+3. **Validate:** DTO shape → domain validation against the active prediction config (Decided, DEC-03: an `EXACT_SCORE` pick is required; the outcome is derived from it; score bounds).
 4. **Save:** a single transaction: conditional upsert of `predictions` (the statement in `02-database.md` §5), replace `prediction_picks`, append `prediction_revisions`.
 5. **Edit:** same endpoint; revision increments. A no-op edit (identical picks) returns 200 without a new revision (compare with the last snapshot).
 6. **Lock:** implicit at `kickoff_at`. `MatchStarted` only drives UX and visibility, not correctness.
@@ -100,7 +100,7 @@ No transaction spans modules except through the outbox. Scoring 50k predictions 
 | Cancelled | Void (`status=VOID`), supersede any ledger entries with zero | Void |
 | Abandoned mid-match | (a) void; (b) wait for replay; (c) score with the score at abandonment | (b), then (a) after N days |
 | Delayed result | Nothing to do: scoring is triggered by `MatchFinished`, whenever it arrives. Leaderboard finalization waits a grace window (DEC-28) |
-| Which score counts in knockout games (90' vs extra time vs penalties) | Configured in the prediction rule set (`resultBasis`) | Regular time + extra time, penalties excluded (common convention; confirm) |
+| Which score counts in knockout games (90' vs extra time vs penalties) | Configured in the prediction rule set (`resultBasis`) | **Decided (DEC-02):** regular time + extra time, penalty shootouts excluded |
 
 ---
 
@@ -213,7 +213,7 @@ Race conditions:
 2. **Profile:** chosen from config (DEC-43), for example `{ key, accuracyByDifficulty: {1..5: p}, answerDelayMs: {min, max}, timeoutRate }`, plus a localized display-name pool. Stored on the participant (`bot_profile`, `bot_display`).
 3. **Per round:** at `round:start` the engine calls the pure domain strategy `BotPlayer.decide(question.difficulty, profile, random)`, which returns `{ answersCorrectly | timesOut, delayMs }`. The engine resolves the option on the server (correct option via `AnswerKey`, or a random wrong option) and schedules a timer that calls the **same** submit-answer use case humans use, with `participantId` and no `clientMsgId`. The delay is kept below the deadline unless the decision is a timeout.
 4. **Lifecycle:** ready immediately; never disconnects; its score and placement are shown like anyone's; it never gets ledger entries.
-5. **Disclosure:** every payload carries `kind: "BOT"` (DEC-40; the recommendation is to show it in the UI).
+5. **Disclosure:** every payload carries `kind: "BOT"` and the UI always shows a bot badge (Decided, DEC-40).
 6. **Determinism:** randomness comes from a `RandomSource` port. Tests seed it with the battle id, so a bot battle replays identically.
 
 ---
@@ -261,7 +261,7 @@ In a 1v1, "≥ 2 ready" means both, so a missing player cancels the battle. A bo
 4. **Answer submission:** `round:answer { battleId, roundNo, optionId, clientMsgId }` from humans; a scheduled call from bot timers. Accepted only if the battle is `IN_PROGRESS`, the round is the current open round, the sender is an active participant (active socket for humans), and the receive time is ≤ `deadline_at + latencyGrace`. Persist `battle_answers` (PK = first answer wins; `(participant_id, client_msg_id)` unique = duplicate detection) and ack `{ clientMsgId, accepted, code? }`. Correctness comes from `AnswerKey` on the server. Other players get `round:player-answered` (who, not what).
 5. **Round close:** when every active participant has answered or at the deadline. Emit `round:result`: correct option, each player's answered/correct/points, running scores. Every server event carries a per-battle monotonically increasing `seq`.
 6. **Scoring:** the pure `BattleScorer(answers, ruleSetConfig)` gives per-answer points; `PlacementCalculator(scores, tieBreakConfig)` gives placements (ties share a placement; DEC-33). `outcome` is derived from placement.
-7. **Completion:** in one transaction, write participants' `score`, `placement`, `outcome`; compute each human's **ledger points** from the rule set's per-mode section (DEC-41: matchmaking vs human, vs bot, room); set battle `COMPLETED`; write outbox `BattleCompleted` (participants with `score` and `points`, plus `questionResults` for stats). Then emit `battle:completed`, release guards (or return the room to `LOBBY`). `score` is the in-game number players see; `points` is what reaches the ledger (often 0 for rooms and bots under the recommended DEC-41 default).
+7. **Completion:** in one transaction, write participants' `score`, `placement`, `outcome`; compute each human's **ledger points** from the rule set's per-mode section (DEC-41: matchmaking vs human, vs bot, room); set battle `COMPLETED`; write outbox `BattleCompleted` (participants with `score` and `points`, plus `questionResults` for stats). Then emit `battle:completed`, release guards (or return the room to `LOBBY`). `score` is the in-game number players see; `points` is what reaches the ledger (0 for rooms and bot battles: Decided, DEC-41).
 8. **Disconnects:** on a human's last socket disconnect, set `disconnected_at`, start the reconnect grace timer (DEC-32), and emit `player:disconnected { participantId, graceUntil }`. The battle keeps running; missed rounds are timeouts. When grace expires, the player forfeits (`forfeited_at`, last placement) and `player:forfeited` is emitted. With one active participant left the battle completes (`end_reason = FORFEIT`); with no active human left it is `ABANDONED`. Forfeit points policy: DEC-33.
 9. **Reconnection:** the client reconnects with a valid token and emits `battle:resync { battleId, lastSeq }`. The engine replies with a full snapshot (current round, deadline, players, scores, own answers). Missed events are not replayed one by one; the snapshot is the source of truth.
 10. **Duplicate, late, out-of-order messages:** a duplicate gets the same ack as the first (looked up by `clientMsgId`); a late answer (after the round closed) gets `accepted: false, code: ROUND_CLOSED`; an answer for a future round is rejected (`ROUND_NOT_CURRENT`).
@@ -300,7 +300,7 @@ Options considered:
 
 **Choose B.** Optionally add Redis ZSET as a cache in front of hot global boards later (measured need only).
 
-Incremental update: on `PointsRecorded` (batch of entries), for each entry determine `periodKey`s for all kinds × categories it contributes to (DEC-18 defines which categories exist and whether OVERALL sums them), then:
+Incremental update: on `PointsRecorded` (batch of entries), for each entry determine `periodKey`s for all kinds × categories it contributes to (Decided, DEC-18: `PREDICTIONS` and `BATTLES` only; prediction points feed the first, battle points the second), then:
 
 ```sql
 INSERT INTO leaderboard_entries (period_id, user_id, points, last_scored_at, updated_at)
@@ -352,10 +352,7 @@ canView(viewer, owner, match, ownerSettings, platformDefault):
   if viewer == owner → true
   if blocked(viewer, owner) → false
   if not areFriends(viewer, owner) → false            (Confirmed: friends only)
-  mode = ownerSettings.predictionVisibility ?? platformDefault   (DEC-21)
-  if mode == FRIENDS_AFTER_LOCK → match.kickoff_at <= now
-  if mode == FRIENDS_ALWAYS → true
-  if mode == PRIVATE → false
+  return match.kickoff_at <= now                       (Decided, DEC-21: friends after kickoff)
 ```
 
-Recommended default: `FRIENDS_AFTER_LOCK`, because seeing friends' picks before kickoff enables copying in leagues (risk K-03). Every read path (`friends' predictions for a match`, `a user's prediction history`, future feed and share cards) must go through this policy and has its own integration test.
+Decided (DEC-21): friends see predictions only after kickoff, with no per-user setting in v1.0, because seeing friends' picks before kickoff enables copying in leagues (risk K-03). Every read path (`friends' predictions for a match`, `a user's prediction history`, future feed and share cards) must go through this policy and has its own integration test.

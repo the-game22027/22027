@@ -102,6 +102,7 @@ Update this section when commands change. Do not document commands that do not e
 | Topic | File |
 |---|---|
 | Docs index | `docs/README.md` |
+| Product requirements (v1.0 scope, stories, decided rules) | `docs/PRD.md` |
 | Vision, scope, assumptions, risks, system diagrams | `docs/architecture/00-overview.md` |
 | Modules, boundaries, dependency rules, events | `docs/architecture/01-modules.md` |
 | Database design + ERD | `docs/architecture/02-database.md` |

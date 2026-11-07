@@ -34,9 +34,9 @@ Battles are real-time with short round deadlines, which already limits searching
 | Risk | Mitigation |
 |---|---|
 | Searching answers during a round | Short round timers (DEC-32); server-measured answer times; flag statistically impossible speeds |
-| Sharing answers in a private room (players sitting together) | Option order shuffled per player (DEC-44); room battles earn no leaderboard points by default (DEC-41) |
-| Collusion: a friend throws the game, or one person plays their own second account | Same DEC-41 default for rooms; matchmaking pairs random people; detect account pairs that meet unusually often |
-| Farming easy bot wins | Bot battles earn no leaderboard points by default (DEC-41); bots labeled (DEC-40) |
+| Sharing answers in a private room (players sitting together) | Option order shuffled per player (DEC-44); room battles earn no leaderboard points (Decided, DEC-41) |
+| Collusion: a friend throws the game, or one person plays their own second account | Room battles earn no leaderboard points (Decided, DEC-41); matchmaking pairs random people; detect account pairs that meet unusually often |
+| Farming easy bot wins | Bot battles earn no leaderboard points; bots always labeled (Decided, DEC-41/40) |
 | Memorizing a small bank | Per-player exposure exclusion (DEC-44); large bank (risk K-09) |
 
 Do not promise "cheat-proof"; design so cheating is unrewarding for prizes (prize eligibility checks before awarding).
