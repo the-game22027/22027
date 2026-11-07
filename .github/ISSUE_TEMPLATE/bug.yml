@@ -1,0 +1,26 @@
+name: Bug
+description: Something behaves differently from the docs or the API contract
+labels: ["type:bug"]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected (link the doc/contract section if possible)
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: Request/response, socket events, simulator commands, requestId/traceId
+  - type: input
+    id: area
+    attributes:
+      label: Module
+      placeholder: predictions, battles, auth...

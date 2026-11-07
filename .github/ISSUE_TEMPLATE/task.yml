@@ -1,0 +1,33 @@
+name: Task / feature
+description: A unit of implementation work, usually part of a roadmap phase
+labels: ["type:feature"]
+body:
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: What should exist when this is done, and why
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: Modules, tables, endpoints, events involved. Link the relevant docs sections.
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Observable behaviour and the tests that prove it
+      placeholder: "- [ ] ..."
+    validations:
+      required: true
+  - type: textarea
+    id: non-goals
+    attributes:
+      label: Non-goals
+  - type: input
+    id: decisions
+    attributes:
+      label: Related open decisions
+      description: DEC-xx ids from docs/DECISIONS.md that this work must keep configurable

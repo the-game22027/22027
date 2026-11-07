@@ -1,0 +1,20 @@
+name: Product decision discussion
+description: Discuss an open business rule. The decision itself is recorded in docs/DECISIONS.md, not here.
+labels: ["type:decision"]
+body:
+  - type: input
+    id: dec
+    attributes:
+      label: DEC id
+      placeholder: DEC-41
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposal and reasoning
+    validations:
+      required: true
+  - type: markdown
+    attributes:
+      value: "When agreed, update the row in `docs/DECISIONS.md` (status, option, date) and the config default in the same PR, then close this issue."
