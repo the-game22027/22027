@@ -7,6 +7,25 @@
   "engines": {
     "node": ">=22"
   },
+  "scripts": {
+    "postinstall": "prisma generate",
+    "build": "prisma generate && nest build",
+    "start:api": "node dist/main.api.js",
+    "start:worker": "node dist/main.worker.js",
+    "start:api:dev": "nest start --watch",
+    "start:worker:dev": "nest start --watch --config nest-cli.worker.json",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "jest --config jest.config.js",
+    "test:integration": "jest --config jest.integration.config.js --runInBand",
+    "test:e2e": "jest --config jest.e2e.config.js --runInBand",
+    "depcheck:boundaries": "depcruise src --config .dependency-cruiser.cjs",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "prisma:deploy": "prisma migrate deploy"
+  },
   "dependencies": {
     "@bull-board/api": "9.11.0",
     "@bull-board/express": "9.11.0",
