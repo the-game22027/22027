@@ -1,4 +1,4 @@
-import { Global, Inject, Module, type OnApplicationShutdown } from '@nestjs/common';
+import { Global, Inject, Logger, Module, type OnApplicationShutdown } from '@nestjs/common';
 import { Redis } from 'ioredis';
 import { AppConfig } from '../config';
 
@@ -11,12 +11,17 @@ export const REDIS_CLIENT = Symbol('REDIS_CLIENT');
     {
       provide: REDIS_CLIENT,
       inject: [AppConfig],
-      useFactory: (config: AppConfig): Redis =>
-        new Redis(config.redisUrl, {
+      useFactory: (config: AppConfig): Redis => {
+        const client = new Redis(config.redisUrl, {
           // Fail fast instead of queueing commands while Redis is down (readiness must report it).
           enableOfflineQueue: false,
           maxRetriesPerRequest: 1,
-        }),
+        });
+        // Without a listener ioredis reports connection errors as unhandled; log them and keep reconnecting.
+        const logger = new Logger('Redis');
+        client.on('error', (error: Error) => logger.warn(`Redis connection error: ${error.message}`));
+        return client;
+      },
     },
   ],
   exports: [REDIS_CLIENT],
