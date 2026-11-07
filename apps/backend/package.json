@@ -5,7 +5,7 @@
   "description": "NestJS modular monolith: API (HTTP + WebSocket) and background worker",
   "license": "UNLICENSED",
   "engines": {
-    "node": ">=22"
+    "node": ">=24.9"
   },
   "scripts": {
     "postinstall": "prisma generate",
@@ -18,9 +18,9 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "test": "jest --config jest.config.js",
-    "test:integration": "jest --config jest.integration.config.js --runInBand",
-    "test:e2e": "jest --config jest.e2e.config.js --runInBand",
+    "test": "node --experimental-vm-modules --disable-warning=ExperimentalWarning node_modules/jest/bin/jest.js --config jest.config.js",
+    "test:integration": "node --experimental-vm-modules --disable-warning=ExperimentalWarning node_modules/jest/bin/jest.js --config jest.integration.config.js --runInBand",
+    "test:e2e": "node --experimental-vm-modules --disable-warning=ExperimentalWarning node_modules/jest/bin/jest.js --config jest.e2e.config.js --runInBand",
     "depcheck:boundaries": "depcruise src --config .dependency-cruiser.cjs",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
