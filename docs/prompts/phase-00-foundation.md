@@ -39,7 +39,7 @@ Constraints that are not negotiable:
    - A simple subscription registry: handlers declare which event types they consume and which queue they run on.
    - BullMQ defaults from `docs/architecture/05-background-jobs.md` §4 (attempts, exponential backoff with jitter, retention).
    - Bull Board mounted at `/admin/queues` only when `NODE_ENV !== 'production'`.
-8. **Quality gates:** ESLint + Prettier; `dependency-cruiser` rules that (a) forbid `domain/` importing `@nestjs/*`, `@prisma/*`, `bullmq`, `ioredis`, `socket.io`, and (b) forbid deep imports into another module (only `@modules/<name>` allowed); npm scripts `lint`, `typecheck`, `test`, `test:integration`, `test:e2e`, `depcheck:boundaries`; a GitHub Actions workflow running them. Add `.github/dependabot.yml` for `npm` (`/apps/backend`) and `github-actions`, weekly. The repository already has PR/issue templates, labels and milestones; do not replace them.
+8. **Quality gates:** ESLint + Prettier; `dependency-cruiser` rules that (a) forbid `domain/` importing `@nestjs/*`, `@prisma/*`, `bullmq`, `ioredis`, `socket.io`, and (b) forbid deep imports into another module (only `@modules/<name>` allowed); npm scripts `lint`, `typecheck`, `test`, `test:integration`, `test:e2e`, `depcheck:boundaries`; a GitHub Actions workflow running them, path-filtered to `apps/backend/**` (the repository is a monorepo that also holds `apps/mobile` (Flutter) and `data/` (Python); do not touch those). Add `.github/dependabot.yml` for `npm` (`/apps/backend`) and `github-actions`, weekly. The repository already has PR/issue templates, labels and milestones; do not replace them.
 9. **Testing harness:** Jest projects for unit/integration/e2e; Testcontainers helpers for Postgres and Redis (start once per test run, run migrations); Supertest bootstrap helper for e2e.
 10. **Developer docs:** update the "Commands" section of `CLAUDE.md` with the real commands you created. Do not document commands that do not exist.
 
@@ -75,4 +75,4 @@ Constraints that are not negotiable:
 
 ## Deliverable
 
-A pull request from branch `feat/p0-foundation` into `main` of `github.com/the-game22027/game-backend` (Conventional Commits, PR template filled in, linked to the Phase 0 issue and milestone `P0 Foundation`), with a short description of decisions you made within the allowed freedom (e.g., config validation library), how to run everything, and any deviation from the docs with the reason.
+A pull request from branch `feat/p0-foundation` into `main` of `github.com/the-game22027/the-game` (Conventional Commits, PR template filled in, linked to the Phase 0 issue and milestone `P0 Foundation`), with a short description of decisions you made within the allowed freedom (e.g., config validation library), how to run everything, and any deviation from the docs with the reason.

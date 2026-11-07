@@ -16,6 +16,6 @@
 - [ ] No open business rule hard-coded: TBD values come from config or carry `// TODO(DEC-xx)` (`docs/DECISIONS.md`)
 - [ ] Time-critical checks use the DB clock / injected `Clock`, never client time
 - [ ] Design change? Updated the relevant doc **and** added/superseded an ADR
-- [ ] API change? Updated `docs/api/API.md` / `WEBSOCKET.md` (breaking change → new version)
+- [ ] API change? Updated `docs/api/API.md` / `WEBSOCKET.md` (breaking change → new version) and regenerated the mobile API client (or opened a follow-up issue)
 - [ ] New or changed commands documented in `CLAUDE.md` §6
 - [ ] No secrets, tokens, or real personal data committed
