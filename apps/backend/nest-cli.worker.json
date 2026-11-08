@@ -5,6 +5,15 @@
   "entryFile": "main.worker",
   "compilerOptions": {
     "tsConfigPath": "tsconfig.worker.json",
-    "deleteOutDir": true
+    "deleteOutDir": true,
+    "plugins": [
+      {
+        "name": "@nestjs/swagger",
+        "options": {
+          "classValidatorShim": true,
+          "introspectComments": true
+        }
+      }
+    ]
   }
 }

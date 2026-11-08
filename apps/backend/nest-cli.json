@@ -5,6 +5,15 @@
   "entryFile": "main.api",
   "compilerOptions": {
     "tsConfigPath": "tsconfig.build.json",
-    "deleteOutDir": true
+    "deleteOutDir": true,
+    "plugins": [
+      {
+        "name": "@nestjs/swagger",
+        "options": {
+          "classValidatorShim": true,
+          "introspectComments": true
+        }
+      }
+    ]
   }
 }

@@ -26,3 +26,12 @@ export class ProviderTokenInvalidError extends DomainError {
     super('The sign-in token from the identity provider is invalid or expired.');
   }
 }
+
+export class AccountDisabledError extends DomainError {
+  readonly code = 'ACCOUNT_DISABLED';
+  readonly kind = 'FORBIDDEN';
+
+  constructor() {
+    super('This account cannot sign in.');
+  }
+}
