@@ -17,3 +17,12 @@ export class AccessTokenExpiredError extends DomainError {
     super('The access token has expired.');
   }
 }
+
+export class ProviderTokenInvalidError extends DomainError {
+  readonly code = 'PROVIDER_TOKEN_INVALID';
+  readonly kind = 'UNAUTHENTICATED';
+
+  constructor() {
+    super('The sign-in token from the identity provider is invalid or expired.');
+  }
+}
