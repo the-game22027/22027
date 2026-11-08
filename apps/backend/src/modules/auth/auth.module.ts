@@ -6,6 +6,7 @@ import { ACCESS_TOKENS } from './application/ports/access-tokens';
 import { GOOGLE_TOKEN_VERIFIER } from './application/ports/google-token-verifier';
 import { IDENTITY_REPOSITORY } from './application/ports/identity-repository';
 import { SESSION_REPOSITORY } from './application/ports/session-repository';
+import { RefreshSessionService } from './application/refresh-session.service';
 import { SessionIssuer } from './application/session-issuer';
 import { SignInService } from './application/sign-in.service';
 import { JoseAccessTokens } from './infrastructure/jose-access-tokens';
@@ -24,6 +25,7 @@ export class AuthModule {
       controllers: [AuthController, ...(config.devToolsEnabled ? [DevAuthController] : [])],
       providers: [
         SignInService,
+        RefreshSessionService,
         SessionIssuer,
         MeQuery,
         { provide: ACCESS_TOKENS, useClass: JoseAccessTokens },

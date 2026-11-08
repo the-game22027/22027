@@ -38,3 +38,9 @@ export class DevSignInDto {
   @Type(() => DeviceDto)
   device?: DeviceDto;
 }
+
+export class RefreshDto {
+  @IsString()
+  @Length(1, 200)
+  refreshToken!: string;
+}

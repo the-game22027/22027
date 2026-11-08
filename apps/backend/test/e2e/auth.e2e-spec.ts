@@ -63,4 +63,32 @@ describe('auth (e2e)', () => {
       expect(res.body).toMatchObject({ isNewUser: true, user: { displayName: 'Tester' } });
     });
   });
+
+  describe('POST /v1/auth/refresh', () => {
+    it('rotates the token, and a reused old token revokes the whole sign-in', async () => {
+      const idToken = await google.idToken(`sub-${randomUUID()}`);
+      const signedIn = await request(app.getHttpServer()).post('/v1/auth/google').send({ idToken }).expect(201);
+      const first = String(signedIn.body.refreshToken);
+
+      const rotated = await request(app.getHttpServer())
+        .post('/v1/auth/refresh')
+        .send({ refreshToken: first })
+        .expect(200);
+      expect(rotated.body).toMatchObject({ isNewUser: false, user: { id: signedIn.body.user.id } });
+      const second = String(rotated.body.refreshToken);
+      expect(second).not.toBe(first);
+
+      const reused = await request(app.getHttpServer())
+        .post('/v1/auth/refresh')
+        .send({ refreshToken: first })
+        .expect(401);
+      expect(reused.body.code).toBe('REFRESH_TOKEN_REUSED');
+
+      const afterTheft = await request(app.getHttpServer())
+        .post('/v1/auth/refresh')
+        .send({ refreshToken: second })
+        .expect(401);
+      expect(afterTheft.body.code).toBe('REFRESH_TOKEN_INVALID');
+    });
+  });
 });

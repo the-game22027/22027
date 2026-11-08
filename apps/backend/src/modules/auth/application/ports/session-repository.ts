@@ -4,6 +4,8 @@ export interface SessionRecord extends SessionState {
   readonly id: string;
   readonly userId: string;
   readonly familyId: string;
+  readonly platform: string | null;
+  readonly deviceName: string | null;
 }
 
 export interface DeviceInfo {

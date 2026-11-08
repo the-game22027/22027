@@ -30,7 +30,7 @@ export class PrismaSessionRepository implements SessionRepository {
   async findByTokenHashForUpdate(hash: Uint8Array<ArrayBuffer>): Promise<SessionRecord | null> {
     // Raw SQL because Prisma's query API has no FOR UPDATE.
     const rows = await this.txHost.tx.$queryRaw<SessionRecord[]>`
-      SELECT id::text, user_id::text AS "userId", family_id::text AS "familyId",
+      SELECT id::text, user_id::text AS "userId", family_id::text AS "familyId", platform, device_name AS "deviceName",
              replaced_by_session_id::text AS "replacedBySessionId", revoked_at AS "revokedAt",
              expires_at AS "expiresAt", absolute_expires_at AS "absoluteExpiresAt"
       FROM sessions

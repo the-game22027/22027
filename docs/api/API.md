@@ -70,6 +70,7 @@ Content-Type: application/problem+json
 | `UNAUTHENTICATED` / `TOKEN_EXPIRED` | 401 | Missing/invalid/expired access token |
 | `PROVIDER_TOKEN_INVALID` | 401 | Google/Facebook/X credential rejected (forged, expired, other app) |
 | `ACCOUNT_DISABLED` | 403 | Suspended or deleted account tried to sign in |
+| `REFRESH_TOKEN_INVALID` | 401 | Refresh token unknown, expired or revoked: sign in again |
 | `FORBIDDEN` | 403 | Authenticated but not allowed (only when existence is not secret) |
 | `NOT_FOUND` | 404 | Missing or not visible |
 | `RATE_LIMITED` | 429 | Throttled; `Retry-After` header |

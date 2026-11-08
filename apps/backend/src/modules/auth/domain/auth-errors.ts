@@ -35,3 +35,21 @@ export class AccountDisabledError extends DomainError {
     super('This account cannot sign in.');
   }
 }
+
+export class RefreshTokenInvalidError extends DomainError {
+  readonly code = 'REFRESH_TOKEN_INVALID';
+  readonly kind = 'UNAUTHENTICATED';
+
+  constructor() {
+    super('The refresh token is unknown, expired or revoked. Sign in again.');
+  }
+}
+
+export class RefreshTokenReusedError extends DomainError {
+  readonly code = 'REFRESH_TOKEN_REUSED';
+  readonly kind = 'UNAUTHENTICATED';
+
+  constructor() {
+    super('This refresh token was already used. All sessions from this sign-in were revoked.');
+  }
+}
