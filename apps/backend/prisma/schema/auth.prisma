@@ -1,6 +1,3 @@
-// Owned by the auth module (docs/architecture/02-database.md §4.2). Only `auth` writes these tables.
-
-/// No PHONE: phone sign-in was removed (ADR-0012). APPLE is added only if DEC-48 accepts it.
 enum AuthProvider {
   GOOGLE
   FACEBOOK
@@ -9,12 +6,10 @@ enum AuthProvider {
   @@map("auth_provider")
 }
 
-/// A verified provider account that points at one internal user. Never matched by email.
 model AuthIdentity {
   id              String       @id @db.Uuid
   userId          String       @map("user_id") @db.Uuid
   provider        AuthProvider
-  /// The provider's stable user id (Google `sub`, Facebook user id, X user id).
   providerSubject String       @map("provider_subject")
   email           String?      @db.Citext
   emailVerified   Boolean      @default(false) @map("email_verified")
@@ -29,13 +24,10 @@ model AuthIdentity {
   @@map("auth_identities")
 }
 
-/// One row per refresh token. Rotation creates a new row in the same family and revokes the old one.
 model Session {
   id                  String    @id @db.Uuid
   userId              String    @map("user_id") @db.Uuid
-  /// Rotation chain: presenting an already rotated token revokes the whole family.
   familyId            String    @map("family_id") @db.Uuid
-  /// SHA-256 of the opaque refresh token. The token itself is never stored.
   refreshTokenHash    Bytes     @unique @map("refresh_token_hash")
   replacedBySessionId String?   @map("replaced_by_session_id") @db.Uuid
   platform            String?
@@ -44,9 +36,7 @@ model Session {
   createdIp           String?   @map("created_ip") @db.Inet
   createdAt           DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   lastUsedAt          DateTime  @map("last_used_at") @db.Timestamptz(3)
-  /// Sliding expiry, pushed forward on each rotation.
   expiresAt           DateTime  @map("expires_at") @db.Timestamptz(3)
-  /// Absolute expiry of the family, copied unchanged on each rotation.
   absoluteExpiresAt   DateTime  @map("absolute_expires_at") @db.Timestamptz(3)
   revokedAt           DateTime? @map("revoked_at") @db.Timestamptz(3)
   revokeReason        String?   @map("revoke_reason")

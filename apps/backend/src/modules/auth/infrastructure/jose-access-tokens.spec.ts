@@ -23,7 +23,6 @@ function service(clock: FixedClock, env: Record<string, string> = {}): JoseAcces
   return new JoseAccessTokens(config, clock);
 }
 
-/** A token signed outside the service, to forge headers and claims. */
 function forge(key: KeyObject, kid: string, overrides: { aud?: string; alg?: string } = {}): Promise<string> {
   const now = Math.floor(Date.parse('2026-11-08T12:00:00Z') / 1000);
   return new SignJWT({ sid: claims.sessionId })

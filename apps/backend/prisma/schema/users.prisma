@@ -1,5 +1,3 @@
-// Owned by the users module (docs/architecture/02-database.md §4.1). Only `users` writes these tables.
-
 enum UserStatus {
   ACTIVE
   SUSPENDED
@@ -19,8 +17,7 @@ model User {
   profile         UserProfile?
   privacySettings UserPrivacySettings?
 
-  // Back-relations Prisma requires for foreign keys from other modules' tables (auth.prisma).
-  // The users module never reads them.
+  // Prisma needs these for the FKs from auth tables; the users module never reads them.
   authIdentities AuthIdentity[]
   sessions       Session[]
 
@@ -29,16 +26,12 @@ model User {
 
 model UserProfile {
   userId      String   @id @map("user_id") @db.Uuid
-  /// 1..40 characters, validated in the application.
   displayName String   @map("display_name")
-  /// Optional public handle, unique ignoring case.
   username    String?  @unique @db.Citext
   avatarUrl   String?  @map("avatar_url")
-  /// 'ar' | 'en'. Arabic first.
   locale      String   @default("ar")
   countryCode String?  @map("country_code") @db.Char(2)
   updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
-  // favourite_team_id arrives in P2 with the teams table.
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -47,7 +40,6 @@ model UserProfile {
 
 model UserPrivacySettings {
   userId               String   @id @map("user_id") @db.Uuid
-  /// Unused in v1.0: visibility is fixed to friends-after-kickoff (DEC-21). Kept for future settings.
   predictionVisibility String?  @map("prediction_visibility")
   updatedAt            DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 

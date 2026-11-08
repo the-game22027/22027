@@ -1,7 +1,7 @@
 import { createPrivateKey, createPublicKey } from 'node:crypto';
 import { z } from 'zod';
 
-/** `.env` files hold a PEM on one line with literal `\n`; restore the real line breaks. */
+// .env files hold the PEM on one line with literal \n.
 const pem = z.string().transform((value) => value.replace(/\\n/g, '\n'));
 
 function isKey(parse: (pem: string) => { asymmetricKeyType?: string; asymmetricKeyDetails?: { namedCurve?: string } }) {
@@ -37,7 +37,6 @@ const configSchema = z
     OUTBOX_POLL_INTERVAL_MS: z.coerce.number().int().min(50).default(1000),
     OUTBOX_BATCH_SIZE: z.coerce.number().int().min(1).max(1000).default(100),
 
-    // Access tokens: ES256 (04-auth.md §5, §11). Generate a local pair with `npm run keys:generate`.
     JWT_PRIVATE_KEY: pem.refine(isKey(createPrivateKey), 'must be a P-256 (ES256) private key in PEM format'),
     JWT_KEY_ID: z.string().min(1),
     JWT_PREVIOUS_PUBLIC_KEY: pem
@@ -73,7 +72,6 @@ export class AppConfig {
   readonly jwt: {
     readonly privateKeyPem: string;
     readonly keyId: string;
-    /** Still accepted for verification during a key rotation. */
     readonly previous?: { readonly keyId: string; readonly publicKeyPem: string };
     readonly issuer: string;
     readonly audience: string;

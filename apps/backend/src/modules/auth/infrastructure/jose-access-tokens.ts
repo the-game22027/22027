@@ -8,10 +8,6 @@ import { AccessTokenExpiredError, InvalidAccessTokenError } from '../domain/auth
 
 const ALGORITHM = 'ES256';
 
-/**
- * ES256 JWTs with a `kid` header. Tokens carry only `sub` (user id) and `sid` (session id); everything
- * else is looked up server-side. The previous public key stays valid during a rotation.
- */
 @Injectable()
 export class JoseAccessTokens implements AccessTokens {
   private readonly signingKey: KeyObject;

@@ -1,8 +1,3 @@
-/**
- * Writes a fresh ES256 signing key pair into the local .env (04-auth.md §11).
- * Usage: npm run keys:generate [-- --force]
- * Development only: production keys come from the host's secret store, never from this script.
- */
 import { generateKeyPairSync, randomBytes } from 'node:crypto';
 import { copyFileSync, existsSync, readFileSync, writeFileSync } from 'node:fs';
 
