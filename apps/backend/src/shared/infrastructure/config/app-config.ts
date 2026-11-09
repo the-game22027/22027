@@ -9,6 +9,15 @@ const list = z.string().transform((value) =>
     .filter(Boolean),
 );
 
+const regex = z.string().refine((value) => {
+  try {
+    new RegExp(value);
+    return true;
+  } catch {
+    return false;
+  }
+}, 'must be a valid regular expression');
+
 const pem = z.string().transform((value) => value.replace(/\\n/g, '\n'));
 
 function isKey(parse: (pem: string) => { asymmetricKeyType?: string; asymmetricKeyDetails?: { namedCurve?: string } }) {
@@ -59,6 +68,8 @@ const configSchema = z
     GOOGLE_CLIENT_IDS: list.default([]),
     GOOGLE_JWKS_URL: z.url().default('https://www.googleapis.com/oauth2/v3/certs'),
     GOOGLE_ISSUERS: list.default(['https://accounts.google.com', 'accounts.google.com']),
+
+    USERNAME_PATTERN: regex.default('^[A-Za-z0-9_]{3,20}$'),
   })
   .refine((env) => (env.JWT_PREVIOUS_PUBLIC_KEY === undefined) === (env.JWT_PREVIOUS_KEY_ID === undefined), {
     message: 'set both or neither (key rotation)',
@@ -95,6 +106,8 @@ export class AppConfig {
     readonly issuers: readonly string[];
   };
 
+  readonly profile: { readonly usernamePattern: RegExp };
+
   constructor(env: ConfigEnv) {
     this.nodeEnv = env.NODE_ENV;
     this.logLevel = env.LOG_LEVEL;
@@ -115,6 +128,7 @@ export class AppConfig {
       accessTokenTtlSeconds: env.ACCESS_TOKEN_TTL_SECONDS,
     };
     this.google = { clientIds: env.GOOGLE_CLIENT_IDS, jwksUrl: env.GOOGLE_JWKS_URL, issuers: env.GOOGLE_ISSUERS };
+    this.profile = { usernamePattern: new RegExp(env.USERNAME_PATTERN) };
     this.refreshToken = { slidingDays: env.REFRESH_TOKEN_SLIDING_DAYS, absoluteDays: env.REFRESH_TOKEN_ABSOLUTE_DAYS };
   }
 

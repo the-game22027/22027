@@ -1,9 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { randomBytes } from 'node:crypto';
+import { AppConfig } from '@shared/infrastructure/config';
 import { ID_GENERATOR, type IdGenerator } from '@shared/kernel';
-import { displayNameFrom } from '../domain/display-name';
+import { chosenDisplayName, displayNameFrom } from '../domain/display-name';
+import { assertValidUsername } from '../domain/username';
 import { USER_REPOSITORY, type UserRepository } from './ports/user-repository';
-import type { UserAccount } from './user-account';
+import type { ProfilePatch, UserAccount } from './user-account';
 
 export interface IdentityHints {
   readonly displayName?: string;
@@ -15,6 +17,7 @@ export class UsersFacade {
   constructor(
     @Inject(USER_REPOSITORY) private readonly users: UserRepository,
     @Inject(ID_GENERATOR) private readonly ids: IdGenerator,
+    private readonly config: AppConfig,
   ) {}
 
   /** Joins the caller's transaction, so a failed sign-in leaves no orphan user. */
@@ -30,5 +33,13 @@ export class UsersFacade {
 
   getAccount(userId: string): Promise<UserAccount | null> {
     return this.users.findAccount(userId);
+  }
+
+  async updateProfile(userId: string, patch: ProfilePatch): Promise<void> {
+    if (patch.username) assertValidUsername(patch.username, this.config.profile.usernamePattern);
+    await this.users.updateProfile(userId, {
+      ...patch,
+      ...(patch.displayName === undefined ? {} : { displayName: chosenDisplayName(patch.displayName) }),
+    });
   }
 }

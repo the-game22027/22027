@@ -15,3 +15,12 @@ export interface NewUser {
   readonly displayName: string;
   readonly avatarUrl: string | null;
 }
+
+export type Locale = 'ar' | 'en';
+
+export interface ProfilePatch {
+  readonly displayName?: string;
+  readonly username?: string | null;
+  readonly avatarUrl?: string | null;
+  readonly locale?: Locale;
+}

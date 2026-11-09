@@ -1,6 +1,7 @@
 import type { NestExpressApplication } from '@nestjs/platform-express';
+import { randomBytes } from 'node:crypto';
 import request from 'supertest';
-import { bearer, devSignIn } from '../support/sign-in';
+import { bearer, devSignIn, type SignedIn } from '../support/sign-in';
 import { createApiTestApp } from '../support/test-app';
 
 describe('/v1/me (e2e)', () => {
@@ -39,5 +40,60 @@ describe('/v1/me (e2e)', () => {
       .set(...bearer(session))
       .expect(200);
     expect(res.body).toMatchObject({ id: session.userId, locale: 'ar', identities: [{ provider: 'GOOGLE' }] });
+  });
+
+  describe('PATCH /v1/me', () => {
+    const uniqueUsername = () => `fan_${randomBytes(6).toString('hex')}`;
+    const patch = (session: SignedIn, body: object) =>
+      request(app.getHttpServer())
+        .patch('/v1/me')
+        .set(...bearer(session))
+        .send(body);
+
+    it('changes only the fields it receives', async () => {
+      const session = await devSignIn(app);
+      const username = uniqueUsername();
+
+      const res = await patch(session, { displayName: '  Mo   Salah ', username, locale: 'en' }).expect(200);
+      expect(res.body).toMatchObject({ displayName: 'Mo Salah', username, locale: 'en' });
+
+      const after = await patch(session, { locale: 'ar' }).expect(200);
+      expect(after.body).toMatchObject({ displayName: 'Mo Salah', username, locale: 'ar' });
+    });
+
+    it('clears a nullable field with null', async () => {
+      const session = await devSignIn(app);
+      await patch(session, { username: uniqueUsername() }).expect(200);
+      const res = await patch(session, { username: null }).expect(200);
+      expect(res.body).toMatchObject({ username: null });
+    });
+
+    it('treats usernames as case-insensitive when checking they are free', async () => {
+      const username = uniqueUsername();
+      await patch(await devSignIn(app), { username }).expect(200);
+
+      const res = await patch(await devSignIn(app), { username: username.toUpperCase() }).expect(409);
+      expect(res.body).toMatchObject({ code: 'USERNAME_TAKEN' });
+    });
+
+    it('rejects a badly formed username', async () => {
+      const res = await patch(await devSignIn(app), { username: 'no spaces!' }).expect(400);
+      expect(res.body).toMatchObject({ code: 'USERNAME_INVALID' });
+    });
+
+    it('rejects a blank display name', async () => {
+      const res = await patch(await devSignIn(app), { displayName: '    ' }).expect(400);
+      expect(res.body).toMatchObject({ code: 'DISPLAY_NAME_INVALID' });
+    });
+
+    it.each([
+      { displayName: null },
+      { locale: 'fr' },
+      { avatarUrl: 'http://not-https.example/a.png' },
+      { status: 'X' },
+    ])('rejects %j at the edge', async (body) => {
+      const res = await patch(await devSignIn(app), body).expect(400);
+      expect(res.body).toMatchObject({ code: 'VALIDATION_FAILED' });
+    });
   });
 });

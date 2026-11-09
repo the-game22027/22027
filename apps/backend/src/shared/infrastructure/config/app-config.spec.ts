@@ -92,4 +92,8 @@ describe('loadConfig', () => {
       'ios.apps',
     ]);
   });
+
+  it('rejects a USERNAME_PATTERN that is not a regular expression', () => {
+    expect(issuesOf({ ...valid, USERNAME_PATTERN: '[' })).toContain('USERNAME_PATTERN');
+  });
 });
