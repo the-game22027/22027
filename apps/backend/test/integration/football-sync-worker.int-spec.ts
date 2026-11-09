@@ -8,9 +8,11 @@ describe('football sync in the worker', () => {
 
   afterAll(() => moduleRef.close());
 
-  it('runs on its schedule as soon as the worker starts', async () => {
+  it('runs the sync on its schedule', async () => {
     const startedAt = new Date();
-    moduleRef = await Test.createTestingModule({ imports: [WorkerModule.register(testConfig())] }).compile();
+    moduleRef = await Test.createTestingModule({
+      imports: [WorkerModule.register(testConfig({ FOOTBALL_SYNC_INTERVAL_SECONDS: '1' }))],
+    }).compile();
     await moduleRef.init();
     const prisma = moduleRef.get(PrismaService);
 

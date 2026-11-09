@@ -1,11 +1,10 @@
-import { BullModule } from '@nestjs/bullmq';
 import { Test, type TestingModule } from '@nestjs/testing';
 import { randomUUID } from 'node:crypto';
 import {
   ApplyProviderMatchUpdate,
   type ProviderMatchUpdate,
 } from '../../src/modules/football/application/apply-provider-match-update';
-import { FootballJobsModule } from '../../src/modules/football/football-jobs.module';
+import { FootballIngestionModule } from '../../src/modules/football/football-ingestion.module';
 import { CoreModule } from '../../src/shared/infrastructure/core.module';
 import { PrismaService } from '../../src/shared/infrastructure/persistence';
 import { createFixtureWorld } from '../support/football';
@@ -54,11 +53,7 @@ describe('applying provider match updates', () => {
   beforeAll(async () => {
     const config = testConfig();
     moduleRef = await Test.createTestingModule({
-      imports: [
-        CoreModule.register(config),
-        BullModule.forRoot({ connection: { url: config.redisUrl } }),
-        FootballJobsModule,
-      ],
+      imports: [CoreModule.register(config), FootballIngestionModule],
     }).compile();
     await moduleRef.init();
     matches = moduleRef.get(ApplyProviderMatchUpdate);

@@ -1,7 +1,6 @@
-import { BullModule } from '@nestjs/bullmq';
 import { Test, type TestingModule } from '@nestjs/testing';
 import { FootballSyncService } from '../../src/modules/football/application/football-sync.service';
-import { FootballJobsModule } from '../../src/modules/football/football-jobs.module';
+import { FootballIngestionModule } from '../../src/modules/football/football-ingestion.module';
 import { CoreModule } from '../../src/shared/infrastructure/core.module';
 import { PrismaService } from '../../src/shared/infrastructure/persistence';
 import { testConfig } from '../support/test-app';
@@ -16,11 +15,7 @@ describe('football sync with the mock provider', () => {
   beforeAll(async () => {
     const config = testConfig();
     moduleRef = await Test.createTestingModule({
-      imports: [
-        CoreModule.register(config),
-        BullModule.forRoot({ connection: { url: config.redisUrl } }),
-        FootballJobsModule,
-      ],
+      imports: [CoreModule.register(config), FootballIngestionModule],
     }).compile();
     await moduleRef.init();
     sync = moduleRef.get(FootballSyncService);
