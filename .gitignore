@@ -42,3 +42,4 @@ apps/mobile/build/
 apps/backend/src/generated/
 apps/backend/*.tsbuildinfo
 apps/backend/dist-worker/
+apps/backend/dist-cli/

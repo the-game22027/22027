@@ -8,6 +8,7 @@ export default defineConfig(
     ignores: [
       'dist/',
       'dist-worker/',
+      'dist-cli/',
       'coverage/',
       'src/generated/',
       '*.config.js',
