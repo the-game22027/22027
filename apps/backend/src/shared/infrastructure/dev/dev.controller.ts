@@ -2,6 +2,7 @@ import { Body, Controller, Get, HttpCode, Post } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { IsInt, IsOptional, IsString, Length, Max, Min } from 'class-validator';
 import { DomainError } from '@shared/kernel';
+import { Public } from '../http/public.decorator';
 
 export class EchoRequestDto {
   @IsString()
@@ -28,6 +29,7 @@ export class SampleConflictError extends DomainError {
  * Development-only routes that exercise the HTTP cross-cutting behaviour (validation, problem+json,
  * request ids) before any business module exists. Never registered in production.
  */
+@Public()
 @ApiTags('dev')
 @Controller({ path: '_dev', version: '1' })
 export class DevController {

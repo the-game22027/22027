@@ -77,6 +77,7 @@ Rules (Recommended, they protect against account takeover):
 
 - **Rotation with reuse detection:** every `POST /v1/auth/refresh` revokes the presented token and issues a new one in the same `family_id`. Presenting an already-rotated token means theft → revoke the whole family and force sign-in.
 - **Logout:** revoke the current session. **Logout everywhere:** revoke all sessions for the user.
+- **Revoking:** logout and device sign-out revoke the whole family, because refreshing replaces the row and a token or list can hold a rotated id. Every revoke locks the rows first and then updates in a second statement, so a replacement session that a concurrent refresh is committing is revoked too.
 - **Revocation latency:** access tokens are short-lived. Sensitive operations (identity linking, account deletion) re-check `sessions.revoked_at`. WebSocket connections validate the token on connect, are told to re-authenticate before `exp`, and are force-disconnected when their session is revoked (in-process signal now; Redis pub/sub when multi-instance).
 - **Session list:** `GET /v1/auth/sessions` shows device, platform, last used; users can revoke any.
 
@@ -97,6 +98,7 @@ Rules (Recommended, they protect against account takeover):
 
 - **Recovery:** social providers own their recovery. Encourage linking a second identity in the profile UI.
 - **Deletion (required by both app stores):** `DELETE /v1/me` (requires a recent sign-in, e.g. token issued in the last 10 minutes, or a re-verification) → `users.status = PENDING_DELETION`, publish `UserDeleted`. Handlers revoke sessions, delete identities, remove friendships, requests and blocks, leave leagues (ownership transfer or archive per DEC-22), and anonymize the profile. Ledger entries, votes and snapshots keep the same `user_id` but show "Deleted user", which keeps leaderboards and prize history consistent. After a grace period (Recommended 30 days, cancellable by signing in), status becomes `DELETED`.
+- **Recent sign-in (DEC-50):** measured from the oldest session in the family, i.e. the real sign-in. Token issue time would not work: a silent refresh renews it, so anyone holding a refresh token could pass the check. The mobile app asks the user to sign in with the provider again, then retries.
 
 ## 9. Account takeover threat checklist (MVP)
 

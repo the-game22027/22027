@@ -14,7 +14,7 @@ Design rules:
 io("wss://<host>/battles", { auth: { token: "<accessToken>" }, transports: ["websocket"] })
 ```
 
-- The token goes in the handshake `auth`, never in the query string.
+- The token goes in the handshake `auth`, never in the query string. Outside production, namespace `/_dev/socket` (`whoami`) exercises this check until `/battles` exists.
 - Invalid/expired token → connection refused with `connect_error` `{ code: "UNAUTHENTICATED" }`.
 - On connect, the server reads the user's current activity (queue, room, battle) and joins the socket to the matching channels (`room:{roomId}`, `battle:{battleId}`). The client then sends `room:resync` / `battle:resync` to get a snapshot.
 - One user may have several sockets (devices). Events go to every socket of the user, but only one socket may send answers for a battle: the first that emitted `battle:ready` (the *active socket*).

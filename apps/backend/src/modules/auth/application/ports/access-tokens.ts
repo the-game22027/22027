@@ -3,6 +3,8 @@ export interface AccessTokenClaims {
   readonly sessionId: string;
 }
 
+export type AuthContext = AccessTokenClaims;
+
 export interface IssuedAccessToken {
   readonly token: string;
   readonly expiresAt: Date;

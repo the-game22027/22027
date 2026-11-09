@@ -1,8 +1,11 @@
-import type { NewUser, UserAccount } from '../user-account';
+import type { NewUser, ProfilePatch, UserAccount } from '../user-account';
 
 export interface UserRepository {
   create(user: NewUser): Promise<void>;
   findAccount(userId: string): Promise<UserAccount | null>;
+  updateProfile(userId: string, patch: ProfilePatch): Promise<void>;
+  markPendingDeletion(userId: string, now: Date): Promise<boolean>;
+  cancelPendingDeletion(userId: string): Promise<boolean>;
 }
 
 export const USER_REPOSITORY = Symbol('USER_REPOSITORY');

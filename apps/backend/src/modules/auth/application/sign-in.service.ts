@@ -49,7 +49,8 @@ export class SignInService {
     const existing = await this.identities.findBySubject(identity.provider, identity.subject);
     if (existing) {
       const account = await this.users.getAccount(existing.userId);
-      if (account?.status !== 'ACTIVE') throw new AccountDisabledError();
+      if (account?.status === 'PENDING_DELETION') await this.users.cancelDeletion(existing.userId);
+      else if (account?.status !== 'ACTIVE') throw new AccountDisabledError();
       await this.identities.recordUse(existing.id, profile, now);
       return { userId: existing.userId, isNewUser: false, session: await this.sessions.start(existing.userId, device) };
     }

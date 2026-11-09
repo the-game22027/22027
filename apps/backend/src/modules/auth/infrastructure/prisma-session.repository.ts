@@ -1,7 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { TransactionHost } from '@nestjs-cls/transactional';
 import type { PrismaService, TransactionalAdapterPrisma } from '@shared/infrastructure/persistence';
-import type { NewSession, SessionRecord, SessionRepository } from '../application/ports/session-repository';
+import { Prisma } from '@generated/prisma/client';
+import type {
+  ActiveSession,
+  NewSession,
+  SessionFamilyState,
+  SessionRecord,
+  SessionRepository,
+} from '../application/ports/session-repository';
 import type { RevokeReason } from '../domain/refresh-policy';
 
 @Injectable()
@@ -47,8 +54,64 @@ export class PrismaSessionRepository implements SessionRepository {
   }
 
   async revokeFamily(familyId: string, reason: RevokeReason, now: Date): Promise<void> {
+    await this.lockThenRevoke(Prisma.sql`family_id = ${familyId}::uuid`, { familyId }, reason, now);
+  }
+
+  async revokeAllForUser(userId: string, reason: RevokeReason, now: Date): Promise<void> {
+    await this.lockThenRevoke(Prisma.sql`user_id = ${userId}::uuid`, { userId }, reason, now);
+  }
+
+  async findFamilyState(sessionId: string, now: Date): Promise<SessionFamilyState | null> {
+    const session = await this.txHost.tx.session.findUnique({
+      where: { id: sessionId },
+      select: { familyId: true, userId: true, createdAt: true },
+    });
+    if (!session) return null;
+    const { familyId, userId } = session;
+    const [oldest, active] = await Promise.all([
+      this.txHost.tx.session.aggregate({ where: { familyId }, _min: { createdAt: true } }),
+      this.txHost.tx.session.count({ where: { familyId, revokedAt: null, expiresAt: { gt: now } } }),
+    ]);
+    return { familyId, userId, signedInAt: oldest._min.createdAt ?? session.createdAt, active: active > 0 };
+  }
+
+  findOwned(sessionId: string, userId: string): Promise<{ familyId: string } | null> {
+    return this.txHost.tx.session.findFirst({ where: { id: sessionId, userId }, select: { familyId: true } });
+  }
+
+  async findActiveForUser(userId: string, now: Date): Promise<ActiveSession[]> {
+    const active = await this.txHost.tx.session.findMany({
+      where: { userId, revokedAt: null, expiresAt: { gt: now } },
+      orderBy: { lastUsedAt: 'desc' },
+    });
+    // Refreshing creates a new row, so the sign-in time is the oldest row of the family.
+    const families = await this.txHost.tx.session.groupBy({
+      by: ['familyId'],
+      where: { familyId: { in: active.map((session) => session.familyId) } },
+      _min: { createdAt: true },
+    });
+    const signedInAt = new Map(families.map((family) => [family.familyId, family._min.createdAt]));
+    return active.map((session) => ({
+      id: session.id,
+      familyId: session.familyId,
+      platform: session.platform,
+      deviceName: session.deviceName,
+      signedInAt: signedInAt.get(session.familyId) ?? session.createdAt,
+      lastUsedAt: session.lastUsedAt,
+    }));
+  }
+
+  // A refresh in flight holds a row lock while inserting the replacement session, which a single UPDATE
+  // would not see. Waiting for those locks first means the UPDATE, a new statement, sees the committed row.
+  private async lockThenRevoke(
+    lockWhere: Prisma.Sql,
+    where: Prisma.SessionWhereInput,
+    reason: RevokeReason,
+    now: Date,
+  ): Promise<void> {
+    await this.txHost.tx.$queryRaw`SELECT id::text FROM sessions WHERE ${lockWhere} ORDER BY id FOR UPDATE`;
     await this.txHost.tx.session.updateMany({
-      where: { familyId, revokedAt: null },
+      where: { ...where, revokedAt: null },
       data: { revokedAt: now, revokeReason: reason },
     });
   }

@@ -18,6 +18,7 @@ export function testConfig(overrides: Record<string, string> = {}): AppConfig {
     REDIS_URL: process.env['REDIS_URL'],
     JWT_PRIVATE_KEY: signingKey,
     JWT_KEY_ID: 'test-key',
+    RATE_LIMIT_AUTH_PER_MINUTE: '100000',
     ...overrides,
   });
 }

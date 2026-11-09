@@ -75,6 +75,8 @@ Confirmed on 2026-11-07 by the product owner: no Daily Quiz, no solo mode, no as
 
 | ID | Decision | Options | Recommended default | Lives in | Status |
 |---|---|---|---|---|---|
+| DEC-49 | Username format | Letters, digits and underscore · also Arabic letters · no usernames | `^[A-Za-z0-9_]{3,20}$`: easy to type, search and share; revisit for Arabic-first users | `USERNAME_PATTERN` config | Pending |
+| DEC-50 | How recent a sign-in must be to delete an account | 5 min · 10 min · always re-verify with the provider | 10 min since the real sign-in, not the last token refresh | `ACCOUNT_DELETION_RECENT_SIGN_IN_SECONDS` config | Pending |
 | DEC-25 | Identity broker | In-house verification · Firebase Auth · self-hosted broker | In-house (`04-auth.md` §3.5) | Auth adapters | Pending |
 | DEC-26 | Sign-in providers at launch | All four at once · phased · phone optional | **Decided (2026-11-08, ADR-0012): Google, Facebook and X in v1.0, built in that order. Phone number sign-in removed (no SMS cost).** Apple: DEC-48 | Auth config | Decided (2026-11-08) |
 | DEC-48 | Sign in with Apple (App Store guideline 4.8) | Add Sign in with Apple · release Android first, iOS later · no social sign-in on iOS | Add Sign in with Apple before the iOS release: free with the Apple Developer account the iOS release needs anyway, same `(provider, subject)` model (`04-auth.md` §3.4) | Auth adapters | Pending (decide before R2) |

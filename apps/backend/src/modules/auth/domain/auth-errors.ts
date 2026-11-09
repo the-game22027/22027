@@ -53,3 +53,21 @@ export class RefreshTokenReusedError extends DomainError {
     super('This refresh token was already used. All sessions from this sign-in were revoked.');
   }
 }
+
+export class SessionNotFoundError extends DomainError {
+  readonly code = 'NOT_FOUND';
+  readonly kind = 'NOT_FOUND';
+
+  constructor() {
+    super('Session not found.');
+  }
+}
+
+export class RecentSignInRequiredError extends DomainError {
+  readonly code = 'RECENT_SIGN_IN_REQUIRED';
+  readonly kind = 'FORBIDDEN';
+
+  constructor() {
+    super('Sign in again to confirm this action.');
+  }
+}
