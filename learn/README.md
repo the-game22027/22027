@@ -2,6 +2,8 @@
 
 Short concept cards, one concept per file, grouped by track, written while we build. Read a card in about 2 minutes.
 
+**Start here:** [WHAT-WE-BUILT.md](WHAT-WE-BUILT.md), the whole project so far, in Egyptian Arabic.
+
 ## Card format (keep it this short)
 
 ```
