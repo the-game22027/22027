@@ -4,6 +4,7 @@ import { ApplyProviderMatchUpdate } from '../../src/modules/football/application
 import { MatchScenarios, type ScenarioName } from '../../src/modules/football/application/match-scenarios';
 import { MatchSimulator } from '../../src/modules/football/application/match-simulator';
 import { MatchdayRunner } from '../../src/modules/football/application/matchday-runner';
+import { FOOTBALL_DATA_PROVIDER } from '../../src/modules/football/application/ports/football-data-provider';
 import type { MatchRefs } from '../../src/modules/football/application/ports/match-write-repository';
 import { FootballSimulatorModule } from '../../src/modules/football/football-simulator.module';
 import { CoreModule } from '../../src/shared/infrastructure/core.module';
@@ -12,6 +13,7 @@ import { createFixtureWorld } from '../support/football';
 import { testConfig } from '../support/test-app';
 
 const ANCHOR = new Date('2026-11-09T10:00:00Z');
+const PROVIDER = 'simulator-test';
 
 describe('the match simulator', () => {
   let moduleRef: TestingModule;
@@ -23,7 +25,7 @@ describe('the match simulator', () => {
   let refs: MatchRefs;
   let earliest = new Date('2000-01-01T12:00:00Z').getTime();
 
-  const seedMatch = async (provider = 'mock', kickoffAt = new Date((earliest -= 86_400_000 * 2))) => {
+  const seedMatch = async (provider = PROVIDER, kickoffAt = new Date((earliest -= 86_400_000 * 2))) => {
     const providerMatchId = randomUUID();
     await updates.apply({
       provider,
@@ -54,7 +56,10 @@ describe('the match simulator', () => {
   beforeAll(async () => {
     moduleRef = await Test.createTestingModule({
       imports: [CoreModule.register(testConfig()), FootballSimulatorModule],
-    }).compile();
+    })
+      .overrideProvider(FOOTBALL_DATA_PROVIDER)
+      .useValue({ name: PROVIDER })
+      .compile();
     await moduleRef.init();
     simulator = moduleRef.get(MatchSimulator);
     runner = moduleRef.get(MatchdayRunner);
@@ -148,9 +153,9 @@ describe('the match simulator', () => {
 
   it('runs the next matchday and leaves later matches alone', async () => {
     const kickoff = (hour: number) => new Date(Date.UTC(1990, 0, 1, hour));
-    const first = await seedMatch('mock', kickoff(15));
-    const second = await seedMatch('mock', kickoff(18));
-    const nextDay = await seedMatch('mock', new Date(Date.UTC(1990, 0, 3, 15)));
+    const first = await seedMatch(PROVIDER, kickoff(15));
+    const second = await seedMatch(PROVIDER, kickoff(18));
+    const nextDay = await seedMatch(PROVIDER, new Date(Date.UTC(1990, 0, 3, 15)));
 
     const seen: string[] = [];
     const result = await runner.run(100_000_000, (step) => seen.push(step.kind));
@@ -171,7 +176,7 @@ describe('the match simulator', () => {
     ['result-corrected', ['MatchScheduled', 'MatchStarted', 'MatchFinished', 'MatchResultCorrected']],
     ['abandoned', ['MatchScheduled', 'MatchStarted', 'MatchAbandoned']],
   ])('plays the %s scenario on the next match', async (name, expected) => {
-    const id = await seedMatch('mock', new Date((earliest -= 86_400_000 * 2)));
+    const id = await seedMatch(PROVIDER, new Date((earliest -= 86_400_000 * 2)));
     expect(await scenarios.play(name)).toBe(id);
     expect(await eventTypes(id)).toEqual(expected);
   });
