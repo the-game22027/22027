@@ -1,0 +1,144 @@
+enum MatchStatus {
+  SCHEDULED
+  LIVE
+  FINISHED
+  POSTPONED
+  CANCELLED
+  ABANDONED
+
+  @@map("match_status")
+}
+
+enum MatchDecidedBy {
+  REGULAR_TIME
+  EXTRA_TIME
+  PENALTIES
+
+  @@map("match_decided_by")
+}
+
+model Competition {
+  id              String  @id @db.Uuid
+  code            String  @unique
+  names           Json
+  type            String
+  countryCode     String? @map("country_code") @db.Char(2)
+  isNationalTeams Boolean @map("is_national_teams")
+  externalRefs    Json    @default("{}") @map("external_refs")
+  isActive        Boolean @default(true) @map("is_active")
+
+  seasons Season[]
+  matches Match[]
+
+  @@map("competitions")
+}
+
+model Season {
+  id            String   @id @db.Uuid
+  competitionId String   @map("competition_id") @db.Uuid
+  label         String
+  startsOn      DateTime @map("starts_on") @db.Date
+  endsOn        DateTime @map("ends_on") @db.Date
+  isCurrent     Boolean  @default(false) @map("is_current")
+
+  competition Competition @relation(fields: [competitionId], references: [id])
+  matches     Match[]
+
+  @@unique([competitionId, label])
+  @@map("seasons")
+}
+
+model Team {
+  id           String  @id @db.Uuid
+  names        Json
+  shortName    String? @map("short_name")
+  type         String
+  countryCode  String? @map("country_code") @db.Char(2)
+  crestUrl     String? @map("crest_url")
+  externalRefs Json    @default("{}") @map("external_refs")
+
+  homeMatches  Match[]            @relation("HomeTeam")
+  awayMatches  Match[]            @relation("AwayTeam")
+  squadEntries MatchSquadPlayer[]
+
+  @@map("teams")
+}
+
+model Player {
+  id              String    @id @db.Uuid
+  names           Json
+  knownAs         String?   @map("known_as")
+  birthDate       DateTime? @map("birth_date") @db.Date
+  nationalityCode String?   @map("nationality_code") @db.Char(2)
+  position        String?
+  externalRefs    Json      @default("{}") @map("external_refs")
+
+  squadEntries MatchSquadPlayer[]
+
+  @@map("players")
+}
+
+model Match {
+  id                String          @id @db.Uuid
+  competitionId     String          @map("competition_id") @db.Uuid
+  seasonId          String          @map("season_id") @db.Uuid
+  roundLabel        String?         @map("round_label")
+  homeTeamId        String          @map("home_team_id") @db.Uuid
+  awayTeamId        String          @map("away_team_id") @db.Uuid
+  kickoffAt         DateTime        @map("kickoff_at") @db.Timestamptz(3)
+  status            MatchStatus     @default(SCHEDULED)
+  startedAt         DateTime?       @map("started_at") @db.Timestamptz(3)
+  endedAt           DateTime?       @map("ended_at") @db.Timestamptz(3)
+  homeScore         Int?            @map("home_score") @db.SmallInt
+  awayScore         Int?            @map("away_score") @db.SmallInt
+  decidedBy         MatchDecidedBy? @map("decided_by")
+  homePenalties     Int?            @map("home_penalties") @db.SmallInt
+  awayPenalties     Int?            @map("away_penalties") @db.SmallInt
+  resultVersion     Int             @default(0) @map("result_version")
+  provider          String
+  providerMatchId   String          @map("provider_match_id")
+  providerUpdatedAt DateTime?       @map("provider_updated_at") @db.Timestamptz(3)
+  version           Int             @default(0)
+  createdAt         DateTime        @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt         DateTime        @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  competition Competition        @relation(fields: [competitionId], references: [id])
+  season      Season             @relation(fields: [seasonId], references: [id])
+  homeTeam    Team               @relation("HomeTeam", fields: [homeTeamId], references: [id])
+  awayTeam    Team               @relation("AwayTeam", fields: [awayTeamId], references: [id])
+  squad       MatchSquadPlayer[]
+
+  @@unique([provider, providerMatchId])
+  @@index([kickoffAt])
+  @@index([status, kickoffAt])
+  @@index([competitionId, kickoffAt])
+  @@map("matches")
+}
+
+model MatchSquadPlayer {
+  matchId     String @map("match_id") @db.Uuid
+  playerId    String @map("player_id") @db.Uuid
+  teamId      String @map("team_id") @db.Uuid
+  role        String
+  shirtNumber Int?   @map("shirt_number") @db.SmallInt
+
+  match  Match  @relation(fields: [matchId], references: [id], onDelete: Cascade)
+  player Player @relation(fields: [playerId], references: [id])
+  team   Team   @relation(fields: [teamId], references: [id])
+
+  @@id([matchId, playerId])
+  @@map("match_squad_players")
+}
+
+model ProviderSyncRun {
+  id         String    @id @db.Uuid
+  provider   String
+  kind       String
+  startedAt  DateTime  @map("started_at") @db.Timestamptz(3)
+  finishedAt DateTime? @map("finished_at") @db.Timestamptz(3)
+  status     String
+  stats      Json?
+  error      String?
+
+  @@map("provider_sync_runs")
+}
