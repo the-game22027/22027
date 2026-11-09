@@ -54,7 +54,7 @@ Format per module: **Purpose · Responsibilities · Owned tables · Public inter
 - **Owned tables:** `competitions`, `seasons`, `teams`, `players`, `matches`, `match_squad_players`, `provider_sync_runs`.
 - **Public interface:** `FootballQuery.getMatch(id)`, `listMatches(filter)`, `getSquads(matchId)`, `getLockInfo(matchId)`; port `FootballDataProvider` (`MockFootballProvider` now).
 - **Depends on:** nothing.
-- **Publishes:** `MatchScheduled`, `MatchKickoffChanged`, `MatchStarted`, `MatchFinished`, `MatchResultCorrected`, `MatchEndTimeCorrected`, `MatchPostponed`, `MatchCancelled`.
+- **Publishes:** `MatchScheduled`, `MatchKickoffChanged`, `MatchStarted`, `MatchFinished`, `MatchResultCorrected`, `MatchEndTimeCorrected`, `MatchPostponed`, `MatchCancelled`, `MatchAbandoned`.
 - **Consumes:** none (driven by provider sync jobs and the simulator).
 - **Must not:** know about predictions, votes, or points.
 - **Locale:** controllers read the resolved language with `@RequestLocale()`. `auth` sets it (header, else profile), so `football` stays free of a `users` dependency.
@@ -256,12 +256,14 @@ src/modules/predictions/
 | `UserDeleted` | users | userId | auth, social, leagues, battles (leave queue/rooms, anonymize), leaderboards, predictions (anonymize) |
 | `UserDeletionRequested` | users | userId | none yet: fan-out handlers arrive with their modules (P12) |
 | `UserDeletionCancelled` | users | userId | none yet: undoes whatever `UserDeletionRequested` handlers did |
+| `MatchScheduled` | football | matchId, kickoffAt | none yet |
 | `MatchKickoffChanged` | football | matchId, previousKickoffAt, kickoffAt | predictions (reopen/keep per DEC-24) |
 | `MatchStarted` | football | matchId, startedAt | predictions (visibility unlock cache), future feed |
 | `MatchFinished` | football | matchId, endedAt, score | predictions (score), motm (open poll) |
 | `MatchResultCorrected` | football | matchId, score, correctedAt | predictions (rescore) |
 | `MatchEndTimeCorrected` | football | matchId, endedAt | motm (adjust window if still open) |
 | `MatchPostponed` / `MatchCancelled` | football | matchId, reason | predictions (DEC-24), motm (cancel poll) |
+| `MatchAbandoned` | football | matchId, reason | none yet: predictions wait for a replay, then void (DEC-24) |
 | `PredictionsScored` | predictions | matchId, ruleSetId | points (pull scores, record/supersede) |
 | `PredictionsVoided` | predictions | matchId | points (supersede with zero) |
 | `MotmResultFinalized` | motm | matchId, pollId, winnerPlayerIds | predictions (MOTM picks, DEC-08), points |

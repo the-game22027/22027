@@ -61,7 +61,7 @@ Changes vs the original proposed order, and why:
 | PR | Scope | Learning cards |
 |---|---|---|
 | P2.1 Schema + read API | Football tables, `FootballQuery`, `GET /v1/competitions`, `/v1/matches`, `/v1/matches/{id}`, `/squads`, request locale, `favouriteTeamId` | Keyset pagination, composite indexes, translated names, request pipeline |
-| P2.2 Provider + lifecycle | `FootballDataProvider`, `MockFootballProvider` + seed, `ApplyProviderMatchUpdate` (idempotent, out-of-order, `version`), match state machine, outbox events, sync job | State machines, optimistic locking |
+| P2.2 Provider + lifecycle | `FootballDataProvider`, `MockFootballProvider` + seed, `ApplyProviderMatchUpdate` (idempotent, out-of-order, `version`), match state machine, outbox events, sync job | State machines, out-of-order updates, optimistic vs pessimistic locking, scheduled jobs |
 | P2.3 Simulator | `nest-commander` CLI, `mock:*` commands, scenarios, `mock:run-day`, exit e2e | CLI entry points, simulating time |
 
 
