@@ -69,6 +69,11 @@ const configSchema = z
     GOOGLE_JWKS_URL: z.url().default('https://www.googleapis.com/oauth2/v3/certs'),
     GOOGLE_ISSUERS: list.default(['https://accounts.google.com', 'accounts.google.com']),
 
+    FOOTBALL_SYNC_INTERVAL_SECONDS: z.coerce.number().int().min(1).default(3600),
+    FOOTBALL_SYNC_PAST_DAYS: z.coerce.number().int().min(0).default(30),
+    FOOTBALL_SYNC_FUTURE_DAYS: z.coerce.number().int().min(0).default(60),
+    MOCK_FOOTBALL_SEED_DIR: z.string().min(1).default('prisma/seed/football'),
+
     RATE_LIMIT_AUTH_PER_MINUTE: z.coerce.number().int().min(1).default(20),
     TRUST_PROXY_HOPS: z.coerce.number().int().min(0).default(0),
 
@@ -110,6 +115,12 @@ export class AppConfig {
     readonly issuers: readonly string[];
   };
 
+  readonly footballSync: {
+    readonly intervalSeconds: number;
+    readonly pastDays: number;
+    readonly futureDays: number;
+    readonly mockSeedDir: string;
+  };
   readonly rateLimit: { readonly authPerMinute: number };
   readonly trustProxyHops: number;
   readonly profile: { readonly usernamePattern: RegExp };
@@ -135,6 +146,12 @@ export class AppConfig {
       accessTokenTtlSeconds: env.ACCESS_TOKEN_TTL_SECONDS,
     };
     this.google = { clientIds: env.GOOGLE_CLIENT_IDS, jwksUrl: env.GOOGLE_JWKS_URL, issuers: env.GOOGLE_ISSUERS };
+    this.footballSync = {
+      intervalSeconds: env.FOOTBALL_SYNC_INTERVAL_SECONDS,
+      pastDays: env.FOOTBALL_SYNC_PAST_DAYS,
+      futureDays: env.FOOTBALL_SYNC_FUTURE_DAYS,
+      mockSeedDir: env.MOCK_FOOTBALL_SEED_DIR,
+    };
     this.rateLimit = { authPerMinute: env.RATE_LIMIT_AUTH_PER_MINUTE };
     this.trustProxyHops = env.TRUST_PROXY_HOPS;
     this.profile = { usernamePattern: new RegExp(env.USERNAME_PATTERN) };

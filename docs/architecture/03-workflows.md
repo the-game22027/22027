@@ -25,6 +25,8 @@ stateDiagram-v2
   CANCELLED --> [*]
 ```
 
+Two implementation rules: a provider polled too rarely can go from `SCHEDULED` straight to `FINISHED`, which is treated as passing through `LIVE` (both events fire). A match first seen already finished publishes only `MatchScheduled`, because it was never open to predictions or votes.
+
 Predictability rule (Confirmed: editable until kickoff): a prediction may be written **only if** `status = SCHEDULED AND kickoff_at > now()` (DB clock) at write time. The `LIVE` transition is not required for locking; the timestamp comparison alone locks. This removes any dependence on a job running exactly at kickoff.
 
 ### 1.2 Steps

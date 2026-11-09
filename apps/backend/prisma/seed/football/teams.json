@@ -1,0 +1,382 @@
+[
+  {
+    "ref": "liverpool",
+    "names": {
+      "en": "Liverpool",
+      "ar": "ليفربول"
+    },
+    "shortName": "LIV",
+    "type": "CLUB",
+    "countryCode": "GB"
+  },
+  {
+    "ref": "man-city",
+    "names": {
+      "en": "Manchester City",
+      "ar": "مانشستر سيتي"
+    },
+    "shortName": "MCI",
+    "type": "CLUB",
+    "countryCode": "GB"
+  },
+  {
+    "ref": "arsenal",
+    "names": {
+      "en": "Arsenal",
+      "ar": "أرسنال"
+    },
+    "shortName": "ARS",
+    "type": "CLUB",
+    "countryCode": "GB"
+  },
+  {
+    "ref": "chelsea",
+    "names": {
+      "en": "Chelsea",
+      "ar": "تشيلسي"
+    },
+    "shortName": "CHE",
+    "type": "CLUB",
+    "countryCode": "GB"
+  },
+  {
+    "ref": "man-united",
+    "names": {
+      "en": "Manchester United",
+      "ar": "مانشستر يونايتد"
+    },
+    "shortName": "MUN",
+    "type": "CLUB",
+    "countryCode": "GB"
+  },
+  {
+    "ref": "tottenham",
+    "names": {
+      "en": "Tottenham Hotspur",
+      "ar": "توتنهام هوتسبير"
+    },
+    "shortName": "TOT",
+    "type": "CLUB",
+    "countryCode": "GB"
+  },
+  {
+    "ref": "real-madrid",
+    "names": {
+      "en": "Real Madrid",
+      "ar": "ريال مدريد"
+    },
+    "shortName": "RMA",
+    "type": "CLUB",
+    "countryCode": "ES"
+  },
+  {
+    "ref": "barcelona",
+    "names": {
+      "en": "Barcelona",
+      "ar": "برشلونة"
+    },
+    "shortName": "BAR",
+    "type": "CLUB",
+    "countryCode": "ES"
+  },
+  {
+    "ref": "atletico",
+    "names": {
+      "en": "Atletico Madrid",
+      "ar": "أتلتيكو مدريد"
+    },
+    "shortName": "ATM",
+    "type": "CLUB",
+    "countryCode": "ES"
+  },
+  {
+    "ref": "sevilla",
+    "names": {
+      "en": "Sevilla",
+      "ar": "إشبيلية"
+    },
+    "shortName": "SEV",
+    "type": "CLUB",
+    "countryCode": "ES"
+  },
+  {
+    "ref": "valencia",
+    "names": {
+      "en": "Valencia",
+      "ar": "فالنسيا"
+    },
+    "shortName": "VAL",
+    "type": "CLUB",
+    "countryCode": "ES"
+  },
+  {
+    "ref": "villarreal",
+    "names": {
+      "en": "Villarreal",
+      "ar": "فياريال"
+    },
+    "shortName": "VIL",
+    "type": "CLUB",
+    "countryCode": "ES"
+  },
+  {
+    "ref": "inter",
+    "names": {
+      "en": "Inter Milan",
+      "ar": "إنتر ميلان"
+    },
+    "shortName": "INT",
+    "type": "CLUB",
+    "countryCode": "IT"
+  },
+  {
+    "ref": "milan",
+    "names": {
+      "en": "AC Milan",
+      "ar": "ميلان"
+    },
+    "shortName": "MIL",
+    "type": "CLUB",
+    "countryCode": "IT"
+  },
+  {
+    "ref": "juventus",
+    "names": {
+      "en": "Juventus",
+      "ar": "يوفنتوس"
+    },
+    "shortName": "JUV",
+    "type": "CLUB",
+    "countryCode": "IT"
+  },
+  {
+    "ref": "napoli",
+    "names": {
+      "en": "Napoli",
+      "ar": "نابولي"
+    },
+    "shortName": "NAP",
+    "type": "CLUB",
+    "countryCode": "IT"
+  },
+  {
+    "ref": "roma",
+    "names": {
+      "en": "Roma",
+      "ar": "روما"
+    },
+    "shortName": "ROM",
+    "type": "CLUB",
+    "countryCode": "IT"
+  },
+  {
+    "ref": "lazio",
+    "names": {
+      "en": "Lazio",
+      "ar": "لاتسيو"
+    },
+    "shortName": "LAZ",
+    "type": "CLUB",
+    "countryCode": "IT"
+  },
+  {
+    "ref": "bayern",
+    "names": {
+      "en": "Bayern Munich",
+      "ar": "بايرن ميونخ"
+    },
+    "shortName": "BAY",
+    "type": "CLUB",
+    "countryCode": "DE"
+  },
+  {
+    "ref": "dortmund",
+    "names": {
+      "en": "Borussia Dortmund",
+      "ar": "بوروسيا دورتموند"
+    },
+    "shortName": "BVB",
+    "type": "CLUB",
+    "countryCode": "DE"
+  },
+  {
+    "ref": "leipzig",
+    "names": {
+      "en": "RB Leipzig",
+      "ar": "لايبزيغ"
+    },
+    "shortName": "RBL",
+    "type": "CLUB",
+    "countryCode": "DE"
+  },
+  {
+    "ref": "leverkusen",
+    "names": {
+      "en": "Bayer Leverkusen",
+      "ar": "باير ليفركوزن"
+    },
+    "shortName": "B04",
+    "type": "CLUB",
+    "countryCode": "DE"
+  },
+  {
+    "ref": "frankfurt",
+    "names": {
+      "en": "Eintracht Frankfurt",
+      "ar": "آينتراخت فرانكفورت"
+    },
+    "shortName": "SGE",
+    "type": "CLUB",
+    "countryCode": "DE"
+  },
+  {
+    "ref": "stuttgart",
+    "names": {
+      "en": "VfB Stuttgart",
+      "ar": "شتوتغارت"
+    },
+    "shortName": "VFB",
+    "type": "CLUB",
+    "countryCode": "DE"
+  },
+  {
+    "ref": "psg",
+    "names": {
+      "en": "Paris Saint-Germain",
+      "ar": "باريس سان جيرمان"
+    },
+    "shortName": "PSG",
+    "type": "CLUB",
+    "countryCode": "FR"
+  },
+  {
+    "ref": "marseille",
+    "names": {
+      "en": "Marseille",
+      "ar": "مارسيليا"
+    },
+    "shortName": "OM",
+    "type": "CLUB",
+    "countryCode": "FR"
+  },
+  {
+    "ref": "lyon",
+    "names": {
+      "en": "Lyon",
+      "ar": "ليون"
+    },
+    "shortName": "OL",
+    "type": "CLUB",
+    "countryCode": "FR"
+  },
+  {
+    "ref": "monaco",
+    "names": {
+      "en": "Monaco",
+      "ar": "موناكو"
+    },
+    "shortName": "ASM",
+    "type": "CLUB",
+    "countryCode": "FR"
+  },
+  {
+    "ref": "lille",
+    "names": {
+      "en": "Lille",
+      "ar": "ليل"
+    },
+    "shortName": "LIL",
+    "type": "CLUB",
+    "countryCode": "FR"
+  },
+  {
+    "ref": "nice",
+    "names": {
+      "en": "Nice",
+      "ar": "نيس"
+    },
+    "shortName": "NIC",
+    "type": "CLUB",
+    "countryCode": "FR"
+  },
+  {
+    "ref": "egypt",
+    "names": {
+      "en": "Egypt",
+      "ar": "مصر"
+    },
+    "shortName": "EGY",
+    "type": "NATIONAL",
+    "countryCode": "EG"
+  },
+  {
+    "ref": "saudi-arabia",
+    "names": {
+      "en": "Saudi Arabia",
+      "ar": "السعودية"
+    },
+    "shortName": "KSA",
+    "type": "NATIONAL",
+    "countryCode": "SA"
+  },
+  {
+    "ref": "morocco",
+    "names": {
+      "en": "Morocco",
+      "ar": "المغرب"
+    },
+    "shortName": "MAR",
+    "type": "NATIONAL",
+    "countryCode": "MA"
+  },
+  {
+    "ref": "algeria",
+    "names": {
+      "en": "Algeria",
+      "ar": "الجزائر"
+    },
+    "shortName": "ALG",
+    "type": "NATIONAL",
+    "countryCode": "DZ"
+  },
+  {
+    "ref": "spain",
+    "names": {
+      "en": "Spain",
+      "ar": "إسبانيا"
+    },
+    "shortName": "ESP",
+    "type": "NATIONAL",
+    "countryCode": "ES"
+  },
+  {
+    "ref": "france",
+    "names": {
+      "en": "France",
+      "ar": "فرنسا"
+    },
+    "shortName": "FRA",
+    "type": "NATIONAL",
+    "countryCode": "FR"
+  },
+  {
+    "ref": "brazil",
+    "names": {
+      "en": "Brazil",
+      "ar": "البرازيل"
+    },
+    "shortName": "BRA",
+    "type": "NATIONAL",
+    "countryCode": "BR"
+  },
+  {
+    "ref": "argentina",
+    "names": {
+      "en": "Argentina",
+      "ar": "الأرجنتين"
+    },
+    "shortName": "ARG",
+    "type": "NATIONAL",
+    "countryCode": "AR"
+  }
+]
