@@ -19,9 +19,11 @@ import { PrismaIdentityRepository } from './infrastructure/prisma-identity.repos
 import { PrismaSessionRepository } from './infrastructure/prisma-session.repository';
 import { AuthController } from './presentation/auth.controller';
 import { DevAuthController } from './presentation/dev-auth.controller';
+import { DevSocketGateway } from './presentation/dev-socket.gateway';
 import { JwtAuthGuard } from './presentation/jwt-auth.guard';
 import { MeController } from './presentation/me.controller';
 import { SessionsController } from './presentation/sessions.controller';
+import { SocketAuthenticator } from './presentation/socket-authenticator';
 
 @Module({})
 export class AuthModule {
@@ -35,6 +37,7 @@ export class AuthModule {
         MeController,
         ...(config.devToolsEnabled ? [DevAuthController] : []),
       ],
+      exports: [SocketAuthenticator],
       providers: [
         SignInService,
         AccountDeletionService,
@@ -42,6 +45,8 @@ export class AuthModule {
         SessionIssuer,
         SessionsService,
         MeQuery,
+        SocketAuthenticator,
+        ...(config.devToolsEnabled ? [DevSocketGateway] : []),
         { provide: APP_GUARD, useClass: JwtAuthGuard },
         { provide: ACCESS_TOKENS, useClass: JoseAccessTokens },
         { provide: GOOGLE_TOKEN_VERIFIER, useClass: JoseGoogleTokenVerifier },
