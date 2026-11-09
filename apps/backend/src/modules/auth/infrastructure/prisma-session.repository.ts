@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { TransactionHost } from '@nestjs-cls/transactional';
 import type { PrismaService, TransactionalAdapterPrisma } from '@shared/infrastructure/persistence';
+import { Prisma } from '@generated/prisma/client';
 import type { NewSession, SessionRecord, SessionRepository } from '../application/ports/session-repository';
 import type { RevokeReason } from '../domain/refresh-policy';
 
@@ -47,8 +48,20 @@ export class PrismaSessionRepository implements SessionRepository {
   }
 
   async revokeFamily(familyId: string, reason: RevokeReason, now: Date): Promise<void> {
+    await this.lockThenRevoke(Prisma.sql`family_id = ${familyId}::uuid`, { familyId }, reason, now);
+  }
+
+  // A refresh in flight holds a row lock while inserting the replacement session, which a single UPDATE
+  // would not see. Waiting for those locks first means the UPDATE, a new statement, sees the committed row.
+  private async lockThenRevoke(
+    lockWhere: Prisma.Sql,
+    where: Prisma.SessionWhereInput,
+    reason: RevokeReason,
+    now: Date,
+  ): Promise<void> {
+    await this.txHost.tx.$queryRaw`SELECT id::text FROM sessions WHERE ${lockWhere} ORDER BY id FOR UPDATE`;
     await this.txHost.tx.session.updateMany({
-      where: { familyId, revokedAt: null },
+      where: { ...where, revokedAt: null },
       data: { revokedAt: now, revokeReason: reason },
     });
   }

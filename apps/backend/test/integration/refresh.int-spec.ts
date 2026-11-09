@@ -1,5 +1,5 @@
 import { Test, type TestingModule } from '@nestjs/testing';
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { AuthModule } from '../../src/modules/auth';
 import { RefreshSessionService } from '../../src/modules/auth/application/refresh-session.service';
 import { SignInService } from '../../src/modules/auth/application/sign-in.service';
@@ -110,5 +110,35 @@ describe('refresh token rotation', () => {
     await prisma.user.update({ where: { id: userId }, data: { status: 'SUSPENDED' } });
     await expect(refresh.refresh(session.refreshToken, {})).rejects.toBeInstanceOf(AccountDisabledError);
     expect((await familyOf(session.sessionId))[0]).toMatchObject({ revokeReason: 'ACCOUNT_DISABLED' });
+  });
+
+  it('revokes the session a concurrent refresh is still creating', async () => {
+    const first = await newSignIn();
+    const rotated = await refresh.refresh(first.session.refreshToken, {});
+    const [original, current] = await familyOf(first.session.sessionId);
+    if (!original || !current) throw new Error('expected two sessions in the family');
+    const inFlightId = randomUUID();
+    let replay: Promise<unknown> = Promise.resolve();
+
+    await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM sessions WHERE id = ${current.id}::uuid FOR UPDATE`;
+      replay = refresh.refresh(first.session.refreshToken, {}).catch((error: unknown) => error);
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      await tx.session.create({
+        data: {
+          id: inFlightId,
+          userId: rotated.userId,
+          familyId: current.familyId,
+          refreshTokenHash: randomBytes(32),
+          lastUsedAt: current.lastUsedAt,
+          expiresAt: current.expiresAt,
+          absoluteExpiresAt: current.absoluteExpiresAt,
+        },
+      });
+    });
+
+    expect(await replay).toBeInstanceOf(RefreshTokenReusedError);
+    const inFlight = await prisma.session.findUniqueOrThrow({ where: { id: inFlightId } });
+    expect(inFlight.revokeReason).toBe('REUSE_DETECTED');
   });
 });
