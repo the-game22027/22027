@@ -12,7 +12,7 @@ A football-focused **social gaming platform** (not a CRUD app, not a simple quiz
 
 - Match predictions (top-5 European leagues + national teams), private by default, editable until kickoff.
 - Man of the Match (MOTM) community voting, open for 1 hour after the authoritative match end.
-- **Core:** football trivia **battles** against other players, any time, **real-time only** over WebSockets: random 1v1 matchmaking with a bot fallback, and private rooms joined with a code. No Daily Quiz, no solo mode, no async play (ADR-0010).
+- **Core:** football trivia **battles** against other players, any time, **real-time only** over WebSockets: random 1v1 matchmaking with a bot fallback, and multiplayer private rooms (2 or more players) joined with a code. No Daily Quiz, no solo mode, no async play (ADR-0010).
 - Private leagues (prediction and battle competitions).
 - Leaderboards: weekly, monthly, seasonal, all-time. Monthly leader gets a prize.
 - Friends (mutual), privacy-aware prediction visibility.

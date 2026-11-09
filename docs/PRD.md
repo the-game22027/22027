@@ -99,13 +99,13 @@ Each feature lists user stories, the rules that apply (decided or open), and acc
 **Stories**
 - As a player, I tap "Play" and get a real-time football trivia battle against a random opponent at any time.
 - As a player, if nobody is online I still get a game, against a clearly labeled bot.
-- As a host, I create a private room, share its code, and start a battle with the friends who joined; we can rematch in the same room.
+- As a host, I create a private room, share its code, and start one battle with all the friends who joined, however many that is; we can rematch in the same room.
 - As a player, if my connection drops for a moment I rejoin the battle where it is.
 
 **Rules**
 - Real-time only; no async play, no solo mode (ADR-0010).
 - Random matchmaking is 1v1, first come first served (DEC-37). After a wait, a **bot** fills in (DEC-39). Bots are **always labeled** (DEC-40).
-- Private rooms: joined with a code; the host starts once at least 2 members are present; rooms stay open for rematches until idle (DEC-38, DEC-42). Blocked users cannot join each other's rooms.
+- Private rooms are multiplayer: joined with a code, 2 or more players in the same battle, up to the room size limit; the host starts once at least 2 members are present; rooms stay open for rematches until idle (DEC-38, DEC-42). Blocked users cannot join each other's rooms.
 - Everyone in a battle gets the same questions in the same order, in their own language. The server decides correctness, timing and scores; the first answer per round counts.
 - A player can be in only one of: the queue, a room, a battle.
 - Disconnects: the battle continues; a player who does not return within a grace period forfeits.
