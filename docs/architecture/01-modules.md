@@ -44,7 +44,7 @@ Format per module: **Purpose · Responsibilities · Owned tables · Public inter
 - **Owned tables:** `users`, `user_profiles`, `user_privacy_settings`.
 - **Public interface:** `UsersFacade.createFromIdentity()`, `UserQuery.getPublicProfiles(ids)`, `UserQuery.search(term)`, `UsersFacade.requestDeletion(userId)`.
 - **Depends on:** nothing.
-- **Publishes:** `UserRegistered`, `UserProfileUpdated`, `UserDeleted`.
+- **Publishes:** `UserRegistered`, `UserProfileUpdated`, `UserDeletionRequested`, `UserDeletionCancelled`, `UserDeleted`.
 - **Consumes:** none.
 - **Must not:** know about providers or tokens; decide prediction visibility (it only stores the user's preference).
 
@@ -253,6 +253,8 @@ src/modules/predictions/
 |---|---|---|---|
 | `UserRegistered` | users | userId | (future) notifications |
 | `UserDeleted` | users | userId | auth, social, leagues, battles (leave queue/rooms, anonymize), leaderboards, predictions (anonymize) |
+| `UserDeletionRequested` | users | userId | none yet: fan-out handlers arrive with their modules (P12) |
+| `UserDeletionCancelled` | users | userId | none yet: undoes whatever `UserDeletionRequested` handlers did |
 | `MatchKickoffChanged` | football | matchId, previousKickoffAt, kickoffAt | predictions (reopen/keep per DEC-24) |
 | `MatchStarted` | football | matchId, startedAt | predictions (visibility unlock cache), future feed |
 | `MatchFinished` | football | matchId, endedAt, score | predictions (score), motm (open poll) |

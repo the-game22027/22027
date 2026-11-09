@@ -75,6 +75,8 @@ Confirmed on 2026-11-07 by the product owner: no Daily Quiz, no solo mode, no as
 
 | ID | Decision | Options | Recommended default | Lives in | Status |
 |---|---|---|---|---|---|
+| DEC-49 | Username format | Letters, digits and underscore · also Arabic letters · no usernames | `^[A-Za-z0-9_]{3,20}$`: easy to type, search and share; revisit for Arabic-first users | `USERNAME_PATTERN` config | Pending |
+| DEC-50 | How recent a sign-in must be to delete an account | 5 min · 10 min · always re-verify with the provider | 10 min since the real sign-in, not the last token refresh | `ACCOUNT_DELETION_RECENT_SIGN_IN_SECONDS` config | Pending |
 | DEC-25 | Identity broker | In-house verification · Firebase Auth · self-hosted broker | In-house (`04-auth.md` §3.5) | Auth adapters | Pending |
 | DEC-26 | Providers at launch and production phone OTP | All four at once · phased · phone optional | **Providers decided (2026-11-07, via DEC-46): all four (Google, phone, Facebook, X) are in v1.0**; built in order Google + phone → Facebook → X. Still pending: the production SMS vendor (paid) | Auth config | Decided in part |
 

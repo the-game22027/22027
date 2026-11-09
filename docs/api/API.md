@@ -74,6 +74,9 @@ Content-Type: application/problem+json
 | `FORBIDDEN` | 403 | Authenticated but not allowed (only when existence is not secret) |
 | `NOT_FOUND` | 404 | Missing or not visible |
 | `RATE_LIMITED` | 429 | Throttled; `Retry-After` header |
+| `RECENT_SIGN_IN_REQUIRED` | 403 | Sensitive action needs a fresh sign-in (DEC-50) |
+| `DISPLAY_NAME_INVALID` / `USERNAME_INVALID` | 400 | Profile value breaks the format rules (DEC-49) |
+| `USERNAME_TAKEN` | 409 | Username belongs to someone else (case-insensitive) |
 | `IDEMPOTENCY_KEY_REUSED` | 422 | Same key, different request |
 | `PRECONDITION_FAILED` | 412 | `If-Match` mismatch |
 | `ACCOUNT_EXISTS_FOR_EMAIL` | 409 | Verified email belongs to another account (`linkWith` hint) |
@@ -205,9 +208,9 @@ Legend: **Auth** P = public, U = authenticated user. **MVP** ✅ / Future 🔜.
 | | Method | Path | Auth | Purpose / notes |
 |---|---|---|---|---|
 | ✅ | GET | `/v1/me` | U | `Me` |
-| ✅ | PATCH | `/v1/me` | U | displayName, username, avatarUrl, locale, favouriteTeamId |
+| ✅ | PATCH | `/v1/me` | U | displayName, username (`null` clears), avatarUrl (`https`, `null` clears), locale, favouriteTeamId (P2) → `Me` |
 | 🔜 | PATCH | `/v1/me/privacy` | U | Future privacy settings. Prediction visibility is fixed in v1.0 (DEC-21: friends after kickoff) |
-| ✅ | DELETE | `/v1/me` | U (recent auth) | Account deletion → `202` |
+| ✅ | DELETE | `/v1/me` | U (recent sign-in) | Request deletion → `202`; signs out every device; signing in during the grace period cancels it. `403 RECENT_SIGN_IN_REQUIRED` when the sign-in is too old |
 | ✅ | GET | `/v1/users/{userId}` | U | `PublicUser` (+ friendship status) |
 | ✅ | GET | `/v1/users?query=&cursor=` | U | Search by display name/username; rate limited; excludes blocked |
 

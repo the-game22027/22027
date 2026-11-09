@@ -113,7 +113,7 @@ users (
   id uuid PK,
   status user_status DEFAULT 'ACTIVE',
   created_at timestamptz, updated_at timestamptz,
-  deleted_at timestamptz NULL
+  deleted_at timestamptz NULL           -- when deletion was requested; cleared if the user cancels
 )
 user_profiles (
   user_id uuid PK FK → users ON DELETE CASCADE,
