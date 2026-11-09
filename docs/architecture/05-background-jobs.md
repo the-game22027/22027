@@ -59,7 +59,7 @@ Outbox rows that cannot be published (Redis down) stay unpublished and are retri
 
 - `maxmemory-policy noeviction` (BullMQ requirement: evicted keys corrupt queues).
 - AOF persistence enabled outside local dev.
-- One logical Redis is enough; separate key prefixes: `bull:*`, `mm:*` (matchmaking), `act:*` (one activity per user), `otp:*`, `rl:*` (rate limits), `cache:*`.
+- One logical Redis is enough; separate key prefixes: `bull:*`, `mm:*` (matchmaking), `act:*` (one activity per user), `rl:*` (rate limits), `cache:*`.
 
 ## 7. Observability
 

@@ -30,8 +30,8 @@ Format per module: **Purpose · Responsibilities · Owned tables · Public inter
 
 ### 2.1 `auth`
 - **Purpose:** Prove who the caller is and manage sessions.
-- **Responsibilities:** Verify provider credentials (Google, Facebook, X, phone OTP); map provider identities to an internal user; issue access tokens and rotating refresh tokens; list/revoke sessions; link/unlink identities; WebSocket handshake authentication.
-- **Owned tables:** `auth_identities`, `sessions`, `phone_verifications` (OTP state can live in Redis; DB row keeps audit).
+- **Responsibilities:** Verify provider credentials (Google, Facebook, X; no phone sign-in, ADR-0012); map provider identities to an internal user; issue access tokens and rotating refresh tokens; list/revoke sessions; link/unlink identities; WebSocket handshake authentication.
+- **Owned tables:** `auth_identities`, `sessions`.
 - **Public interface:** `AuthFacade.verifyAccessToken(token) → AuthContext`, `AuthFacade.revokeAllSessions(userId)`; guards `JwtAuthGuard`, `WsAuthGuard`; decorator `@CurrentUser()`.
 - **Depends on:** `users` (create user on first sign-in, check status).
 - **Publishes:** `UserSignedIn`, `IdentityLinked`, `IdentityUnlinked`, `SessionRevoked`.
@@ -207,7 +207,7 @@ Concrete examples:
 - ❌ Inserting a `users` row for a bot so it "fits" the participant table.
 - ❌ A `BaseRepository<T>` with generic `findAll/update`: hides intent, leaks Prisma semantics, solves no problem.
 
-When to add a port: (a) to swap an implementation (mock vs real provider, console vs real SMS), (b) for a time or randomness seam in tests, (c) to translate another module's shape into your own language. Otherwise call the concrete class.
+When to add a port: (a) to swap an implementation (mock vs real football provider), (b) for a time or randomness seam in tests, (c) to translate another module's shape into your own language. Otherwise call the concrete class.
 
 ## 5. Module folder template
 

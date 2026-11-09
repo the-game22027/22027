@@ -26,7 +26,7 @@ When a decision is made: update its row (status, chosen option, date), update th
 | DEC-04b | Tie-breaking | Co-winners · earliest to reach the final count · random seeded by match id · no award | Co-winners (`winner_player_ids` array) | Strategy config | Decided (2026-11-07): recommended default |
 | DEC-05 | Can users change their vote? | No · yes until close · yes N times | Yes until close (one active vote; `change_count` audited) | MOTM config | Decided (2026-11-07): recommended default |
 | DEC-06 | Anonymity / visibility of tallies | Hidden until close then shares · live shares · winner only | Hidden until close, then winner + shares; individual votes never public | MOTM config | Decided (2026-11-07): recommended default |
-| DEC-07 | Verified account required to vote | Any account · phone-verified · account age ≥ N days | Any active account (low friction); revisit if abuse appears | MOTM config | Decided (2026-11-07): recommended default |
+| DEC-07 | Verified account required to vote | Any account · account age ≥ N days | Any active account (low friction); revisit if abuse appears | MOTM config | Decided (2026-11-07): recommended default |
 | DEC-08 | MOTM and points: predicting the MOTM (when?) and/or points for voting | No points · MOTM prediction before kickoff scored against community result · points for voting with the majority | No points until decided; `MOTM` pick type disabled | Prediction + MOTM config | Decided (2026-11-07): recommended default |
 | DEC-27 | Production source of MOTM candidates (squads) | Paid live provider · current squads from Wikidata (lower quality) · manual entry | **Now a v1.0 release blocker** (MOTM ships in v1.0, DEC-46). Decide together with DEC-45 (risk K-02) | `FootballDataProvider` adapter | Pending |
 | DEC-29 | End-time correction after the poll was finalized | Keep result · reopen · recompute with votes inside the corrected window | Keep result, log the correction | MOTM policy | Decided (2026-11-07): recommended default |
@@ -76,14 +76,15 @@ Confirmed on 2026-11-07 by the product owner: no Daily Quiz, no solo mode, no as
 | ID | Decision | Options | Recommended default | Lives in | Status |
 |---|---|---|---|---|---|
 | DEC-25 | Identity broker | In-house verification · Firebase Auth · self-hosted broker | In-house (`04-auth.md` §3.5) | Auth adapters | Pending |
-| DEC-26 | Providers at launch and production phone OTP | All four at once · phased · phone optional | **Providers decided (2026-11-07, via DEC-46): all four (Google, phone, Facebook, X) are in v1.0**; built in order Google + phone → Facebook → X. Still pending: the production SMS vendor (paid) | Auth config | Decided in part |
+| DEC-26 | Sign-in providers at launch | All four at once · phased · phone optional | **Decided (2026-11-08, ADR-0012): Google, Facebook and X in v1.0, built in that order. Phone number sign-in removed (no SMS cost).** Apple: DEC-48 | Auth config | Decided (2026-11-08) |
+| DEC-48 | Sign in with Apple (App Store guideline 4.8) | Add Sign in with Apple · release Android first, iOS later · no social sign-in on iOS | Add Sign in with Apple before the iOS release: free with the Apple Developer account the iOS release needs anyway, same `(provider, subject)` model (`04-auth.md` §3.4) | Auth adapters | Pending (decide before R2) |
 
 ## Release
 
 | ID | Decision | Options | Recommended default | Lives in | Status |
 |---|---|---|---|---|---|
 | DEC-45 | Production football data provider (fixtures, live results) | A free tier of a football API (check commercial-use terms and delays) · paid API · semi-manual entry for a limited set of competitions | Shortlist free tiers in R1, verify licence and latency, keep the mock for dev; budget for paid data if no free licence allows commercial use | `FootballDataProvider` adapter | Pending |
-| DEC-46 | Release scope | Everything in one release · staged releases | **Chosen: everything in v1.0** (predictions, MOTM, battles with matchmaking/bots/rooms, friends, leagues, leaderboards, all four sign-in providers) | Roadmap | Decided (2026-11-07) |
+| DEC-46 | Release scope | Everything in one release · staged releases | **Chosen: everything in v1.0** (predictions, MOTM, battles with matchmaking/bots/rooms, friends, leagues, leaderboards, Google/Facebook/X sign-in; phone removed by ADR-0012) | Roadmap | Decided (2026-11-07) |
 
 ## Withdrawn
 

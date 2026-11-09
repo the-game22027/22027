@@ -23,7 +23,7 @@ Guiding principles:
 | Private leagues | Members, owner, predictions **and** battle competitions | Invitations, limits, duration, scoring, visibility, permissions |
 | Leaderboards | Weekly, monthly, seasonal, all-time; **two separate boards: predictions and battles** (DEC-18); monthly leader gets a prize | Boundaries, timezone, season definition, tie-breaks, prize per board (DEC-47) |
 | Social | Friends; friends can view predictions | Feed, sharing, achievements, following |
-| Auth | Google, X, Facebook, phone number | Identity broker choice (DEC-25), linking UX |
+| Auth | Google, X, Facebook (no phone sign-in, ADR-0012) | Identity broker choice (DEC-25), Sign in with Apple for iOS (DEC-48), linking UX |
 | Football data | Mock data first; free legal datasets later | Provider for live results in production |
 | AI | Local Ollama, offline only | Model choice |
 
@@ -31,7 +31,7 @@ Guiding principles:
 
 All items below ship in the first public release. The list is the build order:
 
-1. Auth: **Google + phone (dev OTP stub)** first, then Facebook and X adapters, all before release (same identity model, so adding them later does not change the schema). See DEC-26.
+1. Auth: **Google** first, then Facebook and X adapters, all before release (same identity model, so adding them later does not change the schema). No phone sign-in (ADR-0012). See DEC-26.
 2. Mock competitions, teams, players, matches + a CLI simulator that drives the match lifecycle.
 3. Predictions with server-side kickoff lock, revisions, and a pluggable scoring rule set.
 4. Points ledger + weekly/monthly/seasonal/all-time leaderboards (global).
@@ -58,7 +58,7 @@ Not planned (rejected by the product owner, 2026-11-07): Daily Quiz, solo/practi
 | R-04 | Scores recalculable after rule changes | `scoring_rule_sets` versions + `point_entries` supersession + leaderboard rebuild |
 | R-05 | Private predictions never leak | Single `PredictionVisibilityPolicy` used by every read path; integration tests per path |
 | R-06 | Gameplay works with Ollama off | Generation is an offline pipeline; API only reads published questions |
-| R-07 | No paid dependency in development | Ports with free/dev adapters: `SmsSender` (console), `FootballDataProvider` (mock) |
+| R-07 | No paid dependency in development | Ports with free/dev adapters: `FootballDataProvider` (mock). Phone/SMS sign-in removed (ADR-0012) |
 | R-08 | Account deletion | Required by app stores; anonymization flow (`04-auth.md` §8) |
 
 ## 4. Assumptions (labeled, replaceable)
@@ -79,17 +79,18 @@ Not planned (rejected by the product owner, 2026-11-07): Daily Quiz, solo/practi
 
 | ID | Risk | Mitigation |
 |---|---|---|
-| K-01 | **Phone OTP costs money in production** (SMS), conflicting with the zero budget | `SmsSender` port with a console adapter for dev; production choice is DEC-25/26; keep phone optional at launch |
+| K-01 | ~~Phone OTP costs money in production (SMS), conflicting with the zero budget~~ | **Resolved (2026-11-08, ADR-0012):** phone sign-in removed; no SMS anywhere |
 | K-02 | **Free data sources do not provide timely lineups**, but MOTM needs candidates within minutes of full time | Mock provides squads now; production needs either a paid live provider or a weaker candidate source (current squad from Wikidata). Flagged as DEC-27 |
 | K-03 | Friends seeing predictions **before kickoff** lets league members copy picks | Recommend visibility only after lock (DEC-21 default) |
 | K-04 | Real-time battles with few users online means long matchmaking waits | Bot fallback after a configured wait (DEC-39); private rooms for friends. Async play was rejected, so bots are the only cure for an empty queue |
 | K-05 | Small local LLMs produce weak Arabic | Templates write the canonical text; LLM output is optional and must pass validation + human review of Arabic before publish |
 | K-06 | Leaderboard disputes after result corrections | Ledger supersession + monthly finalization grace window before prize snapshot (DEC-28) |
 | K-07 | Prize competitions have legal/app-store requirements (official rules, store "not a sponsor" statement) | Non-technical; track before the first prize |
-| K-08 | Four OAuth providers is a lot of security-sensitive code for a solo developer | Phase them; consider an identity broker (DEC-25) |
+| K-08 | Three OAuth providers (four with Apple, DEC-48) is a lot of security-sensitive code for a solo developer | Phase them; consider an identity broker (DEC-25) |
 | K-09 | **Question volume.** Battles can be played without limit, so an active player sees hundreds of questions a week. A small bank causes repeats, which reward memorizing over knowledge | Per-player exposure exclusion (DEC-44); the knowledge-base pipeline targets thousands of questions before launch (Track D); `question_stats` flags overexposed questions |
-| K-10 | **Collusion and farming in prize-linked leaderboards:** friends throwing games in private rooms, second accounts, easy bot wins | Points per battle mode are rule-set values; none for rooms and bots (Decided, DEC-41); prize eligibility checks (`06-cross-cutting.md` §1.2) |
+| K-10 | **Collusion and farming in prize-linked leaderboards:** friends throwing games in private rooms, second accounts, easy bot wins | Points per battle mode are rule-set values; none for rooms and bots (Decided, DEC-41); prize eligibility checks (`06-cross-cutting.md` §1.2). Second accounts are cheaper without phone sign-in (ADR-0012) |
 | K-11 | Undisclosed bots damage trust and may break store or consumer rules in a game with prizes | Bots always labeled (Decided, DEC-40) |
+| K-12 | **App Store guideline 4.8:** an iOS app with Google/Facebook/X sign-in must also offer an equivalent privacy-focused sign-in, such as Sign in with Apple | DEC-48; decide before the iOS release (R2) |
 
 ## 6. System architecture
 
@@ -105,10 +106,9 @@ flowchart LR
   end
   api <--> pg[(PostgreSQL\napp database)]
   worker <--> pg
-  api <--> redis[(Redis\nqueues, rate limits,\nOTP, matchmaking)]
+  api <--> redis[(Redis\nqueues, rate limits,\nmatchmaking)]
   worker <--> redis
   api -- verify tokens --> idp[Google / Facebook / X\nidentity endpoints]
-  api -- SmsSender port --> sms[SMS provider\nconsole adapter in dev]
   subgraph offline[Offline data plane - Python]
     ingest[Ingestion scripts]
     qgen[Question generator]
@@ -246,6 +246,6 @@ flowchart LR
 |---|---|---|
 | Local dev (Confirmed) | Docker Compose: postgres (with `app` + `football_kb` DBs), redis, optional ollama, optional prometheus + grafana; API and worker run with `nest start --watch` | Free |
 | Free-tier demo (Recommended, limited) | One always-free VM running the same Compose stack. Free managed Postgres/Redis tiers are a poor fit: BullMQ polls Redis constantly and burns request-based free quotas | Free while the free tier exists; no SLA, no backups by default |
-| Production (later) | 1 VM (API + worker) → 2+ API instances behind a load balancer + 1-N workers; managed or self-hosted Postgres with backups; Redis; SMS provider; domain/TLS | Paid. Realistically tens of USD/month at small scale plus SMS usage |
+| Production (later) | 1 VM (API + worker) → 2+ API instances behind a load balancer + 1-N workers; managed or self-hosted Postgres with backups; Redis; domain/TLS | Paid. Realistically tens of USD/month at small scale |
 
-Production cannot run indefinitely at zero cost. Minimum unavoidable costs: SMS for phone OTP (if phone auth stays), a domain, off-site backups, and app store developer accounts.
+Production cannot run indefinitely at zero cost. Minimum unavoidable costs: a domain, off-site backups, and app store developer accounts.

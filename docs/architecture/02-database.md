@@ -18,7 +18,7 @@ PostgreSQL (16+), managed by Prisma migrations. One **app** database (this docum
 | Enum | Values | Notes |
 |---|---|---|
 | `user_status` | `ACTIVE`, `SUSPENDED`, `PENDING_DELETION`, `DELETED` | |
-| `auth_provider` | `GOOGLE`, `FACEBOOK`, `X`, `PHONE` | |
+| `auth_provider` | `GOOGLE`, `FACEBOOK`, `X` | No `PHONE` (ADR-0012); `APPLE` only if DEC-48 adds it |
 | `match_status` | `SCHEDULED`, `LIVE`, `FINISHED`, `POSTPONED`, `CANCELLED`, `ABANDONED` | |
 | `match_decided_by` | `REGULAR_TIME`, `EXTRA_TIME`, `PENALTIES` | Which score counts for predictions is DEC-01 related |
 | `pick_type` | `RESULT`, `EXACT_SCORE`, `MOTM` | `MOTM` disabled until DEC-08; new types = new enum value |
@@ -140,7 +140,7 @@ auth_identities (
   id uuid PK,
   user_id uuid FK → users,
   provider auth_provider,
-  provider_subject text,                -- Google 'sub', Facebook user id, X user id, E.164 phone for PHONE
+  provider_subject text,                -- Google 'sub', Facebook user id, X user id
   email citext NULL, email_verified boolean DEFAULT false,
   display_name text NULL,
   created_at timestamptz, last_used_at timestamptz
@@ -160,7 +160,6 @@ sessions (
   IX (user_id) WHERE revoked_at IS NULL
   IX (family_id)
 ```
-OTP codes live in Redis with TTL (`otp:{purpose}:{e164}`), hashed, with attempt counters. See `04-auth.md`.
 
 ### 4.3 `football`
 
@@ -622,7 +621,6 @@ These statements are written as Prisma `$queryRaw` inside repository methods (ty
 | `battle_rooms`, `battle_room_members` | Delete 30 days after close | Lobbies have no long-term value; battles keep `room_id` as a plain id |
 | `question_stats_applied` | 30 days | Only needed while `BattleCompleted` redeliveries are possible |
 | `sessions` | Delete 30 days after expiry/revocation | Security hygiene |
-| OTP (Redis) | TTL minutes | Security |
 | `outbox_events` | Delete 7 days after publish | Volume |
 | `idempotency_keys` | 24-48 hours | Purpose is retry windows |
 | `provider_sync_runs` | 90 days | Debugging |
