@@ -5,6 +5,7 @@ import { Prisma } from '@generated/prisma/client';
 import type {
   ActiveSession,
   NewSession,
+  SessionFamilyState,
   SessionRecord,
   SessionRepository,
 } from '../application/ports/session-repository';
@@ -54,6 +55,24 @@ export class PrismaSessionRepository implements SessionRepository {
 
   async revokeFamily(familyId: string, reason: RevokeReason, now: Date): Promise<void> {
     await this.lockThenRevoke(Prisma.sql`family_id = ${familyId}::uuid`, { familyId }, reason, now);
+  }
+
+  async revokeAllForUser(userId: string, reason: RevokeReason, now: Date): Promise<void> {
+    await this.lockThenRevoke(Prisma.sql`user_id = ${userId}::uuid`, { userId }, reason, now);
+  }
+
+  async findFamilyState(sessionId: string, now: Date): Promise<SessionFamilyState | null> {
+    const session = await this.txHost.tx.session.findUnique({
+      where: { id: sessionId },
+      select: { familyId: true, userId: true, createdAt: true },
+    });
+    if (!session) return null;
+    const { familyId, userId } = session;
+    const [oldest, active] = await Promise.all([
+      this.txHost.tx.session.aggregate({ where: { familyId }, _min: { createdAt: true } }),
+      this.txHost.tx.session.count({ where: { familyId, revokedAt: null, expiresAt: { gt: now } } }),
+    ]);
+    return { familyId, userId, signedInAt: oldest._min.createdAt ?? session.createdAt, active: active > 0 };
   }
 
   findOwned(sessionId: string, userId: string): Promise<{ familyId: string } | null> {

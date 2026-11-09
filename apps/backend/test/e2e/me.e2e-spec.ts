@@ -96,4 +96,16 @@ describe('/v1/me (e2e)', () => {
       expect(res.body).toMatchObject({ code: 'VALIDATION_FAILED' });
     });
   });
+
+  it('DELETE /v1/me answers 202 and ends the sessions', async () => {
+    const session = await devSignIn(app);
+    await request(app.getHttpServer())
+      .delete('/v1/me')
+      .set(...bearer(session))
+      .expect(202);
+    await request(app.getHttpServer())
+      .post('/v1/auth/refresh')
+      .send({ refreshToken: session.refreshToken })
+      .expect(401);
+  });
 });

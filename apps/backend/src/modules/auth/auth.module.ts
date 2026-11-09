@@ -2,6 +2,7 @@ import { type DynamicModule, Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { UsersModule } from '@modules/users';
 import type { AppConfig } from '@shared/infrastructure/config';
+import { AccountDeletionService } from './application/account-deletion.service';
 import { MeQuery } from './application/me.query';
 import { ACCESS_TOKENS } from './application/ports/access-tokens';
 import { GOOGLE_TOKEN_VERIFIER } from './application/ports/google-token-verifier';
@@ -35,6 +36,7 @@ export class AuthModule {
       ],
       providers: [
         SignInService,
+        AccountDeletionService,
         RefreshSessionService,
         SessionIssuer,
         SessionsService,

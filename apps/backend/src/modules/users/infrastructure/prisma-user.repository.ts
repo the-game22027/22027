@@ -47,4 +47,20 @@ export class PrismaUserRepository implements UserRepository {
       throw error;
     }
   }
+
+  async markPendingDeletion(userId: string, now: Date): Promise<boolean> {
+    const { count } = await this.txHost.tx.user.updateMany({
+      where: { id: userId, status: 'ACTIVE' },
+      data: { status: 'PENDING_DELETION', deletedAt: now },
+    });
+    return count === 1;
+  }
+
+  async cancelPendingDeletion(userId: string): Promise<boolean> {
+    const { count } = await this.txHost.tx.user.updateMany({
+      where: { id: userId, status: 'PENDING_DELETION' },
+      data: { status: 'ACTIVE', deletedAt: null },
+    });
+    return count === 1;
+  }
 }

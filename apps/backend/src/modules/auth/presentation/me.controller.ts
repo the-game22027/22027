@@ -1,6 +1,7 @@
-import { Body, Controller, Get, Patch } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Patch } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { UsersFacade } from '@modules/users';
+import { AccountDeletionService } from '../application/account-deletion.service';
 import { MeQuery } from '../application/me.query';
 import type { AuthContext } from '../application/ports/access-tokens';
 import { CurrentUser } from './current-user.decorator';
@@ -14,6 +15,7 @@ export class MeController {
   constructor(
     private readonly me: MeQuery,
     private readonly users: UsersFacade,
+    private readonly accountDeletion: AccountDeletionService,
   ) {}
 
   @Get()
@@ -25,6 +27,12 @@ export class MeController {
   async updateMe(@CurrentUser() auth: AuthContext, @Body() body: UpdateMeDto): Promise<MeDto> {
     await this.users.updateProfile(auth.userId, body);
     return this.view(auth.userId);
+  }
+
+  @Delete()
+  @HttpCode(202)
+  deleteMe(@CurrentUser() auth: AuthContext): Promise<void> {
+    return this.accountDeletion.request(auth);
   }
 
   private async view(userId: string): Promise<MeDto> {

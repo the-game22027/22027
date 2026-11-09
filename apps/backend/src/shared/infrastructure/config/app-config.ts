@@ -70,6 +70,7 @@ const configSchema = z
     GOOGLE_ISSUERS: list.default(['https://accounts.google.com', 'accounts.google.com']),
 
     USERNAME_PATTERN: regex.default('^[A-Za-z0-9_]{3,20}$'),
+    ACCOUNT_DELETION_RECENT_SIGN_IN_SECONDS: z.coerce.number().int().min(1).default(600),
   })
   .refine((env) => (env.JWT_PREVIOUS_PUBLIC_KEY === undefined) === (env.JWT_PREVIOUS_KEY_ID === undefined), {
     message: 'set both or neither (key rotation)',
@@ -107,6 +108,7 @@ export class AppConfig {
   };
 
   readonly profile: { readonly usernamePattern: RegExp };
+  readonly accountDeletion: { readonly recentSignInSeconds: number };
 
   constructor(env: ConfigEnv) {
     this.nodeEnv = env.NODE_ENV;
@@ -129,6 +131,7 @@ export class AppConfig {
     };
     this.google = { clientIds: env.GOOGLE_CLIENT_IDS, jwksUrl: env.GOOGLE_JWKS_URL, issuers: env.GOOGLE_ISSUERS };
     this.profile = { usernamePattern: new RegExp(env.USERNAME_PATTERN) };
+    this.accountDeletion = { recentSignInSeconds: env.ACCOUNT_DELETION_RECENT_SIGN_IN_SECONDS };
     this.refreshToken = { slidingDays: env.REFRESH_TOKEN_SLIDING_DAYS, absoluteDays: env.REFRESH_TOKEN_ABSOLUTE_DAYS };
   }
 

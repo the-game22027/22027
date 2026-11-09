@@ -62,3 +62,12 @@ export class SessionNotFoundError extends DomainError {
     super('Session not found.');
   }
 }
+
+export class RecentSignInRequiredError extends DomainError {
+  readonly code = 'RECENT_SIGN_IN_REQUIRED';
+  readonly kind = 'FORBIDDEN';
+
+  constructor() {
+    super('Sign in again to confirm this action.');
+  }
+}
