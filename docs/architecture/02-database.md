@@ -154,10 +154,12 @@ sessions (
   refresh_token_hash bytea UQ,          -- SHA-256 of the opaque token; never store the token
   replaced_by_session_id uuid NULL,
   platform text NULL, device_name text NULL, user_agent text NULL, created_ip inet NULL,
-  created_at timestamptz, last_used_at timestamptz, expires_at timestamptz,
+  created_at timestamptz, last_used_at timestamptz,
+  expires_at timestamptz,               -- sliding (60 days), pushed forward on rotation
+  absolute_expires_at timestamptz,      -- family limit (180 days), copied unchanged on rotation
   revoked_at timestamptz NULL, revoke_reason text NULL
 )
-  IX (user_id) WHERE revoked_at IS NULL
+  IX (user_id)                          -- a user has few sessions; a partial index adds nothing yet
   IX (family_id)
 ```
 

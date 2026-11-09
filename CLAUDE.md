@@ -83,6 +83,7 @@ Requires **Node 24 LTS** (`.node-version`; `fnm use` / `nvm use`) and Docker. Ne
 # one-time
 docker compose up -d postgres redis          # Postgres on localhost:5440, Redis on localhost:6379
 cd apps/backend && cp .env.example .env && npm install   # postinstall runs prisma generate
+npm run keys:generate                        # writes a local ES256 JWT signing key into .env
 npm run prisma:deploy                        # apply migrations
 
 # run (from apps/backend)

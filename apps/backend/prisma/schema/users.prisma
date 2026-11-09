@@ -1,0 +1,49 @@
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  PENDING_DELETION
+  DELETED
+
+  @@map("user_status")
+}
+
+model User {
+  id        String     @id @db.Uuid
+  status    UserStatus @default(ACTIVE)
+  createdAt DateTime   @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt DateTime   @updatedAt @map("updated_at") @db.Timestamptz(3)
+  deletedAt DateTime?  @map("deleted_at") @db.Timestamptz(3)
+
+  profile         UserProfile?
+  privacySettings UserPrivacySettings?
+
+  // Prisma needs these for the FKs from auth tables; the users module never reads them.
+  authIdentities AuthIdentity[]
+  sessions       Session[]
+
+  @@map("users")
+}
+
+model UserProfile {
+  userId      String   @id @map("user_id") @db.Uuid
+  displayName String   @map("display_name")
+  username    String?  @unique @db.Citext
+  avatarUrl   String?  @map("avatar_url")
+  locale      String   @default("ar")
+  countryCode String?  @map("country_code") @db.Char(2)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_profiles")
+}
+
+model UserPrivacySettings {
+  userId               String   @id @map("user_id") @db.Uuid
+  predictionVisibility String?  @map("prediction_visibility")
+  updatedAt            DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_privacy_settings")
+}

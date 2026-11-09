@@ -1,4 +1,5 @@
 import { type DynamicModule, Module } from '@nestjs/common';
+import { AuthModule } from '@modules/auth';
 import type { AppConfig } from '@shared/infrastructure/config';
 import { CoreModule } from '@shared/infrastructure/core.module';
 import { DevModule } from '@shared/infrastructure/dev/dev.module';
@@ -12,7 +13,7 @@ export class ApiModule {
   static register(config: AppConfig): DynamicModule {
     return {
       module: ApiModule,
-      imports: [CoreModule.register(config), ...(config.devToolsEnabled ? [DevModule] : [])],
+      imports: [CoreModule.register(config), AuthModule, ...(config.devToolsEnabled ? [DevModule] : [])],
     };
   }
 }

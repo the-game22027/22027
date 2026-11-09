@@ -24,7 +24,8 @@
     "depcheck:boundaries": "depcruise src --config .dependency-cruiser.cjs",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:deploy": "prisma migrate deploy"
+    "prisma:deploy": "prisma migrate deploy",
+    "keys:generate": "node scripts/generate-jwt-keys.mts"
   },
   "dependencies": {
     "@bull-board/api": "9.11.0",
@@ -47,6 +48,7 @@
     "class-validator": "0.15.1",
     "helmet": "8.3.0",
     "ioredis": "6.0.0",
+    "jose": "6.2.14",
     "nestjs-cls": "7.0.2",
     "nestjs-pino": "5.3.1",
     "pg": "8.23.1",
