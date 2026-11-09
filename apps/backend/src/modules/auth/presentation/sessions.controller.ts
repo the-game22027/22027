@@ -1,5 +1,6 @@
-import { Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Post } from '@nestjs/common';
+import { Controller, Delete, Get, HttpCode, Param, ParseUUIDPipe, Post, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { AuthRateLimitGuard } from '@shared/infrastructure/rate-limit/auth-rate-limit.guard';
 import type { AuthContext } from '../application/ports/access-tokens';
 import { SessionsService } from '../application/sessions.service';
 import { CurrentUser } from './current-user.decorator';
@@ -11,6 +12,7 @@ import { SessionInfoDto } from './dto/session-info.dto';
 export class SessionsController {
   constructor(private readonly sessions: SessionsService) {}
 
+  @UseGuards(AuthRateLimitGuard)
   @Post('logout')
   @HttpCode(204)
   logout(@CurrentUser() auth: AuthContext): Promise<void> {

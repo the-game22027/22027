@@ -1,7 +1,8 @@
-import { Body, Controller, HttpCode, Inject, Post, Req, Res } from '@nestjs/common';
+import { Body, Controller, HttpCode, Inject, Post, Req, Res, UseGuards } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
 import { Public } from '@shared/infrastructure/http/public.decorator';
+import { AuthRateLimitGuard } from '@shared/infrastructure/rate-limit/auth-rate-limit.guard';
 import { MeQuery } from '../application/me.query';
 import { GOOGLE_TOKEN_VERIFIER, type GoogleTokenVerifier } from '../application/ports/google-token-verifier';
 import { RefreshSessionService } from '../application/refresh-session.service';
@@ -11,6 +12,7 @@ import { AuthTokensDto } from './dto/auth-tokens.dto';
 import { GoogleSignInDto, RefreshDto } from './dto/sign-in.dto';
 
 @ApiTags('auth')
+@UseGuards(AuthRateLimitGuard)
 @Controller({ path: 'auth', version: '1' })
 export class AuthController {
   constructor(

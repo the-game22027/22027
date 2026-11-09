@@ -2,6 +2,7 @@ import { type DynamicModule, Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { UsersModule } from '@modules/users';
 import type { AppConfig } from '@shared/infrastructure/config';
+import { RateLimitModule } from '@shared/infrastructure/rate-limit/rate-limit.module';
 import { AccountDeletionService } from './application/account-deletion.service';
 import { MeQuery } from './application/me.query';
 import { ACCESS_TOKENS } from './application/ports/access-tokens';
@@ -27,7 +28,7 @@ export class AuthModule {
   static register(config: AppConfig): DynamicModule {
     return {
       module: AuthModule,
-      imports: [UsersModule],
+      imports: [UsersModule, RateLimitModule],
       controllers: [
         AuthController,
         SessionsController,

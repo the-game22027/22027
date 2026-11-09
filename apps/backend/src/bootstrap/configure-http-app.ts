@@ -27,6 +27,7 @@ export function configureHttpApp(app: NestExpressApplication, options: HttpAppOp
 
   app.useLogger(app.get(Logger));
   app.enableShutdownHooks();
+  app.set('trust proxy', config.trustProxyHops);
   // The API serves JSON only; CSP is relaxed in development so Swagger UI can load.
   app.use(helmet({ contentSecurityPolicy: config.devToolsEnabled ? false : undefined }));
   app.use(httpMetricsMiddleware(app.get(MetricsService)));

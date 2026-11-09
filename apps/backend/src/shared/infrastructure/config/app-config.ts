@@ -69,6 +69,9 @@ const configSchema = z
     GOOGLE_JWKS_URL: z.url().default('https://www.googleapis.com/oauth2/v3/certs'),
     GOOGLE_ISSUERS: list.default(['https://accounts.google.com', 'accounts.google.com']),
 
+    RATE_LIMIT_AUTH_PER_MINUTE: z.coerce.number().int().min(1).default(20),
+    TRUST_PROXY_HOPS: z.coerce.number().int().min(0).default(0),
+
     USERNAME_PATTERN: regex.default('^[A-Za-z0-9_]{3,20}$'),
     ACCOUNT_DELETION_RECENT_SIGN_IN_SECONDS: z.coerce.number().int().min(1).default(600),
   })
@@ -107,6 +110,8 @@ export class AppConfig {
     readonly issuers: readonly string[];
   };
 
+  readonly rateLimit: { readonly authPerMinute: number };
+  readonly trustProxyHops: number;
   readonly profile: { readonly usernamePattern: RegExp };
   readonly accountDeletion: { readonly recentSignInSeconds: number };
 
@@ -130,6 +135,8 @@ export class AppConfig {
       accessTokenTtlSeconds: env.ACCESS_TOKEN_TTL_SECONDS,
     };
     this.google = { clientIds: env.GOOGLE_CLIENT_IDS, jwksUrl: env.GOOGLE_JWKS_URL, issuers: env.GOOGLE_ISSUERS };
+    this.rateLimit = { authPerMinute: env.RATE_LIMIT_AUTH_PER_MINUTE };
+    this.trustProxyHops = env.TRUST_PROXY_HOPS;
     this.profile = { usernamePattern: new RegExp(env.USERNAME_PATTERN) };
     this.accountDeletion = { recentSignInSeconds: env.ACCOUNT_DELETION_RECENT_SIGN_IN_SECONDS };
     this.refreshToken = { slidingDays: env.REFRESH_TOKEN_SLIDING_DAYS, absoluteDays: env.REFRESH_TOKEN_ABSOLUTE_DAYS };
