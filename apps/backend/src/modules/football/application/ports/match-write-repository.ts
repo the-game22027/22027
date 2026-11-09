@@ -22,11 +22,25 @@ export interface NewMatch extends MatchRefs {
   readonly state: MatchState;
 }
 
+export interface SourcedMatch extends StoredMatch {
+  readonly provider: string;
+  readonly providerMatchId: string;
+  readonly refs: MatchRefs;
+}
+
+export interface ScheduledFixture {
+  readonly matchId: string;
+  readonly kickoffAt: Date;
+}
+
 export interface MatchWriteRepository {
   /** Locks the row, so a prediction checking this match's kickoff waits for the update. */
   findForUpdate(provider: string, providerMatchId: string): Promise<StoredMatch | null>;
   insertIfAbsent(match: NewMatch): Promise<boolean>;
   update(matchId: string, state: MatchState, providerUpdatedAt: Date, changed: boolean): Promise<void>;
+  findById(matchId: string): Promise<SourcedMatch | null>;
+  /** Every scheduled match within `windowMs` of this provider's earliest scheduled kickoff. */
+  nextScheduled(provider: string, windowMs: number): Promise<ScheduledFixture[]>;
 }
 
 export const MATCH_WRITE_REPOSITORY = Symbol('MATCH_WRITE_REPOSITORY');

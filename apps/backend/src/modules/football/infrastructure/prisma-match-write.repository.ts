@@ -5,6 +5,8 @@ import type {
   MatchState,
   MatchWriteRepository,
   NewMatch,
+  ScheduledFixture,
+  SourcedMatch,
   StoredMatch,
 } from '../application/ports/match-write-repository';
 
@@ -38,5 +40,24 @@ export class PrismaMatchWriteRepository implements MatchWriteRepository {
       where: { id: matchId },
       data: { ...state, providerUpdatedAt, ...(changed ? { version: { increment: 1 } } : {}) },
     });
+  }
+
+  async findById(matchId: string): Promise<SourcedMatch | null> {
+    const row = await this.txHost.tx.match.findUnique({ where: { id: matchId } });
+    if (!row) return null;
+    const { competitionId, seasonId, homeTeamId, awayTeamId, roundLabel } = row;
+    return { ...row, refs: { competitionId, seasonId, homeTeamId, awayTeamId, roundLabel } };
+  }
+
+  async nextScheduled(provider: string, windowMs: number): Promise<ScheduledFixture[]> {
+    const scheduled = { provider, status: 'SCHEDULED' } as const;
+    const first = await this.txHost.tx.match.findFirst({ where: scheduled, orderBy: { kickoffAt: 'asc' } });
+    if (!first) return [];
+    const rows = await this.txHost.tx.match.findMany({
+      where: { ...scheduled, kickoffAt: { lte: new Date(first.kickoffAt.getTime() + windowMs) } },
+      orderBy: [{ kickoffAt: 'asc' }, { id: 'asc' }],
+      select: { id: true, kickoffAt: true },
+    });
+    return rows.map((row) => ({ matchId: row.id, kickoffAt: row.kickoffAt }));
   }
 }
