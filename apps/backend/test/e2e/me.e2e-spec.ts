@@ -1,6 +1,8 @@
 import type { NestExpressApplication } from '@nestjs/platform-express';
-import { randomBytes } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import request from 'supertest';
+import { PrismaService } from '../../src/shared/infrastructure/persistence';
+import { createFixtureWorld } from '../support/football';
 import { bearer, devSignIn, type SignedIn } from '../support/sign-in';
 import { createApiTestApp } from '../support/test-app';
 
@@ -79,6 +81,22 @@ describe('/v1/me (e2e)', () => {
     it('rejects a badly formed username', async () => {
       const res = await patch(await devSignIn(app), { username: 'no spaces!' }).expect(400);
       expect(res.body).toMatchObject({ code: 'USERNAME_INVALID' });
+    });
+
+    it('sets and clears the favourite team', async () => {
+      const session = await devSignIn(app);
+      const { home } = await createFixtureWorld(app.get(PrismaService));
+
+      const set = await patch(session, { favouriteTeamId: home.id }).expect(200);
+      expect(set.body).toMatchObject({ favouriteTeamId: home.id });
+
+      const cleared = await patch(session, { favouriteTeamId: null }).expect(200);
+      expect(cleared.body).toMatchObject({ favouriteTeamId: null });
+    });
+
+    it('answers 422 for a team that does not exist', async () => {
+      const res = await patch(await devSignIn(app), { favouriteTeamId: randomUUID() }).expect(422);
+      expect(res.body).toMatchObject({ code: 'TEAM_NOT_FOUND' });
     });
 
     it('rejects a blank display name', async () => {

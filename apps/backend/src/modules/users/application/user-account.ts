@@ -9,6 +9,7 @@ export interface UserAccount {
   readonly username: string | null;
   readonly avatarUrl: string | null;
   readonly locale: Locale;
+  readonly favouriteTeamId: string | null;
   readonly predictionVisibility: string | null;
 }
 
@@ -23,4 +24,5 @@ export interface ProfilePatch {
   readonly username?: string | null;
   readonly avatarUrl?: string | null;
   readonly locale?: Locale;
+  readonly favouriteTeamId?: string | null;
 }

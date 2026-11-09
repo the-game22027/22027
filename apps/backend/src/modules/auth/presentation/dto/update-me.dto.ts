@@ -1,4 +1,4 @@
-import { IsIn, IsOptional, IsString, IsUrl, Length, MaxLength, ValidateIf } from 'class-validator';
+import { IsIn, IsOptional, IsString, IsUrl, IsUUID, Length, MaxLength, ValidateIf } from 'class-validator';
 import { type Locale, LOCALES } from '@shared/kernel';
 
 const providedOrNull = (_: object, value: unknown): boolean => value !== undefined;
@@ -22,4 +22,8 @@ export class UpdateMeDto {
   @ValidateIf(providedOrNull)
   @IsIn(LOCALES)
   locale?: Locale;
+
+  @IsOptional()
+  @IsUUID()
+  favouriteTeamId?: string | null;
 }

@@ -60,6 +60,8 @@ model Team {
   homeMatches  Match[]            @relation("HomeTeam")
   awayMatches  Match[]            @relation("AwayTeam")
   squadEntries MatchSquadPlayer[]
+  // Prisma needs this for the FK from user_profiles; football never reads it.
+  fans         UserProfile[]
 
   @@map("teams")
 }
