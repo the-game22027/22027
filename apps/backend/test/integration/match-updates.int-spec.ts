@@ -1,3 +1,4 @@
+import { BullModule } from '@nestjs/bullmq';
 import { Test, type TestingModule } from '@nestjs/testing';
 import { randomUUID } from 'node:crypto';
 import {
@@ -53,7 +54,11 @@ describe('applying provider match updates', () => {
   beforeAll(async () => {
     const config = testConfig();
     moduleRef = await Test.createTestingModule({
-      imports: [CoreModule.register(config), FootballJobsModule],
+      imports: [
+        CoreModule.register(config),
+        BullModule.forRoot({ connection: { url: config.redisUrl } }),
+        FootballJobsModule,
+      ],
     }).compile();
     await moduleRef.init();
     matches = moduleRef.get(ApplyProviderMatchUpdate);
