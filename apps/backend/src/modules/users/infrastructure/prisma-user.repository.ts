@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { TransactionHost } from '@nestjs-cls/transactional';
 import type { PrismaService, TransactionalAdapterPrisma } from '@shared/infrastructure/persistence';
+import { DEFAULT_LOCALE, isLocale } from '@shared/kernel';
 import { Prisma } from '@generated/prisma/client';
 import type { UserRepository } from '../application/ports/user-repository';
 import type { NewUser, ProfilePatch, UserAccount } from '../application/user-account';
@@ -32,7 +33,7 @@ export class PrismaUserRepository implements UserRepository {
       displayName: user.profile.displayName,
       username: user.profile.username,
       avatarUrl: user.profile.avatarUrl,
-      locale: user.profile.locale,
+      locale: isLocale(user.profile.locale) ? user.profile.locale : DEFAULT_LOCALE,
       predictionVisibility: user.privacySettings?.predictionVisibility ?? null,
     };
   }

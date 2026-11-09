@@ -1,5 +1,5 @@
 import { type DynamicModule, Module } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { UsersModule } from '@modules/users';
 import type { AppConfig } from '@shared/infrastructure/config';
 import { RateLimitModule } from '@shared/infrastructure/rate-limit/rate-limit.module';
@@ -22,6 +22,7 @@ import { DevAuthController } from './presentation/dev-auth.controller';
 import { DevSocketGateway } from './presentation/dev-socket.gateway';
 import { JwtAuthGuard } from './presentation/jwt-auth.guard';
 import { MeController } from './presentation/me.controller';
+import { RequestLocaleInterceptor } from './presentation/request-locale.interceptor';
 import { SessionsController } from './presentation/sessions.controller';
 import { SocketAuthenticator } from './presentation/socket-authenticator';
 
@@ -48,6 +49,7 @@ export class AuthModule {
         SocketAuthenticator,
         ...(config.devToolsEnabled ? [DevSocketGateway] : []),
         { provide: APP_GUARD, useClass: JwtAuthGuard },
+        { provide: APP_INTERCEPTOR, useClass: RequestLocaleInterceptor },
         { provide: ACCESS_TOKENS, useClass: JoseAccessTokens },
         { provide: GOOGLE_TOKEN_VERIFIER, useClass: JoseGoogleTokenVerifier },
         { provide: IDENTITY_REPOSITORY, useClass: PrismaIdentityRepository },

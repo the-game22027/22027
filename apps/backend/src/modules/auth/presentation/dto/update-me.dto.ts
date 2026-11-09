@@ -1,5 +1,5 @@
 import { IsIn, IsOptional, IsString, IsUrl, Length, MaxLength, ValidateIf } from 'class-validator';
-import type { Locale } from '@modules/users';
+import { type Locale, LOCALES } from '@shared/kernel';
 
 const providedOrNull = (_: object, value: unknown): boolean => value !== undefined;
 
@@ -20,6 +20,6 @@ export class UpdateMeDto {
   avatarUrl?: string | null;
 
   @ValidateIf(providedOrNull)
-  @IsIn(['ar', 'en'])
+  @IsIn(LOCALES)
   locale?: Locale;
 }
