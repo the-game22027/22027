@@ -65,3 +65,7 @@ New tracks are added when the first card needs one.
 | [database/composite-indexes](database/composite-indexes.md) | P2 | Equality columns first, then the sort column |
 | [backend/translated-names](backend/translated-names.md) | P2 | `names` JSONB; pick the language at the edge |
 | [backend/request-pipeline](backend/request-pipeline.md) | P2 | Middleware → guard → interceptor → pipe → handler → filter |
+| [backend/state-machines](backend/state-machines.md) | P2 | Allowed states, allowed moves, events from transitions |
+| [backend/out-of-order-updates](backend/out-of-order-updates.md) | P2 | Ignore anything not newer than what you stored |
+| [database/optimistic-vs-pessimistic-locking](database/optimistic-vs-pessimistic-locking.md) | P2 | Lock and wait, or detect the conflict when writing |
+| [backend/scheduled-jobs](backend/scheduled-jobs.md) | P2 | Timers in a worker; idempotent, retried, recorded |
