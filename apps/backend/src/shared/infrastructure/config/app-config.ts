@@ -2,6 +2,13 @@ import { createPrivateKey, createPublicKey } from 'node:crypto';
 import { z } from 'zod';
 
 // .env files hold the PEM on one line with literal \n.
+const list = z.string().transform((value) =>
+  value
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean),
+);
+
 const pem = z.string().transform((value) => value.replace(/\\n/g, '\n'));
 
 function isKey(parse: (pem: string) => { asymmetricKeyType?: string; asymmetricKeyDetails?: { namedCurve?: string } }) {
@@ -48,6 +55,10 @@ const configSchema = z
     ACCESS_TOKEN_TTL_SECONDS: z.coerce.number().int().min(60).default(900),
     REFRESH_TOKEN_SLIDING_DAYS: z.coerce.number().int().min(1).default(60),
     REFRESH_TOKEN_ABSOLUTE_DAYS: z.coerce.number().int().min(1).default(180),
+
+    GOOGLE_CLIENT_IDS: list.default([]),
+    GOOGLE_JWKS_URL: z.url().default('https://www.googleapis.com/oauth2/v3/certs'),
+    GOOGLE_ISSUERS: list.default(['https://accounts.google.com', 'accounts.google.com']),
   })
   .refine((env) => (env.JWT_PREVIOUS_PUBLIC_KEY === undefined) === (env.JWT_PREVIOUS_KEY_ID === undefined), {
     message: 'set both or neither (key rotation)',
@@ -78,6 +89,11 @@ export class AppConfig {
     readonly accessTokenTtlSeconds: number;
   };
   readonly refreshToken: { readonly slidingDays: number; readonly absoluteDays: number };
+  readonly google: {
+    readonly clientIds: readonly string[];
+    readonly jwksUrl: string;
+    readonly issuers: readonly string[];
+  };
 
   constructor(env: ConfigEnv) {
     this.nodeEnv = env.NODE_ENV;
@@ -98,6 +114,7 @@ export class AppConfig {
       audience: env.JWT_AUDIENCE,
       accessTokenTtlSeconds: env.ACCESS_TOKEN_TTL_SECONDS,
     };
+    this.google = { clientIds: env.GOOGLE_CLIENT_IDS, jwksUrl: env.GOOGLE_JWKS_URL, issuers: env.GOOGLE_ISSUERS };
     this.refreshToken = { slidingDays: env.REFRESH_TOKEN_SLIDING_DAYS, absoluteDays: env.REFRESH_TOKEN_ABSOLUTE_DAYS };
   }
 

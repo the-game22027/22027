@@ -13,7 +13,11 @@ export class ApiModule {
   static register(config: AppConfig): DynamicModule {
     return {
       module: ApiModule,
-      imports: [CoreModule.register(config), AuthModule, ...(config.devToolsEnabled ? [DevModule] : [])],
+      imports: [
+        CoreModule.register(config),
+        AuthModule.register(config),
+        ...(config.devToolsEnabled ? [DevModule] : []),
+      ],
     };
   }
 }

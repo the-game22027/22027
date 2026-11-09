@@ -100,5 +100,6 @@ describe('production mode', () => {
     await request(app.getHttpServer()).get('/docs').expect(404);
     await request(app.getHttpServer()).get('/admin/queues').expect(404);
     await request(app.getHttpServer()).post('/v1/_dev/echo').send({ message: 'hi' }).expect(404);
+    await request(app.getHttpServer()).post('/v1/_dev/auth/sign-in').send({ subject: 'x' }).expect(404);
   });
 });

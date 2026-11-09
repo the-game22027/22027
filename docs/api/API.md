@@ -68,6 +68,9 @@ Content-Type: application/problem+json
 |---|---|---|
 | `VALIDATION_FAILED` | 400 | DTO validation |
 | `UNAUTHENTICATED` / `TOKEN_EXPIRED` | 401 | Missing/invalid/expired access token |
+| `PROVIDER_TOKEN_INVALID` | 401 | Google/Facebook/X credential rejected (forged, expired, other app) |
+| `ACCOUNT_DISABLED` | 403 | Suspended or deleted account tried to sign in |
+| `REFRESH_TOKEN_INVALID` | 401 | Refresh token unknown, expired or revoked: sign in again |
 | `FORBIDDEN` | 403 | Authenticated but not allowed (only when existence is not secret) |
 | `NOT_FOUND` | 404 | Missing or not visible |
 | `RATE_LIMITED` | 429 | Throttled; `Retry-After` header |
@@ -183,7 +186,7 @@ Legend: **Auth** P = public, U = authenticated user. **MVP** ✅ / Future 🔜.
 
 | | Method | Path | Auth | Purpose / notes |
 |---|---|---|---|---|
-| ✅ | POST | `/v1/auth/google` | P | `{idToken}` → `AuthTokens` (`201` new user / `200` existing) |
+| ✅ | POST | `/v1/auth/google` | P | `{idToken, device?: {platform?: 'ios'\|'android'\|'web', name?}}` → `AuthTokens` (`201` new user / `200` existing) |
 | ✅ | POST | `/v1/auth/facebook` | P | `{accessToken}` or `{authenticationToken, nonce}` |
 | ✅ | POST | `/v1/auth/x` | P | `{code, codeVerifier, redirectUri}` |
 | ✅ | POST | `/v1/auth/refresh` | P (refresh token) | `{refreshToken}` → `AuthTokens` (rotation) |
@@ -309,6 +312,7 @@ Matchmaking can also be joined over WS (`matchmaking:join`). Room lifecycle is R
 | ✅ | GET | `/metrics` | internal network only | Prometheus |
 | ✅ | GET | `/admin/queues` | dev only (admin later) | Bull Board |
 | ✅ | GET | `/docs` | dev/staging | Swagger UI |
+| ✅ | POST | `/v1/_dev/auth/sign-in` | dev only | `{subject, displayName?, device?}` → `AuthTokens`; signs in as a made-up Google account (`04-auth.md` §11) |
 
 Mock match control and question import are **CLI commands**, not HTTP endpoints, so they cannot be exposed by mistake.
 

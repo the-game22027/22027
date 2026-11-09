@@ -36,6 +36,10 @@ describe('loadConfig', () => {
     expect(config.jwt).toMatchObject({ keyId: 'k1', issuer: 'the-game-api', accessTokenTtlSeconds: 900 });
     expect(config.jwt.previous).toBeUndefined();
     expect(config.refreshToken).toEqual({ slidingDays: 60, absoluteDays: 180 });
+    expect(config.google).toMatchObject({
+      clientIds: [],
+      issuers: ['https://accounts.google.com', 'accounts.google.com'],
+    });
   });
 
   it('disables dev tools in production', () => {
@@ -80,5 +84,12 @@ describe('loadConfig', () => {
     expect(issuesOf({ ...valid, REFRESH_TOKEN_SLIDING_DAYS: '90', REFRESH_TOKEN_ABSOLUTE_DAYS: '30' })).toContain(
       'REFRESH_TOKEN_ABSOLUTE_DAYS',
     );
+  });
+
+  it('reads Google client ids as a comma-separated list', () => {
+    expect(loadConfig({ ...valid, GOOGLE_CLIENT_IDS: ' android.apps , ios.apps,' }).google.clientIds).toEqual([
+      'android.apps',
+      'ios.apps',
+    ]);
   });
 });

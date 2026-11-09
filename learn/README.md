@@ -49,3 +49,6 @@ New tracks are added when the first card needs one.
 | [devops/health-checks](devops/health-checks.md) | P0 | Live = process is up; ready = it can serve traffic |
 | [security/jwt](security/jwt.md) | P1 | Signed, readable, short-lived; verify alg, iss, aud, exp |
 | [security/hashing-tokens-at-rest](security/hashing-tokens-at-rest.md) | P1 | Store SHA-256 of the token, never the token |
+| [security/oidc-id-token-verification](security/oidc-id-token-verification.md) | P1 | Check Google's signature, issuer, our audience, expiry; the user is `sub` |
+| [security/refresh-token-rotation](security/refresh-token-rotation.md) | P1 | New token on every refresh; an old one coming back revokes the family |
+| [database/row-locking-and-races](database/row-locking-and-races.md) | P1 | `FOR UPDATE` and `UNIQUE` + `ON CONFLICT` beat read-check-write |
