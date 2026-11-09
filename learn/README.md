@@ -69,3 +69,5 @@ New tracks are added when the first card needs one.
 | [backend/out-of-order-updates](backend/out-of-order-updates.md) | P2 | Ignore anything not newer than what you stored |
 | [database/optimistic-vs-pessimistic-locking](database/optimistic-vs-pessimistic-locking.md) | P2 | Lock and wait, or detect the conflict when writing |
 | [backend/scheduled-jobs](backend/scheduled-jobs.md) | P2 | Timers in a worker; idempotent, retried, recorded |
+| [backend/cli-entry-points](backend/cli-entry-points.md) | P2 | Same app, started by a command; commands are thin like controllers |
+| [backend/simulating-time](backend/simulating-time.md) | P2 | Plan the steps as pure data; speed only divides the waits |
