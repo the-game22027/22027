@@ -9,6 +9,7 @@ import { IDENTITY_REPOSITORY } from './application/ports/identity-repository';
 import { SESSION_REPOSITORY } from './application/ports/session-repository';
 import { RefreshSessionService } from './application/refresh-session.service';
 import { SessionIssuer } from './application/session-issuer';
+import { SessionsService } from './application/sessions.service';
 import { SignInService } from './application/sign-in.service';
 import { JoseAccessTokens } from './infrastructure/jose-access-tokens';
 import { JoseGoogleTokenVerifier } from './infrastructure/jose-google-token-verifier';
@@ -18,6 +19,7 @@ import { AuthController } from './presentation/auth.controller';
 import { DevAuthController } from './presentation/dev-auth.controller';
 import { JwtAuthGuard } from './presentation/jwt-auth.guard';
 import { MeController } from './presentation/me.controller';
+import { SessionsController } from './presentation/sessions.controller';
 
 @Module({})
 export class AuthModule {
@@ -25,11 +27,17 @@ export class AuthModule {
     return {
       module: AuthModule,
       imports: [UsersModule],
-      controllers: [AuthController, MeController, ...(config.devToolsEnabled ? [DevAuthController] : [])],
+      controllers: [
+        AuthController,
+        SessionsController,
+        MeController,
+        ...(config.devToolsEnabled ? [DevAuthController] : []),
+      ],
       providers: [
         SignInService,
         RefreshSessionService,
         SessionIssuer,
+        SessionsService,
         MeQuery,
         { provide: APP_GUARD, useClass: JwtAuthGuard },
         { provide: ACCESS_TOKENS, useClass: JoseAccessTokens },

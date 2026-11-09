@@ -2,7 +2,12 @@ import { Injectable } from '@nestjs/common';
 import { TransactionHost } from '@nestjs-cls/transactional';
 import type { PrismaService, TransactionalAdapterPrisma } from '@shared/infrastructure/persistence';
 import { Prisma } from '@generated/prisma/client';
-import type { NewSession, SessionRecord, SessionRepository } from '../application/ports/session-repository';
+import type {
+  ActiveSession,
+  NewSession,
+  SessionRecord,
+  SessionRepository,
+} from '../application/ports/session-repository';
 import type { RevokeReason } from '../domain/refresh-policy';
 
 @Injectable()
@@ -49,6 +54,32 @@ export class PrismaSessionRepository implements SessionRepository {
 
   async revokeFamily(familyId: string, reason: RevokeReason, now: Date): Promise<void> {
     await this.lockThenRevoke(Prisma.sql`family_id = ${familyId}::uuid`, { familyId }, reason, now);
+  }
+
+  findOwned(sessionId: string, userId: string): Promise<{ familyId: string } | null> {
+    return this.txHost.tx.session.findFirst({ where: { id: sessionId, userId }, select: { familyId: true } });
+  }
+
+  async findActiveForUser(userId: string, now: Date): Promise<ActiveSession[]> {
+    const active = await this.txHost.tx.session.findMany({
+      where: { userId, revokedAt: null, expiresAt: { gt: now } },
+      orderBy: { lastUsedAt: 'desc' },
+    });
+    // Refreshing creates a new row, so the sign-in time is the oldest row of the family.
+    const families = await this.txHost.tx.session.groupBy({
+      by: ['familyId'],
+      where: { familyId: { in: active.map((session) => session.familyId) } },
+      _min: { createdAt: true },
+    });
+    const signedInAt = new Map(families.map((family) => [family.familyId, family._min.createdAt]));
+    return active.map((session) => ({
+      id: session.id,
+      familyId: session.familyId,
+      platform: session.platform,
+      deviceName: session.deviceName,
+      signedInAt: signedInAt.get(session.familyId) ?? session.createdAt,
+      lastUsedAt: session.lastUsedAt,
+    }));
   }
 
   // A refresh in flight holds a row lock while inserting the replacement session, which a single UPDATE
