@@ -34,7 +34,10 @@ interface FootballDataProvider {
 - `MockFootballProvider` reads the seed. The simulation state is the `matches` row itself: seed updates carry a fixed `updatedAt`, so a later sync can never overwrite a newer simulator update.
 - The schedule is generated from an **anchor**: the start of the first `provider_sync_runs` row for `mock`. A moving anchor would shift every kickoff on each sync.
 - The seed is deliberately small: 6 clubs per league and 8 national teams, enough for every workflow. Players are fictional, 25 per team, combined from name lists; a matchday squad is 18 (11 starters, 7 substitutes).
-- **Simulator CLI** (`nest-commander`): `mock:kickoff <matchId>`, `mock:score <matchId> 2-1`, `mock:finish <matchId>`, `mock:postpone`, `mock:reschedule <matchId> <iso>`, `mock:cancel`, `mock:correct-result`, `mock:correct-end-time`, `mock:scenario <name>`, and `mock:run-day --speed 60x` (plays a matchday in accelerated time). This makes every workflow and edge case testable without any external API.
+- **Simulator CLI** (`nest-commander`): `mock:kickoff <matchId>`, `mock:score <matchId> 2-1`, `mock:finish <matchId> [score]`, `mock:postpone`, `mock:reschedule <matchId> <iso>`, `mock:cancel`, `mock:abandon`, `mock:correct-result <matchId> <score>`, `mock:correct-end-time <matchId> <iso>`, `mock:scenario <name>`, and `mock:run-day --speed 60x` (plays a matchday in accelerated time). This makes every workflow and edge case testable without any external API.
+  - Every command goes through `ApplyProviderMatchUpdate`, so it obeys the state machine and publishes the same events as a provider. The commands exist only outside production and refuse matches from any other provider.
+  - A matchday is every `SCHEDULED` mock match within 24 hours of the earliest one. Goals are derived from the match id, so a day replays the same way. `mock:scenario` uses the next scheduled match.
+  - Simulated `started_at` and `ended_at` are the real current time, so windows that start at the match end (MOTM) open right away. `kickoff_at` keeps its scheduled value: a match can be `FINISHED` with a future `kickoff_at`, and predictions are closed by its status.
 
 ### 2.3 Real providers later (free first)
 
