@@ -1,6 +1,7 @@
 import { Body, Controller, Post, Req, Res } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
+import { Public } from '@shared/infrastructure/http/public.decorator';
 import { MeQuery } from '../application/me.query';
 import { SignInService } from '../application/sign-in.service';
 import { authTokens, deviceFrom } from './auth-response';
@@ -8,6 +9,7 @@ import { AuthTokensDto } from './dto/auth-tokens.dto';
 import { DevSignInDto } from './dto/sign-in.dto';
 
 /** Signs in as any made-up Google account. Registered only outside production. */
+@Public()
 @ApiTags('dev')
 @Controller({ path: '_dev/auth', version: '1' })
 export class DevAuthController {

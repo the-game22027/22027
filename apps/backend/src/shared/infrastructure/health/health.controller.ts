@@ -2,6 +2,7 @@ import { Controller, Get, Res, ServiceUnavailableException, VERSION_NEUTRAL } fr
 import { type HealthCheckResult, HealthCheckService, PrismaHealthIndicator } from '@nestjs/terminus';
 import { ApiTags } from '@nestjs/swagger';
 import type { Response } from 'express';
+import { Public } from '../http/public.decorator';
 import { PrismaService } from '../persistence';
 import { RedisHealthIndicator } from './redis.health';
 
@@ -10,6 +11,7 @@ import { RedisHealthIndicator } from './redis.health';
  * A failing check returns 503 with Terminus' per-dependency details (not problem+json): probes only
  * need the status, and operators need to see which dependency is down.
  */
+@Public()
 @ApiTags('ops')
 @Controller({ path: 'health', version: VERSION_NEUTRAL })
 export class HealthController {

@@ -1,4 +1,5 @@
 import { type DynamicModule, Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { UsersModule } from '@modules/users';
 import type { AppConfig } from '@shared/infrastructure/config';
 import { MeQuery } from './application/me.query';
@@ -15,6 +16,8 @@ import { PrismaIdentityRepository } from './infrastructure/prisma-identity.repos
 import { PrismaSessionRepository } from './infrastructure/prisma-session.repository';
 import { AuthController } from './presentation/auth.controller';
 import { DevAuthController } from './presentation/dev-auth.controller';
+import { JwtAuthGuard } from './presentation/jwt-auth.guard';
+import { MeController } from './presentation/me.controller';
 
 @Module({})
 export class AuthModule {
@@ -22,12 +25,13 @@ export class AuthModule {
     return {
       module: AuthModule,
       imports: [UsersModule],
-      controllers: [AuthController, ...(config.devToolsEnabled ? [DevAuthController] : [])],
+      controllers: [AuthController, MeController, ...(config.devToolsEnabled ? [DevAuthController] : [])],
       providers: [
         SignInService,
         RefreshSessionService,
         SessionIssuer,
         MeQuery,
+        { provide: APP_GUARD, useClass: JwtAuthGuard },
         { provide: ACCESS_TOKENS, useClass: JoseAccessTokens },
         { provide: GOOGLE_TOKEN_VERIFIER, useClass: JoseGoogleTokenVerifier },
         { provide: IDENTITY_REPOSITORY, useClass: PrismaIdentityRepository },

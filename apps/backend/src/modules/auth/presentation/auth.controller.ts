@@ -1,6 +1,7 @@
 import { Body, Controller, HttpCode, Inject, Post, Req, Res } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import type { Request, Response } from 'express';
+import { Public } from '@shared/infrastructure/http/public.decorator';
 import { MeQuery } from '../application/me.query';
 import { GOOGLE_TOKEN_VERIFIER, type GoogleTokenVerifier } from '../application/ports/google-token-verifier';
 import { RefreshSessionService } from '../application/refresh-session.service';
@@ -20,6 +21,7 @@ export class AuthController {
   ) {}
 
   /** 201 for a new account, 200 for an existing one. */
+  @Public()
   @Post('google')
   async signInWithGoogle(
     @Body() body: GoogleSignInDto,
@@ -33,6 +35,7 @@ export class AuthController {
   }
 
   /** Rotates the refresh token: the old one stops working, and presenting it again revokes the whole sign-in. */
+  @Public()
   @Post('refresh')
   @HttpCode(200)
   async refresh(@Body() body: RefreshDto, @Req() req: Request): Promise<AuthTokensDto> {
