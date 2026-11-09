@@ -91,4 +91,23 @@ describe('auth (e2e)', () => {
       expect(afterTheft.body.code).toBe('REFRESH_TOKEN_INVALID');
     });
   });
+
+  it('P1 exit: Google sign-in, /me, refresh, then a replayed token revokes the sign-in', async () => {
+    const http = () => request(app.getHttpServer());
+    const idToken = await google.idToken(`sub-${randomUUID()}`, { email: 'exit@example.com', name: 'Exit' });
+
+    const signedIn = await http().post('/v1/auth/google').send({ idToken }).expect(201);
+    const me = await http().get('/v1/me').set('Authorization', `Bearer ${signedIn.body.accessToken}`).expect(200);
+    expect(me.body).toMatchObject({ id: signedIn.body.user.id, displayName: 'Exit' });
+
+    const first = String(signedIn.body.refreshToken);
+    const rotated = await http().post('/v1/auth/refresh').send({ refreshToken: first }).expect(200);
+    const replay = await http().post('/v1/auth/refresh').send({ refreshToken: first }).expect(401);
+    expect(replay.body).toMatchObject({ code: 'REFRESH_TOKEN_REUSED' });
+
+    await http()
+      .post('/v1/auth/refresh')
+      .send({ refreshToken: String(rotated.body.refreshToken) })
+      .expect(401);
+  });
 });
