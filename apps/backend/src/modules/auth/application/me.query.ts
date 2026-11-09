@@ -9,6 +9,7 @@ export interface MeView {
   readonly username: string | null;
   readonly avatarUrl: string | null;
   readonly locale: string;
+  readonly favouriteTeamId: string | null;
   readonly identities: readonly { id: string; provider: AuthProvider; label: string }[];
   readonly privacy: { readonly predictionVisibility: string | null };
 }
@@ -33,6 +34,7 @@ export class MeQuery {
       username: account.username,
       avatarUrl: account.avatarUrl,
       locale: account.locale,
+      favouriteTeamId: account.favouriteTeamId,
       identities: identities.map((identity) => ({
         id: identity.id,
         provider: identity.provider,

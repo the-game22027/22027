@@ -77,6 +77,8 @@ Content-Type: application/problem+json
 | `RECENT_SIGN_IN_REQUIRED` | 403 | Sensitive action needs a fresh sign-in (DEC-50) |
 | `DISPLAY_NAME_INVALID` / `USERNAME_INVALID` | 400 | Profile value breaks the format rules (DEC-49) |
 | `USERNAME_TAKEN` | 409 | Username belongs to someone else (case-insensitive) |
+| `TEAM_NOT_FOUND` | 422 | Favourite team does not exist |
+| `INVALID_CURSOR` | 400 | Pagination cursor was altered or is not ours |
 | `IDEMPOTENCY_KEY_REUSED` | 422 | Same key, different request |
 | `PRECONDITION_FAILED` | 412 | `If-Match` mismatch |
 | `ACCOUNT_EXISTS_FOR_EMAIL` | 409 | Verified email belongs to another account (`linkWith` hint) |
@@ -128,6 +130,8 @@ interface MatchSummary { id: string; competition: { id: string; name: string; co
   predictable: boolean;                 // computed server-side
   myPredictionExists?: boolean }
 interface MatchDetail extends MatchSummary { endedAt?: string | null; venue?: string | null; serverTime: string }
+interface Competition { id: string; code: string; name: string; type: string; countryCode: string | null; isNationalTeams: boolean }
+interface SquadPlayer { playerId: string; name: string; teamId: string; role: 'STARTER' | 'SUBSTITUTE'; shirtNumber: number | null }
 
 // ---- Predictions ----
 type Pick =
@@ -204,7 +208,7 @@ Legend: **Auth** P = public, U = authenticated user. **MVP** ✅ / Future 🔜.
 | | Method | Path | Auth | Purpose / notes |
 |---|---|---|---|---|
 | ✅ | GET | `/v1/me` | U | `Me` |
-| ✅ | PATCH | `/v1/me` | U | displayName, username (`null` clears), avatarUrl (`https`, `null` clears), locale, favouriteTeamId (P2) → `Me` |
+| ✅ | PATCH | `/v1/me` | U | displayName, username (`null` clears), avatarUrl (`https`, `null` clears), locale, favouriteTeamId (`null` clears) → `Me` |
 | 🔜 | PATCH | `/v1/me/privacy` | U | Future privacy settings. Prediction visibility is fixed in v1.0 (DEC-21: friends after kickoff) |
 | ✅ | DELETE | `/v1/me` | U (recent sign-in) | Request deletion → `202`; signs out every device; signing in during the grace period cancels it. `403 RECENT_SIGN_IN_REQUIRED` when the sign-in is too old |
 | ✅ | GET | `/v1/users/{userId}` | U | `PublicUser` (+ friendship status) |
@@ -214,10 +218,10 @@ Legend: **Auth** P = public, U = authenticated user. **MVP** ✅ / Future 🔜.
 
 | | Method | Path | Auth | Purpose / notes |
 |---|---|---|---|---|
-| ✅ | GET | `/v1/competitions` | U | Active competitions |
+| ✅ | GET | `/v1/competitions` | U | `{items: Competition[]}`, active only |
 | ✅ | GET | `/v1/matches?from=&to=&competitionId=&status=&cursor=` | U | `MatchSummary` list ordered by kickoff |
 | ✅ | GET | `/v1/matches/{matchId}` | U | `MatchDetail` |
-| ✅ | GET | `/v1/matches/{matchId}/squads` | U | Squad players (MOTM candidates source) |
+| ✅ | GET | `/v1/matches/{matchId}/squads` | U | `{items: SquadPlayer[]}` (MOTM candidates source) |
 | 🔜 | GET | `/v1/teams/{teamId}` | U | Team page |
 
 ### 6.4 Predictions

@@ -26,3 +26,12 @@ export class UsernameTakenError extends DomainError {
     super('This username is already taken.');
   }
 }
+
+export class UnknownTeamError extends DomainError {
+  readonly code = 'TEAM_NOT_FOUND';
+  readonly kind = 'UNPROCESSABLE';
+
+  constructor() {
+    super('The favourite team does not exist.');
+  }
+}

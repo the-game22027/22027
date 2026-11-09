@@ -57,6 +57,7 @@ Format per module: **Purpose · Responsibilities · Owned tables · Public inter
 - **Publishes:** `MatchScheduled`, `MatchKickoffChanged`, `MatchStarted`, `MatchFinished`, `MatchResultCorrected`, `MatchEndTimeCorrected`, `MatchPostponed`, `MatchCancelled`.
 - **Consumes:** none (driven by provider sync jobs and the simulator).
 - **Must not:** know about predictions, votes, or points.
+- **Locale:** controllers read the resolved language with `@RequestLocale()`. `auth` sets it (header, else profile), so `football` stays free of a `users` dependency.
 
 ### 2.4 `predictions`
 - **Purpose:** Users' match predictions, their privacy, and their scoring.

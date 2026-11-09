@@ -1,3 +1,5 @@
+import type { Locale } from '@shared/kernel';
+
 export type UserStatus = 'ACTIVE' | 'SUSPENDED' | 'PENDING_DELETION' | 'DELETED';
 
 export interface UserAccount {
@@ -6,7 +8,8 @@ export interface UserAccount {
   readonly displayName: string;
   readonly username: string | null;
   readonly avatarUrl: string | null;
-  readonly locale: string;
+  readonly locale: Locale;
+  readonly favouriteTeamId: string | null;
   readonly predictionVisibility: string | null;
 }
 
@@ -16,11 +19,10 @@ export interface NewUser {
   readonly avatarUrl: string | null;
 }
 
-export type Locale = 'ar' | 'en';
-
 export interface ProfilePatch {
   readonly displayName?: string;
   readonly username?: string | null;
   readonly avatarUrl?: string | null;
   readonly locale?: Locale;
+  readonly favouriteTeamId?: string | null;
 }

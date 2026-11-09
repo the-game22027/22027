@@ -61,3 +61,7 @@ New tracks are added when the first card needs one.
 | [backend/http-status-codes](backend/http-status-codes.md) | P1 | The status tells the client what to do next |
 | [security/public-private-keys](security/public-private-keys.md) | P1 | Private signs, public verifies; `kid` enables rotation |
 | [backend/validation-at-the-edge](backend/validation-at-the-edge.md) | P1 | Shape in the DTO, rules in the domain, uniqueness in the database |
+| [database/keyset-pagination](database/keyset-pagination.md) | P2 | "Rows after this one", not "skip N" |
+| [database/composite-indexes](database/composite-indexes.md) | P2 | Equality columns first, then the sort column |
+| [backend/translated-names](backend/translated-names.md) | P2 | `names` JSONB; pick the language at the edge |
+| [backend/request-pipeline](backend/request-pipeline.md) | P2 | Middleware → guard → interceptor → pipe → handler → filter |

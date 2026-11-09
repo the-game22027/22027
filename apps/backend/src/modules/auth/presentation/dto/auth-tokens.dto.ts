@@ -16,6 +16,7 @@ export class MeDto {
   username!: string | null;
   avatarUrl!: string | null;
   locale!: string;
+  favouriteTeamId!: string | null;
   identities!: IdentityDto[];
   privacy!: PrivacyDto;
 }

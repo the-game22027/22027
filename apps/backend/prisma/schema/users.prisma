@@ -25,15 +25,17 @@ model User {
 }
 
 model UserProfile {
-  userId      String   @id @map("user_id") @db.Uuid
-  displayName String   @map("display_name")
-  username    String?  @unique @db.Citext
-  avatarUrl   String?  @map("avatar_url")
-  locale      String   @default("ar")
-  countryCode String?  @map("country_code") @db.Char(2)
-  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
+  userId          String   @id @map("user_id") @db.Uuid
+  displayName     String   @map("display_name")
+  username        String?  @unique @db.Citext
+  avatarUrl       String?  @map("avatar_url")
+  locale          String   @default("ar")
+  countryCode     String?  @map("country_code") @db.Char(2)
+  favouriteTeamId String?  @map("favourite_team_id") @db.Uuid
+  updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user          User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  favouriteTeam Team? @relation(fields: [favouriteTeamId], references: [id], onDelete: SetNull)
 
   @@map("user_profiles")
 }

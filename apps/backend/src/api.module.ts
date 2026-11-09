@@ -1,5 +1,6 @@
 import { type DynamicModule, Module } from '@nestjs/common';
 import { AuthModule } from '@modules/auth';
+import { FootballModule } from '@modules/football';
 import type { AppConfig } from '@shared/infrastructure/config';
 import { CoreModule } from '@shared/infrastructure/core.module';
 import { DevModule } from '@shared/infrastructure/dev/dev.module';
@@ -16,6 +17,7 @@ export class ApiModule {
       imports: [
         CoreModule.register(config),
         AuthModule.register(config),
+        FootballModule,
         ...(config.devToolsEnabled ? [DevModule] : []),
       ],
     };

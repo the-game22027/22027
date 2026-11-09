@@ -1,3 +1,5 @@
+import { DomainError } from './domain-error';
+
 /** Keyset (cursor) pagination shared by every list endpoint (docs/api/API.md §2). */
 export const DEFAULT_PAGE_LIMIT = 20;
 export const MAX_PAGE_LIMIT = 100;
@@ -29,5 +31,14 @@ export function decodeCursor<T extends Record<string, unknown>>(cursor: string):
     return typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed) ? (parsed as T) : null;
   } catch {
     return null;
+  }
+}
+
+export class InvalidCursorError extends DomainError {
+  readonly code = 'INVALID_CURSOR';
+  readonly kind = 'VALIDATION';
+
+  constructor() {
+    super('The pagination cursor is not valid.');
   }
 }
