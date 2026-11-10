@@ -131,8 +131,8 @@ Changes vs the original proposed order, and why:
 Each mobile phase starts once the backend phase it consumes is merged. The API contract is already written, so screens can be built against it with mocked responses even earlier.
 
 ### M0 — Mobile foundation (after P0)
-- Decide and record (ADR): Flutter version (pinned with `fvm`), application id, state-management and navigation libraries. `flutter create` in `apps/mobile`; dev/prod flavors; Arabic + English with RTL; generated REST client from the backend `openapi.json`; secure token storage; error mapping from problem+json `code`; path-filtered CI (`flutter analyze`, tests).
-- **Exit:** app runs on Android and iOS simulators against the local backend, `/health` call works, RTL layout verified.
+- Decided in ADR-0014: Flutter latest stable pinned with `fvm`, Riverpod, go_router; the application id is deferred (DEC-52, placeholder until R2). Prompt: `docs/prompts/mobile-m0-foundation.md`. `flutter create` in `apps/mobile`; dev/prod flavors; Arabic + English with RTL; generated REST client from the backend `openapi.json`; secure token storage; error mapping from problem+json `code`; path-filtered CI (`flutter analyze`, tests).
+- **Exit:** app runs on an Android emulator against the local backend, `/health` call works, RTL layout verified. iOS: the project is scaffolded, but running it needs macOS (the owner develops on Linux), so the iOS check moves to the first time a Mac or a macOS CI runner is available, before R2.
 
 ### M1 — Sign-in and profile (after P1)
 - Google sign-in, refresh rotation, sessions list, profile and privacy settings, account deletion.

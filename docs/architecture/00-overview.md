@@ -73,7 +73,7 @@ Not planned (rejected by the product owner, 2026-11-07): Daily Quiz, solo/practi
 | A-06 | Single platform timezone for period boundaries (value is DEC-15/16) | Leaderboards must agree for all users | Per-region boards would add a `region` dimension |
 | A-07 | Launch scale: < 50k registered users, < 2k concurrent, < 200 concurrent battles | Sizing for a single API instance + single worker | Section 06 lists the scaling steps |
 | A-08 | MOTM candidates = players in both teams' matchday squads, supplied by the football data provider (mock now) | MOTM needs a candidate list | See risk K-02 |
-| A-09 | The mobile app is **Flutter** (Dart), living in `apps/mobile` of the same monorepo (ADR-0011) | The owner works in Flutter; the monorepo layout needs a toolchain | A different framework changes only `apps/mobile` tooling; the backend and the contract are unaffected |
+| A-09 | The mobile app is **Flutter** (Dart), living in `apps/mobile` of the same monorepo (ADR-0011). **Confirmed 2026-11-10 (ADR-0014): Riverpod, go_router, fvm-pinned stable** | The owner works in Flutter; the monorepo layout needs a toolchain | A different framework changes only `apps/mobile` tooling; the backend and the contract are unaffected |
 
 ## 5. Architectural risks
 
