@@ -6,7 +6,7 @@ plugins {
 }
 
 android {
-    namespace = "com.example.the_game"
+    namespace = "com.example.thegame"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -20,14 +20,28 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.the_game"
+        // Placeholder until DEC-52 decides the real id. Google Play refuses com.example.*.
+        applicationId = "com.example.thegame"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+    }
+
+    // Must match the "flavor" value in config/<flavor>.json (checked in main.dart).
+    flavorDimensions += "environment"
+    productFlavors {
+        create("dev") {
+            dimension = "environment"
+            applicationIdSuffix = ".dev"
+            resValue("string", "app_name", "The Game (dev)")
+        }
+        create("prod") {
+            dimension = "environment"
+            resValue("string", "app_name", "The Game")
+        }
     }
 
     buildTypes {
