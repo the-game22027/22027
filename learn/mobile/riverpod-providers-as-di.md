@@ -14,6 +14,7 @@
 **Watch out:**
 - `ref.watch` inside `build` rebuilds when the dependency changes; `ref.read` inside callbacks reads once. Watching in a callback or reading in `build` are classic bugs.
 - Override at the lowest useful level (the HTTP adapter), so the test still runs the real interceptors and repositories. In M0 the server status screen showed "down" on a healthy backend: its widget test faked the whole repository, so nobody noticed that the generated client cannot parse the untyped health body. [health_repository_test.dart](../../apps/mobile/test/features/server_status/health_repository_test.dart) now goes through the real client.
+- Riverpod 3 retries a failed provider on its own (up to 10 times). Retrying a 4xx only repeats the same answer, so we pass our own policy to `ProviderScope(retry: ...)`: [retry_policy.dart](../../apps/mobile/lib/core/errors/retry_policy.dart).
 
 **Check yourself:** why override `httpClientAdapterProvider` rather than `homeRepositoryProvider` in the interceptor tests?
 <details><summary>Answer</summary>Because the interceptors are what we test. Replacing the repository would skip them; replacing only the network adapter keeps every real layer between the repository and the wire.</details>
