@@ -135,6 +135,20 @@ The first slice is deliberately smaller than the full layered model in §4. It s
 
 The catalog command writes `catalog.jsonl` (§5.4) with normalized search forms (§5.7).
 
+**First full run, 2026-11-10** (`scope.toml`, 9 leagues):
+
+| Measure | Result |
+|---|---|
+| Clubs in the 9 leagues | 205 |
+| Players found / kept (≥ 8 sitelinks) | 53,659 / 21,611 |
+| Senior clubs on those careers | 8,092 |
+| Career spells | 144,508 |
+| Arabic label: players / clubs / countries | 85% / 51% / 99% |
+| Arabic label, 2,000 most famous players | 100% |
+| Catalog entities with both names | 22,645 (6.3 MB, 1.2 MB gzip) |
+| Entities missing an Arabic name | 7,180 (mostly small clubs), listed by `names:missing` |
+| First download / rebuild from cache | about 40 min / about 3 min |
+
 **Etiquette:**
 - One query at a time, a descriptive `User-Agent`, and exponential backoff on `429` and `5xx`.
 - Per-club and batched queries (`VALUES` blocks of a few hundred ids), because a single big query hits the 60-second timeout.

@@ -30,6 +30,8 @@ def team(label: str, *classes: str) -> TeamFacts:
         "Manchester United Reserves",
         "Portugal national under-21 football team",
         "Inter Primavera",
+        "FC Barcelona C",
+        "FC Barcelona Atlètic",
     ],
 )
 def test_youth_and_reserve_sides_are_not_senior_clubs(label: str) -> None:
@@ -38,7 +40,14 @@ def test_youth_and_reserve_sides_are_not_senior_clubs(label: str) -> None:
 
 @pytest.mark.parametrize(
     "label",
-    ["Real Madrid Club de Fútbol", "Club Brugge KV", "Al-Nassr", "Bayer 04 Leverkusen", "B.K. Häcken"],
+    [
+        "Real Madrid Club de Fútbol",
+        "Club Brugge KV",
+        "Al-Nassr",
+        "Bayer 04 Leverkusen",
+        "B.K. Häcken",
+        "Atlético Madrid",
+    ],
 )
 def test_first_teams_are_senior_clubs(label: str) -> None:
     assert is_senior_club(team(label), SCOPE)

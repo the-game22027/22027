@@ -16,7 +16,7 @@ excluded_team_classes = [
   "Q28140340", # women's association football team
 ]
 # ...or when its English label matches this pattern (case-insensitive).
-excluded_team_label_pattern = '''\b(youth|academy|reserves?|under-?\d{2}|u-?\d{2}|castilla|primavera|next gen|juvenil|juniors?|amateure?s?)\b|\s(b|ii)$'''
+excluded_team_label_pattern = '''\b(youth|academy|reserves?|under-?\d{2}|u-?\d{2}|castilla|primavera|next gen|juvenil|juniors?|amateure?s?)\b|\s(b|c|ii|iii|atlètic)$'''
 
 [[leagues]]
 id = "Q9448"
