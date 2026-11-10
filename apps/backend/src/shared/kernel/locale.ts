@@ -4,7 +4,7 @@ export type Locale = (typeof LOCALES)[number];
 
 export const DEFAULT_LOCALE: Locale = 'ar';
 
-export function isLocale(value: string): value is Locale {
+export function isSupportedLocale(value: string): value is Locale {
   return (LOCALES as readonly string[]).includes(value);
 }
 
@@ -12,7 +12,7 @@ export function isLocale(value: string): value is Locale {
 export function localeFromHeader(header: string | undefined): Locale | null {
   for (const part of header?.split(',') ?? []) {
     const language = part.split(';')[0]?.split('-')[0]?.trim().toLowerCase() ?? '';
-    if (isLocale(language)) return language;
+    if (isSupportedLocale(language)) return language;
   }
   return null;
 }
