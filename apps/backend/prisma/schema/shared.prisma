@@ -2,18 +2,23 @@
 
 /// Transactional outbox: written in the same transaction as the state change, published to BullMQ by the worker.
 model OutboxEvent {
-  id            String    @id @db.Uuid
-  type          String
-  version       Int
-  aggregateType String    @map("aggregate_type")
-  aggregateId   String    @map("aggregate_id") @db.Uuid
-  payload       Json
-  occurredAt    DateTime  @map("occurred_at") @db.Timestamptz(3)
-  publishedAt   DateTime? @map("published_at") @db.Timestamptz(3)
-  attempts      Int       @default(0)
-  lastError     String?   @map("last_error")
+  id             String    @id @db.Uuid
+  type           String
+  version        Int
+  aggregateType  String    @map("aggregate_type")
+  aggregateId    String    @map("aggregate_id") @db.Uuid
+  payload        Json
+  occurredAt     DateTime  @map("occurred_at") @db.Timestamptz(3)
+  publishedAt    DateTime? @map("published_at") @db.Timestamptz(3)
+  /// How many publishes were started. An event released untried gets its attempt back.
+  attempts       Int       @default(0)
+  lastError      String?   @map("last_error")
+  /// Earliest time the event can be claimed: moved forward by the lease and by retry backoff.
+  availableAt    DateTime  @default(now()) @map("available_at") @db.Timestamptz(3)
+  claimedBy      String?   @map("claimed_by") @db.Uuid
+  deadLetteredAt DateTime? @map("dead_lettered_at") @db.Timestamptz(3)
 
-  // Serves "unpublished, oldest first" (published_at IS NULL ORDER BY occurred_at).
-  @@index([publishedAt, occurredAt])
+  // Serves the claim: not published, not dead-lettered, due now, oldest first.
+  @@index([publishedAt, deadLetteredAt, availableAt, id])
   @@map("outbox_events")
 }

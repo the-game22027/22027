@@ -1,6 +1,6 @@
 # ADR-0004: Transactional outbox + BullMQ for cross-module asynchronous reactions
 
-- **Status:** Proposed
+- **Status:** Proposed; publishing mechanics superseded by ADR-0013
 - **Date:** 2026-11-07
 - **Related:** 01-modules.md §6, 05-background-jobs.md
 

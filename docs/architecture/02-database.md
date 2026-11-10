@@ -569,8 +569,13 @@ user_blocks ( blocker_id uuid, blocked_id uuid, created_at timestamptz, PRIMARY 
 outbox_events (
   id uuid PK, type text, version int, aggregate_type text, aggregate_id uuid,
   payload jsonb, occurred_at timestamptz, published_at timestamptz NULL,
-  attempts int DEFAULT 0, last_error text NULL
+  attempts int DEFAULT 0,               -- publishes started; a row released untried gets its attempt back
+  last_error text NULL,
+  available_at timestamptz DEFAULT now(),  -- earliest claim time: moved by the lease and by retry backoff (ADR-0013)
+  claimed_by uuid NULL,                 -- per-batch owner; later writes must match it
+  dead_lettered_at timestamptz NULL     -- attempts exhausted; waits for an operator
 )
+  IX (published_at, dead_lettered_at, available_at, id)
   IX (occurred_at) WHERE published_at IS NULL
 idempotency_keys (
   user_id uuid, key text, method text, path text, request_hash text,
@@ -625,7 +630,7 @@ These statements are written as Prisma `$queryRaw` inside repository methods (ty
 | `battle_rooms`, `battle_room_members` | Delete 30 days after close | Lobbies have no long-term value; battles keep `room_id` as a plain id |
 | `question_stats_applied` | 30 days | Only needed while `BattleCompleted` redeliveries are possible |
 | `sessions` | Delete 30 days after expiry/revocation | Security hygiene |
-| `outbox_events` | Delete 7 days after publish | Volume |
+| `outbox_events` | Delete 7 days after publish; dead letters stay until handled | Volume |
 | `idempotency_keys` | 24-48 hours | Purpose is retry windows |
 | `provider_sync_runs` | 90 days | Debugging |
 | Logs | Per hosting; no PII in logs | Privacy |

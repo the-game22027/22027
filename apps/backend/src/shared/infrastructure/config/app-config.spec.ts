@@ -31,7 +31,15 @@ describe('loadConfig', () => {
     expect(config.nodeEnv).toBe('development');
     expect(config.apiPort).toBe(3000);
     expect(config.workerPort).toBe(3100);
-    expect(config.outbox).toEqual({ pollIntervalMs: 1000, batchSize: 100 });
+    expect(config.outbox).toEqual({
+      pollIntervalMs: 1000,
+      batchSize: 100,
+      leaseMs: 60_000,
+      publishTimeoutMs: 5000,
+      maxAttempts: 10,
+      retryBaseMs: 1000,
+      retryMaxMs: 300_000,
+    });
     expect(config.devToolsEnabled).toBe(true);
     expect(config.jwt).toMatchObject({ keyId: 'k1', issuer: 'the-game-api', accessTokenTtlSeconds: 900 });
     expect(config.jwt.previous).toBeUndefined();
@@ -40,6 +48,18 @@ describe('loadConfig', () => {
       clientIds: [],
       issuers: ['https://accounts.google.com', 'accounts.google.com'],
     });
+  });
+
+  it('refuses a lease too short for a publish to finish inside it', () => {
+    expect(() => loadConfig({ ...valid, OUTBOX_LEASE_MS: '10000', OUTBOX_PUBLISH_TIMEOUT_MS: '5000' })).toThrow(
+      'OUTBOX_LEASE_MS',
+    );
+  });
+
+  it('refuses a retry maximum below the base', () => {
+    expect(() => loadConfig({ ...valid, OUTBOX_RETRY_BASE_MS: '5000', OUTBOX_RETRY_MAX_MS: '1000' })).toThrow(
+      'OUTBOX_RETRY_MAX_MS',
+    );
   });
 
   it('disables dev tools in production', () => {

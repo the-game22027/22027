@@ -52,6 +52,11 @@ const configSchema = z
       .default('100kb'),
     OUTBOX_POLL_INTERVAL_MS: z.coerce.number().int().min(50).default(1000),
     OUTBOX_BATCH_SIZE: z.coerce.number().int().min(1).max(1000).default(100),
+    OUTBOX_LEASE_MS: z.coerce.number().int().min(100).default(60_000),
+    OUTBOX_PUBLISH_TIMEOUT_MS: z.coerce.number().int().min(10).default(5000),
+    OUTBOX_MAX_ATTEMPTS: z.coerce.number().int().min(1).default(10),
+    OUTBOX_RETRY_BASE_MS: z.coerce.number().int().min(1).default(1000),
+    OUTBOX_RETRY_MAX_MS: z.coerce.number().int().min(1).default(300_000),
 
     JWT_PRIVATE_KEY: pem.refine(isKey(createPrivateKey), 'must be a P-256 (ES256) private key in PEM format'),
     JWT_KEY_ID: z.string().min(1),
@@ -82,6 +87,14 @@ const configSchema = z
 
     PREDICTION_MAX_GOALS: z.coerce.number().int().min(1).max(99).default(20),
   })
+  .refine((env) => env.OUTBOX_LEASE_MS > 2 * env.OUTBOX_PUBLISH_TIMEOUT_MS, {
+    message: 'must be more than twice OUTBOX_PUBLISH_TIMEOUT_MS, so a publish always ends inside its lease',
+    path: ['OUTBOX_LEASE_MS'],
+  })
+  .refine((env) => env.OUTBOX_RETRY_MAX_MS >= env.OUTBOX_RETRY_BASE_MS, {
+    message: 'must be at least OUTBOX_RETRY_BASE_MS',
+    path: ['OUTBOX_RETRY_MAX_MS'],
+  })
   .refine((env) => (env.JWT_PREVIOUS_PUBLIC_KEY === undefined) === (env.JWT_PREVIOUS_KEY_ID === undefined), {
     message: 'set both or neither (key rotation)',
     path: ['JWT_PREVIOUS_KEY_ID'],
@@ -101,7 +114,15 @@ export class AppConfig {
   readonly databaseUrl: string;
   readonly redisUrl: string;
   readonly httpBodyLimit: string;
-  readonly outbox: { readonly pollIntervalMs: number; readonly batchSize: number };
+  readonly outbox: {
+    readonly pollIntervalMs: number;
+    readonly batchSize: number;
+    readonly leaseMs: number;
+    readonly publishTimeoutMs: number;
+    readonly maxAttempts: number;
+    readonly retryBaseMs: number;
+    readonly retryMaxMs: number;
+  };
   readonly jwt: {
     readonly privateKeyPem: string;
     readonly keyId: string;
@@ -137,7 +158,15 @@ export class AppConfig {
     this.databaseUrl = env.DATABASE_URL;
     this.redisUrl = env.REDIS_URL;
     this.httpBodyLimit = env.HTTP_BODY_LIMIT;
-    this.outbox = { pollIntervalMs: env.OUTBOX_POLL_INTERVAL_MS, batchSize: env.OUTBOX_BATCH_SIZE };
+    this.outbox = {
+      pollIntervalMs: env.OUTBOX_POLL_INTERVAL_MS,
+      batchSize: env.OUTBOX_BATCH_SIZE,
+      leaseMs: env.OUTBOX_LEASE_MS,
+      publishTimeoutMs: env.OUTBOX_PUBLISH_TIMEOUT_MS,
+      maxAttempts: env.OUTBOX_MAX_ATTEMPTS,
+      retryBaseMs: env.OUTBOX_RETRY_BASE_MS,
+      retryMaxMs: env.OUTBOX_RETRY_MAX_MS,
+    };
     this.jwt = {
       privateKeyPem: env.JWT_PRIVATE_KEY,
       keyId: env.JWT_KEY_ID,
