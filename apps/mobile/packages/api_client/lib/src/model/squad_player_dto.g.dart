@@ -55,7 +55,6 @@ class _$SquadPlayerDtoCWProxyImpl implements _$SquadPlayerDtoCWProxy {
   SquadPlayerDto teamId(String teamId) => this(teamId: teamId);
 
   @override
-
   /// This function **does support** nullification of nullable fields. All `null` values passed to `non-nullable` fields will be ignored. You can also use `SquadPlayerDto(...).copyWith.fieldName(...)` to override fields one at a time with nullification support.
   ///
   /// Usage
@@ -105,30 +104,26 @@ extension $SquadPlayerDtoCopyWith on SquadPlayerDto {
 // **************************************************************************
 
 SquadPlayerDto _$SquadPlayerDtoFromJson(Map<String, dynamic> json) =>
-    $checkedCreate(
-      'SquadPlayerDto',
-      json,
-      ($checkedConvert) {
-        $checkKeys(
-          json,
-          requiredKeys: const [
-            'name',
-            'playerId',
-            'role',
-            'shirtNumber',
-            'teamId'
-          ],
-        );
-        final val = SquadPlayerDto(
-          name: $checkedConvert('name', (v) => v as String),
-          playerId: $checkedConvert('playerId', (v) => v as String),
-          role: $checkedConvert('role', (v) => v as String),
-          shirtNumber: $checkedConvert('shirtNumber', (v) => v as num?),
-          teamId: $checkedConvert('teamId', (v) => v as String),
-        );
-        return val;
-      },
-    );
+    $checkedCreate('SquadPlayerDto', json, ($checkedConvert) {
+      $checkKeys(
+        json,
+        requiredKeys: const [
+          'name',
+          'playerId',
+          'role',
+          'shirtNumber',
+          'teamId',
+        ],
+      );
+      final val = SquadPlayerDto(
+        name: $checkedConvert('name', (v) => v as String),
+        playerId: $checkedConvert('playerId', (v) => v as String),
+        role: $checkedConvert('role', (v) => v as String),
+        shirtNumber: $checkedConvert('shirtNumber', (v) => v as num?),
+        teamId: $checkedConvert('teamId', (v) => v as String),
+      );
+      return val;
+    });
 
 Map<String, dynamic> _$SquadPlayerDtoToJson(SquadPlayerDto instance) =>
     <String, dynamic>{

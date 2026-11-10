@@ -19,11 +19,7 @@ abstract class _$IdentityDtoCWProxy {
   /// ```dart
   /// IdentityDto(...).copyWith(id: 12, name: "My name")
   /// ````
-  IdentityDto call({
-    String id,
-    String label,
-    IdentityDtoProviderEnum provider,
-  });
+  IdentityDto call({String id, String label, IdentityDtoProviderEnum provider});
 }
 
 /// Proxy class for `copyWith` functionality. This is a callable class and can be used as follows: `instanceOfIdentityDto.copyWith(...)`. Additionally contains functions for specific fields e.g. `instanceOfIdentityDto.copyWith.fieldName(...)`
@@ -43,7 +39,6 @@ class _$IdentityDtoCWProxyImpl implements _$IdentityDtoCWProxy {
       this(provider: provider);
 
   @override
-
   /// This function **does support** nullification of nullable fields. All `null` values passed to `non-nullable` fields will be ignored. You can also use `IdentityDto(...).copyWith.fieldName(...)` to override fields one at a time with nullification support.
   ///
   /// Usage
@@ -82,25 +77,23 @@ extension $IdentityDtoCopyWith on IdentityDto {
 // JsonSerializableGenerator
 // **************************************************************************
 
-IdentityDto _$IdentityDtoFromJson(Map<String, dynamic> json) => $checkedCreate(
-      'IdentityDto',
-      json,
-      ($checkedConvert) {
-        $checkKeys(
-          json,
-          requiredKeys: const ['id', 'label', 'provider'],
-        );
-        final val = IdentityDto(
-          id: $checkedConvert('id', (v) => v as String),
-          label: $checkedConvert('label', (v) => v as String),
-          provider: $checkedConvert(
-              'provider',
-              (v) => $enumDecode(_$IdentityDtoProviderEnumEnumMap, v,
-                  unknownValue: IdentityDtoProviderEnum.unknownDefaultOpenApi)),
-        );
-        return val;
-      },
-    );
+IdentityDto _$IdentityDtoFromJson(Map<String, dynamic> json) =>
+    $checkedCreate('IdentityDto', json, ($checkedConvert) {
+      $checkKeys(json, requiredKeys: const ['id', 'label', 'provider']);
+      final val = IdentityDto(
+        id: $checkedConvert('id', (v) => v as String),
+        label: $checkedConvert('label', (v) => v as String),
+        provider: $checkedConvert(
+          'provider',
+          (v) => $enumDecode(
+            _$IdentityDtoProviderEnumEnumMap,
+            v,
+            unknownValue: IdentityDtoProviderEnum.unknownDefaultOpenApi,
+          ),
+        ),
+      );
+      return val;
+    });
 
 Map<String, dynamic> _$IdentityDtoToJson(IdentityDto instance) =>
     <String, dynamic>{

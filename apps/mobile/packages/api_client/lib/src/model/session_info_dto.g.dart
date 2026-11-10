@@ -60,7 +60,6 @@ class _$SessionInfoDtoCWProxyImpl implements _$SessionInfoDtoCWProxy {
   SessionInfoDto platform(String? platform) => this(platform: platform);
 
   @override
-
   /// This function **does support** nullification of nullable fields. All `null` values passed to `non-nullable` fields will be ignored. You can also use `SessionInfoDto(...).copyWith.fieldName(...)` to override fields one at a time with nullification support.
   ///
   /// Usage
@@ -109,3 +108,34 @@ extension $SessionInfoDtoCopyWith on SessionInfoDto {
   // ignore: library_private_types_in_public_api
   _$SessionInfoDtoCWProxy get copyWith => _$SessionInfoDtoCWProxyImpl(this);
 }
+
+// **************************************************************************
+// JsonSerializableGenerator
+// **************************************************************************
+
+SessionInfoDto _$SessionInfoDtoFromJson(Map<String, dynamic> json) =>
+    $checkedCreate('SessionInfoDto', json, ($checkedConvert) {
+      $checkKeys(
+        json,
+        requiredKeys: const ['createdAt', 'current', 'id', 'lastUsedAt'],
+      );
+      final val = SessionInfoDto(
+        createdAt: $checkedConvert('createdAt', (v) => v as String),
+        current: $checkedConvert('current', (v) => v as bool),
+        deviceName: $checkedConvert('deviceName', (v) => v as String?),
+        id: $checkedConvert('id', (v) => v as String),
+        lastUsedAt: $checkedConvert('lastUsedAt', (v) => v as String),
+        platform: $checkedConvert('platform', (v) => v as String?),
+      );
+      return val;
+    });
+
+Map<String, dynamic> _$SessionInfoDtoToJson(SessionInfoDto instance) =>
+    <String, dynamic>{
+      'createdAt': instance.createdAt,
+      'current': instance.current,
+      'deviceName': ?instance.deviceName,
+      'id': instance.id,
+      'lastUsedAt': instance.lastUsedAt,
+      'platform': ?instance.platform,
+    };

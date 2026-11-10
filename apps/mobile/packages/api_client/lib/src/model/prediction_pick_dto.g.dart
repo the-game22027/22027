@@ -49,7 +49,6 @@ class _$PredictionPickDtoCWProxyImpl implements _$PredictionPickDtoCWProxy {
   PredictionPickDto type(PredictionPickDtoTypeEnum type) => this(type: type);
 
   @override
-
   /// This function **does support** nullification of nullable fields. All `null` values passed to `non-nullable` fields will be ignored. You can also use `PredictionPickDto(...).copyWith.fieldName(...)` to override fields one at a time with nullification support.
   ///
   /// Usage
@@ -89,3 +88,55 @@ extension $PredictionPickDtoCopyWith on PredictionPickDto {
   _$PredictionPickDtoCWProxy get copyWith =>
       _$PredictionPickDtoCWProxyImpl(this);
 }
+
+// **************************************************************************
+// JsonSerializableGenerator
+// **************************************************************************
+
+PredictionPickDto _$PredictionPickDtoFromJson(Map<String, dynamic> json) =>
+    $checkedCreate('PredictionPickDto', json, ($checkedConvert) {
+      $checkKeys(json, requiredKeys: const ['type']);
+      final val = PredictionPickDto(
+        away: $checkedConvert('away', (v) => v as num?),
+        home: $checkedConvert('home', (v) => v as num?),
+        outcome: $checkedConvert(
+          'outcome',
+          (v) => $enumDecodeNullable(
+            _$PredictionPickDtoOutcomeEnumEnumMap,
+            v,
+            unknownValue: PredictionPickDtoOutcomeEnum.unknownDefaultOpenApi,
+          ),
+        ),
+        type: $checkedConvert(
+          'type',
+          (v) => $enumDecode(
+            _$PredictionPickDtoTypeEnumEnumMap,
+            v,
+            unknownValue: PredictionPickDtoTypeEnum.unknownDefaultOpenApi,
+          ),
+        ),
+      );
+      return val;
+    });
+
+Map<String, dynamic> _$PredictionPickDtoToJson(PredictionPickDto instance) =>
+    <String, dynamic>{
+      'away': ?instance.away,
+      'home': ?instance.home,
+      'outcome': ?_$PredictionPickDtoOutcomeEnumEnumMap[instance.outcome],
+      'type': _$PredictionPickDtoTypeEnumEnumMap[instance.type]!,
+    };
+
+const _$PredictionPickDtoOutcomeEnumEnumMap = {
+  PredictionPickDtoOutcomeEnum.HOME: 'HOME',
+  PredictionPickDtoOutcomeEnum.DRAW: 'DRAW',
+  PredictionPickDtoOutcomeEnum.AWAY: 'AWAY',
+  PredictionPickDtoOutcomeEnum.unknownDefaultOpenApi:
+      'unknown_default_open_api',
+};
+
+const _$PredictionPickDtoTypeEnumEnumMap = {
+  PredictionPickDtoTypeEnum.EXACT_SCORE: 'EXACT_SCORE',
+  PredictionPickDtoTypeEnum.RESULT: 'RESULT',
+  PredictionPickDtoTypeEnum.unknownDefaultOpenApi: 'unknown_default_open_api',
+};

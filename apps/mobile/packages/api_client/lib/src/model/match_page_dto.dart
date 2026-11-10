@@ -9,7 +9,6 @@ import 'package:json_annotation/json_annotation.dart';
 
 part 'match_page_dto.g.dart';
 
-
 @CopyWith()
 @JsonSerializable(
   checked: true,
@@ -19,50 +18,27 @@ part 'match_page_dto.g.dart';
 )
 class MatchPageDto {
   /// Returns a new [MatchPageDto] instance.
-  MatchPageDto({
+  MatchPageDto({required this.items, required this.nextCursor});
 
-    required  this.items,
-
-    required  this.nextCursor,
-  });
-
-  @JsonKey(
-    
-    name: r'items',
-    required: true,
-    includeIfNull: false,
-  )
-
-
+  @JsonKey(name: r'items', required: true, includeIfNull: false)
   final List<MatchSummaryDto> items;
 
-
-
-  @JsonKey(
-    
-    name: r'nextCursor',
-    required: true,
-    includeIfNull: true,
-  )
-
-
+  @JsonKey(name: r'nextCursor', required: true, includeIfNull: true)
   final String? nextCursor;
 
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MatchPageDto &&
+          other.items == items &&
+          other.nextCursor == nextCursor;
 
+  @override
+  int get hashCode =>
+      items.hashCode + (nextCursor == null ? 0 : nextCursor.hashCode);
 
-
-
-    @override
-    bool operator ==(Object other) => identical(this, other) || other is MatchPageDto &&
-      other.items == items &&
-      other.nextCursor == nextCursor;
-
-    @override
-    int get hashCode =>
-        items.hashCode +
-        (nextCursor == null ? 0 : nextCursor.hashCode);
-
-  factory MatchPageDto.fromJson(Map<String, dynamic> json) => _$MatchPageDtoFromJson(json);
+  factory MatchPageDto.fromJson(Map<String, dynamic> json) =>
+      _$MatchPageDtoFromJson(json);
 
   Map<String, dynamic> toJson() => _$MatchPageDtoToJson(this);
 
@@ -70,6 +46,4 @@ class MatchPageDto {
   String toString() {
     return toJson().toString();
   }
-
 }
-

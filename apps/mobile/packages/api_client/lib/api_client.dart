@@ -8,7 +8,6 @@ export 'package:api_client/src/auth/basic_auth.dart';
 export 'package:api_client/src/auth/bearer_auth.dart';
 export 'package:api_client/src/auth/oauth.dart';
 
-
 export 'package:api_client/src/api/auth_api.dart';
 export 'package:api_client/src/api/dev_api.dart';
 export 'package:api_client/src/api/football_api.dart';
@@ -41,4 +40,3 @@ export 'package:api_client/src/model/submit_prediction_dto.dart';
 export 'package:api_client/src/model/submitted_pick_dto.dart';
 export 'package:api_client/src/model/team_dto.dart';
 export 'package:api_client/src/model/update_me_dto.dart';
-

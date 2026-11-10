@@ -9,15 +9,13 @@ import 'dart:convert';
 import 'package:api_client/src/deserialize.dart';
 import 'package:dio/dio.dart';
 
-
 class OpsApi {
-
   final Dio _dio;
 
   const OpsApi(this._dio);
 
   /// healthControllerLive
-  /// 
+  ///
   ///
   /// Parameters:
   /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
@@ -29,7 +27,7 @@ class OpsApi {
   ///
   /// Returns a [Future] containing a [Response] with a [Object] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<Object>> healthControllerLive({ 
+  Future<Response<Object>> healthControllerLive({
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
     Map<String, dynamic>? extra,
@@ -40,13 +38,8 @@ class OpsApi {
     final _path = r'/health/live';
     final _options = Options(
       method: r'GET',
-      headers: <String, dynamic>{
-        ...?headers,
-      },
-      extra: <String, dynamic>{
-        'secure': <Map<String, String>>[],
-        ...?extra,
-      },
+      headers: <String, dynamic>{...?headers},
+      extra: <String, dynamic>{'secure': <Map<String, String>>[], ...?extra},
       validateStatus: validateStatus,
     );
 
@@ -61,9 +54,10 @@ class OpsApi {
     Object? _responseData;
 
     try {
-final rawData = _response.data;
-_responseData = rawData == null ? null : deserialize<Object, Object>(rawData, 'Object', growable: true);
-
+      final rawData = _response.data;
+      _responseData = rawData == null
+          ? null
+          : deserialize<Object, Object>(rawData, 'Object', growable: true);
     } catch (error, stackTrace) {
       throw DioException(
         requestOptions: _response.requestOptions,
@@ -87,7 +81,7 @@ _responseData = rawData == null ? null : deserialize<Object, Object>(rawData, 'O
   }
 
   /// healthControllerReady
-  /// 
+  ///
   ///
   /// Parameters:
   /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
@@ -99,7 +93,7 @@ _responseData = rawData == null ? null : deserialize<Object, Object>(rawData, 'O
   ///
   /// Returns a [Future] containing a [Response] with a [Object] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<Object>> healthControllerReady({ 
+  Future<Response<Object>> healthControllerReady({
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
     Map<String, dynamic>? extra,
@@ -110,13 +104,8 @@ _responseData = rawData == null ? null : deserialize<Object, Object>(rawData, 'O
     final _path = r'/health/ready';
     final _options = Options(
       method: r'GET',
-      headers: <String, dynamic>{
-        ...?headers,
-      },
-      extra: <String, dynamic>{
-        'secure': <Map<String, String>>[],
-        ...?extra,
-      },
+      headers: <String, dynamic>{...?headers},
+      extra: <String, dynamic>{'secure': <Map<String, String>>[], ...?extra},
       validateStatus: validateStatus,
     );
 
@@ -131,9 +120,10 @@ _responseData = rawData == null ? null : deserialize<Object, Object>(rawData, 'O
     Object? _responseData;
 
     try {
-final rawData = _response.data;
-_responseData = rawData == null ? null : deserialize<Object, Object>(rawData, 'Object', growable: true);
-
+      final rawData = _response.data;
+      _responseData = rawData == null
+          ? null
+          : deserialize<Object, Object>(rawData, 'Object', growable: true);
     } catch (error, stackTrace) {
       throw DioException(
         requestOptions: _response.requestOptions,
@@ -155,5 +145,4 @@ _responseData = rawData == null ? null : deserialize<Object, Object>(rawData, 'O
       extra: _response.extra,
     );
   }
-
 }

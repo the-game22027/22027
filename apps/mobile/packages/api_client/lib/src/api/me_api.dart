@@ -13,13 +13,12 @@ import 'package:api_client/src/model/me_dto.dart';
 import 'package:api_client/src/model/update_me_dto.dart';
 
 class MeApi {
-
   final Dio _dio;
 
   const MeApi(this._dio);
 
   /// meControllerDeleteMeV1
-  /// 
+  ///
   ///
   /// Parameters:
   /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
@@ -31,7 +30,7 @@ class MeApi {
   ///
   /// Returns a [Future]
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<void>> meControllerDeleteMeV1({ 
+  Future<Response<void>> meControllerDeleteMeV1({
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
     Map<String, dynamic>? extra,
@@ -42,16 +41,10 @@ class MeApi {
     final _path = r'/v1/me';
     final _options = Options(
       method: r'DELETE',
-      headers: <String, dynamic>{
-        ...?headers,
-      },
+      headers: <String, dynamic>{...?headers},
       extra: <String, dynamic>{
         'secure': <Map<String, String>>[
-          {
-            'type': 'http',
-            'scheme': 'bearer',
-            'name': 'bearer',
-          },
+          {'type': 'http', 'scheme': 'bearer', 'name': 'bearer'},
         ],
         ...?extra,
       },
@@ -70,7 +63,7 @@ class MeApi {
   }
 
   /// meControllerGetMeV1
-  /// 
+  ///
   ///
   /// Parameters:
   /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
@@ -82,7 +75,7 @@ class MeApi {
   ///
   /// Returns a [Future] containing a [Response] with a [MeDto] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<MeDto>> meControllerGetMeV1({ 
+  Future<Response<MeDto>> meControllerGetMeV1({
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
     Map<String, dynamic>? extra,
@@ -93,16 +86,10 @@ class MeApi {
     final _path = r'/v1/me';
     final _options = Options(
       method: r'GET',
-      headers: <String, dynamic>{
-        ...?headers,
-      },
+      headers: <String, dynamic>{...?headers},
       extra: <String, dynamic>{
         'secure': <Map<String, String>>[
-          {
-            'type': 'http',
-            'scheme': 'bearer',
-            'name': 'bearer',
-          },
+          {'type': 'http', 'scheme': 'bearer', 'name': 'bearer'},
         ],
         ...?extra,
       },
@@ -120,9 +107,10 @@ class MeApi {
     MeDto? _responseData;
 
     try {
-final rawData = _response.data;
-_responseData = rawData == null ? null : deserialize<MeDto, MeDto>(rawData, 'MeDto', growable: true);
-
+      final rawData = _response.data;
+      _responseData = rawData == null
+          ? null
+          : deserialize<MeDto, MeDto>(rawData, 'MeDto', growable: true);
     } catch (error, stackTrace) {
       throw DioException(
         requestOptions: _response.requestOptions,
@@ -146,10 +134,10 @@ _responseData = rawData == null ? null : deserialize<MeDto, MeDto>(rawData, 'MeD
   }
 
   /// meControllerUpdateMeV1
-  /// 
+  ///
   ///
   /// Parameters:
-  /// * [updateMeDto] 
+  /// * [updateMeDto]
   /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
   /// * [headers] - Can be used to add additional headers to the request
   /// * [extras] - Can be used to add flags to the request
@@ -159,7 +147,7 @@ _responseData = rawData == null ? null : deserialize<MeDto, MeDto>(rawData, 'MeD
   ///
   /// Returns a [Future] containing a [Response] with a [MeDto] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<MeDto>> meControllerUpdateMeV1({ 
+  Future<Response<MeDto>> meControllerUpdateMeV1({
     required UpdateMeDto updateMeDto,
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
@@ -171,16 +159,10 @@ _responseData = rawData == null ? null : deserialize<MeDto, MeDto>(rawData, 'MeD
     final _path = r'/v1/me';
     final _options = Options(
       method: r'PATCH',
-      headers: <String, dynamic>{
-        ...?headers,
-      },
+      headers: <String, dynamic>{...?headers},
       extra: <String, dynamic>{
         'secure': <Map<String, String>>[
-          {
-            'type': 'http',
-            'scheme': 'bearer',
-            'name': 'bearer',
-          },
+          {'type': 'http', 'scheme': 'bearer', 'name': 'bearer'},
         ],
         ...?extra,
       },
@@ -192,13 +174,9 @@ _responseData = rawData == null ? null : deserialize<MeDto, MeDto>(rawData, 'MeD
 
     try {
       _bodyData = jsonEncode(updateMeDto);
-
-    } catch(error, stackTrace) {
+    } catch (error, stackTrace) {
       throw DioException(
-         requestOptions: _options.compose(
-          _dio.options,
-          _path,
-        ),
+        requestOptions: _options.compose(_dio.options, _path),
         type: DioExceptionType.unknown,
         error: error,
         stackTrace: stackTrace,
@@ -217,9 +195,10 @@ _responseData = rawData == null ? null : deserialize<MeDto, MeDto>(rawData, 'MeD
     MeDto? _responseData;
 
     try {
-final rawData = _response.data;
-_responseData = rawData == null ? null : deserialize<MeDto, MeDto>(rawData, 'MeDto', growable: true);
-
+      final rawData = _response.data;
+      _responseData = rawData == null
+          ? null
+          : deserialize<MeDto, MeDto>(rawData, 'MeDto', growable: true);
     } catch (error, stackTrace) {
       throw DioException(
         requestOptions: _response.requestOptions,
@@ -241,5 +220,4 @@ _responseData = rawData == null ? null : deserialize<MeDto, MeDto>(rawData, 'MeD
       extra: _response.extra,
     );
   }
-
 }

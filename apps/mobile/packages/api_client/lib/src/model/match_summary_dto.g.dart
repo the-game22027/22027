@@ -82,7 +82,6 @@ class _$MatchSummaryDtoCWProxyImpl implements _$MatchSummaryDtoCWProxy {
       this(status: status);
 
   @override
-
   /// This function **does support** nullification of nullable fields. All `null` values passed to `non-nullable` fields will be ignored. You can also use `MatchSummaryDto(...).copyWith.fieldName(...)` to override fields one at a time with nullification support.
   ///
   /// Usage
@@ -152,49 +151,54 @@ extension $MatchSummaryDtoCopyWith on MatchSummaryDto {
 // **************************************************************************
 
 MatchSummaryDto _$MatchSummaryDtoFromJson(Map<String, dynamic> json) =>
-    $checkedCreate(
-      'MatchSummaryDto',
-      json,
-      ($checkedConvert) {
-        $checkKeys(
-          json,
-          requiredKeys: const [
-            'awayTeam',
-            'competition',
-            'homeTeam',
-            'id',
-            'kickoffAt',
-            'predictable',
-            'roundLabel',
-            'score',
-            'status'
-          ],
-        );
-        final val = MatchSummaryDto(
-          awayTeam: $checkedConvert(
-              'awayTeam', (v) => TeamDto.fromJson(v as Map<String, dynamic>)),
-          competition: $checkedConvert('competition',
-              (v) => MatchCompetitionDto.fromJson(v as Map<String, dynamic>)),
-          homeTeam: $checkedConvert(
-              'homeTeam', (v) => TeamDto.fromJson(v as Map<String, dynamic>)),
-          id: $checkedConvert('id', (v) => v as String),
-          kickoffAt: $checkedConvert('kickoffAt', (v) => v as String),
-          predictable: $checkedConvert('predictable', (v) => v as bool),
-          roundLabel: $checkedConvert('roundLabel', (v) => v as String?),
-          score: $checkedConvert(
-              'score',
-              (v) => v == null
-                  ? null
-                  : ScoreDto.fromJson(v as Map<String, dynamic>)),
-          status: $checkedConvert(
-              'status',
-              (v) => $enumDecode(_$MatchSummaryDtoStatusEnumEnumMap, v,
-                  unknownValue:
-                      MatchSummaryDtoStatusEnum.unknownDefaultOpenApi)),
-        );
-        return val;
-      },
-    );
+    $checkedCreate('MatchSummaryDto', json, ($checkedConvert) {
+      $checkKeys(
+        json,
+        requiredKeys: const [
+          'awayTeam',
+          'competition',
+          'homeTeam',
+          'id',
+          'kickoffAt',
+          'predictable',
+          'roundLabel',
+          'score',
+          'status',
+        ],
+      );
+      final val = MatchSummaryDto(
+        awayTeam: $checkedConvert(
+          'awayTeam',
+          (v) => TeamDto.fromJson(v as Map<String, dynamic>),
+        ),
+        competition: $checkedConvert(
+          'competition',
+          (v) => MatchCompetitionDto.fromJson(v as Map<String, dynamic>),
+        ),
+        homeTeam: $checkedConvert(
+          'homeTeam',
+          (v) => TeamDto.fromJson(v as Map<String, dynamic>),
+        ),
+        id: $checkedConvert('id', (v) => v as String),
+        kickoffAt: $checkedConvert('kickoffAt', (v) => v as String),
+        predictable: $checkedConvert('predictable', (v) => v as bool),
+        roundLabel: $checkedConvert('roundLabel', (v) => v as String?),
+        score: $checkedConvert(
+          'score',
+          (v) =>
+              v == null ? null : ScoreDto.fromJson(v as Map<String, dynamic>),
+        ),
+        status: $checkedConvert(
+          'status',
+          (v) => $enumDecode(
+            _$MatchSummaryDtoStatusEnumEnumMap,
+            v,
+            unknownValue: MatchSummaryDtoStatusEnum.unknownDefaultOpenApi,
+          ),
+        ),
+      );
+      return val;
+    });
 
 Map<String, dynamic> _$MatchSummaryDtoToJson(MatchSummaryDto instance) =>
     <String, dynamic>{

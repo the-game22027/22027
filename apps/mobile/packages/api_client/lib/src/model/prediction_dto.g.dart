@@ -66,7 +66,6 @@ class _$PredictionDtoCWProxyImpl implements _$PredictionDtoCWProxy {
   PredictionDto updatedAt(String updatedAt) => this(updatedAt: updatedAt);
 
   @override
-
   /// This function **does support** nullification of nullable fields. All `null` values passed to `non-nullable` fields will be ignored. You can also use `PredictionDto(...).copyWith.fieldName(...)` to override fields one at a time with nullification support.
   ///
   /// Usage
@@ -126,42 +125,42 @@ extension $PredictionDtoCopyWith on PredictionDto {
 // **************************************************************************
 
 PredictionDto _$PredictionDtoFromJson(Map<String, dynamic> json) =>
-    $checkedCreate(
-      'PredictionDto',
-      json,
-      ($checkedConvert) {
-        $checkKeys(
-          json,
-          requiredKeys: const [
-            'id',
-            'locked',
-            'matchId',
-            'picks',
-            'revision',
-            'status',
-            'updatedAt'
-          ],
-        );
-        final val = PredictionDto(
-          id: $checkedConvert('id', (v) => v as String),
-          locked: $checkedConvert('locked', (v) => v as bool),
-          matchId: $checkedConvert('matchId', (v) => v as String),
-          picks: $checkedConvert(
-              'picks',
-              (v) => (v as List<dynamic>)
-                  .map((e) =>
-                      PredictionPickDto.fromJson(e as Map<String, dynamic>))
-                  .toList()),
-          revision: $checkedConvert('revision', (v) => v as num),
-          status: $checkedConvert(
-              'status',
-              (v) => $enumDecode(_$PredictionDtoStatusEnumEnumMap, v,
-                  unknownValue: PredictionDtoStatusEnum.unknownDefaultOpenApi)),
-          updatedAt: $checkedConvert('updatedAt', (v) => v as String),
-        );
-        return val;
-      },
-    );
+    $checkedCreate('PredictionDto', json, ($checkedConvert) {
+      $checkKeys(
+        json,
+        requiredKeys: const [
+          'id',
+          'locked',
+          'matchId',
+          'picks',
+          'revision',
+          'status',
+          'updatedAt',
+        ],
+      );
+      final val = PredictionDto(
+        id: $checkedConvert('id', (v) => v as String),
+        locked: $checkedConvert('locked', (v) => v as bool),
+        matchId: $checkedConvert('matchId', (v) => v as String),
+        picks: $checkedConvert(
+          'picks',
+          (v) => (v as List<dynamic>)
+              .map((e) => PredictionPickDto.fromJson(e as Map<String, dynamic>))
+              .toList(),
+        ),
+        revision: $checkedConvert('revision', (v) => v as num),
+        status: $checkedConvert(
+          'status',
+          (v) => $enumDecode(
+            _$PredictionDtoStatusEnumEnumMap,
+            v,
+            unknownValue: PredictionDtoStatusEnum.unknownDefaultOpenApi,
+          ),
+        ),
+        updatedAt: $checkedConvert('updatedAt', (v) => v as String),
+      );
+      return val;
+    });
 
 Map<String, dynamic> _$PredictionDtoToJson(PredictionDto instance) =>
     <String, dynamic>{

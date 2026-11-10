@@ -15,16 +15,15 @@ import 'package:api_client/src/model/refresh_dto.dart';
 import 'package:api_client/src/model/session_info_dto.dart';
 
 class AuthApi {
-
   final Dio _dio;
 
   const AuthApi(this._dio);
 
   /// Rotates the refresh token: the old one stops working, and presenting it again revokes the whole sign-in.
-  /// 
+  ///
   ///
   /// Parameters:
-  /// * [refreshDto] 
+  /// * [refreshDto]
   /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
   /// * [headers] - Can be used to add additional headers to the request
   /// * [extras] - Can be used to add flags to the request
@@ -34,7 +33,7 @@ class AuthApi {
   ///
   /// Returns a [Future] containing a [Response] with a [AuthTokensDto] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<AuthTokensDto>> authControllerRefreshV1({ 
+  Future<Response<AuthTokensDto>> authControllerRefreshV1({
     required RefreshDto refreshDto,
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
@@ -46,13 +45,8 @@ class AuthApi {
     final _path = r'/v1/auth/refresh';
     final _options = Options(
       method: r'POST',
-      headers: <String, dynamic>{
-        ...?headers,
-      },
-      extra: <String, dynamic>{
-        'secure': <Map<String, String>>[],
-        ...?extra,
-      },
+      headers: <String, dynamic>{...?headers},
+      extra: <String, dynamic>{'secure': <Map<String, String>>[], ...?extra},
       contentType: 'application/json',
       validateStatus: validateStatus,
     );
@@ -61,13 +55,9 @@ class AuthApi {
 
     try {
       _bodyData = jsonEncode(refreshDto);
-
-    } catch(error, stackTrace) {
+    } catch (error, stackTrace) {
       throw DioException(
-         requestOptions: _options.compose(
-          _dio.options,
-          _path,
-        ),
+        requestOptions: _options.compose(_dio.options, _path),
         type: DioExceptionType.unknown,
         error: error,
         stackTrace: stackTrace,
@@ -86,9 +76,14 @@ class AuthApi {
     AuthTokensDto? _responseData;
 
     try {
-final rawData = _response.data;
-_responseData = rawData == null ? null : deserialize<AuthTokensDto, AuthTokensDto>(rawData, 'AuthTokensDto', growable: true);
-
+      final rawData = _response.data;
+      _responseData = rawData == null
+          ? null
+          : deserialize<AuthTokensDto, AuthTokensDto>(
+              rawData,
+              'AuthTokensDto',
+              growable: true,
+            );
     } catch (error, stackTrace) {
       throw DioException(
         requestOptions: _response.requestOptions,
@@ -112,10 +107,10 @@ _responseData = rawData == null ? null : deserialize<AuthTokensDto, AuthTokensDt
   }
 
   /// 201 for a new account, 200 for an existing one.
-  /// 
+  ///
   ///
   /// Parameters:
-  /// * [googleSignInDto] 
+  /// * [googleSignInDto]
   /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
   /// * [headers] - Can be used to add additional headers to the request
   /// * [extras] - Can be used to add flags to the request
@@ -125,7 +120,7 @@ _responseData = rawData == null ? null : deserialize<AuthTokensDto, AuthTokensDt
   ///
   /// Returns a [Future] containing a [Response] with a [AuthTokensDto] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<AuthTokensDto>> authControllerSignInWithGoogleV1({ 
+  Future<Response<AuthTokensDto>> authControllerSignInWithGoogleV1({
     required GoogleSignInDto googleSignInDto,
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
@@ -137,13 +132,8 @@ _responseData = rawData == null ? null : deserialize<AuthTokensDto, AuthTokensDt
     final _path = r'/v1/auth/google';
     final _options = Options(
       method: r'POST',
-      headers: <String, dynamic>{
-        ...?headers,
-      },
-      extra: <String, dynamic>{
-        'secure': <Map<String, String>>[],
-        ...?extra,
-      },
+      headers: <String, dynamic>{...?headers},
+      extra: <String, dynamic>{'secure': <Map<String, String>>[], ...?extra},
       contentType: 'application/json',
       validateStatus: validateStatus,
     );
@@ -152,13 +142,9 @@ _responseData = rawData == null ? null : deserialize<AuthTokensDto, AuthTokensDt
 
     try {
       _bodyData = jsonEncode(googleSignInDto);
-
-    } catch(error, stackTrace) {
+    } catch (error, stackTrace) {
       throw DioException(
-         requestOptions: _options.compose(
-          _dio.options,
-          _path,
-        ),
+        requestOptions: _options.compose(_dio.options, _path),
         type: DioExceptionType.unknown,
         error: error,
         stackTrace: stackTrace,
@@ -177,9 +163,14 @@ _responseData = rawData == null ? null : deserialize<AuthTokensDto, AuthTokensDt
     AuthTokensDto? _responseData;
 
     try {
-final rawData = _response.data;
-_responseData = rawData == null ? null : deserialize<AuthTokensDto, AuthTokensDto>(rawData, 'AuthTokensDto', growable: true);
-
+      final rawData = _response.data;
+      _responseData = rawData == null
+          ? null
+          : deserialize<AuthTokensDto, AuthTokensDto>(
+              rawData,
+              'AuthTokensDto',
+              growable: true,
+            );
     } catch (error, stackTrace) {
       throw DioException(
         requestOptions: _response.requestOptions,
@@ -203,7 +194,7 @@ _responseData = rawData == null ? null : deserialize<AuthTokensDto, AuthTokensDt
   }
 
   /// sessionsControllerListV1
-  /// 
+  ///
   ///
   /// Parameters:
   /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
@@ -215,7 +206,7 @@ _responseData = rawData == null ? null : deserialize<AuthTokensDto, AuthTokensDt
   ///
   /// Returns a [Future] containing a [Response] with a [List<SessionInfoDto>] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<List<SessionInfoDto>>> sessionsControllerListV1({ 
+  Future<Response<List<SessionInfoDto>>> sessionsControllerListV1({
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
     Map<String, dynamic>? extra,
@@ -226,16 +217,10 @@ _responseData = rawData == null ? null : deserialize<AuthTokensDto, AuthTokensDt
     final _path = r'/v1/auth/sessions';
     final _options = Options(
       method: r'GET',
-      headers: <String, dynamic>{
-        ...?headers,
-      },
+      headers: <String, dynamic>{...?headers},
       extra: <String, dynamic>{
         'secure': <Map<String, String>>[
-          {
-            'type': 'http',
-            'scheme': 'bearer',
-            'name': 'bearer',
-          },
+          {'type': 'http', 'scheme': 'bearer', 'name': 'bearer'},
         ],
         ...?extra,
       },
@@ -253,9 +238,14 @@ _responseData = rawData == null ? null : deserialize<AuthTokensDto, AuthTokensDt
     List<SessionInfoDto>? _responseData;
 
     try {
-final rawData = _response.data;
-_responseData = rawData == null ? null : deserialize<List<SessionInfoDto>, SessionInfoDto>(rawData, 'List<SessionInfoDto>', growable: true);
-
+      final rawData = _response.data;
+      _responseData = rawData == null
+          ? null
+          : deserialize<List<SessionInfoDto>, SessionInfoDto>(
+              rawData,
+              'List<SessionInfoDto>',
+              growable: true,
+            );
     } catch (error, stackTrace) {
       throw DioException(
         requestOptions: _response.requestOptions,
@@ -279,7 +269,7 @@ _responseData = rawData == null ? null : deserialize<List<SessionInfoDto>, Sessi
   }
 
   /// sessionsControllerLogoutV1
-  /// 
+  ///
   ///
   /// Parameters:
   /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
@@ -291,7 +281,7 @@ _responseData = rawData == null ? null : deserialize<List<SessionInfoDto>, Sessi
   ///
   /// Returns a [Future]
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<void>> sessionsControllerLogoutV1({ 
+  Future<Response<void>> sessionsControllerLogoutV1({
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
     Map<String, dynamic>? extra,
@@ -302,16 +292,10 @@ _responseData = rawData == null ? null : deserialize<List<SessionInfoDto>, Sessi
     final _path = r'/v1/auth/logout';
     final _options = Options(
       method: r'POST',
-      headers: <String, dynamic>{
-        ...?headers,
-      },
+      headers: <String, dynamic>{...?headers},
       extra: <String, dynamic>{
         'secure': <Map<String, String>>[
-          {
-            'type': 'http',
-            'scheme': 'bearer',
-            'name': 'bearer',
-          },
+          {'type': 'http', 'scheme': 'bearer', 'name': 'bearer'},
         ],
         ...?extra,
       },
@@ -330,10 +314,10 @@ _responseData = rawData == null ? null : deserialize<List<SessionInfoDto>, Sessi
   }
 
   /// sessionsControllerRevokeV1
-  /// 
+  ///
   ///
   /// Parameters:
-  /// * [sessionId] 
+  /// * [sessionId]
   /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
   /// * [headers] - Can be used to add additional headers to the request
   /// * [extras] - Can be used to add flags to the request
@@ -343,7 +327,7 @@ _responseData = rawData == null ? null : deserialize<List<SessionInfoDto>, Sessi
   ///
   /// Returns a [Future]
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<void>> sessionsControllerRevokeV1({ 
+  Future<Response<void>> sessionsControllerRevokeV1({
     required String sessionId,
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
@@ -352,19 +336,18 @@ _responseData = rawData == null ? null : deserialize<List<SessionInfoDto>, Sessi
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/v1/auth/sessions/{sessionId}'.replaceAll('{' r'sessionId' '}', sessionId.toString());
+    final _path = r'/v1/auth/sessions/{sessionId}'.replaceAll(
+      '{'
+      r'sessionId'
+      '}',
+      sessionId.toString(),
+    );
     final _options = Options(
       method: r'DELETE',
-      headers: <String, dynamic>{
-        ...?headers,
-      },
+      headers: <String, dynamic>{...?headers},
       extra: <String, dynamic>{
         'secure': <Map<String, String>>[
-          {
-            'type': 'http',
-            'scheme': 'bearer',
-            'name': 'bearer',
-          },
+          {'type': 'http', 'scheme': 'bearer', 'name': 'bearer'},
         ],
         ...?extra,
       },
@@ -381,5 +364,4 @@ _responseData = rawData == null ? null : deserialize<List<SessionInfoDto>, Sessi
 
     return _response;
   }
-
 }

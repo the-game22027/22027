@@ -9,7 +9,6 @@ import 'package:json_annotation/json_annotation.dart';
 
 part 'google_sign_in_dto.g.dart';
 
-
 @CopyWith()
 @JsonSerializable(
   checked: true,
@@ -19,50 +18,26 @@ part 'google_sign_in_dto.g.dart';
 )
 class GoogleSignInDto {
   /// Returns a new [GoogleSignInDto] instance.
-  GoogleSignInDto({
+  GoogleSignInDto({this.device, required this.idToken});
 
-     this.device,
-
-    required  this.idToken,
-  });
-
-  @JsonKey(
-    
-    name: r'device',
-    required: false,
-    includeIfNull: false,
-  )
-
-
+  @JsonKey(name: r'device', required: false, includeIfNull: false)
   final DeviceDto? device;
 
-
-
-  @JsonKey(
-    
-    name: r'idToken',
-    required: true,
-    includeIfNull: false,
-  )
-
-
+  @JsonKey(name: r'idToken', required: true, includeIfNull: false)
   final String idToken;
 
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is GoogleSignInDto &&
+          other.device == device &&
+          other.idToken == idToken;
 
+  @override
+  int get hashCode => device.hashCode + idToken.hashCode;
 
-
-
-    @override
-    bool operator ==(Object other) => identical(this, other) || other is GoogleSignInDto &&
-      other.device == device &&
-      other.idToken == idToken;
-
-    @override
-    int get hashCode =>
-        device.hashCode +
-        idToken.hashCode;
-
-  factory GoogleSignInDto.fromJson(Map<String, dynamic> json) => _$GoogleSignInDtoFromJson(json);
+  factory GoogleSignInDto.fromJson(Map<String, dynamic> json) =>
+      _$GoogleSignInDtoFromJson(json);
 
   Map<String, dynamic> toJson() => _$GoogleSignInDtoToJson(this);
 
@@ -70,6 +45,4 @@ class GoogleSignInDto {
   String toString() {
     return toJson().toString();
   }
-
 }
-

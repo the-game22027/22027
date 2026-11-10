@@ -17,10 +17,7 @@ abstract class _$GoogleSignInDtoCWProxy {
   /// ```dart
   /// GoogleSignInDto(...).copyWith(id: 12, name: "My name")
   /// ````
-  GoogleSignInDto call({
-    DeviceDto? device,
-    String idToken,
-  });
+  GoogleSignInDto call({DeviceDto? device, String idToken});
 }
 
 /// Proxy class for `copyWith` functionality. This is a callable class and can be used as follows: `instanceOfGoogleSignInDto.copyWith(...)`. Additionally contains functions for specific fields e.g. `instanceOfGoogleSignInDto.copyWith.fieldName(...)`
@@ -36,7 +33,6 @@ class _$GoogleSignInDtoCWProxyImpl implements _$GoogleSignInDtoCWProxy {
   GoogleSignInDto idToken(String idToken) => this(idToken: idToken);
 
   @override
-
   /// This function **does support** nullification of nullable fields. All `null` values passed to `non-nullable` fields will be ignored. You can also use `GoogleSignInDto(...).copyWith.fieldName(...)` to override fields one at a time with nullification support.
   ///
   /// Usage
@@ -65,3 +61,27 @@ extension $GoogleSignInDtoCopyWith on GoogleSignInDto {
   // ignore: library_private_types_in_public_api
   _$GoogleSignInDtoCWProxy get copyWith => _$GoogleSignInDtoCWProxyImpl(this);
 }
+
+// **************************************************************************
+// JsonSerializableGenerator
+// **************************************************************************
+
+GoogleSignInDto _$GoogleSignInDtoFromJson(Map<String, dynamic> json) =>
+    $checkedCreate('GoogleSignInDto', json, ($checkedConvert) {
+      $checkKeys(json, requiredKeys: const ['idToken']);
+      final val = GoogleSignInDto(
+        device: $checkedConvert(
+          'device',
+          (v) =>
+              v == null ? null : DeviceDto.fromJson(v as Map<String, dynamic>),
+        ),
+        idToken: $checkedConvert('idToken', (v) => v as String),
+      );
+      return val;
+    });
+
+Map<String, dynamic> _$GoogleSignInDtoToJson(GoogleSignInDto instance) =>
+    <String, dynamic>{
+      'device': ?instance.device?.toJson(),
+      'idToken': instance.idToken,
+    };

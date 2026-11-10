@@ -9,7 +9,6 @@ import 'package:json_annotation/json_annotation.dart';
 
 part 'squad_list_dto.g.dart';
 
-
 @CopyWith()
 @JsonSerializable(
   checked: true,
@@ -19,34 +18,20 @@ part 'squad_list_dto.g.dart';
 )
 class SquadListDto {
   /// Returns a new [SquadListDto] instance.
-  SquadListDto({
+  SquadListDto({required this.items});
 
-    required  this.items,
-  });
-
-  @JsonKey(
-    
-    name: r'items',
-    required: true,
-    includeIfNull: false,
-  )
-
-
+  @JsonKey(name: r'items', required: true, includeIfNull: false)
   final List<SquadPlayerDto> items;
 
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) || other is SquadListDto && other.items == items;
 
+  @override
+  int get hashCode => items.hashCode;
 
-
-
-    @override
-    bool operator ==(Object other) => identical(this, other) || other is SquadListDto &&
-      other.items == items;
-
-    @override
-    int get hashCode =>
-        items.hashCode;
-
-  factory SquadListDto.fromJson(Map<String, dynamic> json) => _$SquadListDtoFromJson(json);
+  factory SquadListDto.fromJson(Map<String, dynamic> json) =>
+      _$SquadListDtoFromJson(json);
 
   Map<String, dynamic> toJson() => _$SquadListDtoToJson(this);
 
@@ -54,6 +39,4 @@ class SquadListDto {
   String toString() {
     return toJson().toString();
   }
-
 }
-

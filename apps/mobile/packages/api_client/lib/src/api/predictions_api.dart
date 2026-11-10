@@ -13,16 +13,15 @@ import 'package:api_client/src/model/prediction_dto.dart';
 import 'package:api_client/src/model/submit_prediction_dto.dart';
 
 class PredictionsApi {
-
   final Dio _dio;
 
   const PredictionsApi(this._dio);
 
   /// predictionsControllerGetOwnV1
-  /// 
+  ///
   ///
   /// Parameters:
-  /// * [matchId] 
+  /// * [matchId]
   /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
   /// * [headers] - Can be used to add additional headers to the request
   /// * [extras] - Can be used to add flags to the request
@@ -32,7 +31,7 @@ class PredictionsApi {
   ///
   /// Returns a [Future] containing a [Response] with a [PredictionDto] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<PredictionDto>> predictionsControllerGetOwnV1({ 
+  Future<Response<PredictionDto>> predictionsControllerGetOwnV1({
     required String matchId,
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
@@ -41,19 +40,18 @@ class PredictionsApi {
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/v1/matches/{matchId}/prediction'.replaceAll('{' r'matchId' '}', matchId.toString());
+    final _path = r'/v1/matches/{matchId}/prediction'.replaceAll(
+      '{'
+      r'matchId'
+      '}',
+      matchId.toString(),
+    );
     final _options = Options(
       method: r'GET',
-      headers: <String, dynamic>{
-        ...?headers,
-      },
+      headers: <String, dynamic>{...?headers},
       extra: <String, dynamic>{
         'secure': <Map<String, String>>[
-          {
-            'type': 'http',
-            'scheme': 'bearer',
-            'name': 'bearer',
-          },
+          {'type': 'http', 'scheme': 'bearer', 'name': 'bearer'},
         ],
         ...?extra,
       },
@@ -71,9 +69,14 @@ class PredictionsApi {
     PredictionDto? _responseData;
 
     try {
-final rawData = _response.data;
-_responseData = rawData == null ? null : deserialize<PredictionDto, PredictionDto>(rawData, 'PredictionDto', growable: true);
-
+      final rawData = _response.data;
+      _responseData = rawData == null
+          ? null
+          : deserialize<PredictionDto, PredictionDto>(
+              rawData,
+              'PredictionDto',
+              growable: true,
+            );
     } catch (error, stackTrace) {
       throw DioException(
         requestOptions: _response.requestOptions,
@@ -97,11 +100,11 @@ _responseData = rawData == null ? null : deserialize<PredictionDto, PredictionDt
   }
 
   /// predictionsControllerSubmitV1
-  /// 
+  ///
   ///
   /// Parameters:
-  /// * [matchId] 
-  /// * [submitPredictionDto] 
+  /// * [matchId]
+  /// * [submitPredictionDto]
   /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
   /// * [headers] - Can be used to add additional headers to the request
   /// * [extras] - Can be used to add flags to the request
@@ -111,7 +114,7 @@ _responseData = rawData == null ? null : deserialize<PredictionDto, PredictionDt
   ///
   /// Returns a [Future] containing a [Response] with a [PredictionDto] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<PredictionDto>> predictionsControllerSubmitV1({ 
+  Future<Response<PredictionDto>> predictionsControllerSubmitV1({
     required String matchId,
     required SubmitPredictionDto submitPredictionDto,
     CancelToken? cancelToken,
@@ -121,19 +124,18 @@ _responseData = rawData == null ? null : deserialize<PredictionDto, PredictionDt
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/v1/matches/{matchId}/prediction'.replaceAll('{' r'matchId' '}', matchId.toString());
+    final _path = r'/v1/matches/{matchId}/prediction'.replaceAll(
+      '{'
+      r'matchId'
+      '}',
+      matchId.toString(),
+    );
     final _options = Options(
       method: r'PUT',
-      headers: <String, dynamic>{
-        ...?headers,
-      },
+      headers: <String, dynamic>{...?headers},
       extra: <String, dynamic>{
         'secure': <Map<String, String>>[
-          {
-            'type': 'http',
-            'scheme': 'bearer',
-            'name': 'bearer',
-          },
+          {'type': 'http', 'scheme': 'bearer', 'name': 'bearer'},
         ],
         ...?extra,
       },
@@ -145,13 +147,9 @@ _responseData = rawData == null ? null : deserialize<PredictionDto, PredictionDt
 
     try {
       _bodyData = jsonEncode(submitPredictionDto);
-
-    } catch(error, stackTrace) {
+    } catch (error, stackTrace) {
       throw DioException(
-         requestOptions: _options.compose(
-          _dio.options,
-          _path,
-        ),
+        requestOptions: _options.compose(_dio.options, _path),
         type: DioExceptionType.unknown,
         error: error,
         stackTrace: stackTrace,
@@ -170,9 +168,14 @@ _responseData = rawData == null ? null : deserialize<PredictionDto, PredictionDt
     PredictionDto? _responseData;
 
     try {
-final rawData = _response.data;
-_responseData = rawData == null ? null : deserialize<PredictionDto, PredictionDto>(rawData, 'PredictionDto', growable: true);
-
+      final rawData = _response.data;
+      _responseData = rawData == null
+          ? null
+          : deserialize<PredictionDto, PredictionDto>(
+              rawData,
+              'PredictionDto',
+              growable: true,
+            );
     } catch (error, stackTrace) {
       throw DioException(
         requestOptions: _response.requestOptions,
@@ -194,5 +197,4 @@ _responseData = rawData == null ? null : deserialize<PredictionDto, PredictionDt
       extra: _response.extra,
     );
   }
-
 }

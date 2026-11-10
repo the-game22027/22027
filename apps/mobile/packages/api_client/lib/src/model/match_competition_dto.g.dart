@@ -19,11 +19,7 @@ abstract class _$MatchCompetitionDtoCWProxy {
   /// ```dart
   /// MatchCompetitionDto(...).copyWith(id: 12, name: "My name")
   /// ````
-  MatchCompetitionDto call({
-    String code,
-    String id,
-    String name,
-  });
+  MatchCompetitionDto call({String code, String id, String name});
 }
 
 /// Proxy class for `copyWith` functionality. This is a callable class and can be used as follows: `instanceOfMatchCompetitionDto.copyWith(...)`. Additionally contains functions for specific fields e.g. `instanceOfMatchCompetitionDto.copyWith.fieldName(...)`
@@ -42,7 +38,6 @@ class _$MatchCompetitionDtoCWProxyImpl implements _$MatchCompetitionDtoCWProxy {
   MatchCompetitionDto name(String name) => this(name: name);
 
   @override
-
   /// This function **does support** nullification of nullable fields. All `null` values passed to `non-nullable` fields will be ignored. You can also use `MatchCompetitionDto(...).copyWith.fieldName(...)` to override fields one at a time with nullification support.
   ///
   /// Usage
@@ -83,27 +78,20 @@ extension $MatchCompetitionDtoCopyWith on MatchCompetitionDto {
 // **************************************************************************
 
 MatchCompetitionDto _$MatchCompetitionDtoFromJson(Map<String, dynamic> json) =>
-    $checkedCreate(
-      'MatchCompetitionDto',
-      json,
-      ($checkedConvert) {
-        $checkKeys(
-          json,
-          requiredKeys: const ['code', 'id', 'name'],
-        );
-        final val = MatchCompetitionDto(
-          code: $checkedConvert('code', (v) => v as String),
-          id: $checkedConvert('id', (v) => v as String),
-          name: $checkedConvert('name', (v) => v as String),
-        );
-        return val;
-      },
-    );
+    $checkedCreate('MatchCompetitionDto', json, ($checkedConvert) {
+      $checkKeys(json, requiredKeys: const ['code', 'id', 'name']);
+      final val = MatchCompetitionDto(
+        code: $checkedConvert('code', (v) => v as String),
+        id: $checkedConvert('id', (v) => v as String),
+        name: $checkedConvert('name', (v) => v as String),
+      );
+      return val;
+    });
 
 Map<String, dynamic> _$MatchCompetitionDtoToJson(
-        MatchCompetitionDto instance) =>
-    <String, dynamic>{
-      'code': instance.code,
-      'id': instance.id,
-      'name': instance.name,
-    };
+  MatchCompetitionDto instance,
+) => <String, dynamic>{
+  'code': instance.code,
+  'id': instance.id,
+  'name': instance.name,
+};

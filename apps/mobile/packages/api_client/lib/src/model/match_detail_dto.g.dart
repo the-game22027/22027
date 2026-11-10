@@ -93,7 +93,6 @@ class _$MatchDetailDtoCWProxyImpl implements _$MatchDetailDtoCWProxy {
       this(status: status);
 
   @override
-
   /// This function **does support** nullification of nullable fields. All `null` values passed to `non-nullable` fields will be ignored. You can also use `MatchDetailDto(...).copyWith.fieldName(...)` to override fields one at a time with nullification support.
   ///
   /// Usage
@@ -173,53 +172,58 @@ extension $MatchDetailDtoCopyWith on MatchDetailDto {
 // **************************************************************************
 
 MatchDetailDto _$MatchDetailDtoFromJson(Map<String, dynamic> json) =>
-    $checkedCreate(
-      'MatchDetailDto',
-      json,
-      ($checkedConvert) {
-        $checkKeys(
-          json,
-          requiredKeys: const [
-            'awayTeam',
-            'competition',
-            'endedAt',
-            'homeTeam',
-            'id',
-            'kickoffAt',
-            'predictable',
-            'roundLabel',
-            'score',
-            'serverTime',
-            'status'
-          ],
-        );
-        final val = MatchDetailDto(
-          awayTeam: $checkedConvert(
-              'awayTeam', (v) => TeamDto.fromJson(v as Map<String, dynamic>)),
-          competition: $checkedConvert('competition',
-              (v) => MatchCompetitionDto.fromJson(v as Map<String, dynamic>)),
-          endedAt: $checkedConvert('endedAt', (v) => v as String?),
-          homeTeam: $checkedConvert(
-              'homeTeam', (v) => TeamDto.fromJson(v as Map<String, dynamic>)),
-          id: $checkedConvert('id', (v) => v as String),
-          kickoffAt: $checkedConvert('kickoffAt', (v) => v as String),
-          predictable: $checkedConvert('predictable', (v) => v as bool),
-          roundLabel: $checkedConvert('roundLabel', (v) => v as String?),
-          score: $checkedConvert(
-              'score',
-              (v) => v == null
-                  ? null
-                  : ScoreDto.fromJson(v as Map<String, dynamic>)),
-          serverTime: $checkedConvert('serverTime', (v) => v as String),
-          status: $checkedConvert(
-              'status',
-              (v) => $enumDecode(_$MatchDetailDtoStatusEnumEnumMap, v,
-                  unknownValue:
-                      MatchDetailDtoStatusEnum.unknownDefaultOpenApi)),
-        );
-        return val;
-      },
-    );
+    $checkedCreate('MatchDetailDto', json, ($checkedConvert) {
+      $checkKeys(
+        json,
+        requiredKeys: const [
+          'awayTeam',
+          'competition',
+          'endedAt',
+          'homeTeam',
+          'id',
+          'kickoffAt',
+          'predictable',
+          'roundLabel',
+          'score',
+          'serverTime',
+          'status',
+        ],
+      );
+      final val = MatchDetailDto(
+        awayTeam: $checkedConvert(
+          'awayTeam',
+          (v) => TeamDto.fromJson(v as Map<String, dynamic>),
+        ),
+        competition: $checkedConvert(
+          'competition',
+          (v) => MatchCompetitionDto.fromJson(v as Map<String, dynamic>),
+        ),
+        endedAt: $checkedConvert('endedAt', (v) => v as String?),
+        homeTeam: $checkedConvert(
+          'homeTeam',
+          (v) => TeamDto.fromJson(v as Map<String, dynamic>),
+        ),
+        id: $checkedConvert('id', (v) => v as String),
+        kickoffAt: $checkedConvert('kickoffAt', (v) => v as String),
+        predictable: $checkedConvert('predictable', (v) => v as bool),
+        roundLabel: $checkedConvert('roundLabel', (v) => v as String?),
+        score: $checkedConvert(
+          'score',
+          (v) =>
+              v == null ? null : ScoreDto.fromJson(v as Map<String, dynamic>),
+        ),
+        serverTime: $checkedConvert('serverTime', (v) => v as String),
+        status: $checkedConvert(
+          'status',
+          (v) => $enumDecode(
+            _$MatchDetailDtoStatusEnumEnumMap,
+            v,
+            unknownValue: MatchDetailDtoStatusEnum.unknownDefaultOpenApi,
+          ),
+        ),
+      );
+      return val;
+    });
 
 Map<String, dynamic> _$MatchDetailDtoToJson(MatchDetailDto instance) =>
     <String, dynamic>{

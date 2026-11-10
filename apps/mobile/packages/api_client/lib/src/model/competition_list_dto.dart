@@ -9,7 +9,6 @@ import 'package:json_annotation/json_annotation.dart';
 
 part 'competition_list_dto.g.dart';
 
-
 @CopyWith()
 @JsonSerializable(
   checked: true,
@@ -19,34 +18,21 @@ part 'competition_list_dto.g.dart';
 )
 class CompetitionListDto {
   /// Returns a new [CompetitionListDto] instance.
-  CompetitionListDto({
+  CompetitionListDto({required this.items});
 
-    required  this.items,
-  });
-
-  @JsonKey(
-    
-    name: r'items',
-    required: true,
-    includeIfNull: false,
-  )
-
-
+  @JsonKey(name: r'items', required: true, includeIfNull: false)
   final List<CompetitionDto> items;
 
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is CompetitionListDto && other.items == items;
 
+  @override
+  int get hashCode => items.hashCode;
 
-
-
-    @override
-    bool operator ==(Object other) => identical(this, other) || other is CompetitionListDto &&
-      other.items == items;
-
-    @override
-    int get hashCode =>
-        items.hashCode;
-
-  factory CompetitionListDto.fromJson(Map<String, dynamic> json) => _$CompetitionListDtoFromJson(json);
+  factory CompetitionListDto.fromJson(Map<String, dynamic> json) =>
+      _$CompetitionListDtoFromJson(json);
 
   Map<String, dynamic> toJson() => _$CompetitionListDtoToJson(this);
 
@@ -54,6 +40,4 @@ class CompetitionListDto {
   String toString() {
     return toJson().toString();
   }
-
 }
-

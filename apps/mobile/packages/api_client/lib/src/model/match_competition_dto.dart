@@ -8,7 +8,6 @@ import 'package:json_annotation/json_annotation.dart';
 
 part 'match_competition_dto.g.dart';
 
-
 @CopyWith()
 @JsonSerializable(
   checked: true,
@@ -19,65 +18,35 @@ part 'match_competition_dto.g.dart';
 class MatchCompetitionDto {
   /// Returns a new [MatchCompetitionDto] instance.
   MatchCompetitionDto({
+    required this.code,
 
-    required  this.code,
+    required this.id,
 
-    required  this.id,
-
-    required  this.name,
+    required this.name,
   });
 
-  @JsonKey(
-    
-    name: r'code',
-    required: true,
-    includeIfNull: false,
-  )
-
-
+  @JsonKey(name: r'code', required: true, includeIfNull: false)
   final String code;
 
-
-
-  @JsonKey(
-    
-    name: r'id',
-    required: true,
-    includeIfNull: false,
-  )
-
-
+  @JsonKey(name: r'id', required: true, includeIfNull: false)
   final String id;
 
-
-
-  @JsonKey(
-    
-    name: r'name',
-    required: true,
-    includeIfNull: false,
-  )
-
-
+  @JsonKey(name: r'name', required: true, includeIfNull: false)
   final String name;
 
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is MatchCompetitionDto &&
+          other.code == code &&
+          other.id == id &&
+          other.name == name;
 
+  @override
+  int get hashCode => code.hashCode + id.hashCode + name.hashCode;
 
-
-
-    @override
-    bool operator ==(Object other) => identical(this, other) || other is MatchCompetitionDto &&
-      other.code == code &&
-      other.id == id &&
-      other.name == name;
-
-    @override
-    int get hashCode =>
-        code.hashCode +
-        id.hashCode +
-        name.hashCode;
-
-  factory MatchCompetitionDto.fromJson(Map<String, dynamic> json) => _$MatchCompetitionDtoFromJson(json);
+  factory MatchCompetitionDto.fromJson(Map<String, dynamic> json) =>
+      _$MatchCompetitionDtoFromJson(json);
 
   Map<String, dynamic> toJson() => _$MatchCompetitionDtoToJson(this);
 
@@ -85,6 +54,4 @@ class MatchCompetitionDto {
   String toString() {
     return toJson().toString();
   }
-
 }
-

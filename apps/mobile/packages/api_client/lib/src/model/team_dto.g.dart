@@ -54,7 +54,6 @@ class _$TeamDtoCWProxyImpl implements _$TeamDtoCWProxy {
   TeamDto type(String type) => this(type: type);
 
   @override
-
   /// This function **does support** nullification of nullable fields. All `null` values passed to `non-nullable` fields will be ignored. You can also use `TeamDto(...).copyWith.fieldName(...)` to override fields one at a time with nullification support.
   ///
   /// Usage
@@ -98,3 +97,28 @@ extension $TeamDtoCopyWith on TeamDto {
   // ignore: library_private_types_in_public_api
   _$TeamDtoCWProxy get copyWith => _$TeamDtoCWProxyImpl(this);
 }
+
+// **************************************************************************
+// JsonSerializableGenerator
+// **************************************************************************
+
+TeamDto _$TeamDtoFromJson(Map<String, dynamic> json) =>
+    $checkedCreate('TeamDto', json, ($checkedConvert) {
+      $checkKeys(json, requiredKeys: const ['crestUrl', 'id', 'name', 'type']);
+      final val = TeamDto(
+        crestUrl: $checkedConvert('crestUrl', (v) => v as String?),
+        id: $checkedConvert('id', (v) => v as String),
+        name: $checkedConvert('name', (v) => v as String),
+        shortName: $checkedConvert('shortName', (v) => v as String?),
+        type: $checkedConvert('type', (v) => v as String),
+      );
+      return val;
+    });
+
+Map<String, dynamic> _$TeamDtoToJson(TeamDto instance) => <String, dynamic>{
+  'crestUrl': instance.crestUrl,
+  'id': instance.id,
+  'name': instance.name,
+  'shortName': ?instance.shortName,
+  'type': instance.type,
+};

@@ -17,6 +17,7 @@ docker run --rm \
   --input-spec /local/openapi/openapi.json \
   --generator-name dart-dio \
   --output "/local/$output_dir" \
+  --template-dir /local/tool/openapi-templates \
   --additional-properties=pubName=api_client,pubDescription="Generated REST client for the-game API",serializationLibrary=json_serializable,enumUnknownDefaultCase=true
 
 # The generator writes models with json_serializable annotations; build_runner writes the *.g.dart code.

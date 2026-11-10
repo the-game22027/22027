@@ -9,7 +9,6 @@ import 'package:json_annotation/json_annotation.dart';
 
 part 'dev_sign_in_dto.g.dart';
 
-
 @CopyWith()
 @JsonSerializable(
   checked: true,
@@ -19,66 +18,30 @@ part 'dev_sign_in_dto.g.dart';
 )
 class DevSignInDto {
   /// Returns a new [DevSignInDto] instance.
-  DevSignInDto({
+  DevSignInDto({this.device, this.displayName, required this.subject});
 
-     this.device,
-
-     this.displayName,
-
-    required  this.subject,
-  });
-
-  @JsonKey(
-    
-    name: r'device',
-    required: false,
-    includeIfNull: false,
-  )
-
-
+  @JsonKey(name: r'device', required: false, includeIfNull: false)
   final DeviceDto? device;
 
-
-
-  @JsonKey(
-    
-    name: r'displayName',
-    required: false,
-    includeIfNull: false,
-  )
-
-
+  @JsonKey(name: r'displayName', required: false, includeIfNull: false)
   final String? displayName;
 
-
-
-  @JsonKey(
-    
-    name: r'subject',
-    required: true,
-    includeIfNull: false,
-  )
-
-
+  @JsonKey(name: r'subject', required: true, includeIfNull: false)
   final String subject;
 
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is DevSignInDto &&
+          other.device == device &&
+          other.displayName == displayName &&
+          other.subject == subject;
 
+  @override
+  int get hashCode => device.hashCode + displayName.hashCode + subject.hashCode;
 
-
-
-    @override
-    bool operator ==(Object other) => identical(this, other) || other is DevSignInDto &&
-      other.device == device &&
-      other.displayName == displayName &&
-      other.subject == subject;
-
-    @override
-    int get hashCode =>
-        device.hashCode +
-        displayName.hashCode +
-        subject.hashCode;
-
-  factory DevSignInDto.fromJson(Map<String, dynamic> json) => _$DevSignInDtoFromJson(json);
+  factory DevSignInDto.fromJson(Map<String, dynamic> json) =>
+      _$DevSignInDtoFromJson(json);
 
   Map<String, dynamic> toJson() => _$DevSignInDtoToJson(this);
 
@@ -86,6 +49,4 @@ class DevSignInDto {
   String toString() {
     return toJson().toString();
   }
-
 }
-

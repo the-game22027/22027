@@ -19,11 +19,7 @@ abstract class _$DevSignInDtoCWProxy {
   /// ```dart
   /// DevSignInDto(...).copyWith(id: 12, name: "My name")
   /// ````
-  DevSignInDto call({
-    DeviceDto? device,
-    String? displayName,
-    String subject,
-  });
+  DevSignInDto call({DeviceDto? device, String? displayName, String subject});
 }
 
 /// Proxy class for `copyWith` functionality. This is a callable class and can be used as follows: `instanceOfDevSignInDto.copyWith(...)`. Additionally contains functions for specific fields e.g. `instanceOfDevSignInDto.copyWith.fieldName(...)`
@@ -43,7 +39,6 @@ class _$DevSignInDtoCWProxyImpl implements _$DevSignInDtoCWProxy {
   DevSignInDto subject(String subject) => this(subject: subject);
 
   @override
-
   /// This function **does support** nullification of nullable fields. All `null` values passed to `non-nullable` fields will be ignored. You can also use `DevSignInDto(...).copyWith.fieldName(...)` to override fields one at a time with nullification support.
   ///
   /// Usage
@@ -77,3 +72,29 @@ extension $DevSignInDtoCopyWith on DevSignInDto {
   // ignore: library_private_types_in_public_api
   _$DevSignInDtoCWProxy get copyWith => _$DevSignInDtoCWProxyImpl(this);
 }
+
+// **************************************************************************
+// JsonSerializableGenerator
+// **************************************************************************
+
+DevSignInDto _$DevSignInDtoFromJson(Map<String, dynamic> json) =>
+    $checkedCreate('DevSignInDto', json, ($checkedConvert) {
+      $checkKeys(json, requiredKeys: const ['subject']);
+      final val = DevSignInDto(
+        device: $checkedConvert(
+          'device',
+          (v) =>
+              v == null ? null : DeviceDto.fromJson(v as Map<String, dynamic>),
+        ),
+        displayName: $checkedConvert('displayName', (v) => v as String?),
+        subject: $checkedConvert('subject', (v) => v as String),
+      );
+      return val;
+    });
+
+Map<String, dynamic> _$DevSignInDtoToJson(DevSignInDto instance) =>
+    <String, dynamic>{
+      'device': ?instance.device?.toJson(),
+      'displayName': ?instance.displayName,
+      'subject': instance.subject,
+    };

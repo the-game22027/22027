@@ -19,11 +19,7 @@ abstract class _$SubmittedPickDtoCWProxy {
   /// ```dart
   /// SubmittedPickDto(...).copyWith(id: 12, name: "My name")
   /// ````
-  SubmittedPickDto call({
-    num? away,
-    num? home,
-    String type,
-  });
+  SubmittedPickDto call({num? away, num? home, String type});
 }
 
 /// Proxy class for `copyWith` functionality. This is a callable class and can be used as follows: `instanceOfSubmittedPickDto.copyWith(...)`. Additionally contains functions for specific fields e.g. `instanceOfSubmittedPickDto.copyWith.fieldName(...)`
@@ -42,7 +38,6 @@ class _$SubmittedPickDtoCWProxyImpl implements _$SubmittedPickDtoCWProxy {
   SubmittedPickDto type(String type) => this(type: type);
 
   @override
-
   /// This function **does support** nullification of nullable fields. All `null` values passed to `non-nullable` fields will be ignored. You can also use `SubmittedPickDto(...).copyWith.fieldName(...)` to override fields one at a time with nullification support.
   ///
   /// Usage
@@ -76,3 +71,25 @@ extension $SubmittedPickDtoCopyWith on SubmittedPickDto {
   // ignore: library_private_types_in_public_api
   _$SubmittedPickDtoCWProxy get copyWith => _$SubmittedPickDtoCWProxyImpl(this);
 }
+
+// **************************************************************************
+// JsonSerializableGenerator
+// **************************************************************************
+
+SubmittedPickDto _$SubmittedPickDtoFromJson(Map<String, dynamic> json) =>
+    $checkedCreate('SubmittedPickDto', json, ($checkedConvert) {
+      $checkKeys(json, requiredKeys: const ['type']);
+      final val = SubmittedPickDto(
+        away: $checkedConvert('away', (v) => v as num?),
+        home: $checkedConvert('home', (v) => v as num?),
+        type: $checkedConvert('type', (v) => v as String),
+      );
+      return val;
+    });
+
+Map<String, dynamic> _$SubmittedPickDtoToJson(SubmittedPickDto instance) =>
+    <String, dynamic>{
+      'away': ?instance.away,
+      'home': ?instance.home,
+      'type': instance.type,
+    };

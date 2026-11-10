@@ -62,7 +62,6 @@ class _$CompetitionDtoCWProxyImpl implements _$CompetitionDtoCWProxy {
   CompetitionDto type(String type) => this(type: type);
 
   @override
-
   /// This function **does support** nullification of nullable fields. All `null` values passed to `non-nullable` fields will be ignored. You can also use `CompetitionDto(...).copyWith.fieldName(...)` to override fields one at a time with nullification support.
   ///
   /// Usage
@@ -117,32 +116,28 @@ extension $CompetitionDtoCopyWith on CompetitionDto {
 // **************************************************************************
 
 CompetitionDto _$CompetitionDtoFromJson(Map<String, dynamic> json) =>
-    $checkedCreate(
-      'CompetitionDto',
-      json,
-      ($checkedConvert) {
-        $checkKeys(
-          json,
-          requiredKeys: const [
-            'code',
-            'countryCode',
-            'id',
-            'isNationalTeams',
-            'name',
-            'type'
-          ],
-        );
-        final val = CompetitionDto(
-          code: $checkedConvert('code', (v) => v as String),
-          countryCode: $checkedConvert('countryCode', (v) => v as String?),
-          id: $checkedConvert('id', (v) => v as String),
-          isNationalTeams: $checkedConvert('isNationalTeams', (v) => v as bool),
-          name: $checkedConvert('name', (v) => v as String),
-          type: $checkedConvert('type', (v) => v as String),
-        );
-        return val;
-      },
-    );
+    $checkedCreate('CompetitionDto', json, ($checkedConvert) {
+      $checkKeys(
+        json,
+        requiredKeys: const [
+          'code',
+          'countryCode',
+          'id',
+          'isNationalTeams',
+          'name',
+          'type',
+        ],
+      );
+      final val = CompetitionDto(
+        code: $checkedConvert('code', (v) => v as String),
+        countryCode: $checkedConvert('countryCode', (v) => v as String?),
+        id: $checkedConvert('id', (v) => v as String),
+        isNationalTeams: $checkedConvert('isNationalTeams', (v) => v as bool),
+        name: $checkedConvert('name', (v) => v as String),
+        type: $checkedConvert('type', (v) => v as String),
+      );
+      return val;
+    });
 
 Map<String, dynamic> _$CompetitionDtoToJson(CompetitionDto instance) =>
     <String, dynamic>{

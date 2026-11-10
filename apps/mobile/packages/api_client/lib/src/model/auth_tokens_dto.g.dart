@@ -57,7 +57,6 @@ class _$AuthTokensDtoCWProxyImpl implements _$AuthTokensDtoCWProxy {
   AuthTokensDto user(MeDto user) => this(user: user);
 
   @override
-
   /// This function **does support** nullification of nullable fields. All `null` values passed to `non-nullable` fields will be ignored. You can also use `AuthTokensDto(...).copyWith.fieldName(...)` to override fields one at a time with nullification support.
   ///
   /// Usage
@@ -107,32 +106,32 @@ extension $AuthTokensDtoCopyWith on AuthTokensDto {
 // **************************************************************************
 
 AuthTokensDto _$AuthTokensDtoFromJson(Map<String, dynamic> json) =>
-    $checkedCreate(
-      'AuthTokensDto',
-      json,
-      ($checkedConvert) {
-        $checkKeys(
-          json,
-          requiredKeys: const [
-            'accessToken',
-            'accessTokenExpiresAt',
-            'isNewUser',
-            'refreshToken',
-            'user'
-          ],
-        );
-        final val = AuthTokensDto(
-          accessToken: $checkedConvert('accessToken', (v) => v as String),
-          accessTokenExpiresAt:
-              $checkedConvert('accessTokenExpiresAt', (v) => v as String),
-          isNewUser: $checkedConvert('isNewUser', (v) => v as bool),
-          refreshToken: $checkedConvert('refreshToken', (v) => v as String),
-          user: $checkedConvert(
-              'user', (v) => MeDto.fromJson(v as Map<String, dynamic>)),
-        );
-        return val;
-      },
-    );
+    $checkedCreate('AuthTokensDto', json, ($checkedConvert) {
+      $checkKeys(
+        json,
+        requiredKeys: const [
+          'accessToken',
+          'accessTokenExpiresAt',
+          'isNewUser',
+          'refreshToken',
+          'user',
+        ],
+      );
+      final val = AuthTokensDto(
+        accessToken: $checkedConvert('accessToken', (v) => v as String),
+        accessTokenExpiresAt: $checkedConvert(
+          'accessTokenExpiresAt',
+          (v) => v as String,
+        ),
+        isNewUser: $checkedConvert('isNewUser', (v) => v as bool),
+        refreshToken: $checkedConvert('refreshToken', (v) => v as String),
+        user: $checkedConvert(
+          'user',
+          (v) => MeDto.fromJson(v as Map<String, dynamic>),
+        ),
+      );
+      return val;
+    });
 
 Map<String, dynamic> _$AuthTokensDtoToJson(AuthTokensDto instance) =>
     <String, dynamic>{

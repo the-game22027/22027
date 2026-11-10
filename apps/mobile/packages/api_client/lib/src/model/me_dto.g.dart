@@ -74,7 +74,6 @@ class _$MeDtoCWProxyImpl implements _$MeDtoCWProxy {
   MeDto username(String? username) => this(username: username);
 
   @override
-
   /// This function **does support** nullification of nullable fields. All `null` values passed to `non-nullable` fields will be ignored. You can also use `MeDto(...).copyWith.fieldName(...)` to override fields one at a time with nullification support.
   ///
   /// Usage
@@ -139,49 +138,51 @@ extension $MeDtoCopyWith on MeDto {
 // **************************************************************************
 
 MeDto _$MeDtoFromJson(Map<String, dynamic> json) => $checkedCreate(
-      'MeDto',
+  'MeDto',
+  json,
+  ($checkedConvert) {
+    $checkKeys(
       json,
-      ($checkedConvert) {
-        $checkKeys(
-          json,
-          requiredKeys: const [
-            'avatarUrl',
-            'displayName',
-            'favouriteTeamId',
-            'id',
-            'identities',
-            'locale',
-            'privacy',
-            'username'
-          ],
-        );
-        final val = MeDto(
-          avatarUrl: $checkedConvert('avatarUrl', (v) => v as String?),
-          displayName: $checkedConvert('displayName', (v) => v as String),
-          favouriteTeamId:
-              $checkedConvert('favouriteTeamId', (v) => v as String?),
-          id: $checkedConvert('id', (v) => v as String),
-          identities: $checkedConvert(
-              'identities',
-              (v) => (v as List<dynamic>)
-                  .map((e) => IdentityDto.fromJson(e as Map<String, dynamic>))
-                  .toList()),
-          locale: $checkedConvert('locale', (v) => v as String),
-          privacy: $checkedConvert(
-              'privacy', (v) => PrivacyDto.fromJson(v as Map<String, dynamic>)),
-          username: $checkedConvert('username', (v) => v as String?),
-        );
-        return val;
-      },
+      requiredKeys: const [
+        'avatarUrl',
+        'displayName',
+        'favouriteTeamId',
+        'id',
+        'identities',
+        'locale',
+        'privacy',
+        'username',
+      ],
     );
+    final val = MeDto(
+      avatarUrl: $checkedConvert('avatarUrl', (v) => v as String?),
+      displayName: $checkedConvert('displayName', (v) => v as String),
+      favouriteTeamId: $checkedConvert('favouriteTeamId', (v) => v as String?),
+      id: $checkedConvert('id', (v) => v as String),
+      identities: $checkedConvert(
+        'identities',
+        (v) => (v as List<dynamic>)
+            .map((e) => IdentityDto.fromJson(e as Map<String, dynamic>))
+            .toList(),
+      ),
+      locale: $checkedConvert('locale', (v) => v as String),
+      privacy: $checkedConvert(
+        'privacy',
+        (v) => PrivacyDto.fromJson(v as Map<String, dynamic>),
+      ),
+      username: $checkedConvert('username', (v) => v as String?),
+    );
+    return val;
+  },
+);
 
 Map<String, dynamic> _$MeDtoToJson(MeDto instance) => <String, dynamic>{
-      'avatarUrl': instance.avatarUrl,
-      'displayName': instance.displayName,
-      'favouriteTeamId': instance.favouriteTeamId,
-      'id': instance.id,
-      'identities': instance.identities.map((e) => e.toJson()).toList(),
-      'locale': instance.locale,
-      'privacy': instance.privacy.toJson(),
-      'username': instance.username,
-    };
+  'avatarUrl': instance.avatarUrl,
+  'displayName': instance.displayName,
+  'favouriteTeamId': instance.favouriteTeamId,
+  'id': instance.id,
+  'identities': instance.identities.map((e) => e.toJson()).toList(),
+  'locale': instance.locale,
+  'privacy': instance.privacy.toJson(),
+  'username': instance.username,
+};

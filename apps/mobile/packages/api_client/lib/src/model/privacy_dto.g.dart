@@ -15,9 +15,7 @@ abstract class _$PrivacyDtoCWProxy {
   /// ```dart
   /// PrivacyDto(...).copyWith(id: 12, name: "My name")
   /// ````
-  PrivacyDto call({
-    String? predictionVisibility,
-  });
+  PrivacyDto call({String? predictionVisibility});
 }
 
 /// Proxy class for `copyWith` functionality. This is a callable class and can be used as follows: `instanceOfPrivacyDto.copyWith(...)`. Additionally contains functions for specific fields e.g. `instanceOfPrivacyDto.copyWith.fieldName(...)`
@@ -31,7 +29,6 @@ class _$PrivacyDtoCWProxyImpl implements _$PrivacyDtoCWProxy {
       this(predictionVisibility: predictionVisibility);
 
   @override
-
   /// This function **does support** nullification of nullable fields. All `null` values passed to `non-nullable` fields will be ignored. You can also use `PrivacyDto(...).copyWith.fieldName(...)` to override fields one at a time with nullification support.
   ///
   /// Usage
@@ -60,23 +57,17 @@ extension $PrivacyDtoCopyWith on PrivacyDto {
 // JsonSerializableGenerator
 // **************************************************************************
 
-PrivacyDto _$PrivacyDtoFromJson(Map<String, dynamic> json) => $checkedCreate(
-      'PrivacyDto',
-      json,
-      ($checkedConvert) {
-        $checkKeys(
-          json,
-          requiredKeys: const ['predictionVisibility'],
-        );
-        final val = PrivacyDto(
-          predictionVisibility:
-              $checkedConvert('predictionVisibility', (v) => v as String?),
-        );
-        return val;
-      },
-    );
+PrivacyDto _$PrivacyDtoFromJson(Map<String, dynamic> json) =>
+    $checkedCreate('PrivacyDto', json, ($checkedConvert) {
+      $checkKeys(json, requiredKeys: const ['predictionVisibility']);
+      final val = PrivacyDto(
+        predictionVisibility: $checkedConvert(
+          'predictionVisibility',
+          (v) => v as String?,
+        ),
+      );
+      return val;
+    });
 
 Map<String, dynamic> _$PrivacyDtoToJson(PrivacyDto instance) =>
-    <String, dynamic>{
-      'predictionVisibility': instance.predictionVisibility,
-    };
+    <String, dynamic>{'predictionVisibility': instance.predictionVisibility};

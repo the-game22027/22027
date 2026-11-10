@@ -17,10 +17,7 @@ abstract class _$PenaltiesDtoCWProxy {
   /// ```dart
   /// PenaltiesDto(...).copyWith(id: 12, name: "My name")
   /// ````
-  PenaltiesDto call({
-    num away,
-    num home,
-  });
+  PenaltiesDto call({num away, num home});
 }
 
 /// Proxy class for `copyWith` functionality. This is a callable class and can be used as follows: `instanceOfPenaltiesDto.copyWith(...)`. Additionally contains functions for specific fields e.g. `instanceOfPenaltiesDto.copyWith.fieldName(...)`
@@ -36,7 +33,6 @@ class _$PenaltiesDtoCWProxyImpl implements _$PenaltiesDtoCWProxy {
   PenaltiesDto home(num home) => this(home: home);
 
   @override
-
   /// This function **does support** nullification of nullable fields. All `null` values passed to `non-nullable` fields will be ignored. You can also use `PenaltiesDto(...).copyWith.fieldName(...)` to override fields one at a time with nullification support.
   ///
   /// Usage
@@ -71,24 +67,14 @@ extension $PenaltiesDtoCopyWith on PenaltiesDto {
 // **************************************************************************
 
 PenaltiesDto _$PenaltiesDtoFromJson(Map<String, dynamic> json) =>
-    $checkedCreate(
-      'PenaltiesDto',
-      json,
-      ($checkedConvert) {
-        $checkKeys(
-          json,
-          requiredKeys: const ['away', 'home'],
-        );
-        final val = PenaltiesDto(
-          away: $checkedConvert('away', (v) => v as num),
-          home: $checkedConvert('home', (v) => v as num),
-        );
-        return val;
-      },
-    );
+    $checkedCreate('PenaltiesDto', json, ($checkedConvert) {
+      $checkKeys(json, requiredKeys: const ['away', 'home']);
+      final val = PenaltiesDto(
+        away: $checkedConvert('away', (v) => v as num),
+        home: $checkedConvert('home', (v) => v as num),
+      );
+      return val;
+    });
 
 Map<String, dynamic> _$PenaltiesDtoToJson(PenaltiesDto instance) =>
-    <String, dynamic>{
-      'away': instance.away,
-      'home': instance.home,
-    };
+    <String, dynamic>{'away': instance.away, 'home': instance.home};

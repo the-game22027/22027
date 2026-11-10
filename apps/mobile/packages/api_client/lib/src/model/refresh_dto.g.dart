@@ -15,9 +15,7 @@ abstract class _$RefreshDtoCWProxy {
   /// ```dart
   /// RefreshDto(...).copyWith(id: 12, name: "My name")
   /// ````
-  RefreshDto call({
-    String refreshToken,
-  });
+  RefreshDto call({String refreshToken});
 }
 
 /// Proxy class for `copyWith` functionality. This is a callable class and can be used as follows: `instanceOfRefreshDto.copyWith(...)`. Additionally contains functions for specific fields e.g. `instanceOfRefreshDto.copyWith.fieldName(...)`
@@ -31,16 +29,13 @@ class _$RefreshDtoCWProxyImpl implements _$RefreshDtoCWProxy {
       this(refreshToken: refreshToken);
 
   @override
-
   /// This function **does support** nullification of nullable fields. All `null` values passed to `non-nullable` fields will be ignored. You can also use `RefreshDto(...).copyWith.fieldName(...)` to override fields one at a time with nullification support.
   ///
   /// Usage
   /// ```dart
   /// RefreshDto(...).copyWith(id: 12, name: "My name")
   /// ````
-  RefreshDto call({
-    Object? refreshToken = const $CopyWithPlaceholder(),
-  }) {
+  RefreshDto call({Object? refreshToken = const $CopyWithPlaceholder()}) {
     return RefreshDto(
       refreshToken: refreshToken == const $CopyWithPlaceholder()
           ? _value.refreshToken
@@ -60,22 +55,14 @@ extension $RefreshDtoCopyWith on RefreshDto {
 // JsonSerializableGenerator
 // **************************************************************************
 
-RefreshDto _$RefreshDtoFromJson(Map<String, dynamic> json) => $checkedCreate(
-      'RefreshDto',
-      json,
-      ($checkedConvert) {
-        $checkKeys(
-          json,
-          requiredKeys: const ['refreshToken'],
-        );
-        final val = RefreshDto(
-          refreshToken: $checkedConvert('refreshToken', (v) => v as String),
-        );
-        return val;
-      },
-    );
+RefreshDto _$RefreshDtoFromJson(Map<String, dynamic> json) =>
+    $checkedCreate('RefreshDto', json, ($checkedConvert) {
+      $checkKeys(json, requiredKeys: const ['refreshToken']);
+      final val = RefreshDto(
+        refreshToken: $checkedConvert('refreshToken', (v) => v as String),
+      );
+      return val;
+    });
 
 Map<String, dynamic> _$RefreshDtoToJson(RefreshDto instance) =>
-    <String, dynamic>{
-      'refreshToken': instance.refreshToken,
-    };
+    <String, dynamic>{'refreshToken': instance.refreshToken};

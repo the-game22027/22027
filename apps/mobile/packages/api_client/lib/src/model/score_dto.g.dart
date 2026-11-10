@@ -48,7 +48,6 @@ class _$ScoreDtoCWProxyImpl implements _$ScoreDtoCWProxy {
   ScoreDto penalties(PenaltiesDto? penalties) => this(penalties: penalties);
 
   @override
-
   /// This function **does support** nullification of nullable fields. All `null` values passed to `non-nullable` fields will be ignored. You can also use `ScoreDto(...).copyWith.fieldName(...)` to override fields one at a time with nullification support.
   ///
   /// Usage
@@ -87,3 +86,33 @@ extension $ScoreDtoCopyWith on ScoreDto {
   // ignore: library_private_types_in_public_api
   _$ScoreDtoCWProxy get copyWith => _$ScoreDtoCWProxyImpl(this);
 }
+
+// **************************************************************************
+// JsonSerializableGenerator
+// **************************************************************************
+
+ScoreDto _$ScoreDtoFromJson(Map<String, dynamic> json) => $checkedCreate(
+  'ScoreDto',
+  json,
+  ($checkedConvert) {
+    $checkKeys(json, requiredKeys: const ['away', 'home']);
+    final val = ScoreDto(
+      away: $checkedConvert('away', (v) => v as num),
+      decidedBy: $checkedConvert('decidedBy', (v) => v as String?),
+      home: $checkedConvert('home', (v) => v as num),
+      penalties: $checkedConvert(
+        'penalties',
+        (v) =>
+            v == null ? null : PenaltiesDto.fromJson(v as Map<String, dynamic>),
+      ),
+    );
+    return val;
+  },
+);
+
+Map<String, dynamic> _$ScoreDtoToJson(ScoreDto instance) => <String, dynamic>{
+  'away': instance.away,
+  'decidedBy': ?instance.decidedBy,
+  'home': instance.home,
+  'penalties': ?instance.penalties?.toJson(),
+};

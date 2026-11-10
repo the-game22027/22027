@@ -56,7 +56,6 @@ class _$UpdateMeDtoCWProxyImpl implements _$UpdateMeDtoCWProxy {
   UpdateMeDto username(String? username) => this(username: username);
 
   @override
-
   /// This function **does support** nullification of nullable fields. All `null` values passed to `non-nullable` fields will be ignored. You can also use `UpdateMeDto(...).copyWith.fieldName(...)` to override fields one at a time with nullification support.
   ///
   /// Usage
@@ -100,3 +99,44 @@ extension $UpdateMeDtoCopyWith on UpdateMeDto {
   // ignore: library_private_types_in_public_api
   _$UpdateMeDtoCWProxy get copyWith => _$UpdateMeDtoCWProxyImpl(this);
 }
+
+// **************************************************************************
+// JsonSerializableGenerator
+// **************************************************************************
+
+UpdateMeDto _$UpdateMeDtoFromJson(Map<String, dynamic> json) => $checkedCreate(
+  'UpdateMeDto',
+  json,
+  ($checkedConvert) {
+    final val = UpdateMeDto(
+      avatarUrl: $checkedConvert('avatarUrl', (v) => v as String?),
+      displayName: $checkedConvert('displayName', (v) => v as String?),
+      favouriteTeamId: $checkedConvert('favouriteTeamId', (v) => v as String?),
+      locale: $checkedConvert(
+        'locale',
+        (v) => $enumDecodeNullable(
+          _$UpdateMeDtoLocaleEnumEnumMap,
+          v,
+          unknownValue: UpdateMeDtoLocaleEnum.unknownDefaultOpenApi,
+        ),
+      ),
+      username: $checkedConvert('username', (v) => v as String?),
+    );
+    return val;
+  },
+);
+
+Map<String, dynamic> _$UpdateMeDtoToJson(UpdateMeDto instance) =>
+    <String, dynamic>{
+      'avatarUrl': ?instance.avatarUrl,
+      'displayName': ?instance.displayName,
+      'favouriteTeamId': ?instance.favouriteTeamId,
+      'locale': ?_$UpdateMeDtoLocaleEnumEnumMap[instance.locale],
+      'username': ?instance.username,
+    };
+
+const _$UpdateMeDtoLocaleEnumEnumMap = {
+  UpdateMeDtoLocaleEnum.ar: 'ar',
+  UpdateMeDtoLocaleEnum.en: 'en',
+  UpdateMeDtoLocaleEnum.unknownDefaultOpenApi: 'unknown_default_open_api',
+};

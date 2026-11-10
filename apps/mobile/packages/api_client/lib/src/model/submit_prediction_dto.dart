@@ -9,7 +9,6 @@ import 'package:json_annotation/json_annotation.dart';
 
 part 'submit_prediction_dto.g.dart';
 
-
 @CopyWith()
 @JsonSerializable(
   checked: true,
@@ -19,34 +18,21 @@ part 'submit_prediction_dto.g.dart';
 )
 class SubmitPredictionDto {
   /// Returns a new [SubmitPredictionDto] instance.
-  SubmitPredictionDto({
+  SubmitPredictionDto({required this.picks});
 
-    required  this.picks,
-  });
-
-  @JsonKey(
-    
-    name: r'picks',
-    required: true,
-    includeIfNull: false,
-  )
-
-
+  @JsonKey(name: r'picks', required: true, includeIfNull: false)
   final List<SubmittedPickDto> picks;
 
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SubmitPredictionDto && other.picks == picks;
 
+  @override
+  int get hashCode => picks.hashCode;
 
-
-
-    @override
-    bool operator ==(Object other) => identical(this, other) || other is SubmitPredictionDto &&
-      other.picks == picks;
-
-    @override
-    int get hashCode =>
-        picks.hashCode;
-
-  factory SubmitPredictionDto.fromJson(Map<String, dynamic> json) => _$SubmitPredictionDtoFromJson(json);
+  factory SubmitPredictionDto.fromJson(Map<String, dynamic> json) =>
+      _$SubmitPredictionDtoFromJson(json);
 
   Map<String, dynamic> toJson() => _$SubmitPredictionDtoToJson(this);
 
@@ -54,6 +40,4 @@ class SubmitPredictionDto {
   String toString() {
     return toJson().toString();
   }
-
 }
-

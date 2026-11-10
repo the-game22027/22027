@@ -9,7 +9,6 @@ import 'package:json_annotation/json_annotation.dart';
 
 part 'auth_tokens_dto.g.dart';
 
-
 @CopyWith()
 @JsonSerializable(
   checked: true,
@@ -20,97 +19,52 @@ part 'auth_tokens_dto.g.dart';
 class AuthTokensDto {
   /// Returns a new [AuthTokensDto] instance.
   AuthTokensDto({
+    required this.accessToken,
 
-    required  this.accessToken,
+    required this.accessTokenExpiresAt,
 
-    required  this.accessTokenExpiresAt,
+    required this.isNewUser,
 
-    required  this.isNewUser,
+    required this.refreshToken,
 
-    required  this.refreshToken,
-
-    required  this.user,
+    required this.user,
   });
 
-  @JsonKey(
-    
-    name: r'accessToken',
-    required: true,
-    includeIfNull: false,
-  )
-
-
+  @JsonKey(name: r'accessToken', required: true, includeIfNull: false)
   final String accessToken;
 
-
-
-  @JsonKey(
-    
-    name: r'accessTokenExpiresAt',
-    required: true,
-    includeIfNull: false,
-  )
-
-
+  @JsonKey(name: r'accessTokenExpiresAt', required: true, includeIfNull: false)
   final String accessTokenExpiresAt;
 
-
-
-  @JsonKey(
-    
-    name: r'isNewUser',
-    required: true,
-    includeIfNull: false,
-  )
-
-
+  @JsonKey(name: r'isNewUser', required: true, includeIfNull: false)
   final bool isNewUser;
 
-
-
-  @JsonKey(
-    
-    name: r'refreshToken',
-    required: true,
-    includeIfNull: false,
-  )
-
-
+  @JsonKey(name: r'refreshToken', required: true, includeIfNull: false)
   final String refreshToken;
 
-
-
-  @JsonKey(
-    
-    name: r'user',
-    required: true,
-    includeIfNull: false,
-  )
-
-
+  @JsonKey(name: r'user', required: true, includeIfNull: false)
   final MeDto user;
 
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AuthTokensDto &&
+          other.accessToken == accessToken &&
+          other.accessTokenExpiresAt == accessTokenExpiresAt &&
+          other.isNewUser == isNewUser &&
+          other.refreshToken == refreshToken &&
+          other.user == user;
 
+  @override
+  int get hashCode =>
+      accessToken.hashCode +
+      accessTokenExpiresAt.hashCode +
+      isNewUser.hashCode +
+      refreshToken.hashCode +
+      user.hashCode;
 
-
-
-    @override
-    bool operator ==(Object other) => identical(this, other) || other is AuthTokensDto &&
-      other.accessToken == accessToken &&
-      other.accessTokenExpiresAt == accessTokenExpiresAt &&
-      other.isNewUser == isNewUser &&
-      other.refreshToken == refreshToken &&
-      other.user == user;
-
-    @override
-    int get hashCode =>
-        accessToken.hashCode +
-        accessTokenExpiresAt.hashCode +
-        isNewUser.hashCode +
-        refreshToken.hashCode +
-        user.hashCode;
-
-  factory AuthTokensDto.fromJson(Map<String, dynamic> json) => _$AuthTokensDtoFromJson(json);
+  factory AuthTokensDto.fromJson(Map<String, dynamic> json) =>
+      _$AuthTokensDtoFromJson(json);
 
   Map<String, dynamic> toJson() => _$AuthTokensDtoToJson(this);
 
@@ -118,6 +72,4 @@ class AuthTokensDto {
   String toString() {
     return toJson().toString();
   }
-
 }
-

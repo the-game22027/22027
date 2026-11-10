@@ -15,13 +15,12 @@ import 'package:api_client/src/model/match_page_dto.dart';
 import 'package:api_client/src/model/squad_list_dto.dart';
 
 class FootballApi {
-
   final Dio _dio;
 
   const FootballApi(this._dio);
 
   /// footballControllerCompetitionsV1
-  /// 
+  ///
   ///
   /// Parameters:
   /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
@@ -33,7 +32,7 @@ class FootballApi {
   ///
   /// Returns a [Future] containing a [Response] with a [CompetitionListDto] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<CompetitionListDto>> footballControllerCompetitionsV1({ 
+  Future<Response<CompetitionListDto>> footballControllerCompetitionsV1({
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
     Map<String, dynamic>? extra,
@@ -44,16 +43,10 @@ class FootballApi {
     final _path = r'/v1/competitions';
     final _options = Options(
       method: r'GET',
-      headers: <String, dynamic>{
-        ...?headers,
-      },
+      headers: <String, dynamic>{...?headers},
       extra: <String, dynamic>{
         'secure': <Map<String, String>>[
-          {
-            'type': 'http',
-            'scheme': 'bearer',
-            'name': 'bearer',
-          },
+          {'type': 'http', 'scheme': 'bearer', 'name': 'bearer'},
         ],
         ...?extra,
       },
@@ -71,9 +64,14 @@ class FootballApi {
     CompetitionListDto? _responseData;
 
     try {
-final rawData = _response.data;
-_responseData = rawData == null ? null : deserialize<CompetitionListDto, CompetitionListDto>(rawData, 'CompetitionListDto', growable: true);
-
+      final rawData = _response.data;
+      _responseData = rawData == null
+          ? null
+          : deserialize<CompetitionListDto, CompetitionListDto>(
+              rawData,
+              'CompetitionListDto',
+              growable: true,
+            );
     } catch (error, stackTrace) {
       throw DioException(
         requestOptions: _response.requestOptions,
@@ -97,10 +95,10 @@ _responseData = rawData == null ? null : deserialize<CompetitionListDto, Competi
   }
 
   /// footballControllerMatchV1
-  /// 
+  ///
   ///
   /// Parameters:
-  /// * [matchId] 
+  /// * [matchId]
   /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
   /// * [headers] - Can be used to add additional headers to the request
   /// * [extras] - Can be used to add flags to the request
@@ -110,7 +108,7 @@ _responseData = rawData == null ? null : deserialize<CompetitionListDto, Competi
   ///
   /// Returns a [Future] containing a [Response] with a [MatchDetailDto] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<MatchDetailDto>> footballControllerMatchV1({ 
+  Future<Response<MatchDetailDto>> footballControllerMatchV1({
     required String matchId,
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
@@ -119,19 +117,18 @@ _responseData = rawData == null ? null : deserialize<CompetitionListDto, Competi
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/v1/matches/{matchId}'.replaceAll('{' r'matchId' '}', matchId.toString());
+    final _path = r'/v1/matches/{matchId}'.replaceAll(
+      '{'
+      r'matchId'
+      '}',
+      matchId.toString(),
+    );
     final _options = Options(
       method: r'GET',
-      headers: <String, dynamic>{
-        ...?headers,
-      },
+      headers: <String, dynamic>{...?headers},
       extra: <String, dynamic>{
         'secure': <Map<String, String>>[
-          {
-            'type': 'http',
-            'scheme': 'bearer',
-            'name': 'bearer',
-          },
+          {'type': 'http', 'scheme': 'bearer', 'name': 'bearer'},
         ],
         ...?extra,
       },
@@ -149,9 +146,14 @@ _responseData = rawData == null ? null : deserialize<CompetitionListDto, Competi
     MatchDetailDto? _responseData;
 
     try {
-final rawData = _response.data;
-_responseData = rawData == null ? null : deserialize<MatchDetailDto, MatchDetailDto>(rawData, 'MatchDetailDto', growable: true);
-
+      final rawData = _response.data;
+      _responseData = rawData == null
+          ? null
+          : deserialize<MatchDetailDto, MatchDetailDto>(
+              rawData,
+              'MatchDetailDto',
+              growable: true,
+            );
     } catch (error, stackTrace) {
       throw DioException(
         requestOptions: _response.requestOptions,
@@ -175,15 +177,15 @@ _responseData = rawData == null ? null : deserialize<MatchDetailDto, MatchDetail
   }
 
   /// footballControllerMatchesV1
-  /// 
+  ///
   ///
   /// Parameters:
-  /// * [from] 
-  /// * [to] 
-  /// * [competitionId] 
-  /// * [status] 
-  /// * [limit] 
-  /// * [cursor] 
+  /// * [from]
+  /// * [to]
+  /// * [competitionId]
+  /// * [status]
+  /// * [limit]
+  /// * [cursor]
   /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
   /// * [headers] - Can be used to add additional headers to the request
   /// * [extras] - Can be used to add flags to the request
@@ -193,7 +195,7 @@ _responseData = rawData == null ? null : deserialize<MatchDetailDto, MatchDetail
   ///
   /// Returns a [Future] containing a [Response] with a [MatchPageDto] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<MatchPageDto>> footballControllerMatchesV1({ 
+  Future<Response<MatchPageDto>> footballControllerMatchesV1({
     String? from,
     String? to,
     String? competitionId,
@@ -210,16 +212,10 @@ _responseData = rawData == null ? null : deserialize<MatchDetailDto, MatchDetail
     final _path = r'/v1/matches';
     final _options = Options(
       method: r'GET',
-      headers: <String, dynamic>{
-        ...?headers,
-      },
+      headers: <String, dynamic>{...?headers},
       extra: <String, dynamic>{
         'secure': <Map<String, String>>[
-          {
-            'type': 'http',
-            'scheme': 'bearer',
-            'name': 'bearer',
-          },
+          {'type': 'http', 'scheme': 'bearer', 'name': 'bearer'},
         ],
         ...?extra,
       },
@@ -247,9 +243,14 @@ _responseData = rawData == null ? null : deserialize<MatchDetailDto, MatchDetail
     MatchPageDto? _responseData;
 
     try {
-final rawData = _response.data;
-_responseData = rawData == null ? null : deserialize<MatchPageDto, MatchPageDto>(rawData, 'MatchPageDto', growable: true);
-
+      final rawData = _response.data;
+      _responseData = rawData == null
+          ? null
+          : deserialize<MatchPageDto, MatchPageDto>(
+              rawData,
+              'MatchPageDto',
+              growable: true,
+            );
     } catch (error, stackTrace) {
       throw DioException(
         requestOptions: _response.requestOptions,
@@ -273,10 +274,10 @@ _responseData = rawData == null ? null : deserialize<MatchPageDto, MatchPageDto>
   }
 
   /// footballControllerSquadsV1
-  /// 
+  ///
   ///
   /// Parameters:
-  /// * [matchId] 
+  /// * [matchId]
   /// * [cancelToken] - A [CancelToken] that can be used to cancel the operation
   /// * [headers] - Can be used to add additional headers to the request
   /// * [extras] - Can be used to add flags to the request
@@ -286,7 +287,7 @@ _responseData = rawData == null ? null : deserialize<MatchPageDto, MatchPageDto>
   ///
   /// Returns a [Future] containing a [Response] with a [SquadListDto] as data
   /// Throws [DioException] if API call or serialization fails
-  Future<Response<SquadListDto>> footballControllerSquadsV1({ 
+  Future<Response<SquadListDto>> footballControllerSquadsV1({
     required String matchId,
     CancelToken? cancelToken,
     Map<String, dynamic>? headers,
@@ -295,19 +296,18 @@ _responseData = rawData == null ? null : deserialize<MatchPageDto, MatchPageDto>
     ProgressCallback? onSendProgress,
     ProgressCallback? onReceiveProgress,
   }) async {
-    final _path = r'/v1/matches/{matchId}/squads'.replaceAll('{' r'matchId' '}', matchId.toString());
+    final _path = r'/v1/matches/{matchId}/squads'.replaceAll(
+      '{'
+      r'matchId'
+      '}',
+      matchId.toString(),
+    );
     final _options = Options(
       method: r'GET',
-      headers: <String, dynamic>{
-        ...?headers,
-      },
+      headers: <String, dynamic>{...?headers},
       extra: <String, dynamic>{
         'secure': <Map<String, String>>[
-          {
-            'type': 'http',
-            'scheme': 'bearer',
-            'name': 'bearer',
-          },
+          {'type': 'http', 'scheme': 'bearer', 'name': 'bearer'},
         ],
         ...?extra,
       },
@@ -325,9 +325,14 @@ _responseData = rawData == null ? null : deserialize<MatchPageDto, MatchPageDto>
     SquadListDto? _responseData;
 
     try {
-final rawData = _response.data;
-_responseData = rawData == null ? null : deserialize<SquadListDto, SquadListDto>(rawData, 'SquadListDto', growable: true);
-
+      final rawData = _response.data;
+      _responseData = rawData == null
+          ? null
+          : deserialize<SquadListDto, SquadListDto>(
+              rawData,
+              'SquadListDto',
+              growable: true,
+            );
     } catch (error, stackTrace) {
       throw DioException(
         requestOptions: _response.requestOptions,
@@ -349,5 +354,4 @@ _responseData = rawData == null ? null : deserialize<SquadListDto, SquadListDto>
       extra: _response.extra,
     );
   }
-
 }
