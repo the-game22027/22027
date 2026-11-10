@@ -14,7 +14,6 @@ flowchart LR
   P0 --> P5[P5 Question bank + import]
   D[Track D: Python KB + templates] --> P5
   P5 --> P6[P6 Quiz battles: engine + matchmaking + bots - CORE]
-  P4 --> P6
   P1 --> P7[P7 Friends + blocks + prediction visibility]
   P3 --> P7
   P6 --> P8[P8 Private battle rooms]
@@ -34,6 +33,8 @@ Changes vs the original proposed order, and why:
 - **Points ledger moves into P3** with predictions: scoring needs somewhere to write, and the ledger is what makes recalculation possible from day one.
 - **Leaderboards move up to P4:** predict → points → rank is the core loop; everything after it plugs into the same ledger.
 - **Quiz battles are core and come right after the points loop (P5-P6, ADR-0010).** The Daily Quiz phase is gone; the battle engine, matchmaking and bot fallback come first because they make the feature playable even with very few users.
+- **Order change (2026-11-10, product owner): question bank and battles (P5-P6) come before prediction scoring (P3.2-P3.3) and leaderboards (P4).** Prediction rules are not settled yet. The predictions and battles boards are separate (DEC-18), so battles do not wait for prediction scoring. They share only the generic plumbing (the `point_entries` ledger and the leaderboard projection), which is built at the end of P6 for the `BATTLES` category first; prediction scoring writes into the same ledger when it is picked up again.
+- **Scope change (2026-11-10, product owner; ADR-0015, ADR-0016): battles are several game types with typed answers, not multiple choice.** v1.0 games: Buzzer, Career, Who is the player?, Tiki Taka Toe (if the data supports it), and Imposter in private rooms (P8). Consequences: the P5.2 and P6 designs are rewritten before any code (step "G0" below); Track D becomes the critical path, because Career and Tiki Taka Toe need player career data and Arabic names that our local data does not have; no monetization at launch. The effort table below predates this change and is re-estimated when G0 is done.
 - **Friends before private rooms:** room joins need block checks (`social`), and friends are who you invite.
 - **MOTM moves later (P9):** it is independent and can slot anywhere after P2.
 - **Track D (Python knowledge base) runs in parallel** from P2 because it has no dependency on the NestJS code, only on the bundle contract. Battles can be played without limit, so the bank must be large before launch (risk K-09). P5-P6 can start with a small hand-written dev bundle.
@@ -91,15 +92,29 @@ Changes vs the original proposed order, and why:
 - **Exit:** rebuild equals incremental result on a seeded dataset; DST/new-year period tests; leaderboard page query uses the index (EXPLAIN check).
 
 ### Track D (parallel, Python) — Knowledge base + templates
+- **Added by ADR-0015, now first in line:** the answer catalog (players, clubs, national teams, competitions with Arabic and English names and alternative names) and player careers, from Wikidata (CC0). Our local openfootball copy has about 32,000 players but no career history.
 - `football_kb` raw/staging/core for a first small slice: martj42 international results + openfootball top-5 + World Cup; entity crosswalk; facts with provenance; 10-20 bilingual templates; deterministic validation; bundle writer. Ollama phrasing optional and off by default.
 - **Exit:** a bundle of ≥ 1,000 validated questions with a 200-question human review sample ≥ 98% correct (Arabic reviewed by a native speaker). **Before public launch:** several thousand questions, sized from expected battles per active user per week × `roundCount` against the exposure window (DEC-44, risk K-09).
+
+### G0 — Game types design (docs only, before P5.2 and P6)
+- Rewrite for ADR-0015: `WEBSOCKET.md` (reveal, buzz, typed answer, turns), `03-workflows.md` §4 (shared engine + game rules), `02-database.md` (rounds, buzzes, answers, answer catalog), `07` (catalog and content shapes in the bundle, Wikidata as the career source), `01-modules.md`. Data check for Tiki Taka Toe: enough players per club and country pair.
+- **Exit:** the four launch games can be walked through message by message from the docs; every number is named as configuration; the Tiki Taka Toe data check has a yes or no.
+- **Done (2026-11-10):** `architecture/08-battle-games.md` (engine + game rules + catalog); `WEBSOCKET.md`, `API.md`, `01`, `02`, `03`, `07` updated; data check passed for `GRID` and `CAREER` (`07` §4.1); Arabic names are the data gap.
+- **Order after G0:** D.1 (Wikidata → `football_kb`: players, clubs, careers, Arabic names; catalog export) → P5.2 (catalog + game content import, selection, answer checking; dev bundle rewritten as `BUZZER` + a few `CAREER` items) → P6.1 (engine + `BUZZER`, bot) → P6.2 (`CAREER`, `WHO_IS_PLAYER`) → P6.3 (matchmaking per game type, reconnect, forfeit, sweeper) → P6.4 (`GRID`). D.2 (generators for every game type) runs alongside P6.
 
 ### P5 — Question bank + import
 - Tables, `questions:import` / `publish` / `disable` CLI, selection queries (locale intersection, difficulty/category balance, exclusion list), answer key, playable payload mapper, question reports endpoint, `BattleCompleted` stats handler (can be wired in P6).
 - **Exit:** importing the same bundle twice is a no-op; a changed served question is versioned, not overwritten; payload mappers never expose correctness (test).
+- **Delivered in 2 PRs:**
+
+| PR | Scope | Learning cards |
+|---|---|---|
+| P5.1 Import | Question tables (stats tables come with their `BattleCompleted` handler in P6), bundle validation, `questions:import`, a hand-written dev bundle of about 50 EN/AR questions | Content hash, immutable served content, partial unique index, advisory locks |
+| P5.2 Catalog + game content | Answer catalog tables and import (`catalog.jsonl`), `GET /v1/answer-catalog` with `ETag`; `game_type` / `answer_kind` / `content` columns and `question_answers`; import checks per game type (`07` §5.5); `ContentSelector`, `RoundContentQuery`, `AnswerChecker`; `questions:publish` / `questions:disable`; question reports endpoint | To be named with the PR |
 
 ### P6 — Quiz battles: engine + matchmaking + bot fallback (CORE)
-- `/battles` gateway per `WEBSOCKET.md`; battle engine for 2..N participants; question selection with recent-exposure exclusion (DEC-44); readiness, rounds, answers, scoring and placements from the BATTLE rule set with per-mode points (DEC-33/41); persistence of every transition; reconnection/resync; forfeit; Redis matchmaking queue + matcher loop; bot fallback with `BotPlayer` profiles (DEC-39/43); activity guard; `GET /v1/me/play-state`; completion → outbox → ledger → leaderboards; stale battle sweeper.
+- **Rescoped by ADR-0015 (details in G0):** the engine is shared and each game type adds its rules. Build order: engine + the buzz mechanic with `BUZZER`, then `CAREER` and `WHO_IS_PLAYER` (same mechanic, new content), then `GRID`. The text below still describes the shared parts; "answers" now means buzzes and typed answers.
+- `/battles` gateway per `WEBSOCKET.md`; battle engine for 2..N participants; question selection with recent-exposure exclusion (DEC-44); readiness, rounds, answers, scoring and placements from the BATTLE rule set with per-mode points (DEC-33/41); persistence of every transition; reconnection/resync; forfeit; Redis matchmaking queue + matcher loop; bot fallback with `BotPlayer` profiles (DEC-39/43); activity guard; `GET /v1/me/play-state`; completion → outbox → ledger → leaderboards (the generic `points` ledger and the leaderboard projection are built here for the `BATTLES` category, see the order change above); stale battle sweeper.
 - **Exit:** WebSocket test suite for happy path, duplicate/late/out-of-order messages, disconnect/reconnect, forfeit, ready timeout; bot fallback fires after the configured wait and the bot battle replays identically with a fixed seed; two rule-set configs give different per-mode points (proves DEC-41 is config); a 3-participant battle runs in tests even though matchmaking only makes 1v1.
 
 ### P7 — Friends + blocks + prediction visibility
@@ -181,8 +196,9 @@ Estimates are **focused working days for one developer using coding agents**, in
 | Stage | Phases (in order) | Focused days |
 |---|---|---|
 | A. Foundation | P0, M0 | 5-8 |
-| B. Predict → points → rank | P1, M1, P2, P3, P4, M2 | 23-33 |
-| C. Quiz battles (core) | P5, P6, M3, P7, P8, M4 | 27-38 |
+| B. Predict (submit only) | P1, M1, P2, P3.1 | 13-19 |
+| C. Quiz battles (core) | P5, P6 (with the generic ledger + battles board), M3, P7, P8, M4 | 32-45 |
+| C2. Predictions scoring | P3.2, P3.3, P4 for the predictions board, M2 | 10-14 |
 | Parallel content | Track D (start during stage B; keep going until launch volume, K-09) | 10-15 |
 | D. Rest of the product | P9, P10, M5, P11 (+ Facebook/X in the app) | 14-22 |
 | E. Release v1.0 | R1 (fixtures, results, lineups), P12, R2 | 12-20 + 14 days closed test |

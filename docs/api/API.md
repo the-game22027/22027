@@ -97,6 +97,8 @@ Content-Type: application/problem+json
 | `ROOM_NOT_IN_LOBBY` | 409 | Room is playing a battle |
 | `ROOM_NOT_HOST` | 403 | Host-only action |
 | `ROOM_NOT_ENOUGH_PLAYERS` | 409 | Start with fewer than 2 members |
+| `GAME_TYPE_UNAVAILABLE` | 409 | The game type is switched off in config (matchmaking join, room create or update) |
+| `GAME_TYPE_PLAYER_COUNT` | 409 | The room's member count does not fit the game type (`GRID` needs exactly 2, DEC-61) |
 | `FRIEND_REQUEST_EXISTS` / `ALREADY_FRIENDS` | 409 | Social |
 | `LEAGUE_FULL` | 409 | Membership limit (DEC-22) |
 | `LEAGUE_INVITE_INVALID` | 404 | Unknown/expired/revoked code |
@@ -153,19 +155,24 @@ interface MotmPoll { matchId: string; status: 'PENDING'|'OPEN'|'CLOSED'|'FINALIZ
 interface CastVoteRequest { playerId: string }
 
 // ---- Quiz battles (only quiz mode; real-time play happens on WebSocket) ----
-interface MatchmakingTicket { ticketId: string; status: 'QUEUED' | 'MATCHED' | 'TIMED_OUT' | 'CANCELLED';
+type GameType = 'BUZZER' | 'CAREER' | 'WHO_IS_PLAYER' | 'GRID';         // ADR-0015; tolerate unknown values
+interface MatchmakingTicket { ticketId: string; gameType: GameType; status: 'QUEUED' | 'MATCHED' | 'TIMED_OUT' | 'CANCELLED';
   queuedAt: string; botFallbackAt?: string | null; battleId?: string }
+interface AnswerCatalog { version: string; entities: { id: string; kind: 'PLAYER'|'CLUB'|'NATIONAL_TEAM'|'COMPETITION'|'COACH';
+  names: { en: string; ar: string }; search: string[]; popularity: number }[] }   // search = normalized names + aliases (07 §5.7)
 interface BattlePlayer { participantId: string; kind: 'HUMAN' | 'BOT'; user?: PublicUser;
   bot?: { displayName: string; avatarUrl?: string | null }; seat: number }      // bots always labeled (DEC-40)
 interface BattleRoom { id: string; code: string; status: 'LOBBY' | 'IN_BATTLE' | 'CLOSED';
   host: PublicUser; members: { user: PublicUser; joinedAt: string }[];
-  maxPlayers: number; expiresAt: string; currentBattleId?: string | null; createdAt: string }
-interface BattleSummary { id: string; mode: 'MATCHMAKING' | 'ROOM'; hasBot: boolean; status: string;
+  maxPlayers: number; gameType: GameType; expiresAt: string; currentBattleId?: string | null; createdAt: string }
+interface BattleSummary { id: string; gameType: GameType; mode: 'MATCHMAKING' | 'ROOM'; hasBot: boolean; status: string;
   players: BattlePlayer[]; myScore: number; myPlacement?: number | null;
   outcome?: 'WIN'|'LOSS'|'DRAW' | null; endedAt?: string | null; endReason?: string | null }
 interface BattleDetail extends BattleSummary {           // after completion only: no live answers leak
-  rounds: { roundNo: number; questionId: string; text: string; correctOptionId: string;
-    answers: { participantId: string; optionId: string | null; correct: boolean; points: number; elapsedMs: number }[] }[] }
+  rounds: { roundNo: number; questionId: string; reveal: unknown;          // same shape as WS round:result.reveal
+    winnerParticipantIds: string[];
+    actions: { participantId: string; kind: string; answer?: { entityId: string; name: string } | { number: number };
+      cell?: number; correct?: boolean; points: number }[] }[] }
 interface PlayState { queue?: MatchmakingTicket | null; room?: BattleRoom | null;
   battle?: { battleId: string; status: string } | null; serverTime: string }   // app resume
 
@@ -247,8 +254,9 @@ Legend: **Auth** P = public, U = authenticated user. **MVP** ✅ / Future 🔜.
 | | Method | Path | Auth | Purpose / notes |
 |---|---|---|---|---|
 | ✅ | POST | `/v1/questions/{questionId}/reports` | U | Report a wrong question `{reason}` (only questions the caller was served in a battle); feeds moderation |
+| ✅ | GET | `/v1/answer-catalog` | U | `AnswerCatalog`: every entity a typed answer can be, for on-device search (DEC-55, `08-battle-games.md` §5.2). Large and rarely changing: `ETag` + `If-None-Match` (`304`), gzip, long cache. The app downloads it before the first battle and refreshes it when `version` changes |
 
-The Daily Quiz endpoints were removed (ADR-0010). Questions are served only inside battles over WebSocket.
+The Daily Quiz endpoints were removed (ADR-0010). Round content is served only inside battles over WebSocket, step by step.
 
 ### 6.7 Quiz battles (REST side; real-time on WebSocket)
 
@@ -257,12 +265,13 @@ Matchmaking can also be joined over WS (`matchmaking:join`). Room lifecycle is R
 | | Method | Path | Auth | Purpose / notes |
 |---|---|---|---|---|
 | ✅ | GET | `/v1/me/play-state` | U | `PlayState`: current queue ticket, room, or battle (app resume after restart) |
-| ✅ | POST | `/v1/battles/matchmaking` | U | Join the 1v1 queue → `MatchmakingTicket` (`409 PLAYER_BUSY`). Bot fallback after `botFallbackAt` (DEC-39) |
+| ✅ | POST | `/v1/battles/matchmaking` | U | `{gameType}` → join that game's 1v1 queue (DEC-59) → `MatchmakingTicket` (`409 PLAYER_BUSY` / `GAME_TYPE_UNAVAILABLE`). Bot fallback after `botFallbackAt` (DEC-39) |
 | ✅ | DELETE | `/v1/battles/matchmaking` | U | Leave the queue (`204`; no-op if not queued) |
-| ✅ | POST | `/v1/battle-rooms` | U | Create a private room (`Idempotency-Key`) → `201 BattleRoom` with its `code`; caller is host (`409 PLAYER_BUSY`) |
+| ✅ | POST | `/v1/battle-rooms` | U | `{gameType}` → create a private room (`Idempotency-Key`) → `201 BattleRoom` with its `code`; caller is host (`409 PLAYER_BUSY` / `GAME_TYPE_UNAVAILABLE`) |
+| ✅ | PATCH | `/v1/battle-rooms/{roomId}` | U (host) | `{gameType}` while in `LOBBY` → `BattleRoom` (`409 ROOM_NOT_IN_LOBBY` / `GAME_TYPE_UNAVAILABLE`); members get `room:updated` |
 | ✅ | POST | `/v1/battle-rooms/join` | U | `{code}` → `200 BattleRoom` (`404 ROOM_NOT_FOUND`, `409 ROOM_FULL` / `ROOM_NOT_IN_LOBBY` / `PLAYER_BUSY`); strict rate limit |
 | ✅ | GET | `/v1/battle-rooms/{roomId}` | U (member) | `BattleRoom` |
-| ✅ | POST | `/v1/battle-rooms/{roomId}/start` | U (host) | Start a battle with all current members → `202 {battleId}` (`409 ROOM_NOT_ENOUGH_PLAYERS`); repeat call returns the same battle |
+| ✅ | POST | `/v1/battle-rooms/{roomId}/start` | U (host) | Start a battle of the room's game type with all current members → `202 {battleId}` (`409 ROOM_NOT_ENOUGH_PLAYERS` / `GAME_TYPE_PLAYER_COUNT`); repeat call returns the same battle |
 | ✅ | DELETE | `/v1/battle-rooms/{roomId}/members/{userId}` | U (self, or host in `LOBBY`) | Leave, or host removes a member (`204`). Host leaving transfers host |
 | ✅ | DELETE | `/v1/battle-rooms/{roomId}` | U (host) | Close the room (`204`) |
 | ✅ | GET | `/v1/battles/{battleId}` | U (participant) | `BattleSummary` while running; `BattleDetail` after completion |

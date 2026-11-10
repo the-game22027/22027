@@ -78,6 +78,13 @@ New tracks are added when the first card needs one.
 | [backend/simulating-time](backend/simulating-time.md) | P2 | Plan the steps as pure data; speed only divides the waits |
 | [database/database-clock-deadlines](database/database-clock-deadlines.md) | P3 | One clock judges the deadline: `now()` in SQL |
 | [database/shared-vs-exclusive-locks](database/shared-vs-exclusive-locks.md) | P3 | `FOR SHARE` for many readers, `FOR UPDATE` for one writer |
+| [backend/content-hash](backend/content-hash.md) | P5 | Fingerprint what matters; one string tells same from changed |
+| [backend/immutable-served-content](backend/immutable-served-content.md) | P5 | Once players may have seen it, add a version instead of editing |
+| [database/partial-unique-index](database/partial-unique-index.md) | P5 | Unique only among rows matching a `WHERE`: one correct option |
+| [database/advisory-locks](database/advisory-locks.md) | P5 | Lock a name, not a row, when there is no row to lock yet |
+| [architecture/functional-core-imperative-shell](architecture/functional-core-imperative-shell.md) | G0 | Pure rules return effects; the engine does the I/O |
+| [backend/one-at-a-time-per-game](backend/one-at-a-time-per-game.md) | G0 | One input queue per battle makes "first buzz" exact |
+| [database/wikidata-truthy-vs-full-statements](database/wikidata-truthy-vs-full-statements.md) | G0 | `wdt:` hides former clubs; read `p:/ps:/pq:` |
 | [mobile/generated-rest-client](mobile/generated-rest-client.md) | M0 | The contract generates the client; regenerate, never hand-edit |
 | [mobile/secure-token-storage](mobile/secure-token-storage.md) | M0 | Tokens in the OS keystore; the server's 401 decides expiry |
 | [mobile/riverpod-providers-as-di](mobile/riverpod-providers-as-di.md) | M0 | Providers build dependencies; tests swap them with overrides |

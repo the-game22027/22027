@@ -14,6 +14,7 @@ Status: **Architecture Design v0.1 (2026-11-07)**. Everything marked *Pending* n
 6. [`architecture/05-background-jobs.md`](architecture/05-background-jobs.md): what is async, queues, retries, idempotency.
 7. [`architecture/06-cross-cutting.md`](architecture/06-cross-cutting.md): security, scalability, observability, testing.
 8. [`architecture/07-football-data-and-questions.md`](architecture/07-football-data-and-questions.md): mock data, provider port, knowledge DB, offline question generation with Ollama.
+8b. [`architecture/08-battle-games.md`](architecture/08-battle-games.md): the game types (Buzzer, Career, Who is the player?, Grid) on one shared engine, typed answers and the answer catalog.
 9. [`api/API.md`](api/API.md): REST contract (conventions + endpoint inventory).
 10. [`api/WEBSOCKET.md`](api/WEBSOCKET.md): real-time quiz battle protocol (battles, matchmaking, room lobby pushes).
 11. [`DECISIONS.md`](DECISIONS.md): open decisions register (TBD items, options, recommendations).

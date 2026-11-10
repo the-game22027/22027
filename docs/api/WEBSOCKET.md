@@ -5,7 +5,8 @@ Transport: **Socket.IO** (via `@nestjs/websockets` + `@nestjs/platform-socket.io
 Design rules:
 - The server is authoritative. WebSocket delivery is treated as **unordered, at-least-once, lossy**; durability lives in PostgreSQL.
 - Battles have **2..N participants**. A participant is a `HUMAN` or a `BOT` (ADR-0010). Random matchmaking is always 1v1; private rooms can be larger (DEC-38).
-- Rule values (round count, timers, scoring, room size, bot wait) come from config and stay TBD (DEC-31..33, 38..44).
+- Every battle plays one **game type** (`gameType`: `BUZZER`, `CAREER`, `WHO_IS_PLAYER`, `GRID`; ADR-0015). Game mechanics: `architecture/08-battle-games.md`. Answers are typed and sent as **entity ids** picked from the answer catalog, never as free text (DEC-55).
+- Rule values (round count, timers, scoring, room size, bot wait) come from config and stay TBD (DEC-31..33, 38..44, 54, 60, 61).
 - **Room lifecycle commands are REST** (`API.md` §6.7: create, join by code, leave, remove, start, close). This namespace **pushes** lobby changes and carries all battle traffic.
 
 ## 1. Connection
@@ -57,8 +58,13 @@ interface BattlePlayer {
 interface BattleRoomSnapshot {      // same shape as REST BattleRoom (API.md §5)
   id: string; code: string; status: 'LOBBY' | 'IN_BATTLE' | 'CLOSED';
   host: PublicUser; members: { user: PublicUser; joinedAt: string }[];
-  maxPlayers: number; expiresAt: string; currentBattleId?: string | null;
+  maxPlayers: number; gameType: GameType; expiresAt: string; currentBattleId?: string | null;
 }
+type GameType = 'BUZZER' | 'CAREER' | 'WHO_IS_PLAYER' | 'GRID';          // clients must tolerate unknown values
+type AnswerKind = 'PLAYER' | 'CLUB' | 'NATIONAL_TEAM' | 'COMPETITION' | 'COACH' | 'NUMBER';
+type Answer = { entityId: string } | { number: number };                 // never free text (DEC-55)
+interface EntityRef { entityId: string; name: string }                   // name in the viewer's locale
+interface GridCriterion { kind: 'CLUB' | 'NATIONALITY' | 'COMPETITION_WON'; entity: EntityRef }
 ```
 
 ## 3. Client → server commands
@@ -66,11 +72,14 @@ interface BattleRoomSnapshot {      // same shape as REST BattleRoom (API.md §5
 | Event | Payload | Rules | Ack errors |
 |---|---|---|---|
 | `time:sync` | `{ t0 }` (client ms) | Any time | — (ack carries `{ t0, serverTime }`) |
-| `matchmaking:join` | `{ clientMsgId }` | Caller has no other activity (queue, room, battle) | `PLAYER_BUSY`, `RATE_LIMITED` |
+| `matchmaking:join` | `{ clientMsgId, gameType }` | Caller has no other activity (queue, room, battle). One queue per game type (DEC-59) | `PLAYER_BUSY`, `RATE_LIMITED`, `GAME_TYPE_UNAVAILABLE` |
 | `matchmaking:leave` | `{ clientMsgId }` | — (no-op if not queued) | — |
 | `room:resync` | `{ clientMsgId, roomId }` | Caller is a member | `ROOM_NOT_FOUND` (ack carries `BattleRoomSnapshot`) |
 | `battle:ready` | `{ clientMsgId, battleId }` | Participant; battle `WAITING_READY`; sets the active socket | `NOT_PARTICIPANT`, `INVALID_STATE` |
-| `round:answer` | `{ clientMsgId, battleId, roundNo, optionId }` | Active socket; battle `IN_PROGRESS`; `roundNo` = current open round; receive time ≤ `deadlineAt + latencyGrace`; first answer per participant per round wins | `ROUND_CLOSED`, `ROUND_NOT_CURRENT`, `ALREADY_ANSWERED`, `INVALID_OPTION`, `NOT_ACTIVE_SOCKET`, `PARTICIPANT_FORFEITED` |
+| `round:buzz` | `{ clientMsgId, battleId, roundNo }` | Reveal-and-buzz games. Active socket; round `REVEALING` or `FINAL_WINDOW`; sender not locked out; nobody holds the buzz. The first accepted buzz wins (server arrival order) | `BUZZ_TAKEN`, `LOCKED_OUT`, `ROUND_CLOSED`, `ROUND_NOT_CURRENT`, `WRONG_GAME_TYPE`, `NOT_ACTIVE_SOCKET`, `PARTICIPANT_FORFEITED` |
+| `round:answer` | `{ clientMsgId, battleId, roundNo, answer: Answer }` | Reveal-and-buzz games. Only the buzz holder, once per buzz, received ≤ `answerDeadlineAt + latencyGrace`. Correctness arrives as an event, not in the ack | `NOT_BUZZ_HOLDER`, `ANSWER_WINDOW_CLOSED`, `UNKNOWN_ENTITY` (wrong id or wrong `answerKind`), `ROUND_CLOSED`, `NOT_ACTIVE_SOCKET` |
+| `grid:claim` | `{ clientMsgId, battleId, roundNo, cell: { row, col }, answer: { entityId } }` | `GRID`. Sender's turn, received ≤ `turnDeadlineAt + latencyGrace`; cell free; player not already used on this board | `NOT_YOUR_TURN`, `CELL_TAKEN`, `PLAYER_ALREADY_USED`, `UNKNOWN_ENTITY`, `TURN_CLOSED`, `NOT_ACTIVE_SOCKET` |
+| `grid:skip` | `{ clientMsgId, battleId, roundNo }` | `GRID`. Sender's turn | `NOT_YOUR_TURN`, `TURN_CLOSED` |
 | `battle:resync` | `{ clientMsgId, battleId, lastSeq }` | Participant | `NOT_PARTICIPANT` (ack carries the snapshot) |
 | `battle:forfeit` | `{ clientMsgId, battleId }` | Participant; battle not finished | `INVALID_STATE` |
 | `auth:refresh` | `{ token }` | — | `UNAUTHENTICATED` |
@@ -102,17 +111,23 @@ When the host starts the room, members receive `battle:found` with `mode: "ROOM"
 
 | Type | Data | When |
 |---|---|---|
-| `battle:found` | `{ battleId, mode: "MATCHMAKING" \| "ROOM", roomId?, players: BattlePlayer[], youParticipantId, config: { roundCount, roundMs, readyTimeoutMs }, readyDeadlineAt }` | Participants formed. The client joins the battle channel automatically |
+| `battle:found` | `{ battleId, gameType, mode: "MATCHMAKING" \| "ROOM", roomId?, players: BattlePlayer[], youParticipantId, config, readyDeadlineAt }` | Participants formed. `config` is the game type's public config (round count, timers, attempts). The client joins the battle channel automatically |
 | `battle:cancelled` | `{ reason: "READY_TIMEOUT" \| "SERVER" }` | Before start: fewer than 2 participants ready |
 | `battle:started` | `{ startedAt, players: BattlePlayer[] }` | Start. `players` excludes anyone dropped for not being ready |
-| `round:start` | `{ roundNo, question: { questionId, text, category, options: [{ optionId, text }] }, startedAt, deadlineAt }` | Each round. No correctness. Option order may differ per player (DEC-44) |
-| `round:player-answered` | `{ roundNo, participantId }` | Another participant submitted (not what they chose) |
-| `round:result` | `{ roundNo, correctOptionId, you: { optionId, correct, points, elapsedMs }, players: [{ participantId, answered, correct, points }], scores: [{ participantId, score }] }` | Round closed |
+| `round:start` | Reveal and buzz: `{ roundNo, gameType, answerKind, stepCount, category? }`. Grid: `{ roundNo, gameType, rows: GridCriterion[3], cols: GridCriterion[3], firstTurnParticipantId }` | Each round. Never contains unrevealed steps or accepted answers |
+| `round:clue` | `{ roundNo, index, clue: string, nextClueAt: string \| null }` | Reveal and buzz: step `index` (1-based) revealed, text in the viewer's locale. `nextClueAt` is null after the last step (final window) |
+| `round:buzzed` | `{ roundNo, participantId, answerDeadlineAt }` | A buzz was accepted; the reveal is paused |
+| `round:wrong` | `{ roundNo, participantId, answer?: EntityRef \| { number } , timedOut: boolean }` | The buzz holder answered wrong or ran out of time and is locked out. `answer` is present only when `showWrongAnswers` is on (DEC-60) |
+| `round:resumed` | `{ roundNo, nextClueAt: string \| null }` | Reveal continues after a wrong answer (or the final window continues) |
+| `grid:turn` | `{ roundNo, participantId, turnDeadlineAt, attemptsLeft }` | Grid: whose turn it is |
+| `grid:claimed` | `{ roundNo, cell, participantId, player: EntityRef }` | Grid: a correct answer took the cell |
+| `grid:missed` | `{ roundNo, cell, participantId, answer?: EntityRef, timedOut: boolean, skipped: boolean }` | Grid: a wrong answer, a timeout or a skip. `answer` only when `showWrongAnswers` is on |
+| `round:result` | `{ roundNo, winnerParticipantIds: string[], reveal, points: [{ participantId, points }], scores: [{ participantId, score }] }` | Round closed. `winnerParticipantIds` holds the round winner (the correct answerer, or the grid line owner); it is empty when nobody won or the grid was a draw. `reveal`: reveal and buzz: `{ steps: string[], answer: EntityRef \| { number }, explanation? }`; grid: `{ line?: cell[3], sampleAnswers: [{ cell, player: EntityRef }] }` |
 | `player:disconnected` | `{ participantId, graceUntil }` | A human's last socket dropped |
 | `player:reconnected` | `{ participantId }` | |
 | `player:forfeited` | `{ participantId, reason: "GRACE_EXPIRED" \| "FORFEIT" \| "NOT_READY" }` | Participant out of the battle |
 | `battle:completed` | `{ endReason, you: { placement, outcome: "WIN" \| "LOSS" \| "DRAW", score }, placements: [{ participantId, placement, score }], pointsPending: boolean }` | End. Ledger points arrive asynchronously; `pointsPending` is false when this mode earns none (DEC-41) |
-| `battle:snapshot` | `{ status, mode, players, currentRound?, deadlineAt?, rounds: [...my answers + results so far], scores, seq }` | Reply to resync and on reconnect |
+| `battle:snapshot` | `{ status, gameType, mode, players, currentRound?: { roundNo, phase, revealedClues \| board, buzzHolder?, lockedOut[], deadlines }, rounds: [...results so far], scores, seq }` | Reply to resync and on reconnect. Contains only what was already revealed |
 
 ### 4.4 Session
 
@@ -121,19 +136,19 @@ When the host starts the room, members receive `battle:found` with `mode: "ROOM"
 | `auth:expiring` / `auth:revoked` | `{ expiresAt }` / `{}` | Session lifecycle |
 | `error` | `{ code, message }` | Protocol violations not tied to an ack |
 
-Question text is localized per player, with the locale fixed at battle creation. All players get the same question ids in the same order.
+Clue text and entity names are localized per player, with the locale fixed at battle creation. All players get the same content in the same order, and in `BUZZER` every locale has the same number of reveal steps, so everyone sees the same share of the question at the same time (`08` §3.1).
 
 ## 5. Timing
 
-- The server is the only clock for scoring. `startedAt` and `deadlineAt` are server timestamps.
-- Clients compute `offset = serverTime − (t0 + rtt/2)` from `time:sync` (repeat 3-5 times, keep the lowest RTT) and render countdowns as `deadlineAt − (Date.now() + offset)`.
-- `latencyGrace` (config, small) tolerates network delay; answers received after `deadlineAt + latencyGrace` get `ROUND_CLOSED`.
-- `elapsedMs = receivedAt − startedAt` (server times) feeds any speed component of scoring (DEC-33).
-- A round closes early when every active participant has answered.
+- The server is the only clock. `startedAt`, `nextClueAt`, `answerDeadlineAt` and `turnDeadlineAt` are server timestamps.
+- Clients compute `offset = serverTime − (t0 + rtt/2)` from `time:sync` (repeat 3-5 times, keep the lowest RTT) and render countdowns as `deadline − (Date.now() + offset)`.
+- The client shows a clue when its `round:clue` arrives, not on its own timer. `nextClueAt` is for animations only.
+- `latencyGrace` (config, small) tolerates network delay on answers and claims; later ones get `ANSWER_WINDOW_CLOSED` / `TURN_CLOSED`.
+- **Buzz order is the order in which the server receives buzzes** (`08` §7). Clients may send their local time in metrics fields; the server never uses it to decide.
 
 ## 6. Disconnects and reconnection
 
-1. Disconnect → the server records `disconnected_at` and emits `player:disconnected { participantId, graceUntil }` to the others. The battle **continues**; missed rounds are timeouts.
+1. Disconnect → the server records `disconnected_at` and emits `player:disconnected { participantId, graceUntil }` to the others. The battle **continues**: a disconnected player simply does not buzz; a held buzz runs out as a wrong answer; a grid turn runs out as a timeout.
 2. Reconnect within grace → the client connects and emits `battle:resync { lastSeq }`. The server replies with `battle:snapshot` and resumes normal events; the others get `player:reconnected`.
 3. Grace expired → that participant forfeits (`player:forfeited`). With one active participant left, the battle ends with `endReason: "FORFEIT"`. In a room battle with 3 or more players, the rest keep playing.
 4. No active human left → `ABANDONED` (scoring policy for abandoned battles: DEC-33, default no points). A bot never keeps a battle alive alone.
@@ -151,18 +166,38 @@ Question text is localized per player, with the locale fixed at battle creation.
 ## 8. Example: matchmaking falls back to a bot
 
 ```
-C→S matchmaking:join {clientMsgId:a1}                         ack {accepted:true}
+C→S matchmaking:join {clientMsgId:a1, gameType:"CAREER"}      ack {accepted:true}
 S→C matchmaking:queued {ticketId, queuedAt, botFallbackAt}
     ... no human found before botFallbackAt ...
-S→C battle:found {battleId:B, mode:"MATCHMAKING", players:[{you, HUMAN}, {kind:"BOT", bot:{displayName}}], youParticipantId:P1, config, readyDeadlineAt}  seq 1
+S→C battle:found {battleId:B, gameType:"CAREER", mode:"MATCHMAKING", players:[{you, HUMAN}, {kind:"BOT", bot:{displayName}}], youParticipantId:P1, config, readyDeadlineAt}  seq 1
 C→S battle:ready {clientMsgId:a2, battleId:B}                 ack {accepted:true}
 S→C battle:started {players}                                    seq 2
-S→C round:start {roundNo:1, question, deadlineAt}              seq 3
-S→C round:player-answered {roundNo:1, participantId:P2}        seq 4   (the bot's scheduled answer)
-C→S round:answer {clientMsgId:a3, battleId:B, roundNo:1, optionId:o2}   ack {accepted:true}
-S→C round:result {roundNo:1, correctOptionId:o2, you, players, scores}  seq 5
+S→C round:start {roundNo:1, gameType:"CAREER", answerKind:"PLAYER", stepCount:6}   seq 3
+S→C round:clue {roundNo:1, index:1, clue:"سبورتنج لشبونة (2002–2003)", nextClueAt}  seq 4
+S→C round:clue {roundNo:1, index:2, clue:"مانشستر يونايتد (2003–2009)", nextClueAt} seq 5
+S→C round:buzzed {roundNo:1, participantId:P2, answerDeadlineAt}  seq 6   (the bot buzzes; reveal paused)
+S→C round:wrong {roundNo:1, participantId:P2, answer:{entityId, name:"ناني"}, timedOut:false}  seq 7
+S→C round:resumed {roundNo:1, nextClueAt}                       seq 8
+S→C round:clue {roundNo:1, index:3, clue:"ريال مدريد (2009–2018)", nextClueAt}    seq 9
+C→S round:buzz {clientMsgId:a3, battleId:B, roundNo:1}         ack {accepted:true}
+S→C round:buzzed {roundNo:1, participantId:P1, answerDeadlineAt}  seq 10
+    (the app searches the downloaded answer catalog as the player types "رونا", the player picks a suggestion)
+C→S round:answer {clientMsgId:a4, battleId:B, roundNo:1, answer:{entityId:"…"}}  ack {accepted:true}
+S→C round:result {roundNo:1, winnerParticipantIds:[P1], reveal:{steps:[…6 clubs], answer:{entityId, name:"كريستيانو رونالدو"}}, points, scores}  seq 11
 ...  (rounds per config)
 S→C battle:completed {endReason:"COMPLETED", you:{placement:1, outcome:"WIN"}, placements, pointsPending:false}  seq N
+```
+
+## 8b. Example: grid turn
+
+```
+S→C round:start {roundNo:1, gameType:"GRID", rows:[Real Madrid, Barcelona, Juventus], cols:[Brazil, France, Argentina], firstTurnParticipantId:P1}
+S→C grid:turn {roundNo:1, participantId:P1, turnDeadlineAt, attemptsLeft:1}
+C→S grid:claim {clientMsgId:c1, battleId:B, roundNo:1, cell:{row:0,col:1}, answer:{entityId:<Zidane>}}   ack {accepted:true}
+S→C grid:claimed {roundNo:1, cell:{row:0,col:1}, participantId:P1, player:{entityId, name:"Zinedine Zidane"}}
+S→C grid:turn {roundNo:1, participantId:P2, turnDeadlineAt, attemptsLeft:1}
+    ... until a line or a full board ...
+S→C round:result {roundNo:1, winnerParticipantIds:[P1], reveal:{line:[[0,1],[1,1],[2,1]], sampleAnswers}, points, scores}
 ```
 
 ## 9. Example: private room

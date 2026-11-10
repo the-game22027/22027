@@ -80,10 +80,10 @@ Format per module: **Purpose · Responsibilities · Owned tables · Public inter
 - **Must not:** score predictions itself (predictions consumes the result).
 
 ### 2.6 `question-bank`
-- **Purpose:** The playable question content.
-- **Responsibilities:** Import validated bundles (idempotent by `external_key` + `content_hash`); store translations and options; status workflow `DRAFT → APPROVED → PUBLISHED → DISABLED`; selection queries (by difficulty, category, locale availability, exclusion lists); answer keys; usage statistics.
-- **Owned tables:** `questions`, `question_translations`, `question_options`, `question_option_translations`, `question_categories`, `question_import_batches`, `question_stats`, `question_stats_applied`.
-- **Public interface:** `QuestionSelector.pick(criteria) → questionIds`, `QuestionQuery.getPlayable(ids, locale)` (never includes correctness), `AnswerKey.isCorrect(questionId, optionId)`, `QuestionBankFacade.disable(id, reason)`.
+- **Purpose:** The playable round content of every game type, and the answer catalog (ADR-0015, `08-battle-games.md` §4-5).
+- **Responsibilities:** Import validated bundles (idempotent by `external_key` + `content_hash`; catalog upsert by `external_ref`); status workflow `DRAFT → APPROVED → PUBLISHED → DISABLED`; selection queries per game type (difficulty, category, locale availability, exclusion lists); accepted answers; serving the answer catalog snapshot; usage statistics.
+- **Owned tables:** `questions`, `question_translations`, `question_options`, `question_option_translations` (legacy, unused by games), `question_answers`, `answer_entities`, `answer_entity_aliases`, `question_categories`, `question_import_batches`, `question_stats`, `question_stats_applied`.
+- **Public interface:** `ContentSelector.pick(gameType, criteria) → contentIds`, `RoundContentQuery.getForEngine(id, locales)` (full content for the server-side engine only; never sent to clients as is), `AnswerChecker.isAcceptedAnswer(contentId, slot, entityId)`, `AnswerCatalogQuery.findEntities(ids, locale)` (names for events) and `getSnapshot()` (for `GET /v1/answer-catalog`), `QuestionBankFacade.disable(id, reason)`.
 - **Depends on:** nothing.
 - **Publishes:** `QuestionsPublished`, `QuestionDisabled`.
 - **Consumes:** `BattleCompleted` (its `questionResults` summary updates `question_stats`; deduplicated by battle id in `question_stats_applied`).
@@ -97,15 +97,16 @@ Removed with the Daily Quiz (ADR-0010, 2026-11-07). The section number is kept s
 - **Responsibilities:**
   - **Matchmaking:** 1v1 Redis queue (strategy DEC-37), plus a bot fallback after a configured wait (DEC-39).
   - **Private rooms:** create a room with a unique code; join by code; lobby (members, host, leave, remove, host transfer); host starts (DEC-38); rematch and idle expiry (DEC-42).
-  - **Battle engine:** 2..N participants (`HUMAN` or `BOT`); question selection with per-player exposure exclusion (DEC-44); readiness; rounds with server deadlines; answer validation (first valid answer per participant per round, idempotent by `clientMsgId`); scoring and placements with the active BATTLE rule set (DEC-33); disconnect grace, reconnection and snapshot resync; forfeits; completion; persistence of every state transition.
+  - **Battle engine:** 2..N participants (`HUMAN` or `BOT`); one game type per battle, whose game rules run inside the engine (`08-battle-games.md` §2); content selection with per-player exposure exclusion (DEC-44); readiness; rounds; one battle's commands processed one at a time in arrival order (first buzz wins); idempotency by `clientMsgId`; scoring and placements with the active BATTLE rule set (DEC-33); disconnect grace, reconnection and snapshot resync; forfeits; completion; persistence of every state transition.
+  - **Game rules:** `RevealAndBuzzRules` (`BUZZER`, `CAREER`, `WHO_IS_PLAYER`) and `GridRules` (`GRID`), pure domain code with their bot strategies.
   - **Bots:** server-side participants driven by bot profiles (DEC-43) and an injected random source. They answer through the same path as humans.
   - **One activity per user:** a user can be in the matchmaking queue, a room lobby, or a battle, never two at once.
-- **Owned tables:** `battle_rooms`, `battle_room_members`, `battles`, `battle_participants`, `battle_rounds`, `battle_answers`. Redis keys: `mm:*` (queue, tickets) and `act:*` (current activity per user).
+- **Owned tables:** `battle_rooms`, `battle_room_members`, `battles`, `battle_participants`, `battle_rounds`, `battle_round_actions`. Redis keys: `mm:*` (queue, tickets) and `act:*` (current activity per user).
 - **Public interface:** WS namespace `/battles` (`api/WEBSOCKET.md`). REST through `MatchmakingFacade.join()/leave()`, `RoomsFacade.create()/join(code)/leave()/remove()/start()/close()`, `BattleQuery.get(id, viewer)`, `BattleQuery.listForUser(userId, cursor)`, `PlayStateQuery.get(userId)` (current queue, room or battle, used for app resume).
 - **Depends on:** `question-bank` (selector + answer key + playable payloads), `points` (active BATTLE rule set), `users` (public profiles), `social` (`isBlocked` checks when joining rooms).
-- **Publishes:** `BattleCompleted {battleId, mode, hasBot, roomId?, participants[{participantId, kind, userId?, score, placement, outcome, points}], questionResults[{questionId, answered, correct, totalElapsedMs}], endedAt}` (`questionResults` has one item per round, so the payload stays small).
+- **Publishes:** `BattleCompleted {battleId, gameType, mode, hasBot, roomId?, participants[{participantId, kind, userId?, score, placement, outcome, points}], questionResults[{questionId, endReason, stepsRevealed?, wrongAnswers, solved}], endedAt}` (`questionResults` has one item per round, so the payload stays small; it feeds difficulty calibration).
 - **Consumes:** `UserDeleted` (remove from queue and rooms, anonymize participants).
-- **Must not:** let the client advance rounds, decide correctness, or report scores; create bots as `users` rows; give bots ledger points; hard-code round count, timers, room size, bot wait or per-mode points (DEC-31..33, 38..44).
+- **Must not:** let the client advance rounds, decide correctness, or report scores; send a client any step or answer before it is revealed; compare answer text instead of entity ids; branch on `gameType` outside the game rules registry; create bots as `users` rows; give bots ledger points; hard-code round count, timers, room size, bot wait or per-mode points (DEC-31..33, 38..44).
 
 ### 2.9 `points`
 - **Purpose:** Append-only ledger of every point awarded, plus the versioned scoring rule sets.

@@ -19,6 +19,11 @@
 | **Ended at** | Authoritative match end time from the provider; basis for the MOTM window |
 | **Quiz battle / Battle** | One real-time trivia game between 2..N participants, run by one server-side engine. The only quiz mode (ADR-0010). There is no Daily Quiz and no solo mode |
 | **Battle mode** | How participants were brought together: `MATCHMAKING` (random 1v1, maybe with a bot) or `ROOM` |
+| **Game type** | Which game a battle plays: `BUZZER`, `CAREER`, `WHO_IS_PLAYER`, `GRID`, `IMPOSTER` (ADR-0015). Independent of the battle mode |
+| **Clue / reveal** | One piece of a round shown at a time by the server: a word of a question, a club of a career, a fact about a player. The client never holds clues that are not revealed yet |
+| **Buzz** | A player's request to answer. The server accepts the first valid one, pauses the reveal and opens that player's answer window (DEC-54) |
+| **Lockout** | After a wrong or late answer, the player cannot buzz again in that round |
+| **Answer catalog** | The list of football entities a typed answer can be (players, clubs, national teams, competitions) with names and alternative names in Arabic and English. Answers are matched by entity id (DEC-55) |
 | **Participant** | A seat in a battle: `HUMAN` (a user) or `BOT`. Identified in the protocol by `participantId` |
 | **Matchmaking ticket** | A user's place in the Redis queue; removed when matched, cancelled, or turned into a bot battle |
 | **Bot fallback** | Giving a queued player a bot opponent after `botFallbackAfterMs` (DEC-39) |

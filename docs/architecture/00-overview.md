@@ -200,15 +200,17 @@ sequenceDiagram
   A->>GW: battle:ready
   B->>GW: battle:ready
   loop each round
-    BE->>DB: round.started_at, deadline_at
-    BE-->>A: round:start (question, deadlineAt, serverTime)
-    BE-->>B: round:start
-    A->>GW: round:answer (clientMsgId, optionId)
-    GW->>BE: validate (round open, first answer wins)
-    Note over BE: a bot answer is scheduled by the engine and uses the same path
-    BE->>DB: INSERT battle_answers (unique battle, round, participant)
+    BE->>DB: round.started_at
+    BE-->>A: round:start, then round:clue step by step (reveal games, 08-battle-games.md)
+    BE-->>B: round:start, round:clue
+    A->>GW: round:buzz (clientMsgId)
+    GW->>BE: first valid buzz wins (one battle's commands are processed in arrival order)
+    BE-->>B: round:buzzed (reveal paused)
+    A->>GW: round:answer (entityId picked from the answer catalog)
+    Note over BE: a bot's buzz and answer are scheduled by the engine and use the same path
+    BE->>DB: INSERT battle_round_actions (buzz, answer, in accepted order)
     BE-->>A: ack
-    BE->>BE: close round at deadline or when all active participants answered
+    BE->>BE: correct → close round; wrong → lock A out, resume reveal
     BE-->>A: round:result
     BE-->>B: round:result
   end
