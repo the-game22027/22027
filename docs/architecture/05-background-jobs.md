@@ -12,7 +12,7 @@
 
 | Workload | Trigger | Mechanism | Queue | Idempotency | Notes |
 |---|---|---|---|---|---|
-| Outbox publishing | New `outbox_events` rows | Polling loop in the worker (~1s) | → subscriber queues | `jobId = <eventId>__<subscriber>` | `FOR UPDATE SKIP LOCKED` so several workers can run |
+| Outbox publishing | New `outbox_events` rows | Polling loop in the worker (~1s) | → subscriber queues | `jobId = <eventId>__<subscriber>` | Claims with a lease so several workers can run (ADR-0013) |
 | Football sync (mock now) | Schedule | BullMQ job scheduler | `football-sync` | Provider `version`/`provider_updated_at` checks | Mock provider reads seed files; the simulator CLI drives live states |
 | Score match predictions | `MatchFinished`, `MatchResultCorrected`, `ScoringRuleSetActivated` | Event handler | `predictions` | PK `(prediction_id, rule_set_id, match_result_version)` | Pages of 1,000; resumable |
 | Void predictions | `MatchCancelled`, postponement policy | Event handler | `predictions` | Conditional update `status <> 'VOID'` | |
@@ -47,7 +47,11 @@
 | On final failure | Structured error log with `jobId`, queue, event id; metric `jobs_failed_total{queue}`; visible in Bull Board |
 | Replay | Bull Board "retry", or a CLI `jobs:retry <queue> <jobId>`; safe because handlers are idempotent |
 
-Outbox rows that cannot be published (Redis down) stay unpublished and are retried by the loop; `attempts`/`last_error` columns make stuck events visible.
+**Outbox publishing failures (ADR-0013):** while Redis does not answer, nothing is claimed and no attempts are spent. A failed publish retries with exponential backoff and jitter (`OUTBOX_RETRY_BASE_MS`, `OUTBOX_RETRY_MAX_MS`). After `OUTBOX_MAX_ATTEMPTS` the row gets `dead_lettered_at` and an error log. To replay one after fixing the cause (safe, handlers are idempotent):
+
+```sql
+UPDATE outbox_events SET dead_lettered_at = NULL, attempts = 0, last_error = NULL, available_at = now() WHERE id = '<event id>';
+```
 
 ## 5. Scheduling details
 
@@ -64,7 +68,7 @@ Outbox rows that cannot be published (Redis down) stay unpublished and are retri
 ## 7. Observability
 
 - **Bull Board** (open source) mounted in the API at `/admin/queues`: dev only for now, behind admin auth later.
-- Metrics (prom-client): `jobs_processed_total{queue,status}`, `job_duration_seconds{queue}`, `queue_waiting{queue}`, `outbox_unpublished_events`, `outbox_oldest_unpublished_age_seconds`.
+- Metrics (prom-client): `jobs_processed_total{queue,status}`, `job_duration_seconds{queue}`, `queue_waiting{queue}`, `outbox_unpublished_events`, `outbox_oldest_unpublished_age_seconds`, `outbox_dead_lettered_events` (alert above 0), `outbox_publish_failures_total`, `outbox_leases_lost_total`.
 - Every job log line carries `jobId`, `queue`, `eventId`, `correlationId` (copied from the originating request into the outbox payload metadata).
 
 ## 8. What we deliberately do not do
