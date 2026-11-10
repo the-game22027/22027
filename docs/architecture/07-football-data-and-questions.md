@@ -76,6 +76,24 @@ Provenance per fact (Confirmed requirement): source, source identifier, license,
 
 Initial sources (research context, licence review pending before commercial launch): Wikidata (CC0), openfootball (CC0), martj42/international_results (CC0), Fjelstul World Cup + English Football (CC BY-SA 4.0, GitHub copies only), engsoccerdata (GPL ≥ 2), Wikipedia (CC BY-SA 4.0, for LLM-extracted long-tail facts that need corroboration). Avoid: StatsBomb open data (non-commercial), football-data.co.uk (no commercial/AI use), FBref, Transfermarkt and mirrors.
 
+### 4.1 Careers and names for the game types (ADR-0015)
+
+`CAREER`, `GRID` and `WHO_IS_PLAYER` need "player P played for club C from year X to year Y", and every answer entity needs an Arabic name. Our local openfootball copy (`~/football-data/players`) has about 32,000 players with position, birth date and country, but **no career history**. **Wikidata (CC0)** is the source: property `P54` (member of sports team) with `P580` / `P582` (start / end time) qualifiers, Arabic and English labels, and aliases.
+
+**Data check, 2026-11-10** (live Wikidata query service, 20 big European clubs):
+
+| Check | Result |
+|---|---|
+| Distinct players across the 20 clubs | 17,035 |
+| Club × club pairs with ≥ 3 shared players (grid cells) | 183 of 190 (96%); median 10 |
+| Club × nationality pairs (11 countries) with ≥ 3 players | 171 of 220 (78%) |
+| Club spells with a start date (players of Real Madrid, all their clubs) | 6,904 of 7,496 (92%); with an end date 87% |
+| Arabic label, players in ≥ 3 of the 20 clubs / ≥ 2 / any | 92% / 79% / 61% |
+
+Conclusions: `GRID` is feasible with club and nationality criteria (the pipeline picks boards whose 9 cells all reach `minAnswersPerCell`). `CAREER` is feasible: 92% of spells can be ordered by date. **Arabic names are the gap:** the pipeline must fill missing Arabic labels (transliteration proposals, human-reviewed) for every entity that can be an answer, and only entities with both names enter the catalog.
+
+**Trap found during the check:** the "truthy" shortcut `wdt:P54` returns only the best-ranked statements. When a player's current club is marked *preferred*, all former clubs disappear (Cristiano Ronaldo vanished from Real Madrid × Juventus). Always read full statements: `p:P54/ps:P54` with qualifiers `pq:P580`, `pq:P582`. Youth and reserve teams are separate Wikidata items and are filtered out by type.
+
 Attribution: CC BY-SA sources require attribution. The app needs a "Data sources & licences" screen, and question provenance keeps `license_flags` so attribution can be shown or CC BY-SA content filtered out if counsel advises.
 
 ## 5. Question generation pipeline (offline, zero budget)
@@ -152,6 +170,36 @@ A bundle is a directory `data/bundles/<bundleVersion>/` with two files:
 }
 ```
 
+**Game content (ADR-0015, from P5.2).** A bundle also carries the answer catalog and game content. `SINGLE_CHOICE` lines above stay valid for import but no game serves them.
+
+- `catalog.jsonl` (new file, listed in the manifest with its own checksum `catalogChecksum`): one entity per line.
+
+```json
+{ "externalRef": "wikidata:Q11571", "kind": "PLAYER", "names": { "en": "Cristiano Ronaldo", "ar": "كريستيانو رونالدو" },
+  "aliases": { "en": ["CR7", "Ronaldo"], "ar": ["رونالدو", "كريستيانو"] }, "popularity": 412 }
+```
+
+  The pipeline adds the `normalized` form of every name and alias (§5.7) in a derived field, so the app never re-implements normalization for stored names.
+- `questions.jsonl` lines get `"type": "GAME"` and a `gameType`; answers point at catalog entities by `externalRef`:
+
+```json
+{ "externalKey": "career:wikidata:Q11571", "type": "GAME", "gameType": "CAREER", "category": "players", "difficulty": 1,
+  "content": { "player": "wikidata:Q11571", "spells": [
+    { "club": "wikidata:Q75729", "fromYear": 2002, "toYear": 2003, "loan": false },
+    { "club": "wikidata:Q18656", "fromYear": 2003, "toYear": 2009, "loan": false } ] },
+  "answers": [{ "slot": 0, "entities": ["wikidata:Q11571"] }],
+  "provenance": { "facts": ["…"], "sources": ["wikidata"], "licenses": ["CC0-1.0"], "kbVersion": "…" },
+  "validUntil": null, "humanReviewed": { "en": true, "ar": true } }
+
+{ "externalKey": "buzzer:wc_winner_by_year:<fact>", "type": "GAME", "gameType": "BUZZER", "category": "world-cup", "difficulty": 2,
+  "content": { "answerKind": "NATIONAL_TEAM",
+    "steps": { "en": ["Which country", "won the", "2010", "FIFA World Cup?"],
+               "ar": ["أي منتخب", "فاز", "بكأس العالم", "2010؟"] } },
+  "answers": [{ "slot": 0, "entities": ["wikidata:<spain-nt-qid>"] }], "…": "…" }
+```
+
+  `GRID` content holds `rows` and `cols` criteria (`{ "kind": "CLUB", "entity": "wikidata:Q8682" }`) and `answers` has one slot per cell (0..8) with every valid player. `WHO_IS_PLAYER` content holds ordered `clues` with `kind` and `text {en, ar}`.
+
 ### 5.5 Import and publish (app side, `question-bank`)
 
 1. `npm run cli -- questions:import data/bundles/<version>` checks the manifest checksum and validates every line again. The app never trusts the pipeline blindly. Any invalid line rejects the whole bundle, and the command lists every problem with its line number. Checks: known fields only; `type` is `SINGLE_CHOICE`; `difficulty` is an integer 1-5; `category` is listed in the manifest; question locales are supported app locales (`ar`, `en`), at least one; 2-6 options with positions 1..n; exactly one correct option (A-05); every option has text in exactly the question's locales, distinct within a locale; non-empty texts within sanity lengths (question 300, explanation 600, option 100 characters); `externalKey` unique in the bundle; `validUntil` an ISO-8601 instant or `null`.
@@ -167,6 +215,28 @@ A bundle is a directory `data/bundles/<bundleVersion>/` with two files:
 
 Regeneration = new bundle version. Rollback = disable a batch.
 
+**Game content checks (P5.2), on top of the above:** the catalog is imported first, in the same transaction (upsert by `externalRef`; an entity missing from a new catalog is set `HIDDEN`, never deleted, because battle history points at it). Every `externalRef` used by content or answers must be in the catalog, with the right `kind`. `BUZZER`: same number of steps in every locale, 2 to `maxSteps`, and the answer's name does not appear in any step. `CAREER`: at least `minSpells` spells, in date order. `WHO_IS_PLAYER`: at least `minClues` clues, every clue in every locale. `GRID`: 3 rows, 3 columns, no repeated criterion, every cell has at least `minAnswersPerCell` players. `answers` are part of the content hash (they decide correctness).
+
 ### 5.6 How many questions the app needs
 
 Battles are the only quiz mode and can be played without limit (ADR-0010), so question volume is a product constraint, not a nice-to-have (risk K-09). A rough sizing rule: `active players' battles per week × roundCount` questions are consumed per player per week, and the exposure window (DEC-44) must not exhaust the bank for heavy players. The battle engine relaxes the window when it runs short and counts each relaxation (`question_selection_relaxed_total`). A rising count means the next bundle is due. Templates over large fact tables (match results, scorers, transfers, trophies) are the cheapest way to scale volume; LLM phrasing adds variety, not volume.
+
+### 5.7 Name normalization (shared by the pipeline and the app)
+
+Typed answers are matched by picking a suggestion (DEC-55); normalization only decides which suggestions appear. Rules, applied in order:
+
+1. Unicode NFKC; trim; collapse spaces; lower case.
+2. Latin: remove accents (`é → e`, `ü → u`, `ñ → n`); `ß → ss`.
+3. Arabic: remove diacritics (tashkeel) and tatweel (`ـ`); `أ إ آ ٱ → ا`; `ة → ه`; `ى → ي`; `ؤ → و`; `ئ → ي`; Arabic-Indic digits → ASCII digits.
+4. Matching ignores a leading `ال` on any word, and the word `fc` / `cf` / `club` / `نادي`.
+
+Test vectors (both implementations must pass them):
+
+| Input | Normalized |
+|---|---|
+| `Álvaro Morata` | `alvaro morata` |
+| `أنخيل دي ماريا` | `انخيل دي ماريا` |
+| `الأهلي` | `اهلي` (matching form) |
+| `كرة` | `كره` |
+| `مُحَمَّد صَلاح` | `محمد صلاح` |
+| `٢٠١٠` | `2010` |

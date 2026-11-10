@@ -1,6 +1,6 @@
 # ADR-0010: The quiz is real-time PvP only (matchmaking, private rooms, bot fallback); Daily Quiz removed
 
-- **Status:** Accepted (product decision by the owner, 2026-11-07)
+- **Status:** Accepted (product decision by the owner, 2026-11-07); amended by ADR-0015 (2026-11-10): a battle has a game type and answers are typed, not multiple choice
 - **Date:** 2026-11-07
 - **Related:** amends ADR-0006; DEC-31..33, DEC-37..44; 01-modules.md §2.8; 02-database.md §4.8; 03-workflows.md §3-4; api/WEBSOCKET.md
 

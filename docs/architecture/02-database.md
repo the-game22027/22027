@@ -26,6 +26,8 @@ PostgreSQL (16+), managed by Prisma migrations. One **app** database (this docum
 | `prediction_status` | `ACTIVE`, `VOID` | `VOID` set by cancellation policy |
 | `motm_poll_status` | `PENDING`, `OPEN`, `CLOSED`, `FINALIZED`, `CANCELLED` | |
 | `question_status` | `DRAFT`, `APPROVED`, `PUBLISHED`, `DISABLED` | |
+| `battle_game_type` | `BUZZER`, `CAREER`, `WHO_IS_PLAYER`, `GRID` (`IMPOSTER` added with P8) | Which game a battle plays (ADR-0015). Named apart from `game_type`, which is the points category |
+| `answer_kind` | `PLAYER`, `CLUB`, `NATIONAL_TEAM`, `COMPETITION`, `COACH`, `NUMBER` | What a typed answer must be (`08-battle-games.md` §4) |
 | `battle_mode` | `MATCHMAKING`, `ROOM` | How the participants were brought together; a bot can only appear in `MATCHMAKING` (DEC-39) |
 | `battle_status` | `WAITING_READY`, `IN_PROGRESS`, `COMPLETED`, `ABANDONED`, `CANCELLED` | |
 | `battle_outcome` | `WIN`, `LOSS`, `DRAW` | Derived from placement: sole first = WIN, shared first = DRAW, otherwise LOSS. `end_reason` explains forfeits |
@@ -83,7 +85,11 @@ erDiagram
   users ||--o{ battle_participants : "plays as (humans only)"
   battles ||--o{ battle_rounds : runs
   questions ||--o{ battle_rounds : "asked in"
-  battle_participants ||--o{ battle_answers : submits
+  battle_rounds ||--o{ battle_round_actions : records
+  battle_participants ||--o{ battle_round_actions : acts
+  questions ||--o{ question_answers : accepts
+  answer_entities ||--o{ question_answers : "is accepted in"
+  answer_entities ||--o{ answer_entity_aliases : "also called"
 
   users ||--o{ point_entries : earns
   scoring_rule_sets ||--o{ point_entries : "computed with"
@@ -340,9 +346,49 @@ question_option_translations (
   option_id uuid FK → question_options ON DELETE CASCADE, locale text, text text,
   PRIMARY KEY (option_id, locale)
 )
+```
+
+**Game content (ADR-0015, built in P5.2).** A row in `questions` is one round of one game type. P5.1 built it for `SINGLE_CHOICE`, which no game serves any more. P5.2 adds the columns and tables below. The option tables stay until a later cleanup; no game type uses them.
+
+```sql
+-- questions gains:
+--   game_type battle_game_type NULL      -- NULL only for legacy SINGLE_CHOICE rows (never selected)
+--   answer_kind answer_kind NULL         -- reveal-and-buzz types
+--   content jsonb NULL                   -- per game type shape, validated at import (08 §4); read whole, never queried inside
+--   IX (status, game_type, difficulty, category_id)
+question_answers (                      -- accepted answers: indexed answer check (08 §5.3)
+  question_id uuid FK → questions ON DELETE CASCADE,
+  slot smallint,                        -- 0 for reveal-and-buzz; 0..8 = grid cell (row * 3 + col)
+  entity_id uuid FK → answer_entities,
+  PRIMARY KEY (question_id, slot, entity_id)
+)
+answer_entities (                       -- the answer catalog (08 §5)
+  id uuid PK,
+  external_ref text UQ,                 -- e.g. wikidata:Q11571; upsert key on import
+  kind answer_kind,                     -- never NUMBER
+  names jsonb,                          -- {en, ar}; display names
+  popularity int DEFAULT 0,             -- ranks suggestions; from the pipeline (e.g. Wikidata sitelinks)
+  catalog_version text,                 -- bundle version that last changed it
+  status text DEFAULT 'ACTIVE',         -- ACTIVE | HIDDEN (kept for history, no longer suggested)
+  updated_at timestamptz
+)
+  IX (kind)
+answer_entity_aliases (
+  entity_id uuid FK → answer_entities ON DELETE CASCADE,
+  locale text, alias text,
+  normalized text,                      -- pipeline-normalized form (07 §5.7); what the app matches against
+  PRIMARY KEY (entity_id, locale, alias)
+)
+```
+
+The app searches the catalog on the phone (`08` §5.2), so the server needs no search index; `GET /v1/answer-catalog` streams the active catalog as one versioned, cached document.
+
+```sql
 question_stats (
-  question_id uuid PK FK → questions, times_served int DEFAULT 0, times_answered int DEFAULT 0,
-  times_correct int DEFAULT 0, avg_answer_ms int NULL, updated_at timestamptz
+  question_id uuid PK FK → questions, times_served int DEFAULT 0, times_solved int DEFAULT 0,
+  wrong_answers int DEFAULT 0,          -- total wrong typed answers across battles
+  steps_to_solve_sum int DEFAULT 0,     -- reveal games: with times_solved gives the average step at which it was solved
+  updated_at timestamptz
 )
 question_stats_applied (
   battle_id uuid PK,                    -- BattleCompleted already folded into question_stats (at-least-once dedup)
@@ -364,7 +410,8 @@ battle_rooms (
   code text,                            -- shareable code, e.g. 6 chars from an unambiguous alphabet (no 0/O/1/I/L)
   host_user_id uuid FK → users,
   status battle_room_status DEFAULT 'LOBBY',
-  config jsonb,                         -- snapshot: {maxPlayers, roundCount, roundMs, ...} (DEC-31/32/38)
+  game_type battle_game_type,           -- picked by the host; can change in LOBBY between battles
+  config jsonb,                         -- snapshot: {maxPlayers, ...} (DEC-38); game config is snapshotted on each battle
   current_battle_id uuid NULL,          -- set while IN_BATTLE (FK added after battles exists)
   created_at timestamptz, last_activity_at timestamptz,
   expires_at timestamptz,               -- idle timeout (DEC-42); pushed forward on activity
@@ -384,9 +431,10 @@ battle_room_members (
 battles (
   id uuid PK, status battle_status,
   mode battle_mode,
+  game_type battle_game_type,
   room_id uuid NULL FK → battle_rooms,  -- set when mode = ROOM
   has_bot boolean DEFAULT false,
-  config jsonb,                         -- snapshot: {roundCount, roundMs, readyTimeoutMs, reconnectGraceMs, latencyGraceMs}
+  config jsonb,                         -- snapshot of the game type's config (08 §6) + engine timers
   rule_set_id uuid FK → scoring_rule_sets,
   created_at timestamptz, ready_deadline_at timestamptz,
   started_at timestamptz NULL, ended_at timestamptz NULL,
@@ -417,22 +465,31 @@ battle_participants (
   IX (user_id, battle_id) WHERE user_id IS NOT NULL   -- history + recent-exposure lookups (DEC-44)
 battle_rounds (
   battle_id uuid FK → battles, round_no smallint, question_id uuid FK → questions,
-  started_at timestamptz NULL, deadline_at timestamptz NULL, closed_at timestamptz NULL,
+  started_at timestamptz NULL, closed_at timestamptz NULL,
+  steps_revealed smallint NULL,         -- reveal-and-buzz: how far the reveal got
+  winner_participant_id uuid NULL FK → battle_participants,   -- NULL = nobody won / grid draw
+  end_reason text NULL,                 -- CORRECT | NO_WINNER | ALL_LOCKED_OUT | GRID_LINE | GRID_FULL | MAX_TURNS | FORFEIT
   PRIMARY KEY (battle_id, round_no),
-  UNIQUE (battle_id, question_id)       -- no repeated question inside one battle
+  UNIQUE (battle_id, question_id)       -- no repeated content inside one battle
 )
-battle_answers (
+battle_round_actions (                  -- everything players did in a round, in the order the engine accepted it
   battle_id uuid, round_no smallint,
+  action_no smallint,                   -- 1, 2, 3... per round: the engine's acceptance order
   participant_id uuid FK → battle_participants,
-  option_id uuid NULL FK → question_options,   -- NULL = timed out
-  client_msg_id text NULL,              -- NULL for bot answers
-  received_at timestamptz, elapsed_ms int,
-  is_correct boolean, points int,
-  PRIMARY KEY (battle_id, round_no, participant_id),   -- first accepted answer wins
+  kind text,                            -- BUZZ | ANSWER | ANSWER_TIMEOUT | GRID_CLAIM | GRID_SKIP | TURN_TIMEOUT
+  entity_id uuid NULL FK → answer_entities,   -- ANSWER / GRID_CLAIM with an entity
+  number_answer numeric NULL,           -- ANSWER when answer_kind = NUMBER
+  cell smallint NULL,                   -- GRID_* : row * 3 + col
+  is_correct boolean NULL, points int DEFAULT 0,
+  client_msg_id text NULL,              -- NULL for bots and timeouts
+  received_at timestamptz,
+  PRIMARY KEY (battle_id, round_no, action_no),
   FOREIGN KEY (battle_id, round_no) REFERENCES battle_rounds
 )
   UQ (participant_id, client_msg_id) WHERE client_msg_id IS NOT NULL   -- duplicate message detection
 ```
+
+"First buzz wins" is not a database constraint: the engine processes one battle's commands one at a time (`08` §2.1), and `action_no` records the order it decided. The table is the history, the engine is the referee.
 
 Not in the database: the matchmaking queue and tickets (Redis `mm:*`) and the "one activity per user" guard (Redis `act:{userId}`, set with `NX`, holding `QUEUE:<ticketId>`, `ROOM:<roomId>` or `BATTLE:<battleId>`). Postgres stays the source of truth for rooms and battles; on boot the guard is rebuilt from open rooms and live battles.
 
@@ -628,7 +685,7 @@ These statements are written as Prisma `$queryRaw` inside repository methods (ty
 | `point_entries` | Forever (anonymized user on deletion) | Ledger is the source of truth for leaderboards and prizes |
 | `leaderboard_snapshots` | Forever | Prize evidence |
 | `motm_votes` | Life of account; anonymized on deletion | Audit of results |
-| `battle_answers` | 12 months (stats are already folded into `question_stats` on completion) | Volume; calibration only needs aggregates |
+| `battle_round_actions` | 12 months (stats are already folded into `question_stats` on completion) | Volume; calibration only needs aggregates |
 | `battle_rooms`, `battle_room_members` | Delete 30 days after close | Lobbies have no long-term value; battles keep `room_id` as a plain id |
 | `question_stats_applied` | 30 days | Only needed while `BattleCompleted` redeliveries are possible |
 | `sessions` | Delete 30 days after expiry/revocation | Security hygiene |
@@ -641,4 +698,4 @@ Account deletion: `users.status = PENDING_DELETION` → job revokes sessions, de
 
 ## 7. Partitioning
 
-Not needed at launch (A-07). First candidates if volume grows: `point_entries` and `battle_answers` by month (native range partitioning). Indexes above are designed so partitioning can be added without changing queries.
+Not needed at launch (A-07). First candidates if volume grows: `point_entries` and `battle_round_actions` by month (native range partitioning). Indexes above are designed so partitioning can be added without changing queries.

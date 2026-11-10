@@ -56,7 +56,7 @@ One API process (HTTP + WS), one worker process, one Postgres, one Redis, on one
 | 3 | Job backlog (`queue_waiting`) | More worker processes; split hot queues into dedicated workers |
 | 4 | DB connections | PgBouncer (transaction pooling); a Prisma connection limit per process |
 | 5 | Read load on leaderboards | Cache top pages in Redis ZSET or plain key cache with short TTL; read replica for leaderboard and history reads |
-| 6 | Table size (`point_entries`, `battle_answers`) | Native monthly partitioning (indexes already compatible) |
+| 6 | Table size (`point_entries`, `battle_round_actions`) | Native monthly partitioning (indexes already compatible) |
 | 7 | One module dominates resources or needs independent deploys | Extract that module (likely `battles`) using its existing public interface + events |
 
 ### 2.3 Database performance rules
