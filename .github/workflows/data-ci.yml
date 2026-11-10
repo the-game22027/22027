@@ -1,0 +1,51 @@
+# Data pipeline checks. Path-filtered: only runs when data/ (or this workflow) changes (ADR-0011).
+name: data
+
+on:
+  pull_request:
+    paths:
+      - 'data/**'
+      - '.github/workflows/data-ci.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'data/**'
+      - '.github/workflows/data-ci.yml'
+
+concurrency:
+  group: data-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    working-directory: data
+
+jobs:
+  lint-and-test:
+    name: ruff, pytest (with a throwaway football_kb)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: game
+          POSTGRES_PASSWORD: game
+          POSTGRES_DB: football_kb_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U game -d football_kb_test"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      FOOTBALL_KB_TEST_URL: postgresql://game:game@localhost:5432/football_kb_test
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.13'
+      - run: pip install 'psycopg[binary]>=3.2' 'pytest>=8' 'ruff>=0.6'
+      - run: ruff check .
+      - run: ruff format --check .
+      - run: pytest -q
