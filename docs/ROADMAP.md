@@ -99,6 +99,8 @@ Changes vs the original proposed order, and why:
 ### G0 — Game types design (docs only, before P5.2 and P6)
 - Rewrite for ADR-0015: `WEBSOCKET.md` (reveal, buzz, typed answer, turns), `03-workflows.md` §4 (shared engine + game rules), `02-database.md` (rounds, buzzes, answers, answer catalog), `07` (catalog and content shapes in the bundle, Wikidata as the career source), `01-modules.md`. Data check for Tiki Taka Toe: enough players per club and country pair.
 - **Exit:** the four launch games can be walked through message by message from the docs; every number is named as configuration; the Tiki Taka Toe data check has a yes or no.
+- **Done (2026-11-10):** `architecture/08-battle-games.md` (engine + game rules + catalog); `WEBSOCKET.md`, `API.md`, `01`, `02`, `03`, `07` updated; data check passed for `GRID` and `CAREER` (`07` §4.1); Arabic names are the data gap.
+- **Order after G0:** D.1 (Wikidata → `football_kb`: players, clubs, careers, Arabic names; catalog export) → P5.2 (catalog + game content import, selection, answer checking; dev bundle rewritten as `BUZZER` + a few `CAREER` items) → P6.1 (engine + `BUZZER`, bot) → P6.2 (`CAREER`, `WHO_IS_PLAYER`) → P6.3 (matchmaking per game type, reconnect, forfeit, sweeper) → P6.4 (`GRID`). D.2 (generators for every game type) runs alongside P6.
 
 ### P5 — Question bank + import
 - Tables, `questions:import` / `publish` / `disable` CLI, selection queries (locale intersection, difficulty/category balance, exclusion list), answer key, playable payload mapper, question reports endpoint, `BattleCompleted` stats handler (can be wired in P6).
@@ -108,7 +110,7 @@ Changes vs the original proposed order, and why:
 | PR | Scope | Learning cards |
 |---|---|---|
 | P5.1 Import | Question tables (stats tables come with their `BattleCompleted` handler in P6), bundle validation, `questions:import`, a hand-written dev bundle of about 50 EN/AR questions | Content hash, immutable served content, partial unique index, advisory locks |
-| P5.2 Select + serve | Rescoped by ADR-0015, final scope set in G0: answer catalog import and search, typed-answer content shapes, content selection per game type, answer checking by id, `questions:publish` / `questions:disable`, question reports endpoint | To be named with the PR |
+| P5.2 Catalog + game content | Answer catalog tables and import (`catalog.jsonl`), `GET /v1/answer-catalog` with `ETag`; `game_type` / `answer_kind` / `content` columns and `question_answers`; import checks per game type (`07` §5.5); `ContentSelector`, `RoundContentQuery`, `AnswerChecker`; `questions:publish` / `questions:disable`; question reports endpoint | To be named with the PR |
 
 ### P6 — Quiz battles: engine + matchmaking + bot fallback (CORE)
 - **Rescoped by ADR-0015 (details in G0):** the engine is shared and each game type adds its rules. Build order: engine + the buzz mechanic with `BUZZER`, then `CAREER` and `WHO_IS_PLAYER` (same mechanic, new content), then `GRID`. The text below still describes the shared parts; "answers" now means buzzes and typed answers.

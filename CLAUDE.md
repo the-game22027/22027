@@ -18,7 +18,7 @@ A football-focused **social gaming platform** (not a CRUD app, not a simple quiz
 - Friends (mutual), privacy-aware prediction visibility.
 - A fact-first football knowledge database that feeds an offline question generator.
 
-Current phase: **Phases 0-2 and P3.1 (prediction submit) implemented; P5.1 (question import) in review; next: G0 game types design (docs only), then P5.2 and P6 (prediction scoring P3.2+ postponed, see `docs/ROADMAP.md`)**. See `docs/ROADMAP.md`.
+Current phase: **Phases 0-2 and P3.1 (prediction submit) implemented; P5.1 (question import) merged; G0 game types design done; next: D.1 Wikidata careers + answer catalog, then P5.2 and P6 (prediction scoring P3.2+ postponed, see `docs/ROADMAP.md`)**. See `docs/ROADMAP.md`.
 
 ## 2. Hard constraints (do not violate)
 
@@ -148,6 +148,7 @@ Update this section when commands change. Do not document commands that do not e
 | Background jobs | `docs/architecture/05-background-jobs.md` |
 | Security, scalability, observability, testing | `docs/architecture/06-cross-cutting.md` |
 | Football data, knowledge DB, question generation | `docs/architecture/07-football-data-and-questions.md` |
+| Battle game types, shared engine, game rules, answer catalog | `docs/architecture/08-battle-games.md` |
 | REST contract | `docs/api/API.md` |
 | WebSocket (quiz battles + room lobby) contract | `docs/api/WEBSOCKET.md` |
 | Open decisions register | `docs/DECISIONS.md` |
