@@ -111,7 +111,26 @@ docker compose --profile observability up -d # Prometheus :9090, Grafana :3001
 docker compose --profile ai up -d ollama     # local LLM for the offline question pipeline
 ```
 
-Mobile (from `apps/mobile`): not scaffolded yet. The M0 PR adds its commands here (run, test, analyze, regenerate the REST client).
+Mobile (from `apps/mobile`; Flutter version pinned in `.fvmrc`, details in `apps/mobile/README.md`):
+
+```bash
+# one-time
+dart pub global activate fvm && fvm install  # installs the pinned Flutter
+fvm flutter pub get                          # also generates lib/l10n/generated
+
+# run (backend running on :3000; Android: forward the port first)
+adb reverse tcp:3000 tcp:3000
+fvm flutter run --flavor dev --dart-define-from-file=config/dev.json
+
+# quality
+dart format lib test                         # generated code excluded
+fvm flutter analyze
+fvm flutter test
+
+# REST contract
+tool/update_openapi.sh                       # backend running: snapshot /docs-json into openapi/openapi.json
+tool/generate_api_client.sh                  # Docker: regenerate packages/api_client from the snapshot
+```
 
 Football simulator, development only (from `apps/backend`; `npm run cli -- --help` lists every command):
 
