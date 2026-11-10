@@ -1,0 +1,51 @@
+{
+  "@@locale": "en",
+  "appTitle": "The Game",
+  "@appTitle": { "description": "App name shown by the operating system task switcher" },
+
+  "signInTitle": "Sign in",
+  "signInNotAvailableYet": "Sign-in with Google, Facebook and X is coming soon.",
+  "devSignInTitle": "Dev sign-in",
+  "devSignInExplanation": "Development only: sign in as a made-up player. The same subject always signs in as the same player.",
+  "devSignInSubjectLabel": "Subject",
+  "devSignInSubjectHelper": "Any name, for example alice",
+  "devSignInDisplayNameLabel": "Display name (optional)",
+  "signInButton": "Sign in",
+  "fieldRequiredMessage": "This field is required",
+
+  "homeTitle": "Home",
+  "homeGreeting": "Hello, {displayName}",
+  "@homeGreeting": {
+    "placeholders": { "displayName": { "type": "String", "example": "Alice" } }
+  },
+  "homeProfileLocale": "Profile language: {locale}",
+  "@homeProfileLocale": {
+    "placeholders": { "locale": { "type": "String", "example": "en" } }
+  },
+  "signOutButton": "Sign out",
+  "tryAgainButton": "Try again",
+
+  "serverStatusTitle": "Server status",
+  "serverStatusUp": "The server is up",
+  "serverStatusDown": "The server is down",
+  "checkAgainButton": "Check again",
+
+  "settingsTitle": "Settings",
+  "languageSectionTitle": "Language",
+  "languageNameArabic": "العربية",
+  "@languageNameArabic": { "description": "Always written in Arabic, whatever the app language" },
+  "languageNameEnglish": "English",
+  "@languageNameEnglish": { "description": "Always written in English, whatever the app language" },
+
+  "errorValidationFailed": "Some of the information you entered is not valid.",
+  "errorSignInAgain": "Your session has ended. Please sign in again.",
+  "errorRateLimited": "Too many attempts. Please wait a moment and try again.",
+  "errorNotFound": "We could not find what you were looking for.",
+  "errorAccountDisabled": "This account is disabled.",
+  "errorNotAllowed": "You are not allowed to do this.",
+  "errorConflict": "This is not possible right now.",
+  "errorServerProblem": "Something went wrong on our side. Please try again later.",
+  "errorServerUnreachable": "Cannot reach the server. Check your internet connection and try again.",
+  "errorRequestTimedOut": "Cannot reach the server right now. Please try again.",
+  "errorUnexpected": "Something unexpected happened. Please try again."
+}
