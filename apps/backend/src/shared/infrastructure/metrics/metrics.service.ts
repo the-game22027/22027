@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { collectDefaultMetrics, Counter, Histogram, Registry } from '@prometheus-io/client';
+import { collectDefaultMetrics, Counter, Gauge, Histogram, Registry } from '@prometheus-io/client';
 
 /** One Prometheus registry per process. Modules register their own metrics on `registry`. */
 @Injectable()
@@ -22,7 +22,31 @@ export class MetricsService {
 
   readonly outboxPublishFailures = new Counter({
     name: 'outbox_publish_failures_total',
-    help: 'Outbox events that failed to publish and will be retried',
+    help: 'Outbox publish attempts that failed',
+    registers: [this.registry],
+  });
+
+  readonly outboxLeasesLost = new Counter({
+    name: 'outbox_leases_lost_total',
+    help: 'Outbox events whose lease expired before their publish finished',
+    registers: [this.registry],
+  });
+
+  readonly outboxUnpublished = new Gauge({
+    name: 'outbox_unpublished_events',
+    help: 'Outbox events waiting to be published, excluding dead letters',
+    registers: [this.registry],
+  });
+
+  readonly outboxDeadLettered = new Gauge({
+    name: 'outbox_dead_lettered_events',
+    help: 'Outbox events that exhausted their attempts and need an operator',
+    registers: [this.registry],
+  });
+
+  readonly outboxOldestUnpublishedAge = new Gauge({
+    name: 'outbox_oldest_unpublished_age_seconds',
+    help: 'Age of the oldest outbox event waiting to be published',
     registers: [this.registry],
   });
 
