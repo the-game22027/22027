@@ -16,15 +16,18 @@ class ApiHealthRepository implements HealthRepository {
   final Future<Response<Object>> Function() _readinessCheck;
 
   /// `/health/ready` answers `503` with a Terminus body (not problem+json) when Postgres or
-  /// Redis is down (API §6.11), so any failure here just means "down".
+  /// Redis is down (API §6.11), so only a 200 means "up".
   @override
   Future<ServerHealth> checkServerHealth() async {
+    int? statusCode;
     try {
-      final response = await _readinessCheck();
-      return response.statusCode == 200 ? ServerHealth.up : ServerHealth.down;
-    } on DioException {
-      return ServerHealth.down;
+      statusCode = (await _readinessCheck()).statusCode;
+    } on DioException catch (exception) {
+      // The contract types this body as a bare `object`, which the generated client cannot
+      // parse, so even a 200 ends up here. The status code alone answers "is it ready?".
+      statusCode = exception.response?.statusCode;
     }
+    return statusCode == 200 ? ServerHealth.up : ServerHealth.down;
   }
 }
 
