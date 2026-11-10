@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { InvalidBundleError } from '../domain/question-bank-errors';
 import { type BundleFiles, computeChecksum, parseBundle } from './bundle-parser';
 
@@ -74,5 +76,14 @@ describe('parseBundle', () => {
     const problems = problemsOf(files(['{oops', JSON.stringify({ ...line('b'), difficulty: 0 })]));
     expect(problems).toContain('line 1');
     expect(problems).toContain('line 2');
+  });
+
+  it('accepts the hand-written dev bundle in data/bundles', () => {
+    const dir = join(process.cwd(), '../../data/bundles/dev-0001');
+    const { questions } = parseBundle({
+      manifestJson: readFileSync(join(dir, 'manifest.json'), 'utf8'),
+      questionsJsonl: readFileSync(join(dir, 'questions.jsonl')),
+    });
+    expect(questions).toHaveLength(50);
   });
 });
