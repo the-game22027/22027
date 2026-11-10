@@ -81,3 +81,6 @@ New tracks are added when the first card needs one.
 | [backend/immutable-served-content](backend/immutable-served-content.md) | P5 | Once players may have seen it, add a version instead of editing |
 | [database/partial-unique-index](database/partial-unique-index.md) | P5 | Unique only among rows matching a `WHERE`: one correct option |
 | [database/advisory-locks](database/advisory-locks.md) | P5 | Lock a name, not a row, when there is no row to lock yet |
+| [architecture/functional-core-imperative-shell](architecture/functional-core-imperative-shell.md) | G0 | Pure rules return effects; the engine does the I/O |
+| [backend/one-at-a-time-per-game](backend/one-at-a-time-per-game.md) | G0 | One input queue per battle makes "first buzz" exact |
+| [database/wikidata-truthy-vs-full-statements](database/wikidata-truthy-vs-full-statements.md) | G0 | `wdt:` hides former clubs; read `p:/ps:/pq:` |
