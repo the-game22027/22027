@@ -17,6 +17,7 @@ When a decision is made: update its row (status, chosen option, date), update th
 | DEC-03 | Which prediction types are mandatory | Result only · score only · both required · either | **Chosen: exact score only;** the result (home/draw/away) is derived from it. `RESULT` is never entered separately | Prediction config `requiredPicks` | Decided (2026-11-07) |
 | DEC-21 | Prediction visibility to friends | Friends after kickoff · friends always · user-selectable among these · private option | **Chosen: friends see predictions only after kickoff.** Fixed platform rule, no per-user setting in v1.0 (prevents copying in leagues and the prize race) | `PredictionVisibilityPolicy` | Decided (2026-11-07) |
 | DEC-24 | Postponement, kickoff change, cancellation, abandonment | See `03-workflows.md` §1.5 | Keep predictions on kickoff change; carry over on reschedule; void if not rescheduled in N days; void on cancel | Prediction policy config | Decided (2026-11-07): recommended default; values deferred to playtesting |
+| DEC-51 | Highest score a user can enter in an exact-score pick | Any limit per team | 20 goals per team: high enough for any real result, and it stops junk values | `PREDICTION_MAX_GOALS` config | Pending |
 
 ## MOTM
 

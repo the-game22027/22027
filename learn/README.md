@@ -2,6 +2,8 @@
 
 Short concept cards, one concept per file, grouped by track, written while we build. Read a card in about 2 minutes.
 
+**Start here:** [WHAT-WE-BUILT.md](WHAT-WE-BUILT.md), the whole project so far, in Egyptian Arabic.
+
 ## Card format (keep it this short)
 
 ```
@@ -71,3 +73,5 @@ New tracks are added when the first card needs one.
 | [backend/scheduled-jobs](backend/scheduled-jobs.md) | P2 | Timers in a worker; idempotent, retried, recorded |
 | [backend/cli-entry-points](backend/cli-entry-points.md) | P2 | Same app, started by a command; commands are thin like controllers |
 | [backend/simulating-time](backend/simulating-time.md) | P2 | Plan the steps as pure data; speed only divides the waits |
+| [database/database-clock-deadlines](database/database-clock-deadlines.md) | P3 | One clock judges the deadline: `now()` in SQL |
+| [database/shared-vs-exclusive-locks](database/shared-vs-exclusive-locks.md) | P3 | `FOR SHARE` for many readers, `FOR UPDATE` for one writer |

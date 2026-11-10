@@ -14,6 +14,7 @@ import { isPredictable } from '../domain/match-status';
 import type {
   CompetitionRecord,
   MatchFilter,
+  MatchLockInfo,
   MatchPosition,
   MatchRecord,
   MatchView,
@@ -42,6 +43,17 @@ export class FootballQuery {
     return {
       items: items.map((match) => this.view(match)),
       nextCursor: rows.length > limit && last ? encodeCursor({ k: last.kickoffAt.toISOString(), i: last.id }) : null,
+    };
+  }
+
+  /** For display and error messages only: the prediction write checks again with the database clock. */
+  async getLockInfo(matchId: string): Promise<MatchLockInfo> {
+    const match = await this.football.findLockFacts(matchId);
+    if (!match) throw new MatchNotFoundError();
+    return {
+      status: match.status,
+      kickoffAt: match.kickoffAt,
+      predictable: isPredictable(match.status, match.kickoffAt, this.clock.now()),
     };
   }
 

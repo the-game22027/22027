@@ -57,3 +57,12 @@ export interface MatchPosition {
   readonly kickoffAt: Date;
   readonly id: string;
 }
+
+export interface MatchLockFacts {
+  readonly status: MatchStatus;
+  readonly kickoffAt: Date;
+}
+
+export interface MatchLockInfo extends MatchLockFacts {
+  readonly predictable: boolean;
+}

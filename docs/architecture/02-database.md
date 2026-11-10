@@ -609,6 +609,8 @@ ON CONFLICT (poll_id, user_id) DO UPDATE      -- only if vote changes are allowe
 RETURNING poll_id;                            -- 0 rows ⇒ VOTING_CLOSED (or DUPLICATE_VOTE when changes are disabled)
 ```
 
+The prediction write runs as separate statements in one transaction: the `SELECT ... FOR SHARE` above, then lock or insert the prediction, then compare with the stored picks. A single upsert would raise `revision` even when nothing changed. The guarantee is the same, because `now()` is fixed at transaction start and the shared lock is held until commit.
+
 These statements are written as Prisma `$queryRaw` inside repository methods (typed result mapping, parameterized, so no injection risk).
 
 ## 6. Data retention

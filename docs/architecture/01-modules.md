@@ -157,6 +157,7 @@ Removed with the Daily Quiz (ADR-0010, 2026-11-07). The section number is kept s
 flowchart TD
   auth --> users
   social --> users
+  predictions --> auth
   predictions --> football
   predictions --> social
   predictions --> points
