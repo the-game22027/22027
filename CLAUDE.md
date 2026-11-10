@@ -12,13 +12,13 @@ A football-focused **social gaming platform** (not a CRUD app, not a simple quiz
 
 - Match predictions (top-5 European leagues + national teams), private by default, editable until kickoff.
 - Man of the Match (MOTM) community voting, open for 1 hour after the authoritative match end.
-- **Core:** football trivia **battles** against other players, any time, **real-time only** over WebSockets: random 1v1 matchmaking with a bot fallback, and multiplayer private rooms (2 or more players) joined with a code. No Daily Quiz, no solo mode, no async play (ADR-0010).
+- **Core:** football trivia **battles** against other players, any time, **real-time only** over WebSockets: random 1v1 matchmaking with a bot fallback, and multiplayer private rooms (2 or more players) joined with a code. No Daily Quiz, no solo mode, no async play (ADR-0010). A battle plays one of several **game types** on one shared engine (Buzzer, Career, Who is the player?, Tiki Taka Toe; Imposter in rooms). Answers are **typed and matched by entity id**, never multiple choice (ADR-0015). No monetization at launch (ADR-0016).
 - Private leagues (prediction and battle competitions).
 - Leaderboards: weekly, monthly, seasonal, all-time. Monthly leader gets a prize.
 - Friends (mutual), privacy-aware prediction visibility.
 - A fact-first football knowledge database that feeds an offline question generator.
 
-Current phase: **Phases 0-2 and P3.1 (prediction submit) implemented; next: P5 question bank, then P6 battles (prediction scoring P3.2+ postponed, see `docs/ROADMAP.md`)**. See `docs/ROADMAP.md`.
+Current phase: **Phases 0-2 and P3.1 (prediction submit) implemented; P5.1 (question import) in review; next: G0 game types design (docs only), then P5.2 and P6 (prediction scoring P3.2+ postponed, see `docs/ROADMAP.md`)**. See `docs/ROADMAP.md`.
 
 ## 2. Hard constraints (do not violate)
 

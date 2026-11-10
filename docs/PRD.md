@@ -106,12 +106,19 @@ Each feature lists user stories, the rules that apply (decided or open), and acc
 - Real-time only; no async play, no solo mode (ADR-0010).
 - Random matchmaking is 1v1, first come first served (DEC-37). After a wait, a **bot** fills in (DEC-39). Bots are **always labeled** (DEC-40).
 - Private rooms are multiplayer: joined with a code, 2 or more players in the same battle, up to the room size limit; the host starts once at least 2 members are present; rooms stay open for rematches until idle (DEC-38, DEC-42). Blocked users cannot join each other's rooms.
-- Everyone in a battle gets the same questions in the same order, in their own language. The server decides correctness, timing and scores; the first answer per round counts.
+- Everyone in a battle gets the same content in the same order, in their own language. The server decides correctness, timing and scores.
+- **A battle is one of several game types (ADR-0015, DEC-53). Nothing is multiple choice: players type the answer and pick it from suggestions, so spelling never decides a round (DEC-55).**
+  - **Buzzer:** the question appears word by word. The first player to buzz answers. Right: they win the round. Wrong: they are out for that question and it continues for the others (DEC-54).
+  - **Career:** a player's clubs appear one by one; buzz and name the player.
+  - **Who is the player?:** clues about a player appear one by one; buzz and name the player.
+  - **Tiki Taka Toe:** tic-tac-toe on a grid of clubs and countries; take a cell by naming a player who fits its row and column. Included only if our data supports it.
+  - **Imposter:** private rooms only (rules open, DEC-58).
+- **No membership or payments at launch;** everyone plays freely (DEC-56, ADR-0016).
 - A player can be in only one of: the queue, a room, a battle.
 - Disconnects: the battle continues; a player who does not return within a grace period forfeits.
 - **Only random battles against a human give leaderboard points.** Room and bot battles are for fun and stats (DEC-41).
 
-**Open (tuning at playtesting):** rounds per battle, round and grace timers, scoring and tie rules, room size limit, bot wait and skill, question repetition window (DEC-31/32/33/38/39/43/44).
+**Open (tuning at playtesting):** rounds per battle, round and grace timers, scoring and tie rules, room size limit, bot wait and skill, question repetition window (DEC-31/32/33/38/39/43/44), and each game's own timers and attempts (DEC-54). **Open (structure):** Imposter rules (DEC-58), how matchmaking handles several games (DEC-59), whether wrong answers are shown live (DEC-60).
 
 ### 5.5 F5 — Friends and blocking
 
