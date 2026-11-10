@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:the_game/app/app.dart';
 import 'package:the_game/core/config/app_config.dart';
+import 'package:the_game/core/errors/retry_policy.dart';
 import 'package:the_game/core/l10n/app_language_controller.dart';
 
 Future<void> main() async {
@@ -22,6 +23,7 @@ Future<void> main() async {
 
   runApp(
     ProviderScope(
+      retry: chooseRetryDelayForFailedProvider,
       overrides: [
         appConfigProvider.overrideWithValue(config),
         sharedPreferencesProvider.overrideWithValue(sharedPreferences),
