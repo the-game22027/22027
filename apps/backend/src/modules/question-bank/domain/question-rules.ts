@@ -1,18 +1,36 @@
-import { type BundleQuestion, localesOfQuestion } from './question-content';
+import type { KnownEntity } from './answer-catalog';
+import {
+  type AnswerKind,
+  answerKindOfGame,
+  type BundleQuestion,
+  type EntityKind,
+  type GameContent,
+  type GridCriterion,
+  localesOfQuestion,
+  type SingleChoiceContent,
+} from './question-content';
 
-// Sanity bounds on stored text, not product rules: they stop a broken bundle from filling the UI.
+// Sanity bounds on stored text and shapes, not product rules: they stop a broken bundle from filling the UI.
+// Product values (how many clues, steps or answers a game needs) are game config (08 §6).
 export const MAX_QUESTION_TEXT_LENGTH = 300;
 export const MAX_EXPLANATION_LENGTH = 600;
 export const MAX_OPTION_TEXT_LENGTH = 100;
 export const MIN_OPTIONS = 2;
 export const MAX_OPTIONS = 6;
+export const MAX_STEP_TEXT_LENGTH = 120;
+export const MIN_REVEAL_STEPS = 2;
+export const MAX_REVEAL_STEPS = 40;
+export const MIN_CAREER_SPELLS = 2;
+export const MIN_CLUES = 2;
+export const MAX_CLUE_TEXT_LENGTH = 200;
+export const GRID_SIZE = 3;
 
 const checkText = (problems: string[], field: string, value: string, maxLength: number): void => {
   if (value.trim() === '') problems.push(`${field} is empty`);
   else if (value.length > maxLength) problems.push(`${field} is longer than ${maxLength} characters`);
 };
 
-/** Every rule a question breaks, as readable messages. An empty list means the question is valid. */
+/** Every rule a question breaks without looking at the catalog. An empty list means the shape is valid. */
 export function findQuestionProblems(question: BundleQuestion, knownCategories: ReadonlySet<string>): string[] {
   const problems: string[] = [];
   const { content } = question;
@@ -23,6 +41,21 @@ export function findQuestionProblems(question: BundleQuestion, knownCategories: 
     problems.push('difficulty must be an integer from 1 to 5');
   }
   if (locales.length === 0) problems.push('the question has no locales');
+
+  if (content.type === 'SINGLE_CHOICE') problems.push(...findSingleChoiceProblems(content));
+  else problems.push(...findGameShapeProblems(content));
+
+  const unknownReviewed = question.reviewedLocales.filter((locale) => !locales.includes(locale));
+  if (unknownReviewed.length > 0) {
+    problems.push(`humanReviewed names locales the question does not have: ${unknownReviewed.join(', ')}`);
+  }
+  if (question.provenance.sources.length === 0) problems.push('provenance needs at least one source');
+  return problems;
+}
+
+function findSingleChoiceProblems(content: SingleChoiceContent): string[] {
+  const problems: string[] = [];
+  const locales = localesOfQuestion(content);
   for (const locale of locales) {
     const localized = content.locales[locale];
     if (!localized) continue;
@@ -59,12 +92,162 @@ export function findQuestionProblems(question: BundleQuestion, knownCategories: 
     }
     if (new Set(normalized).size !== normalized.length) problems.push(`two options have the same ${locale} text`);
   }
+  return problems;
+}
 
-  const unknownReviewed = question.reviewedLocales.filter((locale) => !locales.includes(locale));
-  if (unknownReviewed.length > 0) {
-    problems.push(`humanReviewed names locales the question does not have: ${unknownReviewed.join(', ')}`);
+function findGameShapeProblems(content: GameContent): string[] {
+  const problems: string[] = [];
+  const { body, answers } = content;
+  const slots = answers.map((answer) => answer.slot);
+  for (const slot of findRepeatedValues(slots.map(String))) problems.push(`answer slot ${slot} is listed twice`);
+  for (const answer of answers) {
+    if (findRepeatedValues(answer.entities).length > 0) problems.push(`answer slot ${answer.slot} repeats an entity`);
   }
-  if (question.provenance.sources.length === 0) problems.push('provenance needs at least one source');
+
+  switch (body.gameType) {
+    case 'BUZZER': {
+      const stepCounts = Object.entries(body.steps).map(([locale, steps]) => [locale, steps.length] as const);
+      const counts = new Set(stepCounts.map(([, count]) => count));
+      if (counts.size > 1) {
+        problems.push(
+          `every locale needs the same number of steps, got ${stepCounts.map(([l, c]) => `${l}: ${c}`).join(', ')}`,
+        );
+      }
+      for (const [locale, steps] of Object.entries(body.steps)) {
+        if (steps.length < MIN_REVEAL_STEPS || steps.length > MAX_REVEAL_STEPS) {
+          problems.push(`${locale} needs ${MIN_REVEAL_STEPS} to ${MAX_REVEAL_STEPS} steps`);
+        }
+        steps.forEach((step, index) => checkText(problems, `${locale} step ${index + 1}`, step, MAX_STEP_TEXT_LENGTH));
+      }
+      for (const [locale, explanation] of Object.entries(body.explanation ?? {})) {
+        checkText(problems, `${locale} explanation`, explanation, MAX_EXPLANATION_LENGTH);
+      }
+      if (body.answerKind === 'NUMBER') {
+        if (body.answerNumber === null) problems.push('a NUMBER answer needs answerNumber');
+        if (answers.length > 0) problems.push('a NUMBER answer takes no answer entities');
+      } else {
+        if (body.answerNumber !== null) problems.push(`answerNumber is only for NUMBER answers`);
+        problems.push(...findSingleSlotProblems(answers));
+      }
+      break;
+    }
+    case 'CAREER': {
+      if (body.spells.length < MIN_CAREER_SPELLS) problems.push(`a career needs at least ${MIN_CAREER_SPELLS} spells`);
+      body.spells.forEach((spell, index) => {
+        if (spell.toYear !== null && spell.toYear < spell.fromYear) {
+          problems.push(`spell ${index + 1} ends before it starts`);
+        }
+        const previous = body.spells[index - 1];
+        if (previous && spell.fromYear < previous.fromYear) problems.push(`spell ${index + 1} is out of date order`);
+      });
+      problems.push(...findAnswerIsThePlayerProblems(answers, body.player));
+      break;
+    }
+    case 'WHO_IS_PLAYER': {
+      if (body.clues.length < MIN_CLUES) problems.push(`a player needs at least ${MIN_CLUES} clues`);
+      const locales = Object.keys(body.clues[0]?.text ?? {})
+        .sort()
+        .join();
+      body.clues.forEach((clue, index) => {
+        if (Object.keys(clue.text).sort().join() !== locales) {
+          problems.push(`clue ${index + 1} must have text in exactly the locales of clue 1`);
+        }
+        for (const [locale, text] of Object.entries(clue.text)) {
+          checkText(problems, `clue ${index + 1} ${locale} text`, text, MAX_CLUE_TEXT_LENGTH);
+        }
+      });
+      problems.push(...findAnswerIsThePlayerProblems(answers, body.player));
+      break;
+    }
+    case 'GRID': {
+      if (body.rows.length !== GRID_SIZE || body.cols.length !== GRID_SIZE) {
+        problems.push(`a grid needs ${GRID_SIZE} rows and ${GRID_SIZE} columns`);
+      }
+      const criteria = [...body.rows, ...body.cols].map((criterion) => `${criterion.kind}:${criterion.entity}`);
+      if (findRepeatedValues(criteria).length > 0) problems.push('a grid repeats a criterion');
+      const cellCount = GRID_SIZE * GRID_SIZE;
+      for (let cell = 0; cell < cellCount; cell += 1) {
+        const answer = answers.find((slot) => slot.slot === cell);
+        if (!answer || answer.entities.length === 0) problems.push(`grid cell ${cell} has no valid player`);
+      }
+      if (answers.some((answer) => answer.slot < 0 || answer.slot >= cellCount)) {
+        problems.push(`grid answer slots must be 0 to ${cellCount - 1}`);
+      }
+      break;
+    }
+  }
+  return problems;
+}
+
+function findSingleSlotProblems(answers: GameContent['answers']): string[] {
+  if (answers.length !== 1 || answers[0].slot !== 0 || answers[0].entities.length === 0) {
+    return ['answers must be exactly one slot 0 with at least one entity'];
+  }
+  return [];
+}
+
+function findAnswerIsThePlayerProblems(answers: GameContent['answers'], player: string): string[] {
+  const problems = findSingleSlotProblems(answers);
+  if (problems.length === 0 && !answers[0].entities.includes(player)) {
+    problems.push('the player must be one of the accepted answers');
+  }
+  return problems;
+}
+
+const GRID_CRITERION_KIND: Record<GridCriterion['kind'], EntityKind> = {
+  CLUB: 'CLUB',
+  NATIONALITY: 'COUNTRY',
+  COMPETITION_WON: 'COMPETITION',
+};
+
+/**
+ * Checks every entity a game points at against the catalog: it must exist and be of the right kind.
+ * Buzzer answers must also not be given away by the question text.
+ */
+export function findCatalogReferenceProblems(
+  content: GameContent,
+  findEntity: (externalRef: string) => KnownEntity | undefined,
+): string[] {
+  const problems: string[] = [];
+  const expect = (externalRef: string, kind: EntityKind | AnswerKind, role: string): void => {
+    const entity = findEntity(externalRef);
+    if (!entity) problems.push(`${role} ${externalRef} is not in the answer catalog`);
+    else if (entity.kind !== kind) problems.push(`${role} ${externalRef} is a ${entity.kind}, expected ${kind}`);
+  };
+
+  const { body } = content;
+  const answerKind = answerKindOfGame(body);
+  for (const answer of content.answers) {
+    for (const entity of answer.entities) expect(entity, answerKind, `answer (slot ${answer.slot})`);
+  }
+  switch (body.gameType) {
+    case 'BUZZER':
+      for (const answer of content.answers) {
+        for (const externalRef of answer.entities) {
+          const entity = findEntity(externalRef);
+          if (!entity) continue;
+          for (const [locale, steps] of Object.entries(body.steps)) {
+            const name = entity.names[locale as 'en' | 'ar'];
+            if (name && steps.join(' ').toLocaleLowerCase(locale).includes(name.toLocaleLowerCase(locale))) {
+              problems.push(`the ${locale} question gives away the answer "${name}"`);
+            }
+          }
+        }
+      }
+      break;
+    case 'CAREER':
+      expect(body.player, 'PLAYER', 'player');
+      body.spells.forEach((spell, index) => expect(spell.club, 'CLUB', `spell ${index + 1} club`));
+      break;
+    case 'WHO_IS_PLAYER':
+      expect(body.player, 'PLAYER', 'player');
+      break;
+    case 'GRID':
+      for (const criterion of [...body.rows, ...body.cols]) {
+        expect(criterion.entity, GRID_CRITERION_KIND[criterion.kind], `${criterion.kind} criterion`);
+      }
+      break;
+  }
   return problems;
 }
 
