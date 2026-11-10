@@ -60,7 +60,7 @@ sequenceDiagram
 
 1. **Retrieve match:** `GET /v1/matches/{id}` returns `kickoffAt`, `status`, `predictable` (computed server-side) and `serverTime`. The client may show a countdown but the server decides.
 2. **Submit:** `PUT /v1/matches/{id}/prediction` (idempotent by nature: same body twice = same state).
-3. **Validate:** DTO shape → domain validation against the active prediction config (Decided, DEC-03: an `EXACT_SCORE` pick is required; the outcome is derived from it; score bounds).
+3. **Validate:** DTO shape → domain validation (Decided, DEC-03: exactly one `EXACT_SCORE` pick; the outcome is derived from it; score bound from `PREDICTION_MAX_GOALS`, DEC-51).
 4. **Save:** a single transaction: conditional upsert of `predictions` (the statement in `02-database.md` §5), replace `prediction_picks`, append `prediction_revisions`.
 5. **Edit:** same endpoint; revision increments. A no-op edit (identical picks) returns 200 without a new revision (compare with the last snapshot).
 6. **Lock:** implicit at `kickoff_at`. `MatchStarted` only drives UX and visibility, not correctness.

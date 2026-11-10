@@ -78,6 +78,13 @@ Changes vs the original proposed order, and why:
 ### P3 — Predictions + rule sets + points ledger
 - `prediction_picks` model, submit/edit with DB-clock lock, revisions, `PredictionScorer` driven by `scoring_rule_sets`, scoring job, void/carry-over policies behind config, `points` module recording/superseding.
 - **Exit:** concurrency test around kickoff passes; result correction rescoring supersedes ledger entries; two different rule-set configs produce different points (proves nothing is hard-coded).
+- **Delivered in 3 PRs:**
+
+| PR | Scope | Learning cards |
+|---|---|---|
+| P3.1 Submit | `predictions`, `prediction_picks`, `prediction_revisions`; `PUT` and `GET /v1/matches/{id}/prediction`; database-clock lock; kickoff concurrency tests | Database clock for deadlines, shared vs exclusive locks |
+| P3.2 Scoring | `scoring_rule_sets`, `PredictionScorer`, scoring job on `MatchFinished` and `MatchResultCorrected`, `prediction_scores`, `GET /v1/me/predictions` | To be named with the PR |
+| P3.3 Ledger + voiding | `points` module, recording and superseding, void and carry-over policies, P3 exit e2e | To be named with the PR |
 
 ### P4 — Leaderboards
 - Period calculator (timezone + season calendar config), periods lifecycle job, incremental recompute per (period, user), rebuild command, keyset pagination, my-rank endpoint, snapshots at finalization.
