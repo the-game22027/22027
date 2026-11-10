@@ -5,6 +5,7 @@ import type { Prisma } from '@generated/prisma/client';
 import type {
   CompetitionRecord,
   MatchFilter,
+  MatchLockFacts,
   MatchPosition,
   MatchRecord,
   SquadPlayerRecord,
@@ -84,6 +85,10 @@ export class PrismaFootballReadRepository implements FootballReadRepository {
   async findMatch(matchId: string): Promise<MatchRecord | null> {
     const row = await this.txHost.tx.match.findUnique({ where: { id: matchId }, include: MATCH_WITH_RELATIONS });
     return row && matchOf(row);
+  }
+
+  findLockFacts(matchId: string): Promise<MatchLockFacts | null> {
+    return this.txHost.tx.match.findUnique({ where: { id: matchId }, select: { status: true, kickoffAt: true } });
   }
 
   async listSquad(matchId: string): Promise<SquadPlayerRecord[]> {

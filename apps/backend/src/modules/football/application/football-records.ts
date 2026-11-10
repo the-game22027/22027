@@ -58,8 +58,11 @@ export interface MatchPosition {
   readonly id: string;
 }
 
-export interface MatchLockInfo {
+export interface MatchLockFacts {
   readonly status: MatchStatus;
   readonly kickoffAt: Date;
+}
+
+export interface MatchLockInfo extends MatchLockFacts {
   readonly predictable: boolean;
 }

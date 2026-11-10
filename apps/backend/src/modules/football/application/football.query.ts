@@ -48,7 +48,7 @@ export class FootballQuery {
 
   /** For display and error messages only: the prediction write checks again with the database clock. */
   async getLockInfo(matchId: string): Promise<MatchLockInfo> {
-    const match = await this.football.findMatch(matchId);
+    const match = await this.football.findLockFacts(matchId);
     if (!match) throw new MatchNotFoundError();
     return {
       status: match.status,

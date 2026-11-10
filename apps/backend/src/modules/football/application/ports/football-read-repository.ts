@@ -1,6 +1,7 @@
 import type {
   CompetitionRecord,
   MatchFilter,
+  MatchLockFacts,
   MatchPosition,
   MatchRecord,
   SquadPlayerRecord,
@@ -10,6 +11,7 @@ export interface FootballReadRepository {
   listActiveCompetitions(): Promise<CompetitionRecord[]>;
   listMatches(filter: MatchFilter, after: MatchPosition | undefined, take: number): Promise<MatchRecord[]>;
   findMatch(matchId: string): Promise<MatchRecord | null>;
+  findLockFacts(matchId: string): Promise<MatchLockFacts | null>;
   listSquad(matchId: string): Promise<SquadPlayerRecord[]>;
 }
 
