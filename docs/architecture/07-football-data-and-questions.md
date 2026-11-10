@@ -125,12 +125,14 @@ flowchart TD
 
 ### 5.4 Bundle format (contract between pipeline and app)
 
-One JSON object per line; the bundle has a manifest file with `bundleVersion`, `kbVersion`, `generatorVersion`, counts, checksum.
+A bundle is a directory `data/bundles/<bundleVersion>/` with two files:
+
+- `manifest.json`: `bundleVersion` (unique, never reused), `kbVersion`, `generatorVersion`, `questionCount`, `checksum` (`sha256:<hex>` of the exact bytes of `questions.jsonl`), and `categories`, the categories the questions use: `[{ "slug": "world-cup", "names": { "en": "World Cup", "ar": "كأس العالم" } }]`.
+- `questions.jsonl`: one JSON object per line, shaped like this:
 
 ```json
 {
   "externalKey": "wc_winner_by_year:<kb-fact-key>:winner",
-  "contentHash": "sha256:...",
   "type": "SINGLE_CHOICE",
   "category": "world-cup",
   "difficulty": 2,
@@ -152,10 +154,16 @@ One JSON object per line; the bundle has a manifest file with `bundleVersion`, `
 
 ### 5.5 Import and publish (app side, `question-bank`)
 
-1. `npm run cli -- questions:import data/bundles/<version>` validates the manifest checksum and every line again (schema, exactly one correct option, locales, lengths). The app never trusts the pipeline blindly.
-2. Upsert by `external_key`: a new key → insert as `APPROVED` if `humanReviewed` for all locales, else `DRAFT`; same key + same `content_hash` → no-op; same key + different hash → new content replaces the old only if the question has not been served yet; otherwise disable the old one and insert a new key version (served questions stay immutable for history).
-3. `questions:publish --batch <id>` (or auto-publish approved ones, config) → `PUBLISHED`.
-4. `questions:disable <id> --reason` for reported or wrong questions; selection excludes them immediately.
+1. `npm run cli -- questions:import data/bundles/<version>` checks the manifest checksum and validates every line again. The app never trusts the pipeline blindly. Any invalid line rejects the whole bundle, and the command lists every problem with its line number. Checks: known fields only; `type` is `SINGLE_CHOICE`; `difficulty` is an integer 1-5; `category` is listed in the manifest; question locales are supported app locales (`ar`, `en`), at least one; 2-6 options with positions 1..n; exactly one correct option (A-05); every option has text in exactly the question's locales, distinct within a locale; non-empty texts within sanity lengths (question 300, explanation 600, option 100 characters); `externalKey` unique in the bundle; `validUntil` an ISO-8601 instant or `null`.
+2. The import runs in **one transaction**: the bundle is fully imported or not at all. The same `bundleVersion` again with the same checksum is a no-op; with a different checksum it is rejected (bundle versions are never reused).
+3. **Content hash, computed by the app:** SHA-256 of the canonical JSON of what a player sees and what decides correctness (type, category, difficulty, texts, explanations, options with positions, correctness and entity refs, `validUntil`). The pipeline does not send it, so there is one implementation of it. Review flags and provenance are metadata, not content.
+4. Upsert by `externalKey`, comparing with its latest version (`key_version`):
+   - new key → insert version 1 as `APPROVED` if every locale is `humanReviewed`, else `DRAFT`;
+   - same content hash → nothing changes, except that newly reviewed locales are recorded and a `DRAFT` whose locales are now all reviewed becomes `APPROVED` (a review never goes backwards);
+   - different content hash and the question was **never published** (`published_at` is null) and is `DRAFT` or `APPROVED` → its content is replaced in place and its status is derived again from the review flags;
+   - different content hash otherwise → the old version is `DISABLED` with reason `SUPERSEDED` (if it was not already disabled) and a new row with `key_version + 1` is inserted. A question that could have been served is never changed, so battle history stays true. "Could have been served" is judged by `published_at`, because answer statistics arrive only after a battle ends.
+5. `questions:publish --batch <id>` (or auto-publish approved ones, config) → `PUBLISHED`.
+6. `questions:disable <id> --reason` for reported or wrong questions; selection excludes them immediately.
 
 Regeneration = new bundle version. Rollback = disable a batch.
 

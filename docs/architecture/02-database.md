@@ -301,13 +301,14 @@ motm_votes (
 ```sql
 question_categories ( id uuid PK, slug text UQ, names jsonb, parent_id uuid NULL FK → question_categories )
 question_import_batches (
-  id uuid PK, bundle_version text UQ, generator_version text, source_summary jsonb,
-  status text, stats jsonb NULL, imported_at timestamptz
+  id uuid PK, bundle_version text UQ, checksum text, generator_version text, kb_version text,
+  status text, stats jsonb NULL, imported_at timestamptz   -- stats: counts per import outcome
 )
 questions (
   id uuid PK,
-  external_key text UQ,                 -- stable key from the generator (template + fact key + angle)
-  content_hash text,                    -- detects changed content on re-import
+  external_key text,                    -- stable key from the generator (template + fact key + angle)
+  key_version int DEFAULT 1,            -- +1 when changed content replaces a question that could have been served
+  content_hash text,                    -- computed by the app; detects changed content on re-import (07 §5.5)
   type text DEFAULT 'SINGLE_CHOICE',
   category_id uuid FK → question_categories,
   difficulty smallint,                  -- predicted 1..5 from generator
@@ -321,6 +322,7 @@ questions (
   published_at timestamptz NULL, disabled_at timestamptz NULL, disabled_reason text NULL,
   created_at timestamptz, updated_at timestamptz
 )
+  UQ (external_key, key_version)
   IX (status, difficulty, category_id)
   IX USING gin (available_locales)
 question_translations (

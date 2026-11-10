@@ -97,6 +97,12 @@ Changes vs the original proposed order, and why:
 ### P5 — Question bank + import
 - Tables, `questions:import` / `publish` / `disable` CLI, selection queries (locale intersection, difficulty/category balance, exclusion list), answer key, playable payload mapper, question reports endpoint, `BattleCompleted` stats handler (can be wired in P6).
 - **Exit:** importing the same bundle twice is a no-op; a changed served question is versioned, not overwritten; payload mappers never expose correctness (test).
+- **Delivered in 2 PRs:**
+
+| PR | Scope | Learning cards |
+|---|---|---|
+| P5.1 Import | Question tables (stats tables come with their `BattleCompleted` handler in P6), bundle validation, `questions:import`, a hand-written dev bundle of about 50 EN/AR questions | To be named with the PR |
+| P5.2 Select + serve | `QuestionSelector`, `AnswerKey`, playable payload mapper with per-player option order (DEC-44), `questions:publish` / `questions:disable`, question reports endpoint | To be named with the PR |
 
 ### P6 — Quiz battles: engine + matchmaking + bot fallback (CORE)
 - `/battles` gateway per `WEBSOCKET.md`; battle engine for 2..N participants; question selection with recent-exposure exclusion (DEC-44); readiness, rounds, answers, scoring and placements from the BATTLE rule set with per-mode points (DEC-33/41); persistence of every transition; reconnection/resync; forfeit; Redis matchmaking queue + matcher loop; bot fallback with `BotPlayer` profiles (DEC-39/43); activity guard; `GET /v1/me/play-state`; completion → outbox → ledger → leaderboards (the generic `points` ledger and the leaderboard projection are built here for the `BATTLES` category, see the order change above); stale battle sweeper.
