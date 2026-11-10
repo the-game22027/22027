@@ -66,6 +66,7 @@ the-game/
 
 - TypeScript `strict: true`. No `any` in domain/application code.
 - File names `kebab-case.ts`; classes `PascalCase`; DB tables/columns `snake_case` (Prisma `@@map`/`@map`); API JSON `camelCase`.
+- **Function names must be clear to someone new to backend** (the user's rule). Read alone, the name says what the function does and what it returns: a verb plus its object (`findActiveSessionsForUser`, `lockMatchIfPredictable`), and booleans state the full condition (`isSupportedLocale`, not `isLocale`; `hasRecentSignIn`, not `recent`). Prefer a longer plain name over a short or clever one; no abbreviations. Rename unclear names when you touch their file.
 - IDs: UUID v7 generated in the application (`shared/kernel/id.ts`), stored as `uuid`.
 - All timestamps `timestamptz`, UTC in storage and API (ISO-8601 with `Z`). Period/timezone logic only in the leaderboard period calculator.
 - Validation: `class-validator` DTOs at the edge; invariants enforced again in domain.
