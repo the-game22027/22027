@@ -78,3 +78,8 @@ New tracks are added when the first card needs one.
 | [backend/simulating-time](backend/simulating-time.md) | P2 | Plan the steps as pure data; speed only divides the waits |
 | [database/database-clock-deadlines](database/database-clock-deadlines.md) | P3 | One clock judges the deadline: `now()` in SQL |
 | [database/shared-vs-exclusive-locks](database/shared-vs-exclusive-locks.md) | P3 | `FOR SHARE` for many readers, `FOR UPDATE` for one writer |
+| [mobile/generated-rest-client](mobile/generated-rest-client.md) | M0 | The contract generates the client; regenerate, never hand-edit |
+| [mobile/secure-token-storage](mobile/secure-token-storage.md) | M0 | Tokens in the OS keystore; the server's 401 decides expiry |
+| [mobile/riverpod-providers-as-di](mobile/riverpod-providers-as-di.md) | M0 | Providers build dependencies; tests swap them with overrides |
+| [mobile/go-router-redirect-guard](mobile/go-router-redirect-guard.md) | M0 | One pure function decides where each player may go |
+| [mobile/rtl-and-localization](mobile/rtl-and-localization.md) | M0 | ARB strings and directional layouts; Arabic flips to RTL |
