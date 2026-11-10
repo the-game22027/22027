@@ -42,7 +42,8 @@ final dioProvider = Provider<Dio>((ref) {
       endSession: () => ref.read(sessionControllerProvider.notifier).endSession(),
       accessTokenRefresher: ref.watch(accessTokenRefresherProvider),
     ),
-    if (config.isDevFlavor) SafeLoggingInterceptor(writeLogLine: debugPrint),
+    if (config.isDevFlavor)
+      SafeLoggingInterceptor(writeLogLine: (line) => debugPrint(line)),
   ]);
   return dio;
 });
