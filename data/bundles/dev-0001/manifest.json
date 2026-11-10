@@ -1,0 +1,37 @@
+{
+  "bundleVersion": "dev-0001",
+  "kbVersion": "none",
+  "generatorVersion": "hand-written",
+  "questionCount": 50,
+  "checksum": "sha256:112297baeedb2e431fe607a2942e7066ab5a39de2e4f7c4e6ee4b2395c118837",
+  "categories": [
+    {
+      "slug": "world-cup",
+      "names": {
+        "en": "World Cup",
+        "ar": "كأس العالم"
+      }
+    },
+    {
+      "slug": "euros",
+      "names": {
+        "en": "European Championship",
+        "ar": "بطولة أمم أوروبا"
+      }
+    },
+    {
+      "slug": "champions-league",
+      "names": {
+        "en": "Champions League",
+        "ar": "دوري أبطال أوروبا"
+      }
+    },
+    {
+      "slug": "ballon-dor",
+      "names": {
+        "en": "Ballon d'Or",
+        "ar": "الكرة الذهبية"
+      }
+    }
+  ]
+}

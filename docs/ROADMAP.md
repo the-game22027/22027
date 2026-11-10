@@ -14,7 +14,6 @@ flowchart LR
   P0 --> P5[P5 Question bank + import]
   D[Track D: Python KB + templates] --> P5
   P5 --> P6[P6 Quiz battles: engine + matchmaking + bots - CORE]
-  P4 --> P6
   P1 --> P7[P7 Friends + blocks + prediction visibility]
   P3 --> P7
   P6 --> P8[P8 Private battle rooms]
@@ -34,6 +33,7 @@ Changes vs the original proposed order, and why:
 - **Points ledger moves into P3** with predictions: scoring needs somewhere to write, and the ledger is what makes recalculation possible from day one.
 - **Leaderboards move up to P4:** predict → points → rank is the core loop; everything after it plugs into the same ledger.
 - **Quiz battles are core and come right after the points loop (P5-P6, ADR-0010).** The Daily Quiz phase is gone; the battle engine, matchmaking and bot fallback come first because they make the feature playable even with very few users.
+- **Order change (2026-11-10, product owner): question bank and battles (P5-P6) come before prediction scoring (P3.2-P3.3) and leaderboards (P4).** Prediction rules are not settled yet. The predictions and battles boards are separate (DEC-18), so battles do not wait for prediction scoring. They share only the generic plumbing (the `point_entries` ledger and the leaderboard projection), which is built at the end of P6 for the `BATTLES` category first; prediction scoring writes into the same ledger when it is picked up again.
 - **Friends before private rooms:** room joins need block checks (`social`), and friends are who you invite.
 - **MOTM moves later (P9):** it is independent and can slot anywhere after P2.
 - **Track D (Python knowledge base) runs in parallel** from P2 because it has no dependency on the NestJS code, only on the bundle contract. Battles can be played without limit, so the bank must be large before launch (risk K-09). P5-P6 can start with a small hand-written dev bundle.
@@ -97,9 +97,15 @@ Changes vs the original proposed order, and why:
 ### P5 — Question bank + import
 - Tables, `questions:import` / `publish` / `disable` CLI, selection queries (locale intersection, difficulty/category balance, exclusion list), answer key, playable payload mapper, question reports endpoint, `BattleCompleted` stats handler (can be wired in P6).
 - **Exit:** importing the same bundle twice is a no-op; a changed served question is versioned, not overwritten; payload mappers never expose correctness (test).
+- **Delivered in 2 PRs:**
+
+| PR | Scope | Learning cards |
+|---|---|---|
+| P5.1 Import | Question tables (stats tables come with their `BattleCompleted` handler in P6), bundle validation, `questions:import`, a hand-written dev bundle of about 50 EN/AR questions | Content hash, immutable served content, partial unique index, advisory locks |
+| P5.2 Select + serve | `QuestionSelector`, `AnswerKey`, playable payload mapper with per-player option order (DEC-44), `questions:publish` / `questions:disable`, question reports endpoint | To be named with the PR |
 
 ### P6 — Quiz battles: engine + matchmaking + bot fallback (CORE)
-- `/battles` gateway per `WEBSOCKET.md`; battle engine for 2..N participants; question selection with recent-exposure exclusion (DEC-44); readiness, rounds, answers, scoring and placements from the BATTLE rule set with per-mode points (DEC-33/41); persistence of every transition; reconnection/resync; forfeit; Redis matchmaking queue + matcher loop; bot fallback with `BotPlayer` profiles (DEC-39/43); activity guard; `GET /v1/me/play-state`; completion → outbox → ledger → leaderboards; stale battle sweeper.
+- `/battles` gateway per `WEBSOCKET.md`; battle engine for 2..N participants; question selection with recent-exposure exclusion (DEC-44); readiness, rounds, answers, scoring and placements from the BATTLE rule set with per-mode points (DEC-33/41); persistence of every transition; reconnection/resync; forfeit; Redis matchmaking queue + matcher loop; bot fallback with `BotPlayer` profiles (DEC-39/43); activity guard; `GET /v1/me/play-state`; completion → outbox → ledger → leaderboards (the generic `points` ledger and the leaderboard projection are built here for the `BATTLES` category, see the order change above); stale battle sweeper.
 - **Exit:** WebSocket test suite for happy path, duplicate/late/out-of-order messages, disconnect/reconnect, forfeit, ready timeout; bot fallback fires after the configured wait and the bot battle replays identically with a fixed seed; two rule-set configs give different per-mode points (proves DEC-41 is config); a 3-participant battle runs in tests even though matchmaking only makes 1v1.
 
 ### P7 — Friends + blocks + prediction visibility
@@ -181,8 +187,9 @@ Estimates are **focused working days for one developer using coding agents**, in
 | Stage | Phases (in order) | Focused days |
 |---|---|---|
 | A. Foundation | P0, M0 | 5-8 |
-| B. Predict → points → rank | P1, M1, P2, P3, P4, M2 | 23-33 |
-| C. Quiz battles (core) | P5, P6, M3, P7, P8, M4 | 27-38 |
+| B. Predict (submit only) | P1, M1, P2, P3.1 | 13-19 |
+| C. Quiz battles (core) | P5, P6 (with the generic ledger + battles board), M3, P7, P8, M4 | 32-45 |
+| C2. Predictions scoring | P3.2, P3.3, P4 for the predictions board, M2 | 10-14 |
 | Parallel content | Track D (start during stage B; keep going until launch volume, K-09) | 10-15 |
 | D. Rest of the product | P9, P10, M5, P11 (+ Facebook/X in the app) | 14-22 |
 | E. Release v1.0 | R1 (fixtures, results, lineups), P12, R2 | 12-20 + 14 days closed test |
