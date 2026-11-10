@@ -61,7 +61,7 @@ interface BattleRoomSnapshot {      // same shape as REST BattleRoom (API.md §5
   maxPlayers: number; gameType: GameType; expiresAt: string; currentBattleId?: string | null;
 }
 type GameType = 'BUZZER' | 'CAREER' | 'WHO_IS_PLAYER' | 'GRID';          // clients must tolerate unknown values
-type AnswerKind = 'PLAYER' | 'CLUB' | 'NATIONAL_TEAM' | 'COMPETITION' | 'COACH' | 'NUMBER';
+type AnswerKind = 'PLAYER' | 'CLUB' | 'NATIONAL_TEAM' | 'COUNTRY' | 'COMPETITION' | 'COACH' | 'NUMBER';
 type Answer = { entityId: string } | { number: number };                 // never free text (DEC-55)
 interface EntityRef { entityId: string; name: string }                   // name in the viewer's locale
 interface GridCriterion { kind: 'CLUB' | 'NATIONALITY' | 'COMPETITION_WON'; entity: EntityRef }

@@ -128,7 +128,7 @@ Round content lives in `question-bank` (`02-database.md` §4.6) and comes from b
 | `WHO_IS_PLAYER` | `{ playerEntityId, clues: [{ kind, text: {en, ar} }] }` | The player (slot 0) |
 | `GRID` | `{ rows: [criterion ×3], cols: [criterion ×3] }` | For each cell (slot 0..8), every valid player id |
 
-`answerKind` is `PLAYER`, `CLUB`, `NATIONAL_TEAM`, `COMPETITION`, `COACH`, or `NUMBER`. The client uses it to filter suggestions; it gives nothing away.
+`answerKind` is `PLAYER`, `CLUB`, `NATIONAL_TEAM`, `COUNTRY`, `COMPETITION`, `COACH`, or `NUMBER`. Catalog entities of kind `COUNTRY` also name the nationality criteria of `GRID`. The client uses it to filter suggestions; it gives nothing away.
 
 ## 5. Answer catalog and typed answers (DEC-55)
 

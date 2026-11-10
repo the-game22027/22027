@@ -27,7 +27,7 @@ PostgreSQL (16+), managed by Prisma migrations. One **app** database (this docum
 | `motm_poll_status` | `PENDING`, `OPEN`, `CLOSED`, `FINALIZED`, `CANCELLED` | |
 | `question_status` | `DRAFT`, `APPROVED`, `PUBLISHED`, `DISABLED` | |
 | `battle_game_type` | `BUZZER`, `CAREER`, `WHO_IS_PLAYER`, `GRID` (`IMPOSTER` added with P8) | Which game a battle plays (ADR-0015). Named apart from `game_type`, which is the points category |
-| `answer_kind` | `PLAYER`, `CLUB`, `NATIONAL_TEAM`, `COMPETITION`, `COACH`, `NUMBER` | What a typed answer must be (`08-battle-games.md` §4) |
+| `answer_kind` | `PLAYER`, `CLUB`, `NATIONAL_TEAM`, `COUNTRY`, `COMPETITION`, `COACH`, `NUMBER` | What a typed answer must be (`08-battle-games.md` §4) |
 | `battle_mode` | `MATCHMAKING`, `ROOM` | How the participants were brought together; a bot can only appear in `MATCHMAKING` (DEC-39) |
 | `battle_status` | `WAITING_READY`, `IN_PROGRESS`, `COMPLETED`, `ABANDONED`, `CANCELLED` | |
 | `battle_outcome` | `WIN`, `LOSS`, `DRAW` | Derived from placement: sole first = WIN, shared first = DRAW, otherwise LOSS. `end_reason` explains forfeits |

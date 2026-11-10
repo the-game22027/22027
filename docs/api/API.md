@@ -158,7 +158,7 @@ interface CastVoteRequest { playerId: string }
 type GameType = 'BUZZER' | 'CAREER' | 'WHO_IS_PLAYER' | 'GRID';         // ADR-0015; tolerate unknown values
 interface MatchmakingTicket { ticketId: string; gameType: GameType; status: 'QUEUED' | 'MATCHED' | 'TIMED_OUT' | 'CANCELLED';
   queuedAt: string; botFallbackAt?: string | null; battleId?: string }
-interface AnswerCatalog { version: string; entities: { id: string; kind: 'PLAYER'|'CLUB'|'NATIONAL_TEAM'|'COMPETITION'|'COACH';
+interface AnswerCatalog { version: string; entities: { id: string; kind: 'PLAYER'|'CLUB'|'NATIONAL_TEAM'|'COUNTRY'|'COMPETITION'|'COACH';
   names: { en: string; ar: string }; search: string[]; popularity: number }[] }   // search = normalized names + aliases (07 §5.7)
 interface BattlePlayer { participantId: string; kind: 'HUMAN' | 'BOT'; user?: PublicUser;
   bot?: { displayName: string; avatarUrl?: string | null }; seat: number }      // bots always labeled (DEC-40)
