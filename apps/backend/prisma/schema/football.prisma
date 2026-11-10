@@ -75,7 +75,8 @@ model Player {
   position        String?
   externalRefs    Json      @default("{}") @map("external_refs")
 
-  squadEntries MatchSquadPlayer[]
+  squadEntries    MatchSquadPlayer[]
+  predictionPicks PredictionPick[]
 
   @@map("players")
 }
@@ -109,6 +110,7 @@ model Match {
   homeTeam    Team               @relation("HomeTeam", fields: [homeTeamId], references: [id])
   awayTeam    Team               @relation("AwayTeam", fields: [awayTeamId], references: [id])
   squad       MatchSquadPlayer[]
+  predictions Prediction[]
 
   @@unique([provider, providerMatchId])
   @@index([kickoffAt])
