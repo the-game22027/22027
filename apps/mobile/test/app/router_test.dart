@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
@@ -59,16 +60,19 @@ void main() {
       }
     });
 
-    test('keeps everyone on the splash screen while the session is restoring', () {
-      expect(
-        findRedirectForSession(
-          session: restoring,
-          location: AppRoutes.home,
-          isDevFlavor: true,
-        ),
-        AppRoutes.splash,
-      );
-    });
+    test(
+      'keeps everyone on the splash screen while the session is restoring',
+      () {
+        expect(
+          findRedirectForSession(
+            session: restoring,
+            location: AppRoutes.home,
+            isDevFlavor: true,
+          ),
+          AppRoutes.splash,
+        );
+      },
+    );
 
     test('lets anyone open server status and settings', () {
       for (final session in [signedOut, signedIn, restoring]) {
@@ -126,19 +130,20 @@ void main() {
       expect(find.byType(DevSignInScreen), findsOneWidget);
     });
 
-    testWidgets('a signed-out player in prod lands on the sign-in placeholder', (
-      tester,
-    ) async {
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: await createTestOverrides(config: prodConfig),
-          child: const TheGameApp(),
-        ),
-      );
-      await tester.pumpAndSettle();
+    testWidgets(
+      'a signed-out player in prod lands on the sign-in placeholder',
+      (tester) async {
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: await createTestOverrides(config: prodConfig),
+            child: const TheGameApp(),
+          ),
+        );
+        await tester.pumpAndSettle();
 
-      expect(find.byType(SignInScreen), findsOneWidget);
-    });
+        expect(find.byType(SignInScreen), findsOneWidget);
+      },
+    );
 
     testWidgets('a signed-in player lands on home', (tester) async {
       await tester.pumpWidget(

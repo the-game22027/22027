@@ -1,5 +1,5 @@
 import 'package:dio/dio.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:the_game/core/config/app_config.dart';
@@ -25,9 +25,7 @@ Future<List<Override>> createTestOverrides({
   HttpClientAdapter? httpClientAdapter,
   String? savedLanguageCode,
 }) async {
-  SharedPreferences.setMockInitialValues({
-    if (savedLanguageCode != null) 'app_language': savedLanguageCode,
-  });
+  SharedPreferences.setMockInitialValues({'app_language': ?savedLanguageCode});
   final sharedPreferences = await SharedPreferences.getInstance();
   return [
     appConfigProvider.overrideWithValue(config),

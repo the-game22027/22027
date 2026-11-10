@@ -2,7 +2,6 @@ import 'package:api_client/api_client.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:uuid/uuid.dart';
 
 import 'package:the_game/core/config/app_config.dart';
 import 'package:the_game/core/l10n/app_language_controller.dart';
@@ -11,6 +10,7 @@ import 'package:the_game/core/network/request_headers_interceptor.dart';
 import 'package:the_game/core/network/safe_logging_interceptor.dart';
 import 'package:the_game/core/session/access_token_refresher.dart';
 import 'package:the_game/core/session/session_controller.dart';
+import 'package:uuid/uuid.dart';
 
 /// Tests override this with a fake adapter; production uses Dio's default one.
 final httpClientAdapterProvider = Provider<HttpClientAdapter?>((ref) => null);
@@ -39,7 +39,8 @@ final dioProvider = Provider<Dio>((ref) {
       readSession: () => ref.read(sessionControllerProvider).value,
       startSession: (session) =>
           ref.read(sessionControllerProvider.notifier).startSession(session),
-      endSession: () => ref.read(sessionControllerProvider.notifier).endSession(),
+      endSession: () =>
+          ref.read(sessionControllerProvider.notifier).endSession(),
       accessTokenRefresher: ref.watch(accessTokenRefresherProvider),
     ),
     if (config.isDevFlavor)

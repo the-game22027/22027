@@ -19,10 +19,7 @@ class SignInScreen extends StatelessWidget {
       body: Center(
         child: Padding(
           padding: const EdgeInsetsDirectional.all(24),
-          child: Text(
-            l10n.signInNotAvailableYet,
-            textAlign: TextAlign.center,
-          ),
+          child: Text(l10n.signInNotAvailableYet, textAlign: TextAlign.center),
         ),
       ),
     );

@@ -1,11 +1,11 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_riverpod/misc.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:the_game/core/errors/app_error.dart';
 import 'package:the_game/core/l10n/app_language_controller.dart';
-import 'package:the_game/core/network/api_client_provider.dart';
 import 'package:the_game/core/session/access_token_refresher.dart';
 import 'package:the_game/core/session/session_controller.dart';
 import 'package:the_game/core/storage/token_storage.dart';
@@ -60,20 +60,23 @@ void main() {
     return container;
   }
 
-  test('an authenticated call carries the bearer token, language and a request id', () async {
-    final adapter = FakeHttpAdapter((_) => jsonResponse(meJson));
-    final container = await createSignedInContainer(adapter);
+  test(
+    'an authenticated call carries the bearer token, language and a request id',
+    () async {
+      final adapter = FakeHttpAdapter((_) => jsonResponse(meJson));
+      final container = await createSignedInContainer(adapter);
 
-    final profile = await container
-        .read(homeRepositoryProvider)
-        .fetchCurrentPlayerProfile();
+      final profile = await container
+          .read(homeRepositoryProvider)
+          .fetchCurrentPlayerProfile();
 
-    expect(profile.displayName, 'Alice');
-    final headers = adapter.sentRequests.single.headers;
-    expect(headers['Authorization'], 'Bearer ${testSession.accessToken}');
-    expect(headers['Accept-Language'], 'ar');
-    expect(headers['X-Request-Id'], matches(RegExp(r'^[0-9a-f-]{36}$')));
-  });
+      expect(profile.displayName, 'Alice');
+      final headers = adapter.sentRequests.single.headers;
+      expect(headers['Authorization'], 'Bearer ${testSession.accessToken}');
+      expect(headers['Accept-Language'], 'ar');
+      expect(headers['X-Request-Id'], matches(RegExp(r'^[0-9a-f-]{36}$')));
+    },
+  );
 
   test('every request gets its own request id', () async {
     final adapter = FakeHttpAdapter((_) => jsonResponse(meJson));
@@ -115,12 +118,17 @@ void main() {
         .read(authRepositoryProvider)
         .signInWithDevAccount(subject: 'alice');
 
-    expect(adapter.sentRequests.single.headers, isNot(contains('Authorization')));
+    expect(
+      adapter.sentRequests.single.headers,
+      isNot(contains('Authorization')),
+    );
   });
 
   test('a 401 on an authenticated call ends the session', () async {
     final storage = InMemoryTokenStorage(testSession);
-    final adapter = FakeHttpAdapter((_) => problemResponse(401, 'TOKEN_EXPIRED'));
+    final adapter = FakeHttpAdapter(
+      (_) => problemResponse(401, 'TOKEN_EXPIRED'),
+    );
     final container = await createSignedInContainer(adapter, storage: storage);
 
     await expectLater(
@@ -132,29 +140,35 @@ void main() {
     expect(storage.session, isNull);
   });
 
-  test('a 401 retries once with refreshed tokens when a refresher is wired (M1 seam)', () async {
-    final refresher = _RotatingRefresher();
-    final adapter = FakeHttpAdapter(
-      (request) => request.headers['Authorization'] == 'Bearer rotated-access-token'
-          ? jsonResponse(meJson)
-          : problemResponse(401, 'TOKEN_EXPIRED'),
-    );
-    final container = await createSignedInContainer(
-      adapter,
-      extraOverrides: [accessTokenRefresherProvider.overrideWithValue(refresher)],
-    );
+  test(
+    'a 401 retries once with refreshed tokens when a refresher is wired (M1 seam)',
+    () async {
+      final refresher = _RotatingRefresher();
+      final adapter = FakeHttpAdapter(
+        (request) =>
+            request.headers['Authorization'] == 'Bearer rotated-access-token'
+            ? jsonResponse(meJson)
+            : problemResponse(401, 'TOKEN_EXPIRED'),
+      );
+      final container = await createSignedInContainer(
+        adapter,
+        extraOverrides: [
+          accessTokenRefresherProvider.overrideWithValue(refresher),
+        ],
+      );
 
-    final profile = await container
-        .read(homeRepositoryProvider)
-        .fetchCurrentPlayerProfile();
+      final profile = await container
+          .read(homeRepositoryProvider)
+          .fetchCurrentPlayerProfile();
 
-    expect(profile.displayName, 'Alice');
-    expect(refresher.calls, 1);
-    expect(
-      container.read(sessionControllerProvider).value?.accessToken,
-      'rotated-access-token',
-    );
-  });
+      expect(profile.displayName, 'Alice');
+      expect(refresher.calls, 1);
+      expect(
+        container.read(sessionControllerProvider).value?.accessToken,
+        'rotated-access-token',
+      );
+    },
+  );
 
   test('a 401 from a public route keeps the session', () async {
     final adapter = FakeHttpAdapter(
@@ -193,29 +207,34 @@ void main() {
       ),
     );
     await expectLater(
-      unreachableContainer.read(homeRepositoryProvider).fetchCurrentPlayerProfile(),
+      unreachableContainer
+          .read(homeRepositoryProvider)
+          .fetchCurrentPlayerProfile(),
       throwsA(isA<ServerUnreachableError>()),
     );
   });
 
-  test('unknown fields and enum values in a response do not break parsing', () async {
-    final adapter = FakeHttpAdapter(
-      (_) => jsonResponse({
-        ...meJson,
-        'fieldAddedLater': {'nested': true},
-        'identities': [
-          {'id': 'i-2', 'provider': 'APPLE', 'label': 'new provider'},
-        ],
-      }),
-    );
-    final container = await createSignedInContainer(adapter);
+  test(
+    'unknown fields and enum values in a response do not break parsing',
+    () async {
+      final adapter = FakeHttpAdapter(
+        (_) => jsonResponse({
+          ...meJson,
+          'fieldAddedLater': {'nested': true},
+          'identities': [
+            {'id': 'i-2', 'provider': 'APPLE', 'label': 'new provider'},
+          ],
+        }),
+      );
+      final container = await createSignedInContainer(adapter);
 
-    final profile = await container
-        .read(homeRepositoryProvider)
-        .fetchCurrentPlayerProfile();
+      final profile = await container
+          .read(homeRepositoryProvider)
+          .fetchCurrentPlayerProfile();
 
-    expect(profile.displayName, 'Alice');
-  });
+      expect(profile.displayName, 'Alice');
+    },
+  );
 
   test('the dev log never contains tokens', () async {
     final adapter = FakeHttpAdapter(

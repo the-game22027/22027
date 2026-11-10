@@ -28,13 +28,13 @@ class ServerStatusScreen extends ConsumerWidget {
                   color: Colors.green,
                   text: l10n.serverStatusUp,
                 ),
-                AsyncData(value: ServerHealth.down) || AsyncError() =>
-                  _HealthLabel(
-                    key: const Key('server-status-down'),
-                    icon: Icons.error,
-                    color: Theme.of(context).colorScheme.error,
-                    text: l10n.serverStatusDown,
-                  ),
+                AsyncData(value: ServerHealth.down) ||
+                AsyncError() => _HealthLabel(
+                  key: const Key('server-status-down'),
+                  icon: Icons.error,
+                  color: Theme.of(context).colorScheme.error,
+                  text: l10n.serverStatusDown,
+                ),
                 _ => const CircularProgressIndicator(),
               },
               const SizedBox(height: 24),

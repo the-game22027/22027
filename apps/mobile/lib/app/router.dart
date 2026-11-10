@@ -30,8 +30,8 @@ String? findRedirectForSession({
       location == AppRoutes.signIn || location == AppRoutes.devSignIn;
 
   return switch (session) {
-    AsyncData(value: null) || AsyncError() =>
-      location == signInRoute ? null : signInRoute,
+    AsyncData(value: null) ||
+    AsyncError() => location == signInRoute ? null : signInRoute,
     AsyncData() =>
       isOnSignInScreen || location == AppRoutes.splash ? AppRoutes.home : null,
     _ => location == AppRoutes.splash ? null : AppRoutes.splash,

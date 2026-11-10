@@ -22,7 +22,9 @@ class SafeLoggingInterceptor extends Interceptor {
     Response<dynamic> response,
     ResponseInterceptorHandler handler,
   ) {
-    writeLogLine(_describeExchange(response.requestOptions, response.statusCode));
+    writeLogLine(
+      _describeExchange(response.requestOptions, response.statusCode),
+    );
     handler.next(response);
   }
 

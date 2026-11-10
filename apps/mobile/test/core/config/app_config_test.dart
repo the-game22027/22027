@@ -17,7 +17,10 @@ void main() {
 
     test('fails when the flavor is missing', () {
       expect(
-        () => AppConfig.fromValues(flavor: '', apiBaseUrl: 'http://localhost:3000'),
+        () => AppConfig.fromValues(
+          flavor: '',
+          apiBaseUrl: 'http://localhost:3000',
+        ),
         throwsA(isA<InvalidAppConfigError>()),
       );
     });
@@ -41,7 +44,8 @@ void main() {
 
     test('fails when the API base URL is not absolute', () {
       expect(
-        () => AppConfig.fromValues(flavor: 'prod', apiBaseUrl: 'localhost:3000'),
+        () =>
+            AppConfig.fromValues(flavor: 'prod', apiBaseUrl: 'localhost:3000'),
         throwsA(isA<InvalidAppConfigError>()),
       );
     });

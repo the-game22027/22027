@@ -18,7 +18,8 @@ enum AppLanguage {
 /// Overridden in `main.dart` with the instance loaded before `runApp`, so reading the saved
 /// language is synchronous and the first frame already has the right direction.
 final sharedPreferencesProvider = Provider<SharedPreferences>(
-  (ref) => throw UnimplementedError('sharedPreferencesProvider must be overridden'),
+  (ref) =>
+      throw UnimplementedError('sharedPreferencesProvider must be overridden'),
 );
 
 class AppLanguageController extends Notifier<AppLanguage> {
@@ -26,7 +27,9 @@ class AppLanguageController extends Notifier<AppLanguage> {
 
   @override
   AppLanguage build() {
-    final savedCode = ref.watch(sharedPreferencesProvider).getString(_preferenceKey);
+    final savedCode = ref
+        .watch(sharedPreferencesProvider)
+        .getString(_preferenceKey);
     return findLanguageByCode(savedCode) ??
         findLanguageByCode(PlatformDispatcher.instance.locale.languageCode) ??
         AppLanguage.english;
@@ -34,7 +37,9 @@ class AppLanguageController extends Notifier<AppLanguage> {
 
   Future<void> changeLanguage(AppLanguage language) async {
     state = language;
-    await ref.read(sharedPreferencesProvider).setString(_preferenceKey, language.code);
+    await ref
+        .read(sharedPreferencesProvider)
+        .setString(_preferenceKey, language.code);
   }
 }
 

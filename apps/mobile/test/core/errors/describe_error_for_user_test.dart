@@ -27,7 +27,10 @@ void main() {
     for (final MapEntry(key: code, value: message)
         in expectedMessageByCode.entries) {
       test('describes $code', () {
-        expect(describeErrorForUser(problemWithCode(400, code), english), message);
+        expect(
+          describeErrorForUser(problemWithCode(400, code), english),
+          message,
+        );
       });
     }
 
