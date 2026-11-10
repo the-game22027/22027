@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -27,9 +29,12 @@ class SettingsScreen extends ConsumerWidget {
             groupValue: selectedLanguage,
             onChanged: (language) {
               if (language == null) return;
-              ref
-                  .read(appLanguageControllerProvider.notifier)
-                  .changeLanguage(language);
+              // The language changes at once; saving it to disk can finish in the background.
+              unawaited(
+                ref
+                    .read(appLanguageControllerProvider.notifier)
+                    .changeLanguage(language),
+              );
             },
             child: Column(
               children: [
