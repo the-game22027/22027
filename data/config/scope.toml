@@ -1,0 +1,55 @@
+# Which part of Wikidata becomes our knowledge base (docs/architecture/07 §4.2).
+# Changing this file changes the answer catalog; run `python -m kb ingest` again afterwards.
+
+# A player is kept when at least this many Wikipedia language editions have an article about them.
+# Popularity proxy: drops historic squad fillers nobody can name. Tuned by looking at the catalog size.
+min_player_sitelinks = 8
+
+# Spells that ended before this age are childhood clubs and are dropped (Ronaldo at CF Andorinha, aged 7-10).
+min_senior_age = 17
+
+# Senior clubs only: a team is dropped from careers when one of its types is listed here...
+excluded_team_classes = [
+  "Q2412834",  # reserve team
+  "Q6979740",  # national under-21 association football team
+  "Q23901123", # national under-17 association football team
+  "Q28140340", # women's association football team
+]
+# ...or when its English label matches this pattern (case-insensitive).
+excluded_team_label_pattern = '''\b(youth|academy|reserves?|under-?\d{2}|u-?\d{2}|castilla|primavera|next gen|juvenil|juniors?|amateure?s?)\b|\s(b|ii)$'''
+
+[[leagues]]
+id = "Q9448"
+name = "Premier League"
+
+[[leagues]]
+id = "Q324867"
+name = "La Liga"
+
+[[leagues]]
+id = "Q15804"
+name = "Serie A"
+
+[[leagues]]
+id = "Q82595"
+name = "Bundesliga"
+
+[[leagues]]
+id = "Q13394"
+name = "Ligue 1"
+
+[[leagues]]
+id = "Q182994"
+name = "Primeira Liga"
+
+[[leagues]]
+id = "Q167541"
+name = "Eredivisie"
+
+[[leagues]]
+id = "Q255633"
+name = "Saudi Pro League"
+
+[[leagues]]
+id = "Q680619"
+name = "Egyptian Premier League"
