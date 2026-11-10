@@ -40,6 +40,8 @@ New tracks are added when the first card needs one.
 | [architecture/dependency-injection](architecture/dependency-injection.md) | P0 | Classes ask for what they need; the container builds them |
 | [backend/transactional-outbox](backend/transactional-outbox.md) | P0 | Save the event in the same transaction as the change |
 | [backend/idempotency](backend/idempotency.md) | P0 | Doing it twice has the same effect as once |
+| [backend/leases](backend/leases.md) | P0 | Claim work for a limited time; a crash cleans itself up |
+| [backend/retries-and-dead-letters](backend/retries-and-dead-letters.md) | P0 | Growing gaps with jitter, then set it aside for a person |
 | [backend/errors-problem-details](backend/errors-problem-details.md) | P0 | Domain errors have a kind; one filter maps kind → HTTP |
 | [backend/request-id-and-logs](backend/request-id-and-logs.md) | P0 | One id follows a request through every log line |
 | [backend/fail-fast-config](backend/fail-fast-config.md) | P0 | Bad config crashes at boot, not at 3am |

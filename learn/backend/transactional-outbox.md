@@ -5,7 +5,7 @@
 
 **How:**
 - The use case writes the state change **and** a row in `outbox_events` in one transaction. Both happen or neither does.
-- The worker polls unpublished rows with `FOR UPDATE SKIP LOCKED` (two workers never grab the same row), adds BullMQ jobs, and marks the rows published.
+- The worker [claims rows with a lease](leases.md) (two workers never grab the same row), adds BullMQ jobs, and marks the rows published.
 - Delivery is **at-least-once**: a job can arrive twice, so handlers must be [idempotent](idempotency.md).
 
 **In our code:** [outbox.writer.ts](../../apps/backend/src/shared/infrastructure/outbox/outbox.writer.ts) (throws outside a transaction), [outbox.publisher.ts](../../apps/backend/src/shared/infrastructure/outbox/outbox.publisher.ts), [outbox.int-spec.ts](../../apps/backend/test/integration/outbox.int-spec.ts).
