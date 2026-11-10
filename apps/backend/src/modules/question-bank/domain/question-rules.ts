@@ -68,13 +68,13 @@ export function findQuestionProblems(question: BundleQuestion, knownCategories: 
   return problems;
 }
 
-/** External keys that appear more than once, each listed once. */
-export function findRepeatedExternalKeys(keys: readonly string[]): string[] {
+/** Values that appear more than once, each listed once. */
+export function findRepeatedValues(values: readonly string[]): string[] {
   const seen = new Set<string>();
   const repeated = new Set<string>();
-  for (const key of keys) {
-    if (seen.has(key)) repeated.add(key);
-    seen.add(key);
+  for (const value of values) {
+    if (seen.has(value)) repeated.add(value);
+    seen.add(value);
   }
   return [...repeated];
 }

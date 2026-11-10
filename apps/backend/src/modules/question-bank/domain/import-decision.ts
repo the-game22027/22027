@@ -23,7 +23,7 @@ export type ImportDecision =
   | { action: 'INSERT'; status: QuestionStatus }
   | { action: 'UNCHANGED' }
   | { action: 'RECORD_REVIEWS'; questionId: string; newlyReviewedLocales: Locale[]; approve: boolean }
-  | { action: 'REPLACE_CONTENT'; questionId: string; status: QuestionStatus }
+  | { action: 'REPLACE_CONTENT'; questionId: string; keyVersion: number; status: QuestionStatus }
   | { action: 'INSERT_NEW_VERSION'; keyVersion: number; status: QuestionStatus; disableQuestionId: string | null };
 
 /** A question is ready to publish only when a human reviewed every one of its locales. */
@@ -45,7 +45,9 @@ export function decideImportAction(latest: LatestQuestionVersion | null, incomin
   }
 
   const neverServable = !latest.wasEverPublished && (latest.status === 'DRAFT' || latest.status === 'APPROVED');
-  if (neverServable) return { action: 'REPLACE_CONTENT', questionId: latest.id, status: incomingStatus };
+  if (neverServable) {
+    return { action: 'REPLACE_CONTENT', questionId: latest.id, keyVersion: latest.keyVersion, status: incomingStatus };
+  }
 
   return {
     action: 'INSERT_NEW_VERSION',

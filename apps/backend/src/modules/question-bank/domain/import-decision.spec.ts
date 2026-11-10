@@ -58,6 +58,7 @@ describe('decideImportAction', () => {
     expect(decideImportAction(stored(), incoming({ reviewedLocales: ['en'] }))).toEqual({
       action: 'REPLACE_CONTENT',
       questionId: 'q1',
+      keyVersion: 1,
       status: 'DRAFT',
     });
   });

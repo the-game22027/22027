@@ -1,5 +1,5 @@
 import type { BundleQuestion } from './question-content';
-import { findQuestionProblems, findRepeatedExternalKeys } from './question-rules';
+import { findQuestionProblems, findRepeatedValues } from './question-rules';
 
 const CATEGORIES = new Set(['world-cup']);
 
@@ -70,8 +70,8 @@ describe('findQuestionProblems', () => {
   });
 });
 
-describe('findRepeatedExternalKeys', () => {
+describe('findRepeatedValues', () => {
   it('lists each repeated key once', () => {
-    expect(findRepeatedExternalKeys(['a', 'b', 'a', 'a', 'c'])).toEqual(['a']);
+    expect(findRepeatedValues(['a', 'b', 'a', 'a', 'c'])).toEqual(['a']);
   });
 });
