@@ -1,5 +1,6 @@
 dist/
 dist-worker/
+dist-cli/
 coverage/
 src/generated/
 prisma/migrations/

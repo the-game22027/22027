@@ -16,6 +16,6 @@ import { PrismaMatchWriteRepository } from './infrastructure/prisma-match-write.
     { provide: FOOTBALL_REFERENCE_REPOSITORY, useClass: PrismaFootballReferenceRepository },
     { provide: FOOTBALL_DATA_PROVIDER, useClass: MockFootballProvider },
   ],
-  exports: [ApplyProviderMatchUpdate, FootballSyncService],
+  exports: [ApplyProviderMatchUpdate, FootballSyncService, MATCH_WRITE_REPOSITORY, FOOTBALL_DATA_PROVIDER],
 })
 export class FootballIngestionModule {}

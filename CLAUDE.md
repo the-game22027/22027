@@ -18,7 +18,7 @@ A football-focused **social gaming platform** (not a CRUD app, not a simple quiz
 - Friends (mutual), privacy-aware prediction visibility.
 - A fact-first football knowledge database that feeds an offline question generator.
 
-Current phase: **Phase 1 auth + users, in 4 PRs (P1.1 design → P1.4 guards + me)**. See `docs/ROADMAP.md`.
+Current phase: **Phases 0-2 implemented (foundation, auth + users, football mock data); next: P3 predictions + points ledger**. See `docs/ROADMAP.md`.
 
 ## 2. Hard constraints (do not violate)
 
@@ -51,6 +51,7 @@ the-game/
 ├── apps/backend/             # NestJS modular monolith (api + worker entrypoints)
 │   ├── src/main.api.ts       # HTTP + WebSocket process
 │   ├── src/main.worker.ts    # BullMQ processors + schedulers
+│   ├── src/main.cli.ts       # nest-commander: developer commands (mock:*)
 │   ├── src/modules/<module>/{domain,application,infrastructure,presentation}/
 │   ├── src/shared/           # kernel (Clock, ids, errors) + infra (prisma, redis, logger, outbox)
 │   ├── prisma/               # schema (one file per module), migrations, seed
@@ -106,7 +107,15 @@ docker compose --profile observability up -d # Prometheus :9090, Grafana :3001
 docker compose --profile ai up -d ollama     # local LLM for the offline question pipeline
 ```
 
-Planned, not implemented yet: `npm run cli -- mock:simulate-match <id>` (P2), `npm run cli -- questions:import <bundle>` (P5).
+Football simulator, development only (from `apps/backend`; `npm run cli -- --help` lists every command):
+
+```bash
+npm run cli -- mock:run-day --speed 60x      # play the next matchday in accelerated time
+npm run cli -- mock:scenario postponed       # kickoff-change | postponed | result-corrected | abandoned
+npm run cli -- mock:kickoff <matchId>        # also mock:score, finish, postpone, reschedule, cancel, abandon, correct-result, correct-end-time
+```
+
+Planned, not implemented yet: `npm run cli -- questions:import <bundle>` (P5).
 Update this section when commands change. Do not document commands that do not exist yet as if they work.
 
 ## 7. Working agreement with the user (mentorship mode)
