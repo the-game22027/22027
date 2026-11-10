@@ -365,20 +365,22 @@ question_answers (                      -- accepted answers: indexed answer chec
 answer_entities (                       -- the answer catalog (08 §5)
   id uuid PK,
   external_ref text UQ,                 -- e.g. wikidata:Q11571; upsert key on import
-  kind answer_kind,                     -- never NUMBER
+  kind answer_kind,                     -- CHECK kind <> 'NUMBER'
   names jsonb,                          -- {en, ar}; display names
-  popularity int DEFAULT 0,             -- ranks suggestions; from the pipeline (e.g. Wikidata sitelinks)
-  catalog_version text,                 -- bundle version that last changed it
-  status text DEFAULT 'ACTIVE',         -- ACTIVE | HIDDEN (kept for history, no longer suggested)
+  popularity int DEFAULT 0,             -- ranks suggestions; from the pipeline (Wikipedia sitelinks)
+  search_forms text[],                  -- normalized names + aliases (07 §5.7); what the app matches against
+  catalog_version text,                 -- bundle version that last imported it
+  status text DEFAULT 'ACTIVE',         -- ACTIVE | HIDDEN (dropped by a newer catalog; kept for history)
   updated_at timestamptz
 )
   IX (kind)
-answer_entity_aliases (
+answer_entity_aliases (                 -- alternative names per locale, shown as "also known as"
   entity_id uuid FK → answer_entities ON DELETE CASCADE,
   locale text, alias text,
-  normalized text,                      -- pipeline-normalized form (07 §5.7); what the app matches against
   PRIMARY KEY (entity_id, locale, alias)
 )
+-- questions also gets: CHECK ((type = 'GAME') = (game_type, answer_kind and content are all set))
+-- question_import_batches also gets: catalog_checksum text NULL
 ```
 
 The app searches the catalog on the phone (`08` §5.2), so the server needs no search index; `GET /v1/answer-catalog` streams the active catalog as one versioned, cached document.

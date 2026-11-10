@@ -85,3 +85,5 @@ New tracks are added when the first card needs one.
 | [backend/one-at-a-time-per-game](backend/one-at-a-time-per-game.md) | G0 | One input queue per battle makes "first buzz" exact |
 | [database/wikidata-truthy-vs-full-statements](database/wikidata-truthy-vs-full-statements.md) | G0 | `wdt:` hides former clubs; read `p:/ps:/pq:` |
 | [database/cache-external-responses](database/cache-external-responses.md) | D.1 | Keep raw answers keyed by the request; re-runs are offline |
+| [database/bulk-upsert-with-unnest](database/bulk-upsert-with-unnest.md) | P5.2 | Columns as arrays, one statement for thousands of rows |
+| [backend/discriminated-unions](backend/discriminated-unions.md) | P5.2 | One shape per kind; the tag narrows the type |
