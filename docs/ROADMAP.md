@@ -101,7 +101,7 @@ Changes vs the original proposed order, and why:
 
 | PR | Scope | Learning cards |
 |---|---|---|
-| P5.1 Import | Question tables (stats tables come with their `BattleCompleted` handler in P6), bundle validation, `questions:import`, a hand-written dev bundle of about 50 EN/AR questions | To be named with the PR |
+| P5.1 Import | Question tables (stats tables come with their `BattleCompleted` handler in P6), bundle validation, `questions:import`, a hand-written dev bundle of about 50 EN/AR questions | Content hash, immutable served content, partial unique index, advisory locks |
 | P5.2 Select + serve | `QuestionSelector`, `AnswerKey`, playable payload mapper with per-player option order (DEC-44), `questions:publish` / `questions:disable`, question reports endpoint | To be named with the PR |
 
 ### P6 — Quiz battles: engine + matchmaking + bot fallback (CORE)

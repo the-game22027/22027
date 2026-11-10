@@ -116,7 +116,12 @@ npm run cli -- mock:scenario postponed       # kickoff-change | postponed | resu
 npm run cli -- mock:kickoff <matchId>        # also mock:score, finish, postpone, reschedule, cancel, abandon, correct-result, correct-end-time
 ```
 
-Planned, not implemented yet: `npm run cli -- questions:import <bundle>` (P5).
+Question bank (from `apps/backend`; available in every environment, not only development):
+
+```bash
+npm run cli -- questions:import ../../data/bundles/dev-0001   # validate + import a bundle; re-import is a no-op
+python3 -I ../../data/generate/dev_bundle.py                  # rebuild the hand-written dev bundle (bump its version first)
+```
 Update this section when commands change. Do not document commands that do not exist yet as if they work.
 
 ## 7. Working agreement with the user (mentorship mode)
