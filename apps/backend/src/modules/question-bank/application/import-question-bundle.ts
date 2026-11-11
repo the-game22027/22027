@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { Transactional } from '@nestjs-cls/transactional';
 import type { PrismaService, TransactionalAdapterPrisma } from '@shared/infrastructure/persistence';
 import { CLOCK, type Clock, ID_GENERATOR, type IdGenerator } from '@shared/kernel';
+import { listEntityReferencesOfBody } from '../domain/engine-content';
 import { decideImportAction, type ImportDecision } from '../domain/import-decision';
 import { BundleVersionReusedError, InvalidBundleError } from '../domain/question-bank-errors';
 import {
@@ -56,20 +57,10 @@ const emptyCounts = (): ImportCounts => ({
 });
 
 /** Every catalog entity a game round points at: answers, players, clubs, grid criteria. */
-const referencesOf = (content: GameContent): string[] => {
-  const refs = content.answers.flatMap((answer) => answer.entities);
-  const { body } = content;
-  switch (body.gameType) {
-    case 'CAREER':
-      return [...refs, body.player, ...body.spells.map((spell) => spell.club)];
-    case 'WHO_IS_PLAYER':
-      return [...refs, body.player];
-    case 'GRID':
-      return [...refs, ...body.rows.map((row) => row.entity), ...body.cols.map((col) => col.entity)];
-    case 'BUZZER':
-      return refs;
-  }
-};
+const referencesOf = (content: GameContent): string[] => [
+  ...content.answers.flatMap((answer) => answer.entities),
+  ...listEntityReferencesOfBody(content.body),
+];
 
 const answerRowsOf = (question: BundleQuestion, entities: Map<string, ActiveEntity>): QuestionWrite['answerRows'] =>
   question.content.type === 'GAME'

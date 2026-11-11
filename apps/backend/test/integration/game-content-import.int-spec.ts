@@ -1,84 +1,12 @@
 import { Test, type TestingModule } from '@nestjs/testing';
 import { randomUUID } from 'node:crypto';
-import { computeChecksum } from '../../src/modules/question-bank/application/bundle-parser';
 import { ImportQuestionBundle } from '../../src/modules/question-bank/application/import-question-bundle';
 import { InvalidBundleError } from '../../src/modules/question-bank/domain/question-bank-errors';
 import { QuestionBankCliModule } from '../../src/modules/question-bank/question-bank-cli.module';
 import { CoreModule } from '../../src/shared/infrastructure/core.module';
 import { PrismaService } from '../../src/shared/infrastructure/persistence';
+import { buzzerLine, bundle, careerLine, entitySet } from '../support/question-bundles';
 import { testConfig } from '../support/test-app';
-
-// Importing a catalog hides every active entity it does not list, so each test builds its own entities.
-const entitySet = () => {
-  const id = randomUUID().slice(0, 8);
-  const entity = (name: string, kind: string, arabic: string) => ({
-    externalRef: `test:${name}-${id}`,
-    kind,
-    names: { en: `${name} ${id}`, ar: `${arabic} ${id}` },
-    aliases: { en: [`${name}-alias`], ar: [] as string[] },
-    popularity: 10,
-    search: [`${name.toLowerCase()} ${id}`],
-  });
-  return {
-    ronaldo: entity('Ronaldo', 'PLAYER', 'رونالدو'),
-    nani: entity('Nani', 'PLAYER', 'ناني'),
-    sporting: entity('Sporting', 'CLUB', 'سبورتنج'),
-    united: entity('United', 'CLUB', 'يونايتد'),
-    spain: entity('Spain', 'NATIONAL_TEAM', 'إسبانيا'),
-  };
-};
-type Entities = ReturnType<typeof entitySet>;
-
-const common = (key: string, reviewed = { en: true, ar: true }) => ({
-  externalKey: key,
-  type: 'GAME',
-  category: 'players',
-  difficulty: 2,
-  provenance: { facts: [], sources: ['test'], licenses: ['CC0-1.0'], kbVersion: 'none' },
-  validUntil: null,
-  humanReviewed: reviewed,
-});
-
-const careerLine = (key: string, e: Entities, extraSpell = false) => ({
-  ...common(key),
-  gameType: 'CAREER',
-  content: {
-    player: e.ronaldo.externalRef,
-    spells: [
-      { club: e.sporting.externalRef, fromYear: 2002, toYear: 2003, loan: false },
-      { club: e.united.externalRef, fromYear: 2003, toYear: 2009, loan: false },
-      ...(extraSpell ? [{ club: e.united.externalRef, fromYear: 2021, toYear: 2022, loan: false }] : []),
-    ],
-  },
-  answers: [{ slot: 0, entities: [e.ronaldo.externalRef] }],
-});
-
-const buzzerLine = (key: string, e: Entities, steps = ['Which country', 'won the', '2010', 'World Cup?']) => ({
-  ...common(key, { en: true, ar: false }),
-  gameType: 'BUZZER',
-  content: {
-    answerKind: 'NATIONAL_TEAM',
-    steps: { en: steps, ar: ['أي منتخب', 'فاز', 'بكأس العالم', '2010؟'] },
-  },
-  answers: [{ slot: 0, entities: [e.spain.externalRef] }],
-});
-
-const bundle = (bundleVersion: string, lines: object[], catalog?: object[]) => {
-  const questionsJsonl = Buffer.from(lines.map((value) => JSON.stringify(value)).join('\n') + '\n');
-  const catalogJsonl = catalog
-    ? Buffer.from(catalog.map((value) => JSON.stringify(value)).join('\n') + '\n')
-    : undefined;
-  const manifest = {
-    bundleVersion,
-    kbVersion: 'none',
-    generatorVersion: 'test',
-    questionCount: lines.length,
-    checksum: computeChecksum(questionsJsonl),
-    ...(catalogJsonl ? { catalogChecksum: computeChecksum(catalogJsonl) } : {}),
-    categories: [{ slug: 'players', names: { en: 'Players', ar: 'لاعبون' } }],
-  };
-  return { manifestJson: JSON.stringify(manifest), questionsJsonl, catalogJsonl };
-};
 
 describe('importing a bundle with an answer catalog and game content', () => {
   let moduleRef: TestingModule;
