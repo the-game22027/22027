@@ -8,6 +8,7 @@ import 'package:the_game/app/app.dart';
 import 'package:the_game/core/session/session_controller.dart';
 import 'package:the_game/features/account/application/account_deletion.dart';
 import 'package:the_game/features/account/data/google_identity_gateway.dart';
+import 'package:the_game/features/account/presentation/account_screen.dart';
 import 'package:the_game/features/account/presentation/sign_in_screen.dart';
 
 import '../../helpers/fake_http_adapter.dart';
@@ -174,4 +175,56 @@ void main() {
       expect(find.byKey(const Key('account-deletion-notice')), findsOneWidget);
     },
   );
+
+  for (final (closeDialog, how) in [
+    ((WidgetTester tester) => tester.tapAt(const Offset(4, 4)), 'outside'),
+    (
+      (WidgetTester tester) =>
+          tester.tap(find.byKey(const Key('reauthenticate-dev-submit'))),
+      'after typing another subject',
+    ),
+  ]) {
+    testWidgets(
+      'closing the dev re-authentication dialog $how does not crash',
+      (tester) async {
+        server
+          ..requiresRecentSignIn = true
+          ..reauthenticatedUserId = 'someone-else';
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: await createOverrides(),
+            child: const TheGameApp(),
+          ),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('open-account')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('delete-account')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('confirm-delete-account')));
+        await tester.pumpAndSettle();
+        await tester.tap(
+          find.byKey(const Key('reauthenticate-with-dev-account')),
+        );
+        await tester.pumpAndSettle();
+        await tester.enterText(
+          find.byKey(const Key('reauthenticate-dev-subject')),
+          'bob',
+        );
+
+        await closeDialog(tester);
+        await tester.pumpAndSettle();
+
+        expect(tester.takeException(), isNull);
+        expect(find.byType(AccountScreen), findsOneWidget);
+        // Only the first, refused attempt: nothing was deleted.
+        expect(
+          server.receivedRequests.where(
+            (request) => request == 'DELETE /v1/me',
+          ),
+          hasLength(1),
+        );
+      },
+    );
+  }
 }

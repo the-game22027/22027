@@ -143,36 +143,10 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
     );
   }
 
-  Future<String?> _askForDevSubject() {
-    final l10n = AppLocalizations.of(context);
-    final subjectController = TextEditingController();
-    return showDialog<String>(
-      context: context,
-      builder: (dialogContext) => AlertDialog(
-        title: Text(l10n.devSignInTitle),
-        content: TextField(
-          key: const Key('reauthenticate-dev-subject'),
-          controller: subjectController,
-          autofocus: true,
-          decoration: InputDecoration(labelText: l10n.devSignInSubjectLabel),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
-            child: Text(l10n.cancelButton),
-          ),
-          FilledButton(
-            key: const Key('reauthenticate-dev-submit'),
-            onPressed: () {
-              final subject = subjectController.text.trim();
-              Navigator.of(dialogContext).pop(subject.isEmpty ? null : subject);
-            },
-            child: Text(l10n.signInButton),
-          ),
-        ],
-      ),
-    ).whenComplete(subjectController.dispose);
-  }
+  Future<String?> _askForDevSubject() => showDialog<String>(
+    context: context,
+    builder: (_) => const _DevSubjectDialog(),
+  );
 
   void _showMessage(String message) {
     ScaffoldMessenger.of(
@@ -225,6 +199,54 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
           ),
         ],
       ),
+    );
+  }
+}
+
+/// Owns its text controller: `showDialog` completes when the dialog is popped, but the field
+/// stays on screen during the closing animation, so the controller is disposed with the
+/// dialog's state, not when the future completes.
+class _DevSubjectDialog extends StatefulWidget {
+  const _DevSubjectDialog();
+
+  @override
+  State<_DevSubjectDialog> createState() => _DevSubjectDialogState();
+}
+
+class _DevSubjectDialogState extends State<_DevSubjectDialog> {
+  final _subjectController = TextEditingController();
+
+  @override
+  void dispose() {
+    _subjectController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return AlertDialog(
+      title: Text(l10n.devSignInTitle),
+      content: TextField(
+        key: const Key('reauthenticate-dev-subject'),
+        controller: _subjectController,
+        autofocus: true,
+        decoration: InputDecoration(labelText: l10n.devSignInSubjectLabel),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(),
+          child: Text(l10n.cancelButton),
+        ),
+        FilledButton(
+          key: const Key('reauthenticate-dev-submit'),
+          onPressed: () {
+            final subject = _subjectController.text.trim();
+            Navigator.of(context).pop(subject.isEmpty ? null : subject);
+          },
+          child: Text(l10n.signInButton),
+        ),
+      ],
     );
   }
 }
