@@ -28,12 +28,12 @@ class RefreshNotCompleted extends RefreshOutcome {
   final DioException cause;
 }
 
-/// Port between the auth interceptor (`core/`) and the refresh call (`features/auth/data`).
+/// Port between the auth interceptor (`core/`) and the refresh call (`features/account/data`).
 abstract interface class AccessTokenRefresher {
   Future<RefreshOutcome> refreshAccessToken(StoredSession currentSession);
 }
 
-/// Overridden in `main.dart` with the auth feature's implementation, so `core/` does not
+/// Overridden in `main.dart` with the account feature's implementation, so `core/` does not
 /// import a feature.
 final accessTokenRefresherProvider = Provider<AccessTokenRefresher>(
   (ref) => throw UnimplementedError(

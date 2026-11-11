@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:the_game/core/session/session_controller.dart';
-import 'package:the_game/features/auth/data/auth_repository.dart';
+import 'package:the_game/features/account/data/auth_repository.dart';
 
 /// State of the dev sign-in form: idle/data, loading while the request runs, error to show.
 class DevSignInController extends Notifier<AsyncValue<void>> {

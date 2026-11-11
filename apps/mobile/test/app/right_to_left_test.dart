@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:the_game/app/app.dart';
-import 'package:the_game/features/auth/presentation/dev_sign_in_screen.dart';
+import 'package:the_game/features/account/presentation/dev_sign_in_screen.dart';
 
 import '../helpers/test_overrides.dart';
 

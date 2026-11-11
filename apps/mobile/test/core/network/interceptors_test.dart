@@ -8,7 +8,7 @@ import 'package:the_game/core/errors/app_error.dart';
 import 'package:the_game/core/l10n/app_language_controller.dart';
 import 'package:the_game/core/session/session_controller.dart';
 import 'package:the_game/core/storage/token_storage.dart';
-import 'package:the_game/features/auth/data/auth_repository.dart';
+import 'package:the_game/features/account/data/auth_repository.dart';
 import 'package:the_game/features/home/data/home_repository.dart';
 
 import '../../helpers/fake_http_adapter.dart';

@@ -6,7 +6,7 @@ import 'package:the_game/core/errors/app_error.dart';
 import 'package:the_game/core/network/api_client_provider.dart';
 import 'package:the_game/core/session/access_token_refresher.dart';
 import 'package:the_game/core/storage/token_storage.dart';
-import 'package:the_game/features/auth/data/auth_repository.dart';
+import 'package:the_game/features/account/data/auth_repository.dart';
 
 /// `POST /v1/auth/refresh`: swaps the refresh token for a new pair (rotation, `04-auth.md` §5).
 class ApiAccessTokenRefresher implements AccessTokenRefresher {

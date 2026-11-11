@@ -7,7 +7,7 @@ import 'package:the_game/core/l10n/app_language_controller.dart';
 import 'package:the_game/core/network/api_client_provider.dart';
 import 'package:the_game/core/session/access_token_refresher.dart';
 import 'package:the_game/core/storage/token_storage.dart';
-import 'package:the_game/features/auth/data/api_access_token_refresher.dart';
+import 'package:the_game/features/account/data/api_access_token_refresher.dart';
 
 import 'in_memory_token_storage.dart';
 

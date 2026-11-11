@@ -7,8 +7,8 @@ import 'package:the_game/app/app.dart';
 import 'package:the_game/app/router.dart';
 import 'package:the_game/core/routing/app_routes.dart';
 import 'package:the_game/core/storage/token_storage.dart';
-import 'package:the_game/features/auth/presentation/dev_sign_in_screen.dart';
-import 'package:the_game/features/auth/presentation/sign_in_screen.dart';
+import 'package:the_game/features/account/presentation/dev_sign_in_screen.dart';
+import 'package:the_game/features/account/presentation/sign_in_screen.dart';
 import 'package:the_game/features/home/presentation/home_screen.dart';
 
 import '../helpers/fake_http_adapter.dart';

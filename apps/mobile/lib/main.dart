@@ -8,7 +8,7 @@ import 'package:the_game/core/config/app_config.dart';
 import 'package:the_game/core/errors/retry_policy.dart';
 import 'package:the_game/core/l10n/app_language_controller.dart';
 import 'package:the_game/core/session/access_token_refresher.dart';
-import 'package:the_game/features/auth/data/api_access_token_refresher.dart';
+import 'package:the_game/features/account/data/api_access_token_refresher.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();

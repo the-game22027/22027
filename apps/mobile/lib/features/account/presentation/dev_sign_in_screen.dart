@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:the_game/core/errors/describe_error_for_user.dart';
 import 'package:the_game/core/widgets/app_bar_shortcuts.dart';
-import 'package:the_game/features/auth/application/dev_sign_in_controller.dart';
+import 'package:the_game/features/account/application/dev_sign_in_controller.dart';
 import 'package:the_game/l10n/generated/app_localizations.dart';
 
 /// Dev flavor only: signs in through `POST /v1/_dev/auth/sign-in` until Google sign-in (M1).
