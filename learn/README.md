@@ -93,3 +93,4 @@ New tracks are added when the first card needs one.
 | [mobile/refresh-token-rotation-on-the-client](mobile/refresh-token-rotation-on-the-client.md) | M1 | One refresh for parallel 401s; only a refused refresh signs out |
 | [mobile/google-id-token-sign-in](mobile/google-id-token-sign-in.md) | M1 | Google signs a token for our client id; the backend checks it |
 | [mobile/reauthentication-before-sensitive-actions](mobile/reauthentication-before-sensitive-actions.md) | M1 | Sign in again, check it is the same player, then delete |
+| [mobile/dispose-controllers-with-their-widget](mobile/dispose-controllers-with-their-widget.md) | M1 | Controllers live and die with their widget's `State` |
