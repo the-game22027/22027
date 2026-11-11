@@ -14,6 +14,8 @@ excluded_team_classes = [
   "Q6979740",  # national under-21 association football team
   "Q23901123", # national under-17 association football team
   "Q28140340", # women's association football team
+  "Q6256",     # country: Wikidata sometimes lists a country (Brazil, India) as a player's team
+  "Q3624078",  # sovereign state: same mistake
 ]
 # ...or when its English label matches this pattern (case-insensitive).
 excluded_team_label_pattern = '''\b(youth|academy|reserves?|under-?\d{2}|u-?\d{2}|castilla|primavera|next gen|juvenil|juniors?|amateure?s?)\b|\s(b|c|ii|iii|atlètic)$'''

@@ -141,7 +141,7 @@ The catalog command writes `catalog.jsonl` (§5.4) with normalized search forms 
 |---|---|
 | Clubs in the 9 leagues | 205 |
 | Players found / kept (≥ 8 sitelinks) | 53,659 / 21,611 |
-| Senior clubs on those careers | 8,092 |
+| Senior clubs on those careers | 8,090 (2026-11-11: two countries that Wikidata lists as teams, Brazil and India, are now excluded) |
 | Career spells | 144,508 |
 | Arabic label: players / clubs / countries | 85% / 51% / 99% |
 | Arabic label, 2,000 most famous players | 100% |

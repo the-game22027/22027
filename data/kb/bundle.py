@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -45,18 +46,18 @@ def build_bundle(
 ) -> BundleSummary:
     catalog = {entry["externalRef"]: entry for entry in load_catalog_entries(connection)}
     kb_version = _kb_version(connection)
-    players = [player for player in load_player_facts(connection) if player.external_ref in catalog]
-
-    def names_of(external_ref: str) -> dict[str, str] | None:
-        entry = catalog.get(external_ref)
-        return entry["names"] if entry else None
-
+    players = [
+        player
+        for player in load_player_facts(connection)
+        if catalog.get(player.external_ref, {}).get("kind") == "PLAYER"
+    ]
+    club_names_of = _names_lookup(catalog, "CLUB")
     careers = [
         line
         for player in players
-        if (line := career_round(player, lambda ref: ref in catalog, kb_version)) is not None
+        if (line := career_round(player, lambda ref: club_names_of(ref) is not None, kb_version)) is not None
     ]
-    buzzers = pick_buzzer_rounds(players, names_of, kb_version, buzzer_count)
+    buzzers = pick_buzzer_rounds(players, catalog, kb_version, buzzer_count)
     lines = sorted(
         pick_spread_over_difficulties(careers, career_count) + buzzers, key=lambda line: line["externalKey"]
     )
@@ -67,13 +68,16 @@ def build_bundle(
     return _write_bundle(out_dir, bundle_version, kb_version, lines, entries)
 
 
-def pick_buzzer_rounds(players: list[PlayerFacts], names_of, kb_version: str, count: int) -> list[dict]:
+def pick_buzzer_rounds(
+    players: list[PlayerFacts], catalog: dict[str, dict], kb_version: str, count: int
+) -> list[dict]:
     """About a third of `count` per template, each spread over difficulties; one round per player and template."""
-    first_clubs = [line for p in players if (line := first_club_round(p, names_of, kb_version)) is not None]
+    clubs, countries = _names_lookup(catalog, "CLUB"), _names_lookup(catalog, "COUNTRY")
+    first_clubs = [line for p in players if (line := first_club_round(p, clubs, kb_version)) is not None]
     # The most recent move of each player: the one fans remember best.
-    transfers = [rounds[-1] for p in players if (rounds := joined_in_year_rounds(p, names_of, kb_version))]
+    transfers = [rounds[-1] for p in players if (rounds := joined_in_year_rounds(p, clubs, kb_version))]
     nationalities = [
-        line for p in players if (line := nationality_round(p, names_of, kb_version)) is not None
+        line for p in players if (line := nationality_round(p, countries, kb_version)) is not None
     ]
     share, extra = divmod(count, 3)
     picked = []
@@ -115,6 +119,16 @@ def load_player_facts(connection: psycopg.Connection) -> list[PlayerFacts]:
         if external_ref in spells
     ]
     return sorted(facts, key=lambda player: (-player.sitelinks, _qid_number(player.external_ref)))
+
+
+def _names_lookup(catalog: dict[str, dict], kind: str) -> Callable[[str], dict[str, str] | None]:
+    """Names of a catalog entity of this kind only: a club where a country is expected would fail the import."""
+
+    def names_of(external_ref: str) -> dict[str, str] | None:
+        entry = catalog.get(external_ref)
+        return entry["names"] if entry and entry["kind"] == kind else None
+
+    return names_of
 
 
 def _catalog_for_development(
