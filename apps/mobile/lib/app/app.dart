@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:the_game/app/router.dart';
 import 'package:the_game/app/theme.dart';
 import 'package:the_game/core/l10n/app_language_controller.dart';
+import 'package:the_game/features/account/application/profile_locale_sync.dart';
 import 'package:the_game/l10n/generated/app_localizations.dart';
 
 class TheGameApp extends ConsumerWidget {
@@ -11,6 +12,7 @@ class TheGameApp extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(profileLocaleSyncProvider);
     final language = ref.watch(appLanguageControllerProvider);
     return MaterialApp.router(
       onGenerateTitle: (context) => AppLocalizations.of(context).appTitle,

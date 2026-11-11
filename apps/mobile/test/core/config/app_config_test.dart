@@ -49,5 +49,25 @@ void main() {
         throwsA(isA<InvalidAppConfigError>()),
       );
     });
+
+    test('accepts an empty Google client id (Google sign-in disabled)', () {
+      final config = AppConfig.fromValues(
+        flavor: 'dev',
+        apiBaseUrl: 'http://localhost:3000',
+      );
+
+      expect(config.isGoogleSignInConfigured, isFalse);
+    });
+
+    test('fails on a Google client id that is not a web OAuth client id', () {
+      expect(
+        () => AppConfig.fromValues(
+          flavor: 'dev',
+          apiBaseUrl: 'http://localhost:3000',
+          googleServerClientId: 'my-secret',
+        ),
+        throwsA(isA<InvalidAppConfigError>()),
+      );
+    });
   });
 }

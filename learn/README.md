@@ -95,6 +95,10 @@ New tracks are added when the first card needs one.
 | [mobile/riverpod-providers-as-di](mobile/riverpod-providers-as-di.md) | M0 | Providers build dependencies; tests swap them with overrides |
 | [mobile/go-router-redirect-guard](mobile/go-router-redirect-guard.md) | M0 | One pure function decides where each player may go |
 | [mobile/rtl-and-localization](mobile/rtl-and-localization.md) | M0 | ARB strings and directional layouts; Arabic flips to RTL |
+| [mobile/refresh-token-rotation-on-the-client](mobile/refresh-token-rotation-on-the-client.md) | M1 | One refresh for parallel 401s; only a refused refresh signs out |
+| [mobile/google-id-token-sign-in](mobile/google-id-token-sign-in.md) | M1 | Google signs a token for our client id; the backend checks it |
+| [mobile/reauthentication-before-sensitive-actions](mobile/reauthentication-before-sensitive-actions.md) | M1 | Sign in again, check it is the same player, then delete |
+| [mobile/dispose-controllers-with-their-widget](mobile/dispose-controllers-with-their-widget.md) | M1 | Controllers live and die with their widget's `State` |
 | [testing/real-data-smoke-run](testing/real-data-smoke-run.md) | D.2 | Run the real pipeline once; the strict importer finds what fixtures miss |
 | [devops/deterministic-output](devops/deterministic-output.md) | D.2 | Same input, same bytes: sort everything, no randomness, no timestamps |
 | [backend/never-block-boot-on-a-dependency](backend/never-block-boot-on-a-dependency.md) | P6.1 | Start even when Redis or Postgres is down; clean up in the background |

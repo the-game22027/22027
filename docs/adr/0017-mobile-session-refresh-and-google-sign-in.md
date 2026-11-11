@@ -2,7 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** 2026-11-11
-- **Related:** ADR-0014, ADR-0012, `docs/architecture/04-auth.md` §3.1, §5, §8, DEC-25, DEC-50, DEC-52, DEC-62, ROADMAP M1
+- **Related:** ADR-0014, ADR-0012, `docs/architecture/04-auth.md` §3.1, §5, §8, DEC-25, DEC-50, DEC-52, DEC-63, ROADMAP M1
 
 ## Context
 M0 left a seam for refresh-token rotation (`AccessTokenRefresher`) and signs the player out on every `401`. M1 adds real sign-in. The backend side exists since P1: `POST /v1/auth/google`, `POST /v1/auth/refresh` (rotation with reuse detection), `GET/DELETE /v1/auth/sessions`, `PATCH /v1/me`, `DELETE /v1/me` with a recent-sign-in check.
@@ -33,3 +33,14 @@ Rotation makes the client part delicate. Each refresh token works **once**: pres
 - − The owner must create Google OAuth clients (free): one web client, one Android client per flavor (package name + signing SHA-1), an iOS client later. If Google Cloud refuses the `com.example.*` placeholder package name, DEC-52 has to be decided before Google sign-in can be tested.
 - − Re-authentication for deletion needs a provider UI round trip; acceptable for a rare, destructive action.
 - Revisit if the backend adds sliding access tokens or server-side session checks on every request.
+
+## Implementation notes
+Filled in by the M1 PR (2026-11-11).
+
+- **Packages:** `google_sign_in` 7.2.0. No other new dependency.
+- **Retries go through the Dio without the auth interceptor**, not only the refresh call. A retry sent through the same `QueuedInterceptor` would wait, on a second `401`, behind the error handler that is waiting for it: a deadlock that the M0 retry code also had.
+- **One `account` feature** holds sign-in, sign-out, sessions, profile and deletion, instead of an `auth` feature plus an `account` feature. Deletion re-authentication and sign-out need the Google gateway and the sign-in repository, and features must not import each other.
+- **No locale field on the profile screen.** With the DEC-63 default, the app language in Settings is the profile `locale`, so the profile form does not offer it a second time.
+- **A new account does not dictate the language.** The backend gives every new account `locale: "ar"`, so adopting it would switch a first-time English player to Arabic (seen on the emulator). When `isNewUser` is true the app keeps its language and sends it with `PATCH /v1/me {locale}`; only an existing account's `locale` is adopted.
+- **Removing a username:** the generated `UpdateMeDto` drops null fields, so a small subclass overrides `toJson()` to send `"username": null`. The generator's `useOptional` / `patchOnly` options (meant for this) produce code that does not compile in v7.27.0 (an invalid `unknownEnumValue` and converters on non-`Optional` fields), so they are not used.
+- **Side effect the app cannot prevent:** re-authenticating with an unknown Google account creates a new account on the server (sign-in is also sign-up). The app revokes that session and deletes nothing. A dedicated re-authentication endpoint would avoid it (backend request in the M1 PR).

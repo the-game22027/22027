@@ -48,7 +48,7 @@ Read these before writing code:
   - **DEC-49:** username format, server-side only.
   - **DEC-50:** how recent a sign-in must be to delete an account; the server answers `RECENT_SIGN_IN_REQUIRED`.
   - **DEC-52:** application id; keep the `com.example.thegame` placeholder.
-  - **DEC-62:** app language vs profile `locale`. Implement the recommended default, with `// TODO(DEC-62)` at the sync point.
+  - **DEC-63:** app language vs profile `locale`. Implement the recommended default, with `// TODO(DEC-63)` at the sync point.
   - **Grace period:** do not show a number of days for the deletion grace period; the API does not return one.
 - **Ownership:**
   - change only `apps/mobile/**`, `learn/mobile/**` and `.github/workflows/mobile-ci.yml`;
@@ -91,9 +91,9 @@ Read these before writing code:
    - Edit `displayName`, `username` (empty clears it: `null`) and `locale` with `PATCH /v1/me`. Send only the changed fields (no unknown fields: the server rejects them with `400`).
    - Show field errors from the problem's `errors[]` next to the field.
    - Map `DISPLAY_NAME_INVALID`, `USERNAME_INVALID` and `USERNAME_TAKEN` to localized messages.
-5. **App language and profile locale (DEC-62, recommended default)**
+5. **App language and profile locale (DEC-63, recommended default)**
    - Changing the app language while signed in also sends `PATCH /v1/me {locale}`, best effort: a failure is ignored and the local choice stays.
-   - After sign-in, a device that never saved a language adopts the profile `locale`.
+   - After signing in to an existing account, a device that never saved a language adopts the profile `locale`; a new account gets the app language instead (its `locale` is only the server default).
 6. **Sessions list**
    - `GET /v1/auth/sessions`: device name, platform, last used (formatted in the app language and the device time zone), and a "This device" badge for `current`.
    - Revoke another session with `DELETE /v1/auth/sessions/{id}` after a confirm dialog.
@@ -155,7 +155,7 @@ Read these before writing code:
   - the refresh request has no `Authorization` header.
 - **Google sign-in** (fake `GoogleIdentityGateway`): success, cancel (no error), `PROVIDER_TOKEN_INVALID`, `ACCOUNT_DISABLED`, and an empty client id (the button is disabled).
 - **Profile:** only changed fields are sent; an empty username sends `null`; field errors land on the right field.
-- **Locale sync (DEC-62):**
+- **Locale sync (DEC-63):**
   - changing the language while signed in sends `PATCH /v1/me {locale}`;
   - a failed PATCH keeps the local choice;
   - no PATCH while signed out;

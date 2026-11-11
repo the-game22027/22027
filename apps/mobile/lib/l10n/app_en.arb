@@ -1,10 +1,15 @@
 {
   "@@locale": "en",
   "appTitle": "The Game",
-  "@appTitle": { "description": "App name shown by the operating system task switcher" },
-
+  "@appTitle": {
+    "description": "App name shown by the operating system task switcher"
+  },
   "signInTitle": "Sign in",
-  "signInNotAvailableYet": "Sign-in with Google, Facebook and X is coming soon.",
+  "signInWelcome": "Sign in to predict matches and play trivia battles.",
+  "continueWithGoogleButton": "Continue with Google",
+  "googleSignInNotConfigured": "Google sign-in is not set up for this build.",
+  "googleSignInUnavailable": "Google sign-in is not available on this device right now.",
+  "openDevSignInButton": "Dev sign-in",
   "devSignInTitle": "Dev sign-in",
   "devSignInExplanation": "Development only: sign in as a made-up player. The same subject always signs in as the same player.",
   "devSignInSubjectLabel": "Subject",
@@ -12,36 +17,83 @@
   "devSignInDisplayNameLabel": "Display name (optional)",
   "signInButton": "Sign in",
   "fieldRequiredMessage": "This field is required",
-
   "homeTitle": "Home",
   "homeGreeting": "Hello, {displayName}",
   "@homeGreeting": {
-    "placeholders": { "displayName": { "type": "String", "example": "Alice" } }
+    "placeholders": {
+      "displayName": {
+        "type": "String",
+        "example": "Alice"
+      }
+    }
   },
   "homeProfileLocale": "Profile language: {locale}",
   "@homeProfileLocale": {
-    "placeholders": { "locale": { "type": "String", "example": "en" } }
+    "placeholders": {
+      "locale": {
+        "type": "String",
+        "example": "en"
+      }
+    }
   },
   "signOutButton": "Sign out",
+  "accountTitle": "Account",
+  "profileTitle": "Profile",
+  "displayNameLabel": "Display name",
+  "usernameLabel": "Username",
+  "usernameHelper": "Leave empty to remove your username.",
+  "saveButton": "Save",
+  "profileSaved": "Profile saved.",
+  "displayNameInvalid": "This display name is not allowed.",
+  "usernameInvalid": "This username is not allowed.",
+  "usernameTaken": "This username is already taken.",
+  "fieldValueInvalid": "This value is not valid.",
+  "sessionsTitle": "Signed-in devices",
+  "thisDeviceBadge": "This device",
+  "sessionLastUsed": "Last used {dateTime}",
+  "@sessionLastUsed": {
+    "placeholders": {
+      "dateTime": {
+        "type": "String",
+        "example": "Nov 11, 2026 9:30 PM"
+      }
+    }
+  },
+  "unknownDevice": "Unknown device",
+  "revokeSessionTooltip": "Sign out this device",
+  "revokeSessionConfirmTitle": "Sign out this device?",
+  "revokeSessionConfirmBody": "It will have to sign in again.",
+  "cancelButton": "Cancel",
+  "deleteAccountTitle": "Delete account",
+  "deleteAccountConfirmBody": "This signs you out on every device. Your account is deleted after a waiting period; signing in again before then cancels the deletion.",
+  "deleteAccountConfirmButton": "Delete",
+  "confirmIdentityTitle": "Confirm it is you",
+  "confirmIdentityBody": "For your safety, sign in again before deleting your account.",
+  "reauthenticatedAsDifferentAccount": "That is a different account. Nothing was deleted.",
+  "accountDeletionRequestedNotice": "Account deletion requested. Signing in again before it completes cancels it.",
+  "dismissButton": "Dismiss",
   "tryAgainButton": "Try again",
-
   "serverStatusTitle": "Server status",
   "serverStatusUp": "The server is up",
   "serverStatusDown": "The server is down",
   "checkAgainButton": "Check again",
-
   "settingsTitle": "Settings",
   "languageSectionTitle": "Language",
   "languageNameArabic": "العربية",
-  "@languageNameArabic": { "description": "Always written in Arabic, whatever the app language" },
+  "@languageNameArabic": {
+    "description": "Always written in Arabic, whatever the app language"
+  },
   "languageNameEnglish": "English",
-  "@languageNameEnglish": { "description": "Always written in English, whatever the app language" },
-
+  "@languageNameEnglish": {
+    "description": "Always written in English, whatever the app language"
+  },
   "errorValidationFailed": "Some of the information you entered is not valid.",
   "errorSignInAgain": "Your session has ended. Please sign in again.",
+  "errorProviderTokenInvalid": "Google could not confirm your account. Please try again.",
   "errorRateLimited": "Too many attempts. Please wait a moment and try again.",
   "errorNotFound": "We could not find what you were looking for.",
   "errorAccountDisabled": "This account is disabled.",
+  "errorRecentSignInRequired": "Please sign in again, then try once more.",
   "errorNotAllowed": "You are not allowed to do this.",
   "errorConflict": "This is not possible right now.",
   "errorServerProblem": "Something went wrong on our side. Please try again later.",
