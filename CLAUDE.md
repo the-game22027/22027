@@ -144,6 +144,8 @@ Question bank (from `apps/backend`; available in every environment, not only dev
 
 ```bash
 npm run cli -- questions:import ../../data/bundles/dev-0001   # validate + import a bundle; re-import is a no-op
+npm run cli -- questions:publish dev-0001                     # APPROVED questions of that bundle → PUBLISHED (battles pick only these)
+npm run cli -- questions:disable <questionId> --reason "…"     # battles stop picking it at once
 python3 -I ../../data/generate/dev_bundle.py                  # rebuild the hand-written dev bundle (bump its version first)
 ```
 
