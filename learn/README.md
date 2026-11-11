@@ -99,3 +99,4 @@ New tracks are added when the first card needs one.
 | [devops/deterministic-output](devops/deterministic-output.md) | D.2 | Same input, same bytes: sort everything, no randomness, no timestamps |
 | [backend/never-block-boot-on-a-dependency](backend/never-block-boot-on-a-dependency.md) | P6.1 | Start even when Redis or Postgres is down; clean up in the background |
 | [testing/seeded-randomness](testing/seeded-randomness.md) | P6.1 | A stored seed makes bot decisions replayable and testable |
+| [backend/localize-per-viewer](backend/localize-per-viewer.md) | P6.2 | Store facts; render each player's text in their language at send time |
