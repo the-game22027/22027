@@ -120,7 +120,7 @@ When the host starts the room, members receive `battle:found` with `mode: "ROOM"
 | Type | Data | When |
 |---|---|---|
 | `battle:found` | `{ battleId, gameType, mode: "MATCHMAKING" \| "ROOM", roomId?, players: BattlePlayer[], youParticipantId, config, readyDeadlineAt }` | Participants formed. `config` is the game type's public config (round count, timers, attempts). The client joins the battle channel automatically |
-| `battle:cancelled` | `{ reason: "READY_TIMEOUT" \| "SERVER" }` | Before start: fewer than 2 participants ready |
+| `battle:cancelled` | `{ reason: "READY_TIMEOUT" \| "PLAYER_LEFT" \| "SERVER" }` | Before start: fewer than 2 participants ready, or a player forfeited or did not come back before the start |
 | `battle:started` | `{ startedAt, players: BattlePlayer[] }` | Start. `players` excludes anyone dropped for not being ready |
 | `round:start` | Reveal and buzz: `{ roundNo, gameType, answerKind, stepCount, category? }`. Grid: `{ roundNo, gameType, rows: GridCriterion[3], cols: GridCriterion[3], firstTurnParticipantId }` | Each round. Never contains unrevealed steps or accepted answers |
 | `round:clue` | `{ roundNo, index, clue: string, nextClueAt: string \| null }` | Reveal and buzz: step `index` (1-based) revealed, text in the viewer's locale. `nextClueAt` is null after the last step (final window) |
@@ -134,7 +134,7 @@ When the host starts the room, members receive `battle:found` with `mode: "ROOM"
 | `player:disconnected` | `{ participantId, graceUntil }` | A human's last socket dropped |
 | `player:reconnected` | `{ participantId }` | |
 | `player:forfeited` | `{ participantId, reason: "GRACE_EXPIRED" \| "FORFEIT" \| "NOT_READY" }` | Participant out of the battle |
-| `battle:completed` | `{ endReason, you: { placement, outcome: "WIN" \| "LOSS" \| "DRAW", score }, placements: [{ participantId, placement, score }], pointsPending: boolean }` | End. Ledger points arrive asynchronously; `pointsPending` is false when this mode earns none (DEC-41) |
+| `battle:completed` | `{ endReason: "COMPLETED" \| "FORFEIT" \| "ABANDONED", you?: { placement, outcome: "WIN" \| "LOSS" \| "DRAW", score }, placements: [{ participantId, placement, score }], pointsPending: boolean }` | End. Those who left are placed after everyone still in, as losses. `ABANDONED` (no human left) has no placements. Ledger points arrive asynchronously; `pointsPending` is false when this mode earns none (DEC-41) |
 | `battle:snapshot` | `{ status, gameType, mode, players, currentRound?: { roundNo, phase, revealedClues \| board, buzzHolder?, lockedOut[], deadlines }, rounds: [...results so far], scores, seq }` | Reply to resync and on reconnect. Contains only what was already revealed |
 
 ### 4.4 Session
