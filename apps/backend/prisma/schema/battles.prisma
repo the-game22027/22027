@@ -1,0 +1,135 @@
+// Owned by the battles module (docs/architecture/02-database.md §4.8). Rooms come in P8.
+
+enum BattleStatus {
+  WAITING_READY
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  ABANDONED
+
+  @@map("battle_status")
+}
+
+enum BattleMode {
+  MATCHMAKING
+  ROOM
+
+  @@map("battle_mode")
+}
+
+enum ParticipantKind {
+  HUMAN
+  BOT
+
+  @@map("participant_kind")
+}
+
+enum BattleOutcome {
+  WIN
+  LOSS
+  DRAW
+
+  @@map("battle_outcome")
+}
+
+model Battle {
+  id              String         @id @db.Uuid
+  status          BattleStatus
+  mode            BattleMode
+  gameType        BattleGameType @map("game_type")
+  /// Set when mode = ROOM; the foreign key to battle_rooms comes with rooms (P8).
+  roomId          String?        @map("room_id") @db.Uuid
+  hasBot          Boolean        @default(false) @map("has_bot")
+  /// Snapshot of the game type's config and the engine timers at creation (ADR-0017).
+  config          Json
+  /// The BATTLE scoring rule set; null until the points module exists (P6.5).
+  ruleSetId       String?        @map("rule_set_id") @db.Uuid
+  createdAt       DateTime       @map("created_at") @db.Timestamptz(3)
+  readyDeadlineAt DateTime       @map("ready_deadline_at") @db.Timestamptz(3)
+  startedAt       DateTime?      @map("started_at") @db.Timestamptz(3)
+  endedAt         DateTime?      @map("ended_at") @db.Timestamptz(3)
+  /// COMPLETED | FORFEIT | ABANDONED | CANCELLED
+  endReason       String?        @map("end_reason")
+  ownerInstanceId String?        @map("owner_instance_id")
+  version         Int            @default(0)
+
+  participants BattleParticipant[]
+  rounds       BattleRound[]
+
+  @@index([status, createdAt])
+  @@map("battles")
+}
+
+model BattleParticipant {
+  id             String          @id @db.Uuid
+  battleId       String          @map("battle_id") @db.Uuid
+  kind           ParticipantKind
+  userId         String?         @map("user_id") @db.Uuid
+  /// Key into the bot profiles of the battle config (DEC-43); bots only.
+  botProfile     String?         @map("bot_profile")
+  /// Snapshot of the bot's display name per locale; bots only.
+  botDisplay     Json?           @map("bot_display")
+  /// Locale fixed at battle creation: clue text and entity names are sent in it.
+  locale         String
+  seat           Int             @db.SmallInt
+  readyAt        DateTime?       @map("ready_at") @db.Timestamptz(3)
+  score          Int             @default(0)
+  placement      Int?            @db.SmallInt
+  outcome        BattleOutcome?
+  disconnectedAt DateTime?       @map("disconnected_at") @db.Timestamptz(3)
+  forfeitedAt    DateTime?       @map("forfeited_at") @db.Timestamptz(3)
+
+  battle  Battle              @relation(fields: [battleId], references: [id], onDelete: Cascade)
+  user    User?               @relation(fields: [userId], references: [id])
+  actions BattleRoundAction[]
+  wins    BattleRound[]
+
+  @@unique([battleId, seat])
+  @@map("battle_participants")
+}
+
+model BattleRound {
+  battleId            String    @map("battle_id") @db.Uuid
+  roundNo             Int       @map("round_no") @db.SmallInt
+  questionId          String    @map("question_id") @db.Uuid
+  startedAt           DateTime? @map("started_at") @db.Timestamptz(3)
+  closedAt            DateTime? @map("closed_at") @db.Timestamptz(3)
+  stepsRevealed       Int?      @map("steps_revealed") @db.SmallInt
+  winnerParticipantId String?   @map("winner_participant_id") @db.Uuid
+  /// CORRECT | NO_WINNER | ALL_LOCKED_OUT | GRID_LINE | GRID_FULL | MAX_TURNS | FORFEIT
+  endReason           String?   @map("end_reason")
+
+  battle   Battle              @relation(fields: [battleId], references: [id], onDelete: Cascade)
+  question Question            @relation(fields: [questionId], references: [id])
+  winner   BattleParticipant?  @relation(fields: [winnerParticipantId], references: [id])
+  actions  BattleRoundAction[]
+
+  @@id([battleId, roundNo])
+  @@unique([battleId, questionId])
+  @@map("battle_rounds")
+}
+
+/// Everything players did in a round, in the order the engine accepted it (08 §2.1).
+model BattleRoundAction {
+  battleId      String   @map("battle_id") @db.Uuid
+  roundNo       Int      @map("round_no") @db.SmallInt
+  actionNo      Int      @map("action_no") @db.SmallInt
+  participantId String   @map("participant_id") @db.Uuid
+  /// BUZZ | ANSWER | ANSWER_TIMEOUT | GRID_CLAIM | GRID_SKIP | TURN_TIMEOUT
+  kind          String
+  entityId      String?  @map("entity_id") @db.Uuid
+  numberAnswer  Decimal? @map("number_answer") @db.Decimal
+  cell          Int?     @db.SmallInt
+  isCorrect     Boolean? @map("is_correct")
+  points        Int      @default(0)
+  /// Null for bots and timeouts.
+  clientMsgId   String?  @map("client_msg_id")
+  receivedAt    DateTime @map("received_at") @db.Timestamptz(3)
+
+  round       BattleRound       @relation(fields: [battleId, roundNo], references: [battleId, roundNo], onDelete: Cascade)
+  participant BattleParticipant @relation(fields: [participantId], references: [id])
+  entity      AnswerEntity?     @relation(fields: [entityId], references: [id])
+
+  @@id([battleId, roundNo, actionNo])
+  @@map("battle_round_actions")
+}
