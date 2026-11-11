@@ -116,6 +116,15 @@ Changes vs the original proposed order, and why:
 - **Rescoped by ADR-0015 (details in G0):** the engine is shared and each game type adds its rules. Build order: engine + the buzz mechanic with `BUZZER`, then `CAREER` and `WHO_IS_PLAYER` (same mechanic, new content), then `GRID`. The text below still describes the shared parts; "answers" now means buzzes and typed answers.
 - `/battles` gateway per `WEBSOCKET.md`; battle engine for 2..N participants; question selection with recent-exposure exclusion (DEC-44); question reports endpoint; readiness, rounds, answers, scoring and placements from the BATTLE rule set with per-mode points (DEC-33/41); persistence of every transition; reconnection/resync; forfeit; Redis matchmaking queue + matcher loop; bot fallback with `BotPlayer` profiles (DEC-39/43); activity guard; `GET /v1/me/play-state`; completion → outbox → ledger → leaderboards (the generic `points` ledger and the leaderboard projection are built here for the `BATTLES` category, see the order change above); stale battle sweeper.
 - **Exit:** WebSocket test suite for happy path, duplicate/late/out-of-order messages, disconnect/reconnect, forfeit, ready timeout; bot fallback fires after the configured wait and the bot battle replays identically with a fixed seed; two rule-set configs give different per-mode points (proves DEC-41 is config); a 3-participant battle runs in tests even though matchmaking only makes 1v1.
+- **Delivered in slices** (each one playable end to end):
+
+| PR | Scope | Not yet |
+|---|---|---|
+| P6.1 Engine + `BUZZER` + bot | Tables `battles`, `battle_participants`, `battle_rounds`, `battle_round_actions` (`rule_set_id` nullable until P6.5); battle config file (ADR-0017); `/battles` gateway with `time:sync`, `matchmaking:join` / `leave`, `battle:ready`, `round:buzz`, `round:answer`; **every join becomes a bot battle after `botFallbackAfterMs`** (no human pairing yet); the engine (one command queue per battle, timers, `seq`, persistence, ready timeout, completion); `RevealAndBuzzRules` for `BUZZER`; bot strategy with seeded profiles; in-game score and placements; activity guard in Redis; on boot, unfinished battles become `ABANDONED` | Human pairing, reconnect and resync, forfeit, ledger points |
+| P6.2 `CAREER`, `WHO_IS_PLAYER` | Content kinds for the same rules; entity names in clues | |
+| P6.3 Matchmaking and resilience | Redis queue per game type and matcher loop (human vs human), `battle:resync` and snapshots, disconnect grace and forfeit, `battle:forfeit`, stale battle sweeper, `GET /v1/me/play-state` | |
+| P6.4 `GRID` | `GridRules`, grid bot | |
+| P6.5 Points | `points` ledger and `BATTLES` leaderboards, `BattleCompleted` handlers (ledger, question stats), question reports | |
 
 ### P7 — Friends + blocks + prediction visibility
 - Friend requests, friendships, blocks, user search; `PredictionVisibilityPolicy`; friends' predictions endpoints; blocked pairs skipped by the matchmaker.
