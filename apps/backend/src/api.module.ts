@@ -1,5 +1,6 @@
 import { type DynamicModule, Module } from '@nestjs/common';
 import { AuthModule } from '@modules/auth';
+import { BattlesModule } from '@modules/battles';
 import { FootballModule } from '@modules/football';
 import { PredictionsModule } from '@modules/predictions';
 import { QuestionBankModule } from '@modules/question-bank';
@@ -22,6 +23,7 @@ export class ApiModule {
         FootballModule,
         PredictionsModule,
         QuestionBankModule,
+        BattlesModule.register(config),
         ...(config.devToolsEnabled ? [DevModule] : []),
       ],
     };

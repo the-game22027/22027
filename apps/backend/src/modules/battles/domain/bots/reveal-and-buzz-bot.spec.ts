@@ -6,6 +6,7 @@ const profile: BotProfile = {
   knowsAnswerByDifficulty: [1, 0.8, 0.5, 0.3, 0],
   guessChance: 0,
   buzzAtShareOfSteps: { min: 0.5, max: 1 },
+  reactionDelayMs: { min: 200, max: 600 },
   typingDelayMs: { min: 800, max: 2_000 },
 };
 

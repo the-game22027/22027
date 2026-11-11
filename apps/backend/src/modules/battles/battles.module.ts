@@ -1,0 +1,45 @@
+import { type DynamicModule, Module } from '@nestjs/common';
+import { AuthModule } from '@modules/auth';
+import { QuestionBankModule } from '@modules/question-bank';
+import { UsersModule } from '@modules/users';
+import { AppConfig } from '@shared/infrastructure/config';
+import { BattleEngine } from './application/battle-engine';
+import { BATTLE_SETTINGS } from './application/battle-settings';
+import { MatchmakingService } from './application/matchmaking.service';
+import { ACTIVITY_GUARD } from './application/ports/activity-guard';
+import { BATTLE_NOTIFIER } from './application/ports/battle-notifier';
+import { BATTLE_REPOSITORY } from './application/ports/battle-repository';
+import { TIMER_SCHEDULER } from './application/ports/timer-scheduler';
+import { loadBattleSettingsFile } from './infrastructure/battle-settings-file';
+import { PrismaBattleRepository } from './infrastructure/prisma-battle.repository';
+import { RedisActivityGuard } from './infrastructure/redis-activity-guard';
+import { SystemTimerScheduler } from './infrastructure/system-timer-scheduler';
+import { BattlesGateway } from './presentation/battles.gateway';
+import { SocketBattleNotifier } from './presentation/socket-battle-notifier';
+
+/** Real-time battles (01 §2.8). API process only: the engine keeps live battles in memory. */
+@Module({})
+export class BattlesModule {
+  static register(config: AppConfig): DynamicModule {
+    return {
+      module: BattlesModule,
+      imports: [AuthModule.register(config), QuestionBankModule, UsersModule],
+      providers: [
+        BattleEngine,
+        MatchmakingService,
+        BattlesGateway,
+        SocketBattleNotifier,
+        {
+          provide: BATTLE_SETTINGS,
+          inject: [AppConfig],
+          useFactory: (appConfig: AppConfig) =>
+            loadBattleSettingsFile(appConfig.battleConfigPath, appConfig.isProduction),
+        },
+        { provide: BATTLE_NOTIFIER, useExisting: SocketBattleNotifier },
+        { provide: BATTLE_REPOSITORY, useClass: PrismaBattleRepository },
+        { provide: ACTIVITY_GUARD, useClass: RedisActivityGuard },
+        { provide: TIMER_SCHEDULER, useClass: SystemTimerScheduler },
+      ],
+    };
+  }
+}

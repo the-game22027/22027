@@ -11,18 +11,44 @@
   "bots": {
     "profiles": {
       "rookie": {
-        "displayNames": { "en": "Rookie Bot", "ar": "البوت المبتدئ" },
+        "displayNames": {
+          "en": "Rookie Bot",
+          "ar": "البوت المبتدئ"
+        },
         "knowsAnswerByDifficulty": [0.7, 0.5, 0.35, 0.2, 0.1],
         "guessChance": 0.2,
-        "buzzAtShareOfSteps": { "min": 0.6, "max": 1 },
-        "typingDelayMs": { "min": 2000, "max": 4000 }
+        "buzzAtShareOfSteps": {
+          "min": 0.6,
+          "max": 1
+        },
+        "reactionDelayMs": {
+          "min": 400,
+          "max": 1200
+        },
+        "typingDelayMs": {
+          "min": 2000,
+          "max": 4000
+        }
       },
       "veteran": {
-        "displayNames": { "en": "Veteran Bot", "ar": "البوت المحترف" },
+        "displayNames": {
+          "en": "Veteran Bot",
+          "ar": "البوت المحترف"
+        },
         "knowsAnswerByDifficulty": [0.9, 0.75, 0.6, 0.4, 0.25],
         "guessChance": 0.1,
-        "buzzAtShareOfSteps": { "min": 0.4, "max": 0.9 },
-        "typingDelayMs": { "min": 1500, "max": 3000 }
+        "buzzAtShareOfSteps": {
+          "min": 0.4,
+          "max": 0.9
+        },
+        "reactionDelayMs": {
+          "min": 250,
+          "max": 800
+        },
+        "typingDelayMs": {
+          "min": 1500,
+          "max": 3000
+        }
       }
     }
   },
@@ -36,8 +62,15 @@
       "finalWindowMs": 5000,
       "attemptsPerPlayer": 1,
       "showWrongAnswers": true,
-      "points": { "correct": 10, "perUnrevealedStep": 2, "wrong": 0 },
-      "selection": { "difficulties": null }
+      "points": {
+        "correct": 10,
+        "perUnrevealedStep": 2,
+        "wrong": 0
+      },
+      "selection": {
+        "difficulties": null,
+        "excludeLastBattles": 20
+      }
     }
   }
 }

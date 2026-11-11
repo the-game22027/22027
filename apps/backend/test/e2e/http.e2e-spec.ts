@@ -1,6 +1,7 @@
 import type { NestExpressApplication } from '@nestjs/platform-express';
 import request from 'supertest';
 import { createApiTestApp, testConfig } from '../support/test-app';
+import { writeBattleConfigFile } from '../support/battle-config';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
@@ -89,7 +90,11 @@ describe('production mode', () => {
   let app: NestExpressApplication;
 
   beforeAll(async () => {
-    app = await createApiTestApp(testConfig({ NODE_ENV: 'production' }));
+    // Production refuses placeholder battle values (ADR-0017), so this boot gets a file marked as reviewed.
+    const battleConfig = writeBattleConfigFile((config) => {
+      config['devOnly'] = false;
+    });
+    app = await createApiTestApp(testConfig({ NODE_ENV: 'production', BATTLE_CONFIG_PATH: battleConfig }));
   });
 
   afterAll(async () => {

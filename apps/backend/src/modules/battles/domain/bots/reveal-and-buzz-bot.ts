@@ -9,6 +9,8 @@ export interface BotProfile {
   guessChance: number;
   /** When the bot buzzes, as a share of the steps: 0.5 means after half of them are revealed. */
   buzzAtShareOfSteps: { min: number; max: number };
+  /** How long after the planned step is revealed the bot presses the buzzer. */
+  reactionDelayMs: { min: number; max: number };
   /** How long the bot "types" after buzzing. */
   typingDelayMs: { min: number; max: number };
 }

@@ -7,7 +7,8 @@ export const BATTLE_SETTINGS = Symbol('BATTLE_SETTINGS');
 export interface RevealGameSettings extends Omit<RevealAndBuzzConfig, 'latencyGraceMs'> {
   enabled: boolean;
   roundCount: number;
-  selection: { difficulties: number[] | null };
+  /** DEC-44: content of a player's last `excludeLastBattles` battles is skipped while the bank allows it. */
+  selection: { difficulties: number[] | null; excludeLastBattles: number };
 }
 
 /** The battle config file (ADR-0017), validated at boot. Every value is configuration, most are still open. */
