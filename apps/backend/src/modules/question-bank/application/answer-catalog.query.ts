@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import type { EntityKind } from '../domain/question-content';
 import {
   type CatalogEntityView,
   type CatalogSnapshot,
@@ -17,6 +18,11 @@ export class AnswerCatalogQuery {
   findEntitiesByIds(entityIds: readonly string[]): Promise<CatalogEntityView[]> {
     if (entityIds.length === 0) return Promise.resolve([]);
     return this.questions.findEntitiesByIds(entityIds);
+  }
+
+  /** Plausible wrong answers: popular entities of the same kind that are not accepted (bots, 08 §3.3). */
+  findDecoyEntityIds(kind: EntityKind, acceptedIds: readonly string[], limit: number): Promise<string[]> {
+    return this.questions.findPopularEntityIdsOfKind(kind, acceptedIds, limit);
   }
 
   async findCurrentVersion(): Promise<string> {

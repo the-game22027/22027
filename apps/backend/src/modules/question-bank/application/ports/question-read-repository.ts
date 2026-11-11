@@ -52,6 +52,8 @@ export interface QuestionReadRepository {
   /** Null when the content does not exist. */
   lookUpTypedAnswer(contentId: string, slot: number, entityId: string): Promise<TypedAnswerLookup | null>;
   findEntitiesByIds(entityIds: readonly string[]): Promise<CatalogEntityView[]>;
+  /** The most popular active entities of a kind, without the given ids: plausible wrong answers for bots. */
+  findPopularEntityIdsOfKind(kind: EntityKind, excludeIds: readonly string[], limit: number): Promise<string[]>;
   /** Checksum of the last imported catalog, or null before any catalog import. */
   findCurrentCatalogVersion(): Promise<string | null>;
   /** The version and its active entities, read from one snapshot of the database; null before any catalog import. */
