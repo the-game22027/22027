@@ -83,7 +83,13 @@ Format per module: **Purpose · Responsibilities · Owned tables · Public inter
 - **Purpose:** The playable round content of every game type, and the answer catalog (ADR-0015, `08-battle-games.md` §4-5).
 - **Responsibilities:** Import validated bundles (idempotent by `external_key` + `content_hash`; catalog upsert by `external_ref`); status workflow `DRAFT → APPROVED → PUBLISHED → DISABLED`; selection queries per game type (difficulty, category, locale availability, exclusion lists); accepted answers; serving the answer catalog snapshot; usage statistics.
 - **Owned tables:** `questions`, `question_translations`, `question_options`, `question_option_translations` (legacy, unused by games), `question_answers`, `answer_entities`, `answer_entity_aliases`, `question_categories`, `question_import_batches`, `question_stats`, `question_stats_applied`.
-- **Public interface:** `ContentSelector.pick(gameType, criteria) → contentIds`, `RoundContentQuery.getForEngine(id, locales)` (full content for the server-side engine only; never sent to clients as is), `AnswerChecker.isAcceptedAnswer(contentId, slot, entityId)`, `AnswerCatalogQuery.findEntities(ids, locale)` (names for events) and `getSnapshot()` (for `GET /v1/answer-catalog`), `QuestionBankFacade.disable(id, reason)`.
+- **Public interface** (details in `08-battle-games.md` §5.4):
+  - `ContentSelector.pickContentIds(criteria) → contentIds`.
+  - `RoundContentQuery.getContentForEngine(id, locales)`: full content for the server-side engine only, never sent to clients as is.
+  - `AnswerChecker.checkTypedAnswer(contentId, slot, entityId) → CORRECT | WRONG | UNKNOWN_ENTITY`.
+  - `AnswerCatalogQuery.findEntitiesByIds(ids)` (names for events).
+  - `QuestionBankFacade.disableQuestion(id, reason)`.
+  - `GET /v1/answer-catalog` is served by this module's own controller.
 - **Depends on:** nothing.
 - **Publishes:** `QuestionsPublished`, `QuestionDisabled`.
 - **Consumes:** `BattleCompleted` (its `questionResults` summary updates `question_stats`; deduplicated by battle id in `question_stats_applied`).
@@ -269,6 +275,8 @@ src/modules/predictions/
 | `PredictionsScored` | predictions | matchId, ruleSetId | points (pull scores, record/supersede) |
 | `PredictionsVoided` | predictions | matchId | points (supersede with zero) |
 | `MotmResultFinalized` | motm | matchId, pollId, winnerPlayerIds | predictions (MOTM picks, DEC-08), points |
+| `QuestionsPublished` | question-bank | batchId, publishedCount | none yet |
+| `QuestionDisabled` | question-bank | questionId, reason | none yet |
 | `BattleCompleted` | battles | battleId, mode, hasBot, roomId?, participants (kind, userId?, score, placement, outcome, points), questionResults, endedAt | points (humans only, per-mode rule set), question-bank (stats) |
 | `PointsRecorded` / `PointsSuperseded` | points | userIds, categories, occurredAt range | leaderboards |
 | `ScoringRuleSetActivated` | points | ruleSetId, gameType, recalcFrom | predictions, battles (optional recalculation job) |

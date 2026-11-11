@@ -29,3 +29,30 @@ export class BundleVersionReusedError extends DomainError {
     );
   }
 }
+
+export class QuestionNotFoundError extends DomainError {
+  readonly code = 'QUESTION_NOT_FOUND';
+  readonly kind = 'NOT_FOUND';
+
+  constructor(questionId: string) {
+    super(`No question has id ${questionId}.`);
+  }
+}
+
+export class BundleNotImportedError extends DomainError {
+  readonly code = 'QUESTION_BUNDLE_NOT_IMPORTED';
+  readonly kind = 'NOT_FOUND';
+
+  constructor(bundleVersion: string) {
+    super(`Bundle ${bundleVersion} was never imported. Import it with questions:import first.`);
+  }
+}
+
+export class InvalidDisableReasonError extends DomainError {
+  readonly code = 'QUESTION_DISABLE_REASON_INVALID';
+  readonly kind = 'VALIDATION';
+
+  constructor(maxLength: number) {
+    super(`A disable reason is required, at most ${maxLength} characters.`);
+  }
+}

@@ -9,6 +9,29 @@ enum QuestionStatus {
   @@map("question_status")
 }
 
+/// Which game a battle (and a round of content) plays (ADR-0015).
+enum BattleGameType {
+  BUZZER
+  CAREER
+  WHO_IS_PLAYER
+  GRID
+
+  @@map("battle_game_type")
+}
+
+/// What a typed answer must be: a catalog entity of this kind, or a number (08 §4).
+enum AnswerKind {
+  PLAYER
+  CLUB
+  NATIONAL_TEAM
+  COUNTRY
+  COMPETITION
+  COACH
+  NUMBER
+
+  @@map("answer_kind")
+}
+
 model QuestionCategory {
   id       String  @id @db.Uuid
   slug     String  @unique
@@ -26,6 +49,8 @@ model QuestionImportBatch {
   id               String   @id @db.Uuid
   bundleVersion    String   @unique @map("bundle_version")
   checksum         String
+  /// Checksum of catalog.jsonl when the bundle carried one.
+  catalogChecksum  String?  @map("catalog_checksum")
   generatorVersion String   @map("generator_version")
   kbVersion        String   @map("kb_version")
   status           String
@@ -39,34 +64,42 @@ model QuestionImportBatch {
 }
 
 model Question {
-  id                   String         @id @db.Uuid
-  externalKey          String         @map("external_key")
+  id                   String          @id @db.Uuid
+  externalKey          String          @map("external_key")
   /// Goes up by one when changed content replaces a question that could already have been served.
-  keyVersion           Int            @default(1) @map("key_version")
-  contentHash          String         @map("content_hash")
-  type                 String         @default("SINGLE_CHOICE")
-  categoryId           String         @map("category_id") @db.Uuid
-  difficulty           Int            @db.SmallInt
-  calibratedDifficulty Decimal?       @map("calibrated_difficulty") @db.Decimal
-  status               QuestionStatus @default(DRAFT)
-  availableLocales     String[]       @map("available_locales")
+  keyVersion           Int             @default(1) @map("key_version")
+  contentHash          String          @map("content_hash")
+  /// SINGLE_CHOICE (legacy, never served) or GAME.
+  type                 String          @default("SINGLE_CHOICE")
+  gameType             BattleGameType? @map("game_type")
+  answerKind           AnswerKind?     @map("answer_kind")
+  /// The game-specific part of the round (08 §4), read whole, never queried inside.
+  content              Json?
+  categoryId           String          @map("category_id") @db.Uuid
+  difficulty           Int             @db.SmallInt
+  calibratedDifficulty Decimal?        @map("calibrated_difficulty") @db.Decimal
+  status               QuestionStatus  @default(DRAFT)
+  availableLocales     String[]        @map("available_locales")
   provenance           Json
-  licenseFlags         String[]       @default([]) @map("license_flags")
-  validUntil           DateTime?      @map("valid_until") @db.Timestamptz(3)
-  importBatchId        String         @map("import_batch_id") @db.Uuid
-  publishedAt          DateTime?      @map("published_at") @db.Timestamptz(3)
-  disabledAt           DateTime?      @map("disabled_at") @db.Timestamptz(3)
-  disabledReason       String?        @map("disabled_reason")
-  createdAt            DateTime       @map("created_at") @db.Timestamptz(3)
-  updatedAt            DateTime       @map("updated_at") @db.Timestamptz(3)
+  licenseFlags         String[]        @default([]) @map("license_flags")
+  validUntil           DateTime?       @map("valid_until") @db.Timestamptz(3)
+  importBatchId        String          @map("import_batch_id") @db.Uuid
+  publishedAt          DateTime?       @map("published_at") @db.Timestamptz(3)
+  disabledAt           DateTime?       @map("disabled_at") @db.Timestamptz(3)
+  disabledReason       String?         @map("disabled_reason")
+  createdAt            DateTime        @map("created_at") @db.Timestamptz(3)
+  updatedAt            DateTime        @map("updated_at") @db.Timestamptz(3)
 
   category     QuestionCategory      @relation(fields: [categoryId], references: [id])
   importBatch  QuestionImportBatch   @relation(fields: [importBatchId], references: [id])
   translations QuestionTranslation[]
   options      QuestionOption[]
+  answers      QuestionAnswer[]
+  battleRounds BattleRound[]
 
   @@unique([externalKey, keyVersion])
   @@index([status, difficulty, categoryId])
+  @@index([status, gameType, difficulty, categoryId])
   @@index([availableLocales], type: Gin)
   @@map("questions")
 }
@@ -107,4 +140,55 @@ model QuestionOptionTranslation {
 
   @@id([optionId, locale])
   @@map("question_option_translations")
+}
+
+/// Accepted answers of a round: slot 0 for reveal games, 0..8 for grid cells (08 §5.3).
+model QuestionAnswer {
+  questionId String @map("question_id") @db.Uuid
+  slot       Int    @db.SmallInt
+  entityId   String @map("entity_id") @db.Uuid
+
+  question Question     @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  entity   AnswerEntity @relation(fields: [entityId], references: [id])
+
+  @@id([questionId, slot, entityId])
+  @@index([entityId])
+  @@map("question_answers")
+}
+
+/// The answer catalog: every entity a typed answer can be (08 §5).
+model AnswerEntity {
+  id             String     @id @db.Uuid
+  /// e.g. wikidata:Q11571; the upsert key on import.
+  externalRef    String     @unique @map("external_ref")
+  kind           AnswerKind
+  /// {en, ar} display names.
+  names          Json
+  /// Ranks suggestions; from the pipeline (Wikipedia sitelinks).
+  popularity     Int        @default(0)
+  /// Normalized names and aliases (07 §5.7); what the app searches on the phone.
+  searchForms    String[]   @map("search_forms")
+  /// The bundle version that last changed this entity.
+  catalogVersion String     @map("catalog_version")
+  /// ACTIVE, or HIDDEN when a newer catalog dropped it (kept because battle history points at it).
+  status         String     @default("ACTIVE")
+  updatedAt      DateTime   @map("updated_at") @db.Timestamptz(3)
+
+  aliases       AnswerEntityAlias[]
+  answers       QuestionAnswer[]
+  battleActions BattleRoundAction[]
+
+  @@index([kind])
+  @@map("answer_entities")
+}
+
+model AnswerEntityAlias {
+  entityId String @map("entity_id") @db.Uuid
+  locale   String
+  alias    String
+
+  entity AnswerEntity @relation(fields: [entityId], references: [id], onDelete: Cascade)
+
+  @@id([entityId, locale, alias])
+  @@map("answer_entity_aliases")
 }

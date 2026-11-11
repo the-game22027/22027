@@ -94,6 +94,65 @@ Conclusions: `GRID` is feasible with club and nationality criteria (the pipeline
 
 **Trap found during the check:** the "truthy" shortcut `wdt:P54` returns only the best-ranked statements. When a player's current club is marked *preferred*, all former clubs disappear (Cristiano Ronaldo vanished from Real Madrid × Juventus). Always read full statements: `p:P54/ps:P54` with qualifiers `pq:P580`, `pq:P582`. Youth and reserve teams are separate Wikidata items and are filtered out by type.
 
+### 4.2 D.1: Wikidata slice (first implementation)
+
+The first slice is deliberately smaller than the full layered model in §4. It stores Wikidata statements directly, with the statement id as provenance. Multi-source claims and fact resolution are added when a second source is loaded.
+
+**Scope** (`data/config/scope.toml`; a tiny `scope.dev.toml` for fast runs):
+- Leagues by Wikidata id: Premier League `Q9448`, La Liga `Q324867`, Serie A `Q15804`, Bundesliga `Q82595`, Ligue 1 `Q13394`, Primeira Liga `Q182994`, Eredivisie `Q167541`, Saudi Pro League `Q255633`, Egyptian Premier League `Q680619`. Every club whose `P118` is one of them and whose `P31` is association football club (`Q476028`).
+- Players: everyone with a `P54` statement for one of those clubs, at any time. **Kept:** players with at least `minPlayerSitelinks` Wikipedia articles, a popularity proxy that drops 1920s squad fillers.
+- Each kept player's **full** career (`p:P54`), every team on it, and their nationality (`P1532`, country for sport, falling back to `P27`).
+
+**Team filter.** A spell is kept only when its team is a senior club. Wikidata types are not reliable for this: "Sporting C.P. Youth and Academy" is typed as a regular club, and the senior Portugal team and Portugal U-17 share the same type. So:
+- National teams are dropped from careers. Nationality comes from `P1532` / `P27`.
+- Clubs are dropped when one of their `P31` is in `excludedTeamClasses` (reserve team, youth team...), or when their English label matches `excludedTeamLabelPattern` (`youth`, `academy`, `reserves`, `under-NN`, `U-NN`, `B`, `II`, `Castilla`, `Primavera`, `Next Gen`...). Both live in the scope config, with tests.
+
+**Spells:**
+- Years only: Wikidata dates here are year precision.
+- Childhood clubs are dropped by age: a spell that ended before `min_senior_age` (17) is removed. Wikidata lists them as normal clubs (Ronaldo at CF Andorinha, aged 7 to 10) and their names give nothing away. Clubs left with no spell leave the knowledge base.
+- A spell without a start year is dropped from the ordered career, but still counts for grid membership.
+- Consecutive spells at the same club are merged.
+- Loans are kept as their own spells; `P1642` (acquisition transaction) "loan" sets `loan = true` when present.
+
+**Names:**
+- Labels and aliases in `en` and `ar` for every kept player and every team on their careers.
+- Reviewed overrides in `data/kb_overrides/names.csv` (`external_ref, locale, name, kind = LABEL | ALIAS, reviewed_by`) are applied on top. Overrides fill gaps; Wikidata is never edited from here.
+- `names:missing` writes the catalog entities without an Arabic label to a CSV for review.
+- **Only entities with both an English and an Arabic name enter the catalog.**
+
+**Tables** (`football_kb`, plain SQL migrations in `data/kb_migrations/`):
+- `raw.sparql_cache`: query text hash → response. Re-runs are offline and reproducible; `--refresh` refetches.
+- `core.entity`: `external_ref`, kind, sitelinks, birth year.
+- `core.entity_name`: `external_ref`, locale, name, `LABEL` or `ALIAS`, source.
+- `core.career_spell`: player, team, from and to year, loan, statement id.
+- `core.player_country`.
+
+**Commands** (from `data/`):
+- `python -m kb migrate`
+- `python -m kb ingest --scope config/scope.toml`
+- `python -m kb names:missing --locale ar`
+- `python -m kb catalog --out <bundle dir>`
+
+The catalog command writes `catalog.jsonl` (§5.4) with normalized search forms (§5.7).
+
+**First full run, 2026-11-10** (`scope.toml`, 9 leagues):
+
+| Measure | Result |
+|---|---|
+| Clubs in the 9 leagues | 205 |
+| Players found / kept (≥ 8 sitelinks) | 53,659 / 21,611 |
+| Senior clubs on those careers | 8,090 (2026-11-11: two countries that Wikidata lists as teams, Brazil and India, are now excluded) |
+| Career spells | 144,508 |
+| Arabic label: players / clubs / countries | 85% / 51% / 99% |
+| Arabic label, 2,000 most famous players | 100% |
+| Catalog entities with both names | 22,645 (6.3 MB, 1.2 MB gzip) |
+| Entities missing an Arabic name | 7,180 (mostly small clubs), listed by `names:missing` |
+| First download / rebuild from cache | about 40 min / about 3 min |
+
+**Etiquette:**
+- One query at a time, a descriptive `User-Agent`, and exponential backoff on `429` and `5xx`.
+- Per-club and batched queries (`VALUES` blocks of a few hundred ids), because a single big query hits the 60-second timeout.
+
 Attribution: CC BY-SA sources require attribution. The app needs a "Data sources & licences" screen, and question provenance keeps `license_flags` so attribution can be shown or CC BY-SA content filtered out if counsel advises.
 
 ## 5. Question generation pipeline (offline, zero budget)
@@ -210,12 +269,12 @@ A bundle is a directory `data/bundles/<bundleVersion>/` with two files:
    - same content hash → nothing changes, except that newly reviewed locales are recorded and a `DRAFT` whose locales are now all reviewed becomes `APPROVED` (a review never goes backwards);
    - different content hash and the question was **never published** (`published_at` is null) and is `DRAFT` or `APPROVED` → its content is replaced in place and its status is derived again from the review flags;
    - different content hash otherwise → the old version is `DISABLED` with reason `SUPERSEDED` (if it was not already disabled) and a new row with `key_version + 1` is inserted. A question that could have been served is never changed, so battle history stays true. "Could have been served" is judged by `published_at`, because answer statistics arrive only after a battle ends.
-5. `questions:publish --batch <id>` (or auto-publish approved ones, config) → `PUBLISHED`.
-6. `questions:disable <id> --reason` for reported or wrong questions; selection excludes them immediately.
+5. `questions:publish <bundleVersion>`: the bundle's `APPROVED` questions → `PUBLISHED` (`08` §5.6).
+6. `questions:disable <questionId> --reason <text>` for reported or wrong questions; selection excludes them immediately.
 
 Regeneration = new bundle version. Rollback = disable a batch.
 
-**Game content checks (P5.2), on top of the above:** the catalog is imported first, in the same transaction (upsert by `externalRef`; an entity missing from a new catalog is set `HIDDEN`, never deleted, because battle history points at it). Every `externalRef` used by content or answers must be in the catalog, with the right `kind`. `BUZZER`: same number of steps in every locale, 2 to `maxSteps`, and the answer's name does not appear in any step. `CAREER`: at least `minSpells` spells, in date order. `WHO_IS_PLAYER`: at least `minClues` clues, every clue in every locale. `GRID`: 3 rows, 3 columns, no repeated criterion, every cell has at least `minAnswersPerCell` players. `answers` are part of the content hash (they decide correctness).
+**Game content checks (P5.2), on top of the above:** the catalog is imported first, in the same transaction. **A bundle's catalog is always the whole catalog:** entities are upserted by `externalRef` (aliases replaced), and an active entity missing from it is set `HIDDEN`, never deleted, because battle history points at it. A bundle without `catalog.jsonl` uses the catalog already imported. The same `bundleVersion` is a no-op only when both checksums match. Every `externalRef` used by content or answers must be in the catalog, with the right `kind`. `BUZZER`: same number of steps in every locale (2 to 40), and the answer's name does not appear in any step; a `NUMBER` answer carries `answerNumber` and no entities. `CAREER`: at least 2 spells, in date order, and the player is an accepted answer. `WHO_IS_PLAYER`: at least 2 clues, every clue in the same locales. `GRID`: 3 rows, 3 columns, no repeated criterion, every cell has at least one valid player. These are sanity bounds on the data; how many clues, steps or answers a game wants is game config (`minAnswersPerCell` etc., 08 §6), applied when content is selected. `answers` are part of the content hash (they decide correctness).
 
 ### 5.6 How many questions the app needs
 
@@ -240,3 +299,56 @@ Test vectors (both implementations must pass them):
 | `كرة` | `كره` |
 | `مُحَمَّد صَلاح` | `محمد صلاح` |
 | `٢٠١٠` | `2010` |
+
+### 5.8 D.2a: first generators (`CAREER`, `BUZZER`) and the `dev-0002` bundle
+
+The first generated bundle. Its purpose: P6.1 needs published game content to play, and real data shows problems earlier than hand-written rounds. Grid and Who is the player? come in D.2b.
+
+**Command** (from `data/`):
+
+```
+.venv/bin/python -m kb bundle --version dev-0002 --out bundles/dev-0002 --careers 60 --buzzers 60 --catalog-min-player-sitelinks 40
+```
+
+- **Input:** only `core.*`.
+- **Output:** a bundle in the format of §5.4: `manifest.json`, `questions.jsonl`, `catalog.jsonl`.
+- **Deterministic:** the same knowledge base and the same arguments give the same bytes, so the same checksum. Picks are sorted by popularity with fixed tie-breaks; there is no randomness.
+
+**`CAREER` rounds:**
+- **Eligible players:** both names; at least 3 senior spells; every spell has a start year; every club is in the catalog.
+- **Content:** the spells in date order, loans kept and flagged.
+- **Accepted answer:** the player.
+
+**`BUZZER` templates.** Each template's text is written once by a person in EN and AR, with the same number of steps in both, and the facts go from vague to specific:
+
+| Template | Question (EN) | Answer (`answerKind`) | Skipped when |
+|---|---|---|---|
+| `first-club` | At which club / did {player} / start / his senior career? | First senior club (`CLUB`) | Two spells share the first start year |
+| `joined-in-year` | Which club / did {player} join / from {previous club} / in {year}? | That club (`CLUB`) | The spell is a loan, or another spell starts the same year |
+| `nationality` | Which country / does {player} / represent / by citizenship? | Every citizenship of the player (`COUNTRY`) | No citizenship in the catalog |
+
+The giveaway check of §5.5 runs here too: a round whose steps contain the answer's name is dropped.
+
+**Difficulty:** a first guess from popularity (Wikipedia sitelinks). Answer statistics recalibrate it later (`calibrated_difficulty`).
+
+| Sitelinks | ≥ 100 | 60-99 | 40-59 | 20-39 | < 20 |
+|---|---|---|---|---|---|
+| Difficulty | 1 | 2 | 3 | 4 | 5 |
+
+Picks are spread over the difficulties, so a short bundle is not all difficulty 5.
+
+**Keys and provenance:**
+- **External keys** stay the same across regenerations, so a regenerated bundle updates or versions a round instead of duplicating it (§5.5): `career:<qid>`, `buzzer:first-club:<qid>`, `buzzer:joined-in-year:<qid>:<year>`, `buzzer:nationality:<qid>`.
+- **Provenance:**
+  - `facts`: the Wikidata statement ids that were used.
+  - `sources`: `wikidata`.
+  - `licenses`: `CC0-1.0`.
+  - `kbVersion`: `wikidata-<date of the last ingest>`.
+
+**Catalog in a dev bundle:** the full catalog is about 6 MB, too big to commit. `--catalog-min-player-sitelinks` keeps players at or above the bar, and adds every club and country a kept player's career or citizenship points at, plus everything the content references. Production bundles leave the flag out and carry the whole catalog.
+
+**Review and publishing:** generated rounds are `DRAFT` until a person reviews them (§5.3).
+- **Development:** to play a dev bundle anyway, `questions:publish <version> --include-drafts`. The command refuses this flag in production (`NODE_ENV=production`, the same switch that turns off the dev tools).
+- **Production:** publishes only reviewed content.
+
+**Freshness (DEC-62, Pending):** the career of an active player (open last spell) is wrong after his next transfer. D.2a sets `validUntil = null`, and every new bundle regenerates careers. Whether active careers should also expire on their own is DEC-62.

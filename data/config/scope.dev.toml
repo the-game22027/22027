@@ -1,0 +1,13 @@
+# Small scope for fast development runs: a few clubs instead of whole leagues.
+min_player_sitelinks = 15
+min_senior_age = 17
+excluded_team_classes = ["Q2412834", "Q6979740", "Q23901123", "Q28140340", "Q6256", "Q3624078"]
+excluded_team_label_pattern = '''\b(youth|academy|reserves?|under-?\d{2}|u-?\d{2}|castilla|primavera|next gen|juvenil|juniors?|amateure?s?)\b|\s(b|c|ii|iii|atlètic)$'''
+
+# Clubs listed directly instead of leagues.
+clubs = [
+  "Q8682",   # Real Madrid
+  "Q1422",   # Juventus
+  "Q1130849", # Liverpool
+  "Q223566", # Al Ahly
+]

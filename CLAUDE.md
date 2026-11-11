@@ -144,7 +144,25 @@ Question bank (from `apps/backend`; available in every environment, not only dev
 
 ```bash
 npm run cli -- questions:import ../../data/bundles/dev-0001   # validate + import a bundle; re-import is a no-op
+npm run cli -- questions:import ../../data/bundles/dev-0002   # generated game content + its catalog (07 §5.8)
+npm run cli -- questions:publish dev-0002                     # APPROVED questions of that bundle → PUBLISHED (battles pick only these)
+npm run cli -- questions:publish dev-0002 --include-drafts    # development: also the unreviewed rounds (refused in production)
+npm run cli -- questions:disable <questionId> --reason "…"     # battles stop picking it at once
 python3 -I ../../data/generate/dev_bundle.py                  # rebuild the hand-written dev bundle (bump its version first)
+```
+
+Knowledge base pipeline (from `data/`; Python 3.12+, writes to the `football_kb` database, `FOOTBALL_KB_URL` overrides the default local URL):
+
+```bash
+python3 -m venv .venv && .venv/bin/pip install 'psycopg[binary]>=3.2' pytest ruff   # once
+.venv/bin/python -m kb migrate                                     # apply kb_migrations/*.sql
+.venv/bin/python -m kb ingest --scope config/scope.dev.toml       # 4 clubs, ~6 min first time; cached afterwards
+.venv/bin/python -m kb ingest --scope config/scope.toml           # 9 leagues; --refresh refetches from Wikidata
+.venv/bin/python -m kb names:missing --locale ar                  # entities without an Arabic name → .out/names-missing-ar.csv
+.venv/bin/python -m kb catalog --out .out/catalog                 # write catalog.jsonl
+.venv/bin/python -m kb bundle --version dev-0003 --out bundles/dev-0003 --careers 60 --buzzers 60 --catalog-min-player-sitelinks 40   # generated bundle (07 §5.8)
+FOOTBALL_KB_TEST_URL=postgresql://game:game@localhost:5440/football_kb_test .venv/bin/python -m pytest   # needs CREATE DATABASE football_kb_test once
+.venv/bin/ruff check . && .venv/bin/ruff format --check .
 ```
 Update this section when commands change. Do not document commands that do not exist yet as if they work.
 

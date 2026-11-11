@@ -128,7 +128,7 @@ Round content lives in `question-bank` (`02-database.md` §4.6) and comes from b
 | `WHO_IS_PLAYER` | `{ playerEntityId, clues: [{ kind, text: {en, ar} }] }` | The player (slot 0) |
 | `GRID` | `{ rows: [criterion ×3], cols: [criterion ×3] }` | For each cell (slot 0..8), every valid player id |
 
-`answerKind` is `PLAYER`, `CLUB`, `NATIONAL_TEAM`, `COMPETITION`, `COACH`, or `NUMBER`. The client uses it to filter suggestions; it gives nothing away.
+`answerKind` is `PLAYER`, `CLUB`, `NATIONAL_TEAM`, `COUNTRY`, `COMPETITION`, `COACH`, or `NUMBER`. Catalog entities of kind `COUNTRY` also name the nationality criteria of `GRID`. The client uses it to filter suggestions; it gives nothing away.
 
 ## 5. Answer catalog and typed answers (DEC-55)
 
@@ -144,7 +144,48 @@ A list of football entities a typed answer can be, with names in both languages:
 - Suggestions are ranked by prefix match, then `popularity`. Nothing about the current round is used for ranking, so suggestions never hint at the answer.
 
 ### 5.3 Checking an answer
-The client sends `{ entityId }` (or `{ number }`). The server checks that the entity exists and has the round's `answerKind` (`UNKNOWN_ENTITY` otherwise), then asks `AnswerChecker.isAcceptedAnswer(contentId, slot, entityId)`, an indexed lookup in `question_answers`. Text is never compared.
+The client sends `{ entityId }` (or `{ number }`). The server asks `AnswerChecker.checkTypedAnswer(contentId, slot, entityId)`. One indexed query returns one of three verdicts:
+- `UNKNOWN_ENTITY`: the entity does not exist, or is not of the round's `answerKind`.
+- `CORRECT`: the entity is in `question_answers` for that slot.
+- `WRONG`: otherwise.
+
+Text is never compared. A `NUMBER` answer is compared by the game rules with `answerNumber` from the round content.
+
+### 5.4 What `question-bank` gives the engine (P5.2b)
+The interface is in `01-modules.md` §2.6. All of it is server side; the game rules decide what each event shows.
+
+- **`ContentSelector.pickContentIds(criteria)`** returns up to `count` random content ids that pass every check in its criteria:
+  - **`gameType` and `count`:** that game type, at most that many ids.
+  - **`locales`:** available in every one of them.
+  - **`excludeContentIds`:** none of these ids.
+  - **`difficulties`, optional:** only these difficulties.
+  - **`minAnswersPerSlot`, optional (`GRID`):** every cell has at least that many accepted answers.
+  - **Always:** `PUBLISHED`, and not expired (`valid_until` checked with the database clock).
+
+  It returns fewer ids when the bank is short. The caller (`battles`) then relaxes its exposure window and asks again (DEC-44); the difficulty mix is also the caller's (one call per difficulty, `selection.*` config). The order is `ORDER BY random()`, which reads every matching row: fine for a bank of thousands. Revisit above about 100k rows per game type.
+- **`RoundContentQuery.getContentForEngine(contentId, locales)`** returns the content with every catalog `externalRef` replaced by the entity id, texts only in the requested locales, and the accepted answers per slot (for the reveal at the end of a round). Any status: a battle keeps playing the content it picked at creation, even if that content is disabled later.
+- **`AnswerCatalogQuery.findEntitiesByIds(ids)`** returns names in both locales, because one battle can have players of both languages.
+- **`QuestionBankFacade.disableQuestion(id, reason)`** is used by the CLI now and by moderation later. Selection skips the content at once.
+
+### 5.5 `GET /v1/answer-catalog`
+- **Body:** `AnswerCatalog` (API.md §2) with every `ACTIVE` entity, most popular first.
+- **`version`:** the checksum of the last imported `catalog.jsonl`. The active set is exactly that file's entities (`07` §5.5), so the same checksum always means the same body. Before any catalog import it is `none` and the list is empty.
+- **Caching:** `ETag: "<version>"`. A matching `If-None-Match` gets `304` with no body. `Cache-Control: private, no-cache`: the phone keeps its copy and asks again before playing; a `304` costs a few bytes.
+- **Compression:** the API process builds the JSON and its gzip once per version and keeps both in memory (about 11 MB and 2 MB for 22k entities). A request with `Accept-Encoding: gzip` gets the gzip bytes. A new catalog import changes the version, and the next request builds again.
+
+### 5.6 Publishing and disabling (CLI)
+- **`questions:publish <bundleVersion>`:**
+  - Every `APPROVED` question of that bundle becomes `PUBLISHED`, with `published_at` set.
+  - `DRAFT` questions are counted as "waiting for review" and stay as they are.
+  - Writes one `QuestionsPublished { batchId, publishedCount }` event.
+  - Running it again publishes nothing new and writes no event.
+  - `--include-drafts` also publishes `DRAFT` questions. It is for development bundles only, and is refused when `NODE_ENV=production` (`07` §5.8).
+- **`questions:disable <questionId> --reason <text>`:**
+  - The question becomes `DISABLED` with that reason, and a `QuestionDisabled { questionId, reason }` event is written.
+  - A question that is already disabled stays as it is, with no event.
+  - An unknown id is an error.
+
+**Question reports** (`POST /v1/questions/{id}/reports`) move to P6. They may only accept content the caller was served in a battle, and that needs `battle_rounds`.
 
 ## 6. Configuration (per game type)
 
@@ -157,8 +198,9 @@ Stored in the battle config by game type, snapshotted on the battle row at creat
 | `turnMs`, `attemptsPerTurn`, `skipsPerRound`, `maxTurns`, `minAnswersPerCell`, `revealAnswersAtEnd` | grid | DEC-54, DEC-61 |
 | `showWrongAnswers` | all | DEC-60 |
 | `points.*` | all | DEC-33 |
-| `latencyGraceMs`, `readyTimeoutMs`, `reconnectGraceMs` | engine | DEC-32 |
-| `selection.*` (exposure window, difficulty mix) | all | DEC-44 |
+| `latencyGraceMs`, `readyTimeoutMs`, `reconnectGraceMs`, `betweenRoundsMs` (pause after `round:result`) | engine | DEC-32 |
+| `bots.profiles.*` (`knowsAnswerByDifficulty`, `guessChance`, `buzzAtShareOfSteps`, `reactionDelayMs`, `typingDelayMs`) | bots | DEC-43 |
+| `selection.*` (`excludeLastBattles`, `difficulties`) | all | DEC-44 |
 
 ## 7. Fairness and abuse
 

@@ -27,7 +27,7 @@ PostgreSQL (16+), managed by Prisma migrations. One **app** database (this docum
 | `motm_poll_status` | `PENDING`, `OPEN`, `CLOSED`, `FINALIZED`, `CANCELLED` | |
 | `question_status` | `DRAFT`, `APPROVED`, `PUBLISHED`, `DISABLED` | |
 | `battle_game_type` | `BUZZER`, `CAREER`, `WHO_IS_PLAYER`, `GRID` (`IMPOSTER` added with P8) | Which game a battle plays (ADR-0015). Named apart from `game_type`, which is the points category |
-| `answer_kind` | `PLAYER`, `CLUB`, `NATIONAL_TEAM`, `COMPETITION`, `COACH`, `NUMBER` | What a typed answer must be (`08-battle-games.md` §4) |
+| `answer_kind` | `PLAYER`, `CLUB`, `NATIONAL_TEAM`, `COUNTRY`, `COMPETITION`, `COACH`, `NUMBER` | What a typed answer must be (`08-battle-games.md` §4) |
 | `battle_mode` | `MATCHMAKING`, `ROOM` | How the participants were brought together; a bot can only appear in `MATCHMAKING` (DEC-39) |
 | `battle_status` | `WAITING_READY`, `IN_PROGRESS`, `COMPLETED`, `ABANDONED`, `CANCELLED` | |
 | `battle_outcome` | `WIN`, `LOSS`, `DRAW` | Derived from placement: sole first = WIN, shared first = DRAW, otherwise LOSS. `end_reason` explains forfeits |
@@ -265,7 +265,7 @@ prediction_revisions (
   UQ (prediction_id, revision)
 prediction_scores (
   prediction_id uuid FK → predictions,
-  rule_set_id uuid FK → scoring_rule_sets,
+  rule_set_id uuid NULL FK → scoring_rule_sets,   -- NULL until the points module exists (P6.5)
   match_result_version int,             -- which matches.result_version was scored
   points int, breakdown jsonb,          -- per pick_type explanation for the UI
   calculated_at timestamptz,
@@ -365,20 +365,22 @@ question_answers (                      -- accepted answers: indexed answer chec
 answer_entities (                       -- the answer catalog (08 §5)
   id uuid PK,
   external_ref text UQ,                 -- e.g. wikidata:Q11571; upsert key on import
-  kind answer_kind,                     -- never NUMBER
+  kind answer_kind,                     -- CHECK kind <> 'NUMBER'
   names jsonb,                          -- {en, ar}; display names
-  popularity int DEFAULT 0,             -- ranks suggestions; from the pipeline (e.g. Wikidata sitelinks)
-  catalog_version text,                 -- bundle version that last changed it
-  status text DEFAULT 'ACTIVE',         -- ACTIVE | HIDDEN (kept for history, no longer suggested)
+  popularity int DEFAULT 0,             -- ranks suggestions; from the pipeline (Wikipedia sitelinks)
+  search_forms text[],                  -- normalized names + aliases (07 §5.7); what the app matches against
+  catalog_version text,                 -- bundle version that last imported it
+  status text DEFAULT 'ACTIVE',         -- ACTIVE | HIDDEN (dropped by a newer catalog; kept for history)
   updated_at timestamptz
 )
   IX (kind)
-answer_entity_aliases (
+answer_entity_aliases (                 -- alternative names per locale, shown as "also known as"
   entity_id uuid FK → answer_entities ON DELETE CASCADE,
   locale text, alias text,
-  normalized text,                      -- pipeline-normalized form (07 §5.7); what the app matches against
   PRIMARY KEY (entity_id, locale, alias)
 )
+-- questions also gets: CHECK ((type = 'GAME') = (game_type, answer_kind and content are all set))
+-- question_import_batches also gets: catalog_checksum text NULL
 ```
 
 The app searches the catalog on the phone (`08` §5.2), so the server needs no search index; `GET /v1/answer-catalog` streams the active catalog as one versioned, cached document.
@@ -432,10 +434,10 @@ battles (
   id uuid PK, status battle_status,
   mode battle_mode,
   game_type battle_game_type,
-  room_id uuid NULL FK → battle_rooms,  -- set when mode = ROOM
+  room_id uuid NULL FK → battle_rooms,  -- set when mode = ROOM; the FK is added with rooms (P8)
   has_bot boolean DEFAULT false,
   config jsonb,                         -- snapshot of the game type's config (08 §6) + engine timers
-  rule_set_id uuid FK → scoring_rule_sets,
+  rule_set_id uuid NULL FK → scoring_rule_sets,   -- NULL until the points module exists (P6.5)
   created_at timestamptz, ready_deadline_at timestamptz,
   started_at timestamptz NULL, ended_at timestamptz NULL,
   end_reason text NULL,                 -- COMPLETED | FORFEIT | ABANDONED | CANCELLED
@@ -452,6 +454,7 @@ battle_participants (
   user_id uuid NULL FK → users,         -- humans only
   bot_profile text NULL,                -- key into bot config (DEC-43); bots only
   bot_display jsonb NULL,               -- snapshot of the bot's display name/avatar per locale
+  locale text,                          -- fixed at creation: clue text and entity names are sent in it
   seat smallint,
   ready_at timestamptz NULL, score int DEFAULT 0,
   placement smallint NULL,              -- 1 = best; ties share a placement (DEC-33)
@@ -527,7 +530,7 @@ point_entries (
   source_type text,                     -- PREDICTION | MOTM_VOTE | BATTLE_PARTICIPANT
   source_id uuid,                       -- prediction id, battle participant id...
   source_revision int DEFAULT 0,        -- e.g. matches.result_version used for the score
-  rule_set_id uuid FK → scoring_rule_sets,
+  rule_set_id uuid NULL FK → scoring_rule_sets,   -- NULL until the points module exists (P6.5)
   points int,
   occurred_at timestamptz,              -- business time: match end, battle end
   recorded_at timestamptz DEFAULT now(),

@@ -85,6 +85,11 @@ New tracks are added when the first card needs one.
 | [architecture/functional-core-imperative-shell](architecture/functional-core-imperative-shell.md) | G0 | Pure rules return effects; the engine does the I/O |
 | [backend/one-at-a-time-per-game](backend/one-at-a-time-per-game.md) | G0 | One input queue per battle makes "first buzz" exact |
 | [database/wikidata-truthy-vs-full-statements](database/wikidata-truthy-vs-full-statements.md) | G0 | `wdt:` hides former clubs; read `p:/ps:/pq:` |
+| [database/cache-external-responses](database/cache-external-responses.md) | D.1 | Keep raw answers keyed by the request; re-runs are offline |
+| [database/bulk-upsert-with-unnest](database/bulk-upsert-with-unnest.md) | P5.2 | Columns as arrays, one statement for thousands of rows |
+| [backend/discriminated-unions](backend/discriminated-unions.md) | P5.2 | One shape per kind; the tag narrows the type |
+| [backend/http-caching-etag](backend/http-caching-etag.md) | P5.2 | Tag the version; `304` when the client already has it |
+| [database/random-rows-in-sql](database/random-rows-in-sql.md) | P5.2 | Filter in `WHERE`, then `ORDER BY random() LIMIT n` |
 | [mobile/generated-rest-client](mobile/generated-rest-client.md) | M0 | The contract generates the client; regenerate, never hand-edit |
 | [mobile/secure-token-storage](mobile/secure-token-storage.md) | M0 | Tokens in the OS keystore; the server's 401 decides expiry |
 | [mobile/riverpod-providers-as-di](mobile/riverpod-providers-as-di.md) | M0 | Providers build dependencies; tests swap them with overrides |
@@ -94,3 +99,7 @@ New tracks are added when the first card needs one.
 | [mobile/google-id-token-sign-in](mobile/google-id-token-sign-in.md) | M1 | Google signs a token for our client id; the backend checks it |
 | [mobile/reauthentication-before-sensitive-actions](mobile/reauthentication-before-sensitive-actions.md) | M1 | Sign in again, check it is the same player, then delete |
 | [mobile/dispose-controllers-with-their-widget](mobile/dispose-controllers-with-their-widget.md) | M1 | Controllers live and die with their widget's `State` |
+| [testing/real-data-smoke-run](testing/real-data-smoke-run.md) | D.2 | Run the real pipeline once; the strict importer finds what fixtures miss |
+| [devops/deterministic-output](devops/deterministic-output.md) | D.2 | Same input, same bytes: sort everything, no randomness, no timestamps |
+| [backend/never-block-boot-on-a-dependency](backend/never-block-boot-on-a-dependency.md) | P6.1 | Start even when Redis or Postgres is down; clean up in the background |
+| [testing/seeded-randomness](testing/seeded-randomness.md) | P6.1 | A stored seed makes bot decisions replayable and testable |

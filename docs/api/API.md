@@ -158,7 +158,7 @@ interface CastVoteRequest { playerId: string }
 type GameType = 'BUZZER' | 'CAREER' | 'WHO_IS_PLAYER' | 'GRID';         // ADR-0015; tolerate unknown values
 interface MatchmakingTicket { ticketId: string; gameType: GameType; status: 'QUEUED' | 'MATCHED' | 'TIMED_OUT' | 'CANCELLED';
   queuedAt: string; botFallbackAt?: string | null; battleId?: string }
-interface AnswerCatalog { version: string; entities: { id: string; kind: 'PLAYER'|'CLUB'|'NATIONAL_TEAM'|'COMPETITION'|'COACH';
+interface AnswerCatalog { version: string; entities: { id: string; kind: 'PLAYER'|'CLUB'|'NATIONAL_TEAM'|'COUNTRY'|'COMPETITION'|'COACH';
   names: { en: string; ar: string }; search: string[]; popularity: number }[] }   // search = normalized names + aliases (07 §5.7)
 interface BattlePlayer { participantId: string; kind: 'HUMAN' | 'BOT'; user?: PublicUser;
   bot?: { displayName: string; avatarUrl?: string | null }; seat: number }      // bots always labeled (DEC-40)
@@ -253,8 +253,8 @@ Legend: **Auth** P = public, U = authenticated user. **MVP** ✅ / Future 🔜.
 
 | | Method | Path | Auth | Purpose / notes |
 |---|---|---|---|---|
-| ✅ | POST | `/v1/questions/{questionId}/reports` | U | Report a wrong question `{reason}` (only questions the caller was served in a battle); feeds moderation |
-| ✅ | GET | `/v1/answer-catalog` | U | `AnswerCatalog`: every entity a typed answer can be, for on-device search (DEC-55, `08-battle-games.md` §5.2). Large and rarely changing: `ETag` + `If-None-Match` (`304`), gzip, long cache. The app downloads it before the first battle and refreshes it when `version` changes |
+| ✅ | POST | `/v1/questions/{questionId}/reports` | U | Report a wrong question `{reason}` (only questions the caller was served in a battle); feeds moderation. Moved to P6: it needs `battle_rounds` |
+| ✅ | GET | `/v1/answer-catalog` | U | `AnswerCatalog`: every entity a typed answer can be, for on-device search (DEC-55, `08-battle-games.md` §5.2). Large and rarely changing: `ETag: "<version>"` + `If-None-Match` (`304`), gzip, `Cache-Control: private, no-cache` (`08` §5.5). The app keeps its copy and revalidates it before playing |
 
 The Daily Quiz endpoints were removed (ADR-0010). Round content is served only inside battles over WebSocket, step by step.
 

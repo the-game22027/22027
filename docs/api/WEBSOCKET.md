@@ -43,6 +43,14 @@ Server → client: every battle event carries a per-battle monotonically increas
 { "roomId": "0193...", "version": 4, "serverTime": "2026-11-07T19:00:03.120Z", "type": "room:updated", "data": { } }
 ```
 
+Matchmaking and session events (`matchmaking:*`, `error`) belong to no battle, so they carry no `seq`:
+
+```json
+{ "type": "matchmaking:queued", "serverTime": "2026-11-07T19:00:03.120Z", "data": { } }
+```
+
+Acks for malformed payloads use `INVALID_PAYLOAD`. A command for a battle that is not running (finished, or never existed) gets `NOT_PARTICIPANT`.
+
 Clients track `lastSeq` per battle and `version` per room. A gap (`seq > lastSeq + 1`), an older room version, or a reconnect → send the matching resync command.
 
 ### Shared shapes
@@ -61,7 +69,7 @@ interface BattleRoomSnapshot {      // same shape as REST BattleRoom (API.md §5
   maxPlayers: number; gameType: GameType; expiresAt: string; currentBattleId?: string | null;
 }
 type GameType = 'BUZZER' | 'CAREER' | 'WHO_IS_PLAYER' | 'GRID';          // clients must tolerate unknown values
-type AnswerKind = 'PLAYER' | 'CLUB' | 'NATIONAL_TEAM' | 'COMPETITION' | 'COACH' | 'NUMBER';
+type AnswerKind = 'PLAYER' | 'CLUB' | 'NATIONAL_TEAM' | 'COUNTRY' | 'COMPETITION' | 'COACH' | 'NUMBER';
 type Answer = { entityId: string } | { number: number };                 // never free text (DEC-55)
 interface EntityRef { entityId: string; name: string }                   // name in the viewer's locale
 interface GridCriterion { kind: 'CLUB' | 'NATIONALITY' | 'COMPETITION_WON'; entity: EntityRef }
@@ -134,7 +142,7 @@ When the host starts the room, members receive `battle:found` with `mode: "ROOM"
 | Type | Data | When |
 |---|---|---|
 | `auth:expiring` / `auth:revoked` | `{ expiresAt }` / `{}` | Session lifecycle |
-| `error` | `{ code, message }` | Protocol violations not tied to an ack |
+| `error` | `{ code, message }` | Protocol violations not tied to an ack. `NO_CONTENT`: the bank has no published content of that game type in the player's locale, so no battle could start; `SERVER_ERROR`: the battle could not be created |
 
 Clue text and entity names are localized per player, with the locale fixed at battle creation. All players get the same content in the same order, and in `BUZZER` every locale has the same number of reveal steps, so everyone sees the same share of the question at the same time (`08` §3.1).
 
