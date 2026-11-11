@@ -51,6 +51,7 @@ New tracks are added when the first card needs one.
 | [testing/testing-levels](testing/testing-levels.md) | P0 | Unit for rules, integration for the DB, e2e for flows |
 | [devops/ci](devops/ci.md) | P0 | Every PR proves the code still works |
 | [devops/health-checks](devops/health-checks.md) | P0 | Live = process is up; ready = it can serve traffic |
+| [devops/git-worktrees](devops/git-worktrees.md) | M0 | One repo, several folders, one branch each: parallel sessions |
 | [security/jwt](security/jwt.md) | P1 | Signed, readable, short-lived; verify alg, iss, aud, exp |
 | [security/hashing-tokens-at-rest](security/hashing-tokens-at-rest.md) | P1 | Store SHA-256 of the token, never the token |
 | [security/oidc-id-token-verification](security/oidc-id-token-verification.md) | P1 | Check Google's signature, issuer, our audience, expiry; the user is `sub` |
@@ -89,3 +90,8 @@ New tracks are added when the first card needs one.
 | [backend/discriminated-unions](backend/discriminated-unions.md) | P5.2 | One shape per kind; the tag narrows the type |
 | [backend/http-caching-etag](backend/http-caching-etag.md) | P5.2 | Tag the version; `304` when the client already has it |
 | [database/random-rows-in-sql](database/random-rows-in-sql.md) | P5.2 | Filter in `WHERE`, then `ORDER BY random() LIMIT n` |
+| [mobile/generated-rest-client](mobile/generated-rest-client.md) | M0 | The contract generates the client; regenerate, never hand-edit |
+| [mobile/secure-token-storage](mobile/secure-token-storage.md) | M0 | Tokens in the OS keystore; the server's 401 decides expiry |
+| [mobile/riverpod-providers-as-di](mobile/riverpod-providers-as-di.md) | M0 | Providers build dependencies; tests swap them with overrides |
+| [mobile/go-router-redirect-guard](mobile/go-router-redirect-guard.md) | M0 | One pure function decides where each player may go |
+| [mobile/rtl-and-localization](mobile/rtl-and-localization.md) | M0 | ARB strings and directional layouts; Arabic flips to RTL |
