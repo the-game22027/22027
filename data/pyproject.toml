@@ -1,0 +1,22 @@
+[project]
+name = "the-game-data"
+version = "0.1.0"
+description = "Football knowledge base (football_kb) and offline content pipeline"
+requires-python = ">=3.12"
+dependencies = ["psycopg[binary]>=3.2"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.6"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["db: needs a running football_kb Postgres (FOOTBALL_KB_TEST_URL)"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py312"
+extend-exclude = [".venv"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+ignore = ["E501"]  # the formatter wraps code; long SQL strings stay readable on one line

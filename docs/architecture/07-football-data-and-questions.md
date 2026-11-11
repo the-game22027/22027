@@ -94,6 +94,65 @@ Conclusions: `GRID` is feasible with club and nationality criteria (the pipeline
 
 **Trap found during the check:** the "truthy" shortcut `wdt:P54` returns only the best-ranked statements. When a player's current club is marked *preferred*, all former clubs disappear (Cristiano Ronaldo vanished from Real Madrid × Juventus). Always read full statements: `p:P54/ps:P54` with qualifiers `pq:P580`, `pq:P582`. Youth and reserve teams are separate Wikidata items and are filtered out by type.
 
+### 4.2 D.1: Wikidata slice (first implementation)
+
+The first slice is deliberately smaller than the full layered model in §4. It stores Wikidata statements directly, with the statement id as provenance. Multi-source claims and fact resolution are added when a second source is loaded.
+
+**Scope** (`data/config/scope.toml`; a tiny `scope.dev.toml` for fast runs):
+- Leagues by Wikidata id: Premier League `Q9448`, La Liga `Q324867`, Serie A `Q15804`, Bundesliga `Q82595`, Ligue 1 `Q13394`, Primeira Liga `Q182994`, Eredivisie `Q167541`, Saudi Pro League `Q255633`, Egyptian Premier League `Q680619`. Every club whose `P118` is one of them and whose `P31` is association football club (`Q476028`).
+- Players: everyone with a `P54` statement for one of those clubs, at any time. **Kept:** players with at least `minPlayerSitelinks` Wikipedia articles, a popularity proxy that drops 1920s squad fillers.
+- Each kept player's **full** career (`p:P54`), every team on it, and their nationality (`P1532`, country for sport, falling back to `P27`).
+
+**Team filter.** A spell is kept only when its team is a senior club. Wikidata types are not reliable for this: "Sporting C.P. Youth and Academy" is typed as a regular club, and the senior Portugal team and Portugal U-17 share the same type. So:
+- National teams are dropped from careers. Nationality comes from `P1532` / `P27`.
+- Clubs are dropped when one of their `P31` is in `excludedTeamClasses` (reserve team, youth team...), or when their English label matches `excludedTeamLabelPattern` (`youth`, `academy`, `reserves`, `under-NN`, `U-NN`, `B`, `II`, `Castilla`, `Primavera`, `Next Gen`...). Both live in the scope config, with tests.
+
+**Spells:**
+- Years only: Wikidata dates here are year precision.
+- Childhood clubs are dropped by age: a spell that ended before `min_senior_age` (17) is removed. Wikidata lists them as normal clubs (Ronaldo at CF Andorinha, aged 7 to 10) and their names give nothing away. Clubs left with no spell leave the knowledge base.
+- A spell without a start year is dropped from the ordered career, but still counts for grid membership.
+- Consecutive spells at the same club are merged.
+- Loans are kept as their own spells; `P1642` (acquisition transaction) "loan" sets `loan = true` when present.
+
+**Names:**
+- Labels and aliases in `en` and `ar` for every kept player and every team on their careers.
+- Reviewed overrides in `data/kb_overrides/names.csv` (`external_ref, locale, name, kind = LABEL | ALIAS, reviewed_by`) are applied on top. Overrides fill gaps; Wikidata is never edited from here.
+- `names:missing` writes the catalog entities without an Arabic label to a CSV for review.
+- **Only entities with both an English and an Arabic name enter the catalog.**
+
+**Tables** (`football_kb`, plain SQL migrations in `data/kb_migrations/`):
+- `raw.sparql_cache`: query text hash → response. Re-runs are offline and reproducible; `--refresh` refetches.
+- `core.entity`: `external_ref`, kind, sitelinks, birth year.
+- `core.entity_name`: `external_ref`, locale, name, `LABEL` or `ALIAS`, source.
+- `core.career_spell`: player, team, from and to year, loan, statement id.
+- `core.player_country`.
+
+**Commands** (from `data/`):
+- `python -m kb migrate`
+- `python -m kb ingest --scope config/scope.toml`
+- `python -m kb names:missing --locale ar`
+- `python -m kb catalog --out <bundle dir>`
+
+The catalog command writes `catalog.jsonl` (§5.4) with normalized search forms (§5.7).
+
+**First full run, 2026-11-10** (`scope.toml`, 9 leagues):
+
+| Measure | Result |
+|---|---|
+| Clubs in the 9 leagues | 205 |
+| Players found / kept (≥ 8 sitelinks) | 53,659 / 21,611 |
+| Senior clubs on those careers | 8,092 |
+| Career spells | 144,508 |
+| Arabic label: players / clubs / countries | 85% / 51% / 99% |
+| Arabic label, 2,000 most famous players | 100% |
+| Catalog entities with both names | 22,645 (6.3 MB, 1.2 MB gzip) |
+| Entities missing an Arabic name | 7,180 (mostly small clubs), listed by `names:missing` |
+| First download / rebuild from cache | about 40 min / about 3 min |
+
+**Etiquette:**
+- One query at a time, a descriptive `User-Agent`, and exponential backoff on `429` and `5xx`.
+- Per-club and batched queries (`VALUES` blocks of a few hundred ids), because a single big query hits the 60-second timeout.
+
 Attribution: CC BY-SA sources require attribution. The app needs a "Data sources & licences" screen, and question provenance keeps `license_flags` so attribution can be shown or CC BY-SA content filtered out if counsel advises.
 
 ## 5. Question generation pipeline (offline, zero budget)
