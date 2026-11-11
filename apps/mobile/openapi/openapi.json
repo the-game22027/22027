@@ -1,0 +1,1271 @@
+{
+  "components": {
+    "schemas": {
+      "AuthTokensDto": {
+        "properties": {
+          "accessToken": {
+            "type": "string"
+          },
+          "accessTokenExpiresAt": {
+            "type": "string"
+          },
+          "isNewUser": {
+            "type": "boolean"
+          },
+          "refreshToken": {
+            "type": "string"
+          },
+          "user": {
+            "$ref": "#/components/schemas/MeDto"
+          }
+        },
+        "required": [
+          "accessToken",
+          "accessTokenExpiresAt",
+          "refreshToken",
+          "user",
+          "isNewUser"
+        ],
+        "type": "object"
+      },
+      "CompetitionDto": {
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "countryCode": {
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "isNationalTeams": {
+            "type": "boolean"
+          },
+          "name": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "code",
+          "name",
+          "type",
+          "countryCode",
+          "isNationalTeams"
+        ],
+        "type": "object"
+      },
+      "CompetitionListDto": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CompetitionDto"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "DevSignInDto": {
+        "properties": {
+          "device": {
+            "$ref": "#/components/schemas/DeviceDto"
+          },
+          "displayName": {
+            "maxLength": 40,
+            "minLength": 1,
+            "type": "string"
+          },
+          "subject": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "subject"
+        ],
+        "type": "object"
+      },
+      "DeviceDto": {
+        "properties": {
+          "name": {
+            "maxLength": 100,
+            "minLength": 1,
+            "type": "string"
+          },
+          "platform": {
+            "enum": [
+              "ios",
+              "android",
+              "web"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "EchoRequestDto": {
+        "properties": {},
+        "type": "object"
+      },
+      "GoogleSignInDto": {
+        "properties": {
+          "device": {
+            "$ref": "#/components/schemas/DeviceDto"
+          },
+          "idToken": {
+            "maxLength": 4096,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "idToken"
+        ],
+        "type": "object"
+      },
+      "IdentityDto": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "provider": {
+            "enum": [
+              "GOOGLE",
+              "FACEBOOK",
+              "X"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "provider",
+          "label"
+        ],
+        "type": "object"
+      },
+      "MatchCompetitionDto": {
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "code"
+        ],
+        "type": "object"
+      },
+      "MatchDetailDto": {
+        "properties": {
+          "awayTeam": {
+            "$ref": "#/components/schemas/TeamDto"
+          },
+          "competition": {
+            "$ref": "#/components/schemas/MatchCompetitionDto"
+          },
+          "endedAt": {
+            "nullable": true,
+            "type": "string"
+          },
+          "homeTeam": {
+            "$ref": "#/components/schemas/TeamDto"
+          },
+          "id": {
+            "type": "string"
+          },
+          "kickoffAt": {
+            "type": "string"
+          },
+          "predictable": {
+            "type": "boolean"
+          },
+          "roundLabel": {
+            "nullable": true,
+            "type": "string"
+          },
+          "score": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ScoreDto"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "serverTime": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "SCHEDULED",
+              "LIVE",
+              "FINISHED",
+              "POSTPONED",
+              "CANCELLED",
+              "ABANDONED"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "competition",
+          "roundLabel",
+          "homeTeam",
+          "awayTeam",
+          "kickoffAt",
+          "status",
+          "score",
+          "predictable",
+          "endedAt",
+          "serverTime"
+        ],
+        "type": "object"
+      },
+      "MatchPageDto": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/MatchSummaryDto"
+            },
+            "type": "array"
+          },
+          "nextCursor": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "type": "object"
+      },
+      "MatchSummaryDto": {
+        "properties": {
+          "awayTeam": {
+            "$ref": "#/components/schemas/TeamDto"
+          },
+          "competition": {
+            "$ref": "#/components/schemas/MatchCompetitionDto"
+          },
+          "homeTeam": {
+            "$ref": "#/components/schemas/TeamDto"
+          },
+          "id": {
+            "type": "string"
+          },
+          "kickoffAt": {
+            "type": "string"
+          },
+          "predictable": {
+            "type": "boolean"
+          },
+          "roundLabel": {
+            "nullable": true,
+            "type": "string"
+          },
+          "score": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ScoreDto"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "status": {
+            "enum": [
+              "SCHEDULED",
+              "LIVE",
+              "FINISHED",
+              "POSTPONED",
+              "CANCELLED",
+              "ABANDONED"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "competition",
+          "roundLabel",
+          "homeTeam",
+          "awayTeam",
+          "kickoffAt",
+          "status",
+          "score",
+          "predictable"
+        ],
+        "type": "object"
+      },
+      "MeDto": {
+        "properties": {
+          "avatarUrl": {
+            "nullable": true,
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "favouriteTeamId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "identities": {
+            "items": {
+              "$ref": "#/components/schemas/IdentityDto"
+            },
+            "type": "array"
+          },
+          "locale": {
+            "type": "string"
+          },
+          "privacy": {
+            "$ref": "#/components/schemas/PrivacyDto"
+          },
+          "username": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "displayName",
+          "username",
+          "avatarUrl",
+          "locale",
+          "favouriteTeamId",
+          "identities",
+          "privacy"
+        ],
+        "type": "object"
+      },
+      "PenaltiesDto": {
+        "properties": {
+          "away": {
+            "type": "number"
+          },
+          "home": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "home",
+          "away"
+        ],
+        "type": "object"
+      },
+      "PredictionDto": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "locked": {
+            "type": "boolean"
+          },
+          "matchId": {
+            "type": "string"
+          },
+          "picks": {
+            "items": {
+              "$ref": "#/components/schemas/PredictionPickDto"
+            },
+            "type": "array"
+          },
+          "revision": {
+            "type": "number"
+          },
+          "status": {
+            "enum": [
+              "ACTIVE",
+              "VOID"
+            ],
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "matchId",
+          "picks",
+          "revision",
+          "status",
+          "updatedAt",
+          "locked"
+        ],
+        "type": "object"
+      },
+      "PredictionPickDto": {
+        "properties": {
+          "away": {
+            "type": "number"
+          },
+          "home": {
+            "type": "number"
+          },
+          "outcome": {
+            "enum": [
+              "HOME",
+              "DRAW",
+              "AWAY"
+            ],
+            "type": "string"
+          },
+          "type": {
+            "enum": [
+              "EXACT_SCORE",
+              "RESULT"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "type": "object"
+      },
+      "PrivacyDto": {
+        "properties": {
+          "predictionVisibility": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "predictionVisibility"
+        ],
+        "type": "object"
+      },
+      "RefreshDto": {
+        "properties": {
+          "refreshToken": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          }
+        },
+        "required": [
+          "refreshToken"
+        ],
+        "type": "object"
+      },
+      "ScoreDto": {
+        "properties": {
+          "away": {
+            "type": "number"
+          },
+          "decidedBy": {
+            "type": "string"
+          },
+          "home": {
+            "type": "number"
+          },
+          "penalties": {
+            "$ref": "#/components/schemas/PenaltiesDto"
+          }
+        },
+        "required": [
+          "home",
+          "away"
+        ],
+        "type": "object"
+      },
+      "SessionInfoDto": {
+        "properties": {
+          "createdAt": {
+            "type": "string"
+          },
+          "current": {
+            "type": "boolean"
+          },
+          "deviceName": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "lastUsedAt": {
+            "type": "string"
+          },
+          "platform": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "createdAt",
+          "lastUsedAt",
+          "current"
+        ],
+        "type": "object"
+      },
+      "SquadListDto": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SquadPlayerDto"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "SquadPlayerDto": {
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "playerId": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string"
+          },
+          "shirtNumber": {
+            "nullable": true,
+            "type": "number"
+          },
+          "teamId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "playerId",
+          "name",
+          "teamId",
+          "role",
+          "shirtNumber"
+        ],
+        "type": "object"
+      },
+      "SubmitPredictionDto": {
+        "properties": {
+          "picks": {
+            "items": {
+              "$ref": "#/components/schemas/SubmittedPickDto"
+            },
+            "maxItems": 5,
+            "type": "array"
+          }
+        },
+        "required": [
+          "picks"
+        ],
+        "type": "object"
+      },
+      "SubmittedPickDto": {
+        "properties": {
+          "away": {
+            "type": "number"
+          },
+          "home": {
+            "type": "number"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "type"
+        ],
+        "type": "object"
+      },
+      "TeamDto": {
+        "properties": {
+          "crestUrl": {
+            "nullable": true,
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "shortName": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "crestUrl",
+          "type"
+        ],
+        "type": "object"
+      },
+      "UpdateMeDto": {
+        "properties": {
+          "avatarUrl": {
+            "format": "uri",
+            "maxLength": 2048,
+            "nullable": true,
+            "type": "string"
+          },
+          "displayName": {
+            "maxLength": 200,
+            "minLength": 1,
+            "type": "string"
+          },
+          "favouriteTeamId": {
+            "format": "uuid",
+            "nullable": true,
+            "type": "string"
+          },
+          "locale": {
+            "enum": [
+              "ar",
+              "en"
+            ],
+            "type": "string"
+          },
+          "username": {
+            "maxLength": 64,
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "bearer": {
+        "bearerFormat": "JWT",
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "contact": {},
+    "description": "Design source: docs/api/API.md. Errors are RFC 9457 problem+json.",
+    "title": "the-game API",
+    "version": "1"
+  },
+  "openapi": "3.0.0",
+  "paths": {
+    "/health/live": {
+      "get": {
+        "operationId": "HealthController_live",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "ops"
+        ]
+      }
+    },
+    "/health/ready": {
+      "get": {
+        "operationId": "HealthController_ready",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "ops"
+        ]
+      }
+    },
+    "/v1/_dev/auth/sign-in": {
+      "post": {
+        "operationId": "DevAuthController_devSignIn_v1",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DevSignInDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthTokensDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "tags": [
+          "dev"
+        ]
+      }
+    },
+    "/v1/_dev/echo": {
+      "post": {
+        "operationId": "DevController_echo_v1",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EchoRequestDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "dev"
+        ]
+      }
+    },
+    "/v1/_dev/sample-conflict": {
+      "get": {
+        "operationId": "DevController_sampleConflict_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": ""
+          }
+        },
+        "tags": [
+          "dev"
+        ]
+      }
+    },
+    "/v1/auth/google": {
+      "post": {
+        "operationId": "AuthController_signInWithGoogle_v1",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GoogleSignInDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthTokensDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "summary": "201 for a new account, 200 for an existing one.",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/logout": {
+      "post": {
+        "operationId": "SessionsController_logout_v1",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/refresh": {
+      "post": {
+        "operationId": "AuthController_refresh_v1",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthTokensDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "summary": "Rotates the refresh token: the old one stops working, and presenting it again revokes the whole sign-in.",
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/sessions": {
+      "get": {
+        "operationId": "SessionsController_list_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SessionInfoDto"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/auth/sessions/{sessionId}": {
+      "delete": {
+        "operationId": "SessionsController_revoke_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "sessionId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "auth"
+        ]
+      }
+    },
+    "/v1/competitions": {
+      "get": {
+        "operationId": "FootballController_competitions_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompetitionListDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "football"
+        ]
+      }
+    },
+    "/v1/matches": {
+      "get": {
+        "operationId": "FootballController_matches_v1",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "from",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "competitionId",
+            "required": false,
+            "schema": {
+              "format": "uuid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "status",
+            "required": false,
+            "schema": {
+              "enum": [
+                "SCHEDULED",
+                "LIVE",
+                "FINISHED",
+                "POSTPONED",
+                "CANCELLED",
+                "ABANDONED"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "minimum": 1,
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "maxLength": 512,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchPageDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "football"
+        ]
+      }
+    },
+    "/v1/matches/{matchId}": {
+      "get": {
+        "operationId": "FootballController_match_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "matchId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchDetailDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "football"
+        ]
+      }
+    },
+    "/v1/matches/{matchId}/prediction": {
+      "get": {
+        "operationId": "PredictionsController_getOwn_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "matchId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PredictionDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "predictions"
+        ]
+      },
+      "put": {
+        "operationId": "PredictionsController_submit_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "matchId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitPredictionDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PredictionDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "predictions"
+        ]
+      }
+    },
+    "/v1/matches/{matchId}/squads": {
+      "get": {
+        "operationId": "FootballController_squads_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "matchId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SquadListDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "football"
+        ]
+      }
+    },
+    "/v1/me": {
+      "delete": {
+        "operationId": "MeController_deleteMe_v1",
+        "parameters": [],
+        "responses": {
+          "202": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "me"
+        ]
+      },
+      "get": {
+        "operationId": "MeController_getMe_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "me"
+        ]
+      },
+      "patch": {
+        "operationId": "MeController_updateMe_v1",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateMeDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "me"
+        ]
+      }
+    }
+  },
+  "servers": [],
+  "tags": []
+}
