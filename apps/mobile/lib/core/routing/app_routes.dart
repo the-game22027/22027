@@ -7,6 +7,7 @@ abstract final class AppRoutes {
   static const devSignIn = '/dev-sign-in';
   static const home = '/home';
   static const account = '/account';
+  static const accountProfile = '/account/profile';
   static const serverStatus = '/server-status';
   static const settings = '/settings';
 }

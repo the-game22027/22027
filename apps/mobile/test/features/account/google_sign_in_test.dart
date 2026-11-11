@@ -9,6 +9,7 @@ import 'package:the_game/core/errors/app_error.dart';
 import 'package:the_game/core/l10n/app_language_controller.dart';
 import 'package:the_game/core/session/session_controller.dart';
 import 'package:the_game/features/account/application/google_sign_in_controller.dart';
+import 'package:the_game/features/account/application/profile_locale_sync.dart';
 import 'package:the_game/features/account/data/google_identity_gateway.dart';
 import 'package:the_game/features/account/presentation/sign_in_screen.dart';
 import 'package:the_game/l10n/generated/app_localizations.dart';
@@ -156,6 +157,19 @@ void main() {
       await signInWithGoogle(container);
 
       expect(container.read(appLanguageControllerProvider), AppLanguage.arabic);
+    });
+
+    test('adopting the profile language does not send it back', () async {
+      adapter = FakeHttpAdapter(
+        (_) => jsonResponse(_authTokensJson(locale: 'ar'), status: 201),
+      );
+      final container = await createContainer();
+      container.listen(profileLocaleSyncProvider, (_, _) {});
+
+      await signInWithGoogle(container);
+      await pumpEventQueue();
+
+      expect(adapter.sentRequests.map((request) => request.method), ['POST']);
     });
 
     test('a language the player already chose is kept', () async {

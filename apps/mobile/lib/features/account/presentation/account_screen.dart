@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import 'package:the_game/core/routing/app_routes.dart';
 import 'package:the_game/features/account/application/sign_out.dart';
 import 'package:the_game/l10n/generated/app_localizations.dart';
 
@@ -28,6 +30,13 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
       appBar: AppBar(title: Text(l10n.accountTitle)),
       body: ListView(
         children: [
+          ListTile(
+            key: const Key('open-profile'),
+            leading: const Icon(Icons.badge_outlined),
+            title: Text(l10n.profileTitle),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push(AppRoutes.accountProfile),
+          ),
           Padding(
             padding: const EdgeInsetsDirectional.all(24),
             child: FilledButton.tonal(
