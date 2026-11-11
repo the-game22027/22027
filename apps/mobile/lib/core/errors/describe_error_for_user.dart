@@ -22,6 +22,7 @@ String _describeApiProblem(ApiProblem problem, AppLocalizations l10n) {
     'RATE_LIMITED' => l10n.errorRateLimited,
     'NOT_FOUND' => l10n.errorNotFound,
     'ACCOUNT_DISABLED' => l10n.errorAccountDisabled,
+    'RECENT_SIGN_IN_REQUIRED' => l10n.errorRecentSignInRequired,
     'INTERNAL' => l10n.errorServerProblem,
     _ => _describeHttpStatus(problem.status, l10n),
   };

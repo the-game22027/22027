@@ -6,6 +6,7 @@ import 'package:the_game/core/config/app_config.dart';
 import 'package:the_game/core/errors/describe_error_for_user.dart';
 import 'package:the_game/core/routing/app_routes.dart';
 import 'package:the_game/core/widgets/app_bar_shortcuts.dart';
+import 'package:the_game/features/account/application/account_deletion.dart';
 import 'package:the_game/features/account/application/google_sign_in_controller.dart';
 import 'package:the_game/l10n/generated/app_localizations.dart';
 
@@ -17,6 +18,7 @@ class SignInScreen extends ConsumerWidget {
     final l10n = AppLocalizations.of(context);
     final config = ref.watch(appConfigProvider);
     final googleSignIn = ref.watch(googleSignInControllerProvider);
+    final isDeletionNoticeVisible = ref.watch(accountDeletionNoticeProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -29,6 +31,28 @@ class SignInScreen extends ConsumerWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              if (isDeletionNoticeVisible)
+                Card(
+                  key: const Key('account-deletion-notice'),
+                  child: Padding(
+                    padding: const EdgeInsetsDirectional.fromSTEB(16, 16, 8, 8),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(l10n.accountDeletionRequestedNotice),
+                        Align(
+                          alignment: AlignmentDirectional.centerEnd,
+                          child: TextButton(
+                            onPressed: () => ref
+                                .read(accountDeletionNoticeProvider.notifier)
+                                .dismissNotice(),
+                            child: Text(l10n.dismissButton),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
               Text(l10n.signInWelcome, textAlign: TextAlign.center),
               const SizedBox(height: 32),
               FilledButton(

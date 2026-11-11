@@ -58,6 +58,12 @@ class ProfileRepository {
       ),
     );
   }
+
+  /// `DELETE /v1/me` → `202`: the server signs out every device and deletes the account after
+  /// a grace period, unless the player signs in again. `403 RECENT_SIGN_IN_REQUIRED` when the
+  /// last real sign-in is too old (DEC-50).
+  Future<void> requestAccountDeletion() =>
+      sendRequestWithoutData(_meApi.meControllerDeleteMeV1);
 }
 
 /// The generated DTO leaves out null fields, but the API removes a username only when it

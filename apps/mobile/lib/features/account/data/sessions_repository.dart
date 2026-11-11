@@ -24,9 +24,16 @@ class PlayerSession {
 }
 
 class SessionsRepository {
-  SessionsRepository(this._authApi);
+  SessionsRepository({
+    required AuthApi authApi,
+    required AuthApi authApiWithoutAuth,
+  }) : _authApi = authApi,
+       _authApiWithoutAuth = authApiWithoutAuth;
 
   final AuthApi _authApi;
+
+  /// Sends exactly the token we give it; the normal client would put ours in.
+  final AuthApi _authApiWithoutAuth;
 
   /// `GET /v1/auth/sessions`
   Future<List<PlayerSession>> fetchSignedInSessions() async {
@@ -54,8 +61,20 @@ class SessionsRepository {
   /// `POST /v1/auth/logout`: revokes this device's session on the server.
   Future<void> revokeCurrentSessionOnServer() =>
       sendRequestWithoutData(_authApi.sessionsControllerLogoutV1);
+
+  /// `POST /v1/auth/logout` for a session that is not ours to keep (for example a sign-in as
+  /// another account during re-authentication).
+  Future<void> revokeSessionOfAccessToken(String accessToken) =>
+      sendRequestWithoutData(
+        () => _authApiWithoutAuth.sessionsControllerLogoutV1(
+          headers: {'Authorization': 'Bearer $accessToken'},
+        ),
+      );
 }
 
 final sessionsRepositoryProvider = Provider<SessionsRepository>(
-  (ref) => SessionsRepository(ref.watch(apiClientProvider).getAuthApi()),
+  (ref) => SessionsRepository(
+    authApi: ref.watch(apiClientProvider).getAuthApi(),
+    authApiWithoutAuth: ref.watch(apiClientWithoutAuthProvider).getAuthApi(),
+  ),
 );

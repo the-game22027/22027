@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:the_game/core/l10n/app_language_controller.dart';
 import 'package:the_game/core/session/session_controller.dart';
+import 'package:the_game/features/account/application/account_deletion.dart';
 import 'package:the_game/features/account/data/auth_repository.dart';
 
 /// Keeps a new sign-in: on a device where the player never chose a language, adopts the
@@ -19,4 +20,5 @@ Future<void> keepSignedInAccount(Ref ref, SignedInAccount account) async {
   await ref
       .read(sessionControllerProvider.notifier)
       .startSession(account.session);
+  ref.read(accountDeletionNoticeProvider.notifier).dismissNotice();
 }
