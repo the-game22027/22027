@@ -6,14 +6,33 @@ import 'package:the_game/core/errors/app_error.dart';
 import 'package:the_game/core/network/api_client_provider.dart';
 import 'package:the_game/core/storage/token_storage.dart';
 
+/// The result of a sign-in, before the app decides to keep it.
+///
+/// Deletion re-authentication compares [userId] with the current player before storing
+/// [session]: signing in as someone else must never delete their account (ADR-0017 §6).
+class SignedInAccount {
+  const SignedInAccount({
+    required this.session,
+    required this.userId,
+    required this.profileLocale,
+  });
+
+  final StoredSession session;
+  final String userId;
+  final String profileLocale;
+}
+
 class AuthRepository {
-  AuthRepository(this._devApi);
+  AuthRepository({required DevApi devApi, required AuthApi authApi})
+    : _devApi = devApi,
+      _authApi = authApi;
 
   final DevApi _devApi;
+  final AuthApi _authApi;
 
   /// `POST /v1/_dev/auth/sign-in`: signs in as a made-up account. The route exists only on a
   /// backend running in development (`docs/architecture/04-auth.md` §11).
-  Future<StoredSession> signInWithDevAccount({
+  Future<SignedInAccount> signInWithDevAccount({
     required String subject,
     String? displayName,
   }) async {
@@ -26,9 +45,29 @@ class AuthRepository {
         ),
       ),
     );
-    return convertAuthTokensToStoredSession(tokens);
+    return _convertAuthTokensToSignedInAccount(tokens);
+  }
+
+  /// `POST /v1/auth/google`: the backend verifies the Google ID token itself (DEC-25).
+  Future<SignedInAccount> signInWithGoogle({required String idToken}) async {
+    final tokens = await sendRequestAndReadData(
+      () => _authApi.authControllerSignInWithGoogleV1(
+        googleSignInDto: GoogleSignInDto(
+          idToken: idToken,
+          device: DeviceDto(platform: _describeCurrentPlatform()),
+        ),
+      ),
+    );
+    return _convertAuthTokensToSignedInAccount(tokens);
   }
 }
+
+SignedInAccount _convertAuthTokensToSignedInAccount(AuthTokensDto tokens) =>
+    SignedInAccount(
+      session: convertAuthTokensToStoredSession(tokens),
+      userId: tokens.user.id,
+      profileLocale: tokens.user.locale,
+    );
 
 StoredSession convertAuthTokensToStoredSession(AuthTokensDto tokens) {
   final expiresAt = DateTime.tryParse(tokens.accessTokenExpiresAt);
@@ -49,6 +88,10 @@ DeviceDtoPlatformEnum _describeCurrentPlatform() =>
     ? DeviceDtoPlatformEnum.ios
     : DeviceDtoPlatformEnum.android;
 
-final authRepositoryProvider = Provider<AuthRepository>(
-  (ref) => AuthRepository(ref.watch(apiClientProvider).getDevApi()),
-);
+final authRepositoryProvider = Provider<AuthRepository>((ref) {
+  final apiClient = ref.watch(apiClientProvider);
+  return AuthRepository(
+    devApi: apiClient.getDevApi(),
+    authApi: apiClient.getAuthApi(),
+  );
+});

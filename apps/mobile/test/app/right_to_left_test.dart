@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:the_game/app/app.dart';
-import 'package:the_game/features/account/presentation/dev_sign_in_screen.dart';
+import 'package:the_game/features/account/presentation/sign_in_screen.dart';
 
 import '../helpers/test_overrides.dart';
 
@@ -19,20 +19,20 @@ void main() {
   }
 
   TextDirection readTextDirectionOfScreen(WidgetTester tester) =>
-      Directionality.of(tester.element(find.byType(DevSignInScreen)));
+      Directionality.of(tester.element(find.byType(SignInScreen)));
 
   testWidgets('Arabic renders right-to-left with Arabic text', (tester) async {
     await pumpAppInLanguage(tester, 'ar');
 
     expect(readTextDirectionOfScreen(tester), TextDirection.rtl);
-    expect(find.text('دخول المطوّرين'), findsOneWidget);
+    expect(find.text('تسجيل الدخول'), findsOneWidget);
   });
 
   testWidgets('English renders left-to-right', (tester) async {
     await pumpAppInLanguage(tester, 'en');
 
     expect(readTextDirectionOfScreen(tester), TextDirection.ltr);
-    expect(find.text('Dev sign-in'), findsOneWidget);
+    expect(find.text('Sign in'), findsOneWidget);
   });
 
   testWidgets('switching language in settings flips the direction at once', (

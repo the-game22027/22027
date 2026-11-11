@@ -25,13 +25,13 @@ String? findRedirectForSession({
 }) {
   if (_publicRoutes.contains(location)) return null;
 
-  final signInRoute = isDevFlavor ? AppRoutes.devSignIn : AppRoutes.signIn;
   final isOnSignInScreen =
-      location == AppRoutes.signIn || location == AppRoutes.devSignIn;
+      location == AppRoutes.signIn ||
+      (isDevFlavor && location == AppRoutes.devSignIn);
 
   return switch (session) {
     AsyncData(value: null) ||
-    AsyncError() => location == signInRoute ? null : signInRoute,
+    AsyncError() => isOnSignInScreen ? null : AppRoutes.signIn,
     AsyncData() =>
       isOnSignInScreen || location == AppRoutes.splash ? AppRoutes.home : null,
     _ => location == AppRoutes.splash ? null : AppRoutes.splash,

@@ -35,6 +35,10 @@ class AppLanguageController extends Notifier<AppLanguage> {
         AppLanguage.english;
   }
 
+  /// False until the player picks a language (or one is adopted from their profile).
+  bool get hasSavedLanguage =>
+      ref.read(sharedPreferencesProvider).containsKey(_preferenceKey);
+
   Future<void> changeLanguage(AppLanguage language) async {
     state = language;
     await ref

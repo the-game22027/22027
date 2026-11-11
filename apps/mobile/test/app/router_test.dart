@@ -21,22 +21,32 @@ void main() {
     final signedIn = AsyncData<StoredSession?>(testSession);
     const restoring = AsyncLoading<StoredSession?>();
 
-    test('sends signed-out players to dev sign-in in the dev flavor', () {
-      expect(
-        findRedirectForSession(
-          session: signedOut,
-          location: AppRoutes.home,
-          isDevFlavor: true,
-        ),
-        AppRoutes.devSignIn,
-      );
+    test('sends signed-out players to sign-in in both flavors', () {
+      for (final isDevFlavor in [true, false]) {
+        expect(
+          findRedirectForSession(
+            session: signedOut,
+            location: AppRoutes.home,
+            isDevFlavor: isDevFlavor,
+          ),
+          AppRoutes.signIn,
+        );
+      }
     });
 
-    test('sends signed-out players to the sign-in placeholder in prod', () {
+    test('lets signed-out players open dev sign-in only in the dev flavor', () {
       expect(
         findRedirectForSession(
           session: signedOut,
-          location: AppRoutes.home,
+          location: AppRoutes.devSignIn,
+          isDevFlavor: true,
+        ),
+        isNull,
+      );
+      expect(
+        findRedirectForSession(
+          session: signedOut,
+          location: AppRoutes.devSignIn,
           isDevFlavor: false,
         ),
         AppRoutes.signIn,
@@ -118,20 +128,26 @@ void main() {
   });
 
   group('app start', () {
-    testWidgets('a signed-out player lands on dev sign-in', (tester) async {
-      await tester.pumpWidget(
-        ProviderScope(
-          overrides: await createTestOverrides(),
-          child: const TheGameApp(),
-        ),
-      );
-      await tester.pumpAndSettle();
+    testWidgets(
+      'a signed-out player lands on sign-in, with a dev sign-in link',
+      (tester) async {
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: await createTestOverrides(),
+            child: const TheGameApp(),
+          ),
+        );
+        await tester.pumpAndSettle();
 
-      expect(find.byType(DevSignInScreen), findsOneWidget);
-    });
+        expect(find.byType(SignInScreen), findsOneWidget);
+        await tester.tap(find.text('Dev sign-in'));
+        await tester.pumpAndSettle();
+        expect(find.byType(DevSignInScreen), findsOneWidget);
+      },
+    );
 
     testWidgets(
-      'a signed-out player in prod lands on the sign-in placeholder',
+      'a signed-out player in prod lands on sign-in without a dev sign-in link',
       (tester) async {
         await tester.pumpWidget(
           ProviderScope(
@@ -142,6 +158,7 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.byType(SignInScreen), findsOneWidget);
+        expect(find.text('Dev sign-in'), findsNothing);
       },
     );
 

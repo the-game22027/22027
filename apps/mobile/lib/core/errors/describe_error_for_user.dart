@@ -18,6 +18,7 @@ String _describeApiProblem(ApiProblem problem, AppLocalizations l10n) {
   return switch (problem.code) {
     'VALIDATION_FAILED' => l10n.errorValidationFailed,
     'UNAUTHENTICATED' || 'TOKEN_EXPIRED' => l10n.errorSignInAgain,
+    'PROVIDER_TOKEN_INVALID' => l10n.errorProviderTokenInvalid,
     'RATE_LIMITED' => l10n.errorRateLimited,
     'NOT_FOUND' => l10n.errorNotFound,
     'ACCOUNT_DISABLED' => l10n.errorAccountDisabled,

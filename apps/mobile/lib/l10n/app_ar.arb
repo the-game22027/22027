@@ -1,9 +1,12 @@
 {
   "@@locale": "ar",
   "appTitle": "ذا جيم",
-
   "signInTitle": "تسجيل الدخول",
-  "signInNotAvailableYet": "تسجيل الدخول عبر جوجل وفيسبوك وإكس قريبًا.",
+  "signInWelcome": "سجّل الدخول لتتوقع نتائج المباريات وتخوض تحديات الأسئلة.",
+  "continueWithGoogleButton": "المتابعة باستخدام جوجل",
+  "googleSignInNotConfigured": "تسجيل الدخول عبر جوجل غير مُعدّ في هذه النسخة.",
+  "googleSignInUnavailable": "تسجيل الدخول عبر جوجل غير متاح على هذا الجهاز الآن.",
+  "openDevSignInButton": "دخول المطوّرين",
   "devSignInTitle": "دخول المطوّرين",
   "devSignInExplanation": "للتطوير فقط: سجّل الدخول كلاعب وهمي. نفس المعرّف يدخل دائمًا بنفس اللاعب.",
   "devSignInSubjectLabel": "المعرّف",
@@ -11,25 +14,22 @@
   "devSignInDisplayNameLabel": "الاسم الظاهر (اختياري)",
   "signInButton": "تسجيل الدخول",
   "fieldRequiredMessage": "هذا الحقل مطلوب",
-
   "homeTitle": "الرئيسية",
   "homeGreeting": "أهلًا، {displayName}",
   "homeProfileLocale": "لغة الملف الشخصي: {locale}",
   "signOutButton": "تسجيل الخروج",
   "tryAgainButton": "حاول مرة أخرى",
-
   "serverStatusTitle": "حالة الخادم",
   "serverStatusUp": "الخادم يعمل",
   "serverStatusDown": "الخادم متوقف",
   "checkAgainButton": "تحقّق مرة أخرى",
-
   "settingsTitle": "الإعدادات",
   "languageSectionTitle": "اللغة",
   "languageNameArabic": "العربية",
   "languageNameEnglish": "English",
-
   "errorValidationFailed": "بعض البيانات التي أدخلتها غير صحيحة.",
   "errorSignInAgain": "انتهت جلستك. يرجى تسجيل الدخول مرة أخرى.",
+  "errorProviderTokenInvalid": "تعذّر على جوجل تأكيد حسابك. حاول مرة أخرى.",
   "errorRateLimited": "محاولات كثيرة جدًا. انتظر قليلًا ثم حاول مرة أخرى.",
   "errorNotFound": "لم نجد ما تبحث عنه.",
   "errorAccountDisabled": "هذا الحساب معطّل.",
