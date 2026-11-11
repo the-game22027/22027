@@ -18,6 +18,7 @@
   "homeGreeting": "أهلًا، {displayName}",
   "homeProfileLocale": "لغة الملف الشخصي: {locale}",
   "signOutButton": "تسجيل الخروج",
+  "accountTitle": "الحساب",
   "tryAgainButton": "حاول مرة أخرى",
   "serverStatusTitle": "حالة الخادم",
   "serverStatusUp": "الخادم يعمل",

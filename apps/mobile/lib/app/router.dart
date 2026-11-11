@@ -6,6 +6,7 @@ import 'package:the_game/core/config/app_config.dart';
 import 'package:the_game/core/routing/app_routes.dart';
 import 'package:the_game/core/session/session_controller.dart';
 import 'package:the_game/core/storage/token_storage.dart';
+import 'package:the_game/features/account/presentation/account_screen.dart';
 import 'package:the_game/features/account/presentation/dev_sign_in_screen.dart';
 import 'package:the_game/features/account/presentation/sign_in_screen.dart';
 import 'package:the_game/features/home/presentation/home_screen.dart';
@@ -78,6 +79,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.home,
         builder: (context, state) => const HomeScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.account,
+        builder: (context, state) => const AccountScreen(),
       ),
       GoRoute(
         path: AppRoutes.serverStatus,

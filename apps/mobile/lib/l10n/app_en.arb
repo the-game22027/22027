@@ -37,6 +37,7 @@
     }
   },
   "signOutButton": "Sign out",
+  "accountTitle": "Account",
   "tryAgainButton": "Try again",
   "serverStatusTitle": "Server status",
   "serverStatusUp": "The server is up",
