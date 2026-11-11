@@ -31,12 +31,18 @@ describe('decideImportAction', () => {
   });
 
   it('changes nothing when the content and reviews are the same', () => {
-    expect(decideImportAction(stored({ contentHash: 'sha256:new' }), incoming())).toEqual({ action: 'UNCHANGED' });
+    expect(decideImportAction(stored({ contentHash: 'sha256:new' }), incoming())).toEqual({
+      action: 'UNCHANGED',
+      questionId: 'q1',
+    });
   });
 
   it('never takes a review back', () => {
     const latest = stored({ contentHash: 'sha256:new' });
-    expect(decideImportAction(latest, incoming({ reviewedLocales: [] }))).toEqual({ action: 'UNCHANGED' });
+    expect(decideImportAction(latest, incoming({ reviewedLocales: [] }))).toEqual({
+      action: 'UNCHANGED',
+      questionId: 'q1',
+    });
   });
 
   it('records a new review and approves the draft once every locale is reviewed', () => {

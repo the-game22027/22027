@@ -138,7 +138,7 @@ describe('importing a question bundle', () => {
     await expect(importer.importBundle(tampered)).rejects.toThrow(InvalidBundleError);
   });
 
-  it('keeps an unchanged question as it is in a later bundle', async () => {
+  it('keeps an unchanged question as it is in a later bundle, which it now belongs to', async () => {
     const key = newKey();
     await importer.importBundle(bundle(newVersion(), [line({ key })]));
     const [before] = await versionsOf(key);
@@ -147,8 +147,9 @@ describe('importing a question bundle', () => {
 
     expect(summary.counts.unchanged).toBe(1);
     const [after] = await versionsOf(key);
-    expect(after?.id).toBe(before?.id);
-    expect(after?.importBatchId).toBe(before?.importBatchId);
+    expect(after).toMatchObject({ id: before?.id, contentHash: before?.contentHash, keyVersion: before?.keyVersion });
+    // Publishing the later bundle must cover it (07 §5.5).
+    expect(after?.importBatchId).not.toBe(before?.importBatchId);
   });
 
   it('records a new review and approves the draft without touching its content', async () => {

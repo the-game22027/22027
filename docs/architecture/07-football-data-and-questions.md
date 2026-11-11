@@ -269,7 +269,7 @@ A bundle is a directory `data/bundles/<bundleVersion>/` with two files:
    - same content hash → nothing changes, except that newly reviewed locales are recorded and a `DRAFT` whose locales are now all reviewed becomes `APPROVED` (a review never goes backwards);
    - different content hash and the question was **never published** (`published_at` is null) and is `DRAFT` or `APPROVED` → its content is replaced in place and its status is derived again from the review flags;
    - different content hash otherwise → the old version is `DISABLED` with reason `SUPERSEDED` (if it was not already disabled) and a new row with `key_version + 1` is inserted. A question that could have been served is never changed, so battle history stays true. "Could have been served" is judged by `published_at`, because answer statistics arrive only after a battle ends.
-5. `questions:publish <bundleVersion>`: the bundle's `APPROVED` questions → `PUBLISHED` (`08` §5.6).
+5. `questions:publish <bundleVersion>`: the bundle's `APPROVED` questions → `PUBLISHED` (`08` §5.6). A question belongs to the **last bundle that contained it** (`import_batch_id` moves on import even when nothing else changes), so publishing a new bundle covers the rounds it carried over unchanged.
 6. `questions:disable <questionId> --reason <text>` for reported or wrong questions; selection excludes them immediately.
 
 Regeneration = new bundle version. Rollback = disable a batch.
