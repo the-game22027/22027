@@ -198,8 +198,9 @@ Stored in the battle config by game type, snapshotted on the battle row at creat
 | `turnMs`, `attemptsPerTurn`, `skipsPerRound`, `maxTurns`, `minAnswersPerCell`, `revealAnswersAtEnd` | grid | DEC-54, DEC-61 |
 | `showWrongAnswers` | all | DEC-60 |
 | `points.*` | all | DEC-33 |
-| `latencyGraceMs`, `readyTimeoutMs`, `reconnectGraceMs` | engine | DEC-32 |
-| `selection.*` (exposure window, difficulty mix) | all | DEC-44 |
+| `latencyGraceMs`, `readyTimeoutMs`, `reconnectGraceMs`, `betweenRoundsMs` (pause after `round:result`) | engine | DEC-32 |
+| `bots.profiles.*` (`knowsAnswerByDifficulty`, `guessChance`, `buzzAtShareOfSteps`, `reactionDelayMs`, `typingDelayMs`) | bots | DEC-43 |
+| `selection.*` (`excludeLastBattles`, `difficulties`) | all | DEC-44 |
 
 ## 7. Fairness and abuse
 
