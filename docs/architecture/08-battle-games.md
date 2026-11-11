@@ -197,9 +197,18 @@ Stored in the battle config by game type, snapshotted on the battle row at creat
 | `revealIntervalMs`, `resumeDelayMs`, `answerWindowMs`, `finalWindowMs`, `attemptsPerPlayer` | reveal and buzz | DEC-54 |
 | `turnMs`, `attemptsPerTurn`, `skipsPerRound`, `maxTurns`, `minAnswersPerCell`, `revealAnswersAtEnd` | grid | DEC-54, DEC-61 |
 | `showWrongAnswers` | all | DEC-60 |
+| `room.difficultyLevels` (`EASY`, `MEDIUM`, `HARD` → difficulty ranges) | rooms | DEC-63 |
 | `points.*` | all | DEC-33 |
 | `latencyGraceMs`, `readyTimeoutMs`, `reconnectGraceMs` | engine | DEC-32 |
 | `selection.*` (exposure window, difficulty mix) | all | DEC-44 |
+
+## 8. Question topics and difficulty in private rooms (ADR-0018, DEC-63)
+
+- **Topics:** every round carries `topics` (07 §5.9), separate from its `category`. "General" plays everything.
+- **Room setup:** in `LOBBY` the host sets `topics` (empty = General) and `difficultyLevel` (`MIXED`, `EASY`, `MEDIUM`, `HARD`; ranges in `room.difficultyLevels`). Members see them in `room:updated`. The battle snapshots them into `battles.config.selection`.
+- **Selection:** `ContentSelector.pickContentIds` gets `topics` (any of them) and the level's `difficulties`. The exposure window still applies inside the filter and relaxes as usual (DEC-44).
+- **Availability:** `GET /v1/battle-topics?gameType=` lists topics with published content in the caller's locale and counts per level, so the app only offers choices that can fill a battle. A room start that cannot fill `roundCount` rounds fails with `409 NOT_ENOUGH_CONTENT` and changes nothing.
+- **Random matchmaking** stays unfiltered (DEC-64).
 
 ## 7. Fairness and abuse
 

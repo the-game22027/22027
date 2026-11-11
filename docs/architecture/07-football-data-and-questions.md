@@ -300,6 +300,30 @@ Test vectors (both implementations must pass them):
 | `مُحَمَّد صَلاح` | `محمد صلاح` |
 | `٢٠١٠` | `2010` |
 
+### 5.9 Topics (ADR-0018, D.3)
+
+- **What:** each bundle line gets `topics: string[]`, and the manifest lists every topic once: `{ slug, names: { en, ar } }`. A line may only use listed topics (checked on import, like categories).
+- **Tagging rule (DEC-63, recommended):** a round gets every topic it touches.
+  - A club in a career or a question → that club's league. Wikidata gives the current league (`P118`), so a relegated club moves with the next ingest; accepted for v1.
+  - A match → its competition (`world-cup`, `champions-league`, a league).
+  - A national team → `national-teams`, plus the tournament when there is one.
+  - Nationality rounds → `national-teams`.
+- **Existing generators** (§5.8) get tags in D.3. Bundles without topics stay valid: their rounds only appear under General.
+
+### 5.10 D.3: match data (openfootball and martj42)
+
+Match-based rounds: finals, scorers, head-to-heads, records. Both sources are public data sets on GitHub.
+
+| Source | What | License |
+|---|---|---|
+| `openfootball` (football.json, worldcup.json) | League seasons, World Cup and Champions League results, some scorers with minutes | CC0 / public domain |
+| `martj42/international_results` | Every men's international since 1872: results, goal scorers, shootouts (includes AFCON and the Arab Cup) | To confirm from its license file before ingesting; recorded with the source in `provenance.licenses` |
+
+- **Ingest:** raw files into `raw.*`, then `core.match`, `core.goal`, `core.competition` with provenance, like D.1.
+- **Entity linking (the hard part):** scorers and teams arrive as text ("Andrés Iniesta"). They are linked to catalog entities by normalized name (§5.7) plus constraints (the team they played for, the date within a career spell, nationality). Ambiguous or unmatched names go to a review CSV, as with missing Arabic names. Only linked facts make rounds, because answers are judged by entity id (DEC-55).
+- **New templates:** who scored in a final, the score of a final, who won a tournament, the biggest win between two national teams, head-to-head counts. Several are `NUMBER` answers.
+- **Not used:** Transfermarkt, FBref, SofaScore (their terms forbid scraping), Kaggle sets of unclear origin, football-data.co.uk (no open license).
+
 ### 5.8 D.2a: first generators (`CAREER`, `BUZZER`) and the `dev-0002` bundle
 
 The first generated bundle. Its purpose: P6.1 needs published game content to play, and real data shows problems earlier than hand-written rounds. Grid and Who is the player? come in D.2b.
