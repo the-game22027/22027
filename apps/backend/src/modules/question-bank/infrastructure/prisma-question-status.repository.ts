@@ -20,9 +20,13 @@ export class PrismaQuestionStatusRepository implements QuestionStatusRepository 
     return batch?.id ?? null;
   }
 
-  async publishApprovedQuestionsOfBatch(batchId: string, at: Date): Promise<number> {
+  async publishQuestionsOfBatch(
+    batchId: string,
+    statuses: readonly ('DRAFT' | 'APPROVED')[],
+    at: Date,
+  ): Promise<number> {
     const { count } = await this.txHost.tx.question.updateMany({
-      where: { importBatchId: batchId, status: 'APPROVED' },
+      where: { importBatchId: batchId, status: { in: [...statuses] } },
       data: { status: 'PUBLISHED', publishedAt: at, updatedAt: at },
     });
     return count;

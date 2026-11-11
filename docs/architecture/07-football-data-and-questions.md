@@ -348,7 +348,7 @@ Picks are spread over the difficulties, so a short bundle is not all difficulty 
 **Catalog in a dev bundle:** the full catalog is about 6 MB, too big to commit. `--catalog-min-player-sitelinks` keeps players at or above the bar, and adds every club and country a kept player's career or citizenship points at, plus everything the content references. Production bundles leave the flag out and carry the whole catalog.
 
 **Review and publishing:** generated rounds are `DRAFT` until a person reviews them (§5.3).
-- **Development:** to play a dev bundle anyway, `questions:publish <version> --include-drafts`. The command refuses this flag unless the dev tools are on (`DEV_TOOLS_ENABLED`).
+- **Development:** to play a dev bundle anyway, `questions:publish <version> --include-drafts`. The command refuses this flag in production (`NODE_ENV=production`, the same switch that turns off the dev tools).
 - **Production:** publishes only reviewed content.
 
 **Freshness (DEC-62, Pending):** the career of an active player (open last spell) is wrong after his next transfer. D.2a sets `validUntil = null`, and every new bundle regenerates careers. Whether active careers should also expire on their own is DEC-62.
