@@ -32,6 +32,7 @@ def main(argv: list[str] | None = None) -> int:
     bundle.add_argument("--out", type=Path, required=True)
     bundle.add_argument("--careers", type=int, default=60)
     bundle.add_argument("--buzzers", type=int, default=60)
+    bundle.add_argument("--who", type=int, default=60, help="who-is-the-player rounds")
     bundle.add_argument(
         "--catalog-min-player-sitelinks",
         type=int,
@@ -67,6 +68,7 @@ def main(argv: list[str] | None = None) -> int:
                 args.careers,
                 args.buzzers,
                 args.catalog_min_player_sitelinks,
+                who_count=args.who,
             )
             print(
                 f"{args.version}: {summary.question_count} rounds {summary.by_game_type}, "
