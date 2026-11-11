@@ -4,6 +4,7 @@ import { Prisma } from '@generated/prisma/client';
 import type { PrismaService, TransactionalAdapterPrisma } from '@shared/infrastructure/persistence';
 import type { Locale } from '@shared/kernel';
 import type { EntityKind } from '../domain/question-content';
+import { takeContentChangeLock } from './content-change-lock';
 import type { LatestQuestionVersion } from '../domain/import-decision';
 import { answerKindOfGame, localesOfQuestion, summaryTextOfQuestion } from '../domain/question-content';
 import type {
@@ -88,7 +89,7 @@ export class PrismaQuestionImportRepository implements QuestionImportRepository 
   constructor(private readonly txHost: TransactionHost<TransactionalAdapterPrisma<PrismaService>>) {}
 
   async waitForOtherImports(): Promise<void> {
-    await this.txHost.tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext('question-bank:import'))`;
+    await takeContentChangeLock(this.txHost.tx);
   }
 
   async findBatchChecksums(bundleVersion: string): Promise<ImportedBatchChecksums | null> {
