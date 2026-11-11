@@ -1,0 +1,30 @@
+# flutter_lints plus Dart's strict modes and a few extra rules.
+# very_good_analysis was not chosen: it requires doc comments on every public member,
+# which fights our rule of commenting only where the reason is not obvious.
+include: package:flutter_lints/flutter.yaml
+
+analyzer:
+  language:
+    strict-casts: true
+    strict-inference: true
+    strict-raw-types: true
+  errors:
+    missing_required_param: error
+    missing_return: error
+  exclude:
+    - packages/api_client/**
+    - lib/l10n/generated/**
+
+linter:
+  rules:
+    - always_declare_return_types
+    - avoid_dynamic_calls
+    - avoid_print
+    - cancel_subscriptions
+    - directives_ordering
+    - prefer_const_constructors
+    - prefer_final_locals
+    - prefer_single_quotes
+    - sort_child_properties_last
+    - unawaited_futures
+    - use_super_parameters

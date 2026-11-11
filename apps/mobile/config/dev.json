@@ -1,0 +1,4 @@
+{
+  "flavor": "dev",
+  "apiBaseUrl": "http://localhost:3000"
+}
