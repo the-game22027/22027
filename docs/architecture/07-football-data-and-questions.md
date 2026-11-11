@@ -329,6 +329,20 @@ The first generated bundle. Its purpose: P6.1 needs published game content to pl
 
 The giveaway check of §5.5 runs here too: a round whose steps contain the answer's name is dropped.
 
+**`WHO_IS_PLAYER` rounds (P6.2):** built only from facts the knowledge base has (no positions or trophies yet). The clues go from hardest to easiest; a player needs at least 4 of them:
+
+| Clue `kind` | EN | AR | Skipped when |
+|---|---|---|---|
+| `BIRTH_YEAR` | Born in 1985 | من مواليد 1985 | Unknown birth year |
+| `CLUB_COUNT` | Senior clubs: 6 | عدد أنديته: 6 | — |
+| `FIRST_CLUB` | Started his senior career at Sporting CP | بدأ مسيرته مع سبورتينغ لشبونة | Two spells start the same first year |
+| `LOAN` | Was loaned to Preston North End in 1994 | انتقل معارًا إلى بريستون نورث إيند عام 1994 | No loan |
+| `NATIONALITY` | Nationality: Portugal | الجنسية: البرتغال | No citizenship in the catalog |
+| `LONGEST_SPELL` | At Real Madrid from 2009 to 2018 | في ريال مدريد من 2009 إلى 2018 | — |
+| `LAST_CLUB` | Current club: Al-Nassr / Last club: … | ناديه الحالي: النصر / آخر أنديته: … | — |
+
+The same career rules as `CAREER` apply (dated spells, at most one open spell). Clue counts per round are content; how many a game reveals is the round itself. The giveaway check drops a round whose clues contain the player's name.
+
 **Difficulty:** a first guess from popularity (Wikipedia sitelinks). Answer statistics recalibrate it later (`calibrated_difficulty`).
 
 | Sitelinks | ≥ 100 | 60-99 | 40-59 | 20-39 | < 20 |

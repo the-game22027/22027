@@ -92,6 +92,11 @@ stateDiagram-v2
 - `CAREER`: the spells in order (`clubEntityId`, `fromYear`, `toYear`). Club names are rendered from the answer catalog in each player's locale, so no translation is needed. Loans are kept; consecutive spells at the same club are merged; youth teams are dropped (config in the pipeline).
 - `WHO_IS_PLAYER`: an ordered list of clues, each with a `kind` and localized text, hardest first.
 
+**How the engine turns content into steps** (P6.2): one step per spell or clue, in the player's locale.
+- `CAREER`: `Sporting CP (2002–2003)` / `سبورتينغ لشبونة (2002–2003)`. An open spell ends with `present` / `حتى الآن`, and a loan adds `, loan` / `، إعارة` inside the brackets. With `showYears` off, only the club and the loan mark are shown. Club names come from the answer catalog.
+- `WHO_IS_PLAYER`: the clue text as the pipeline wrote it (07 §5.8).
+- `BUZZER`: the steps as written.
+
 ### 3.2 Grid (`GRID`, football tic-tac-toe)
 
 Approved on condition that the data supports it. The 2026-11-10 check passed (`07` §4.1).
@@ -197,6 +202,7 @@ Stored in the battle config by game type, snapshotted on the battle row at creat
 | `revealIntervalMs`, `resumeDelayMs`, `answerWindowMs`, `finalWindowMs`, `attemptsPerPlayer` | reveal and buzz | DEC-54 |
 | `turnMs`, `attemptsPerTurn`, `skipsPerRound`, `maxTurns`, `minAnswersPerCell`, `revealAnswersAtEnd` | grid | DEC-54, DEC-61 |
 | `showWrongAnswers` | all | DEC-60 |
+| `showYears` | `CAREER` | DEC-54 |
 | `points.*` | all | DEC-33 |
 | `latencyGraceMs`, `readyTimeoutMs`, `reconnectGraceMs`, `betweenRoundsMs` (pause after `round:result`) | engine | DEC-32 |
 | `bots.profiles.*` (`knowsAnswerByDifficulty`, `guessChance`, `buzzAtShareOfSteps`, `reactionDelayMs`, `typingDelayMs`) | bots | DEC-43 |
