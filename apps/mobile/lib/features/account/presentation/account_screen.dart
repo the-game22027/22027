@@ -37,6 +37,13 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
             trailing: const Icon(Icons.chevron_right),
             onTap: () => context.push(AppRoutes.accountProfile),
           ),
+          ListTile(
+            key: const Key('open-sessions'),
+            leading: const Icon(Icons.devices_outlined),
+            title: Text(l10n.sessionsTitle),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () => context.push(AppRoutes.accountSessions),
+          ),
           Padding(
             padding: const EdgeInsetsDirectional.all(24),
             child: FilledButton.tonal(

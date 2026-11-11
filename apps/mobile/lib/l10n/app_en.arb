@@ -48,6 +48,22 @@
   "usernameInvalid": "This username is not allowed.",
   "usernameTaken": "This username is already taken.",
   "fieldValueInvalid": "This value is not valid.",
+  "sessionsTitle": "Signed-in devices",
+  "thisDeviceBadge": "This device",
+  "sessionLastUsed": "Last used {dateTime}",
+  "@sessionLastUsed": {
+    "placeholders": {
+      "dateTime": {
+        "type": "String",
+        "example": "Nov 11, 2026 9:30 PM"
+      }
+    }
+  },
+  "unknownDevice": "Unknown device",
+  "revokeSessionTooltip": "Sign out this device",
+  "revokeSessionConfirmTitle": "Sign out this device?",
+  "revokeSessionConfirmBody": "It will have to sign in again.",
+  "cancelButton": "Cancel",
   "tryAgainButton": "Try again",
   "serverStatusTitle": "Server status",
   "serverStatusUp": "The server is up",

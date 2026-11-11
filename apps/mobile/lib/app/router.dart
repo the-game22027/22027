@@ -9,6 +9,7 @@ import 'package:the_game/core/storage/token_storage.dart';
 import 'package:the_game/features/account/presentation/account_screen.dart';
 import 'package:the_game/features/account/presentation/dev_sign_in_screen.dart';
 import 'package:the_game/features/account/presentation/profile_screen.dart';
+import 'package:the_game/features/account/presentation/sessions_screen.dart';
 import 'package:the_game/features/account/presentation/sign_in_screen.dart';
 import 'package:the_game/features/home/presentation/home_screen.dart';
 import 'package:the_game/features/server_status/presentation/server_status_screen.dart';
@@ -88,6 +89,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.accountProfile,
         builder: (context, state) => const ProfileScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.accountSessions,
+        builder: (context, state) => const SessionsScreen(),
       ),
       GoRoute(
         path: AppRoutes.serverStatus,

@@ -8,6 +8,7 @@ abstract final class AppRoutes {
   static const home = '/home';
   static const account = '/account';
   static const accountProfile = '/account/profile';
+  static const accountSessions = '/account/sessions';
   static const serverStatus = '/server-status';
   static const settings = '/settings';
 }
