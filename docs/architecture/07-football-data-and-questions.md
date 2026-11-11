@@ -299,3 +299,56 @@ Test vectors (both implementations must pass them):
 | `كرة` | `كره` |
 | `مُحَمَّد صَلاح` | `محمد صلاح` |
 | `٢٠١٠` | `2010` |
+
+### 5.8 D.2a: first generators (`CAREER`, `BUZZER`) and the `dev-0002` bundle
+
+The first generated bundle. Its purpose: P6.1 needs published game content to play, and real data shows problems earlier than hand-written rounds. Grid and Who is the player? come in D.2b.
+
+**Command** (from `data/`):
+
+```
+.venv/bin/python -m kb bundle --version dev-0002 --out bundles/dev-0002 --careers 60 --buzzers 60 --catalog-min-player-sitelinks 40
+```
+
+- **Input:** only `core.*`.
+- **Output:** a bundle in the format of §5.4: `manifest.json`, `questions.jsonl`, `catalog.jsonl`.
+- **Deterministic:** the same knowledge base and the same arguments give the same bytes, so the same checksum. Picks are sorted by popularity with fixed tie-breaks; there is no randomness.
+
+**`CAREER` rounds:**
+- **Eligible players:** both names; at least 3 senior spells; every spell has a start year; every club is in the catalog.
+- **Content:** the spells in date order, loans kept and flagged.
+- **Accepted answer:** the player.
+
+**`BUZZER` templates.** Each template's text is written once by a person in EN and AR, with the same number of steps in both, and the facts go from vague to specific:
+
+| Template | Question (EN) | Answer (`answerKind`) | Skipped when |
+|---|---|---|---|
+| `first-club` | At which club / did {player} / start / his senior career? | First senior club (`CLUB`) | Two spells share the first start year |
+| `joined-in-year` | Which club / did {player} join / from {previous club} / in {year}? | That club (`CLUB`) | The spell is a loan, or another spell starts the same year |
+| `nationality` | Which country / does {player} / represent / by citizenship? | Every citizenship of the player (`COUNTRY`) | No citizenship in the catalog |
+
+The giveaway check of §5.5 runs here too: a round whose steps contain the answer's name is dropped.
+
+**Difficulty:** a first guess from popularity (Wikipedia sitelinks). Answer statistics recalibrate it later (`calibrated_difficulty`).
+
+| Sitelinks | ≥ 100 | 60-99 | 40-59 | 20-39 | < 20 |
+|---|---|---|---|---|---|
+| Difficulty | 1 | 2 | 3 | 4 | 5 |
+
+Picks are spread over the difficulties, so a short bundle is not all difficulty 5.
+
+**Keys and provenance:**
+- **External keys** stay the same across regenerations, so a regenerated bundle updates or versions a round instead of duplicating it (§5.5): `career:<qid>`, `buzzer:first-club:<qid>`, `buzzer:joined-in-year:<qid>:<year>`, `buzzer:nationality:<qid>`.
+- **Provenance:**
+  - `facts`: the Wikidata statement ids that were used.
+  - `sources`: `wikidata`.
+  - `licenses`: `CC0-1.0`.
+  - `kbVersion`: `wikidata-<date of the last ingest>`.
+
+**Catalog in a dev bundle:** the full catalog is about 6 MB, too big to commit. `--catalog-min-player-sitelinks` keeps players at or above the bar, and adds every club and country a kept player's career or citizenship points at, plus everything the content references. Production bundles leave the flag out and carry the whole catalog.
+
+**Review and publishing:** generated rounds are `DRAFT` until a person reviews them (§5.3).
+- **Development:** to play a dev bundle anyway, `questions:publish <version> --include-drafts`. The command refuses this flag unless the dev tools are on (`DEV_TOOLS_ENABLED`).
+- **Production:** publishes only reviewed content.
+
+**Freshness (DEC-62, Pending):** the career of an active player (open last spell) is wrong after his next transfer. D.2a sets `validUntil = null`, and every new bundle regenerates careers. Whether active careers should also expire on their own is DEC-62.
