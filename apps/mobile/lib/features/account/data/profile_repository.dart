@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:the_game/core/errors/app_error.dart';
 import 'package:the_game/core/network/api_client_provider.dart';
+import 'package:the_game/core/session/player_profile_revision.dart';
 
 /// The editable part of `Me` (API §5).
 class PlayerAccountProfile {
@@ -20,9 +21,11 @@ class PlayerAccountProfile {
 }
 
 class ProfileRepository {
-  ProfileRepository(this._meApi);
+  ProfileRepository(this._meApi, {void Function()? onProfileChanged})
+    : _onProfileChanged = onProfileChanged;
 
   final MeApi _meApi;
+  final void Function()? _onProfileChanged;
 
   /// `GET /v1/me`
   Future<PlayerAccountProfile> fetchPlayerAccountProfile() async {
@@ -57,6 +60,7 @@ class ProfileRepository {
         ),
       ),
     );
+    _onProfileChanged?.call();
   }
 
   /// `DELETE /v1/me` → `202`: the server signs out every device and deletes the account after
@@ -87,5 +91,9 @@ class _UpdateMeRequest extends UpdateMeDto {
 }
 
 final profileRepositoryProvider = Provider<ProfileRepository>(
-  (ref) => ProfileRepository(ref.watch(apiClientProvider).getMeApi()),
+  (ref) => ProfileRepository(
+    ref.watch(apiClientProvider).getMeApi(),
+    onProfileChanged: () =>
+        ref.read(playerProfileRevisionProvider.notifier).recordProfileChange(),
+  ),
 );

@@ -11,12 +11,6 @@ import 'package:the_game/l10n/generated/app_localizations.dart';
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
-  Future<void> _openAccount(BuildContext context, WidgetRef ref) async {
-    await context.push(AppRoutes.account);
-    // The player may have changed their profile there.
-    ref.invalidate(currentPlayerProfileProvider);
-  }
-
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
@@ -30,7 +24,7 @@ class HomeScreen extends ConsumerWidget {
             key: const Key('open-account'),
             tooltip: l10n.accountTitle,
             icon: const Icon(Icons.account_circle_outlined),
-            onPressed: () => _openAccount(context, ref),
+            onPressed: () => context.push(AppRoutes.account),
           ),
           ...buildAppBarShortcuts(context),
         ],

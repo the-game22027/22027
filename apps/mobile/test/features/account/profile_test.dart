@@ -13,6 +13,7 @@ import 'package:the_game/features/account/application/profile_form_errors.dart';
 import 'package:the_game/features/account/application/profile_locale_sync.dart';
 import 'package:the_game/features/account/data/profile_repository.dart';
 import 'package:the_game/features/account/presentation/profile_screen.dart';
+import 'package:the_game/features/home/application/home_providers.dart';
 import 'package:the_game/l10n/generated/app_localizations.dart';
 
 import '../../helpers/fake_http_adapter.dart';
@@ -146,6 +147,24 @@ void main() {
 
       expect(container.read(appLanguageControllerProvider), AppLanguage.arabic);
     });
+
+    test(
+      'a saved language change refetches the profile shown on home',
+      () async {
+        final adapter = FakeHttpAdapter((_) => jsonResponse(meJson));
+        final container = await createContainer(adapter);
+        container.listen(currentPlayerProfileProvider, (_, _) {});
+        await container.read(currentPlayerProfileProvider.future);
+
+        await changeLanguageToArabic(container);
+
+        expect(adapter.sentRequests.map((request) => request.method), [
+          'GET',
+          'PATCH',
+          'GET',
+        ]);
+      },
+    );
 
     test('a signed-out language change sends nothing', () async {
       final adapter = FakeHttpAdapter((_) => jsonResponse(meJson));
