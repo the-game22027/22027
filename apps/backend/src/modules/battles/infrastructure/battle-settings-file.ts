@@ -45,7 +45,11 @@ const settingsSchema = z.strictObject({
   bots: z.strictObject({
     profiles: z.record(z.string(), botProfile).refine((p) => Object.keys(p).length > 0, 'at least one'),
   }),
-  gameTypes: z.strictObject({ BUZZER: revealGame.optional() }),
+  gameTypes: z.strictObject({
+    BUZZER: revealGame.optional(),
+    CAREER: revealGame.extend({ showYears: z.boolean() }).optional(),
+    WHO_IS_PLAYER: revealGame.optional(),
+  }),
 });
 
 export class InvalidBattleSettingsError extends Error {}

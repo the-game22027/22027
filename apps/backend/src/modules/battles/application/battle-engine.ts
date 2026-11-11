@@ -11,7 +11,12 @@ import { UsersFacade } from '@modules/users';
 import { CLOCK, type Clock, ID_GENERATOR, type IdGenerator, type Locale } from '@shared/kernel';
 import type { TypedAnswer } from '../domain/games/game-rules';
 import { SeededRandom } from '../domain/random-source';
-import { BATTLE_SETTINGS, type BattleConfigSnapshot, type BattleSettings } from './battle-settings';
+import {
+  BATTLE_SETTINGS,
+  type BattleConfigSnapshot,
+  type BattleSettings,
+  findRevealGameSettings,
+} from './battle-settings';
 import { type Ack, LiveBattle, type LiveParticipant } from './live-battle';
 import { ACTIVITY_GUARD, type Activity, type ActivityGuard } from './ports/activity-guard';
 import { BATTLE_NOTIFIER, type BattleNotifier } from './ports/battle-notifier';
@@ -84,7 +89,7 @@ export class BattleEngine implements OnApplicationBootstrap, OnApplicationShutdo
    * ticket to the battle. Throws NoPlayableContentError when the bank has nothing to play.
    */
   async createBotBattle(userId: string, gameType: GameType, queueActivity: Activity): Promise<string> {
-    const game = this.settings.gameTypes[gameType as 'BUZZER'];
+    const game = findRevealGameSettings(this.settings, gameType);
     if (!game) throw new Error(`${gameType} has no battle config`);
     const account = await this.users.getAccount(userId);
     if (!account) throw new Error(`User ${userId} not found`);
@@ -199,7 +204,7 @@ export class BattleEngine implements OnApplicationBootstrap, OnApplicationShutdo
    * there is rather than nothing (the window relaxes).
    */
   private async pickContent(userId: string, gameType: GameType, locale: Locale, roundCount: number): Promise<string[]> {
-    const game = this.settings.gameTypes[gameType as 'BUZZER'];
+    const game = findRevealGameSettings(this.settings, gameType);
     const recent = await this.battles.findRecentlyPlayedQuestionIds(userId, game?.selection.excludeLastBattles ?? 0);
     const criteria = {
       gameType,

@@ -3,10 +3,15 @@ import type { RevealAndBuzzConfig } from '../domain/games/reveal-and-buzz-rules'
 
 export const BATTLE_SETTINGS = Symbol('BATTLE_SETTINGS');
 
+/** Game types played with the reveal-and-buzz rules (08 §3.1). */
+export type RevealGameType = 'BUZZER' | 'CAREER' | 'WHO_IS_PLAYER';
+
 /** One reveal-and-buzz game type's section of the battle config (08 §6). */
 export interface RevealGameSettings extends Omit<RevealAndBuzzConfig, 'latencyGraceMs'> {
   enabled: boolean;
   roundCount: number;
+  /** CAREER only: show the years of each spell (08 §3.1). */
+  showYears?: boolean;
   /** DEC-44: content of a player's last `excludeLastBattles` battles is skipped while the bank allows it. */
   selection: { difficulties: number[] | null; excludeLastBattles: number };
 }
@@ -18,7 +23,12 @@ export interface BattleSettings {
   engine: { readyTimeoutMs: number; latencyGraceMs: number; betweenRoundsMs: number };
   matchmaking: { botFallbackAfterMs: number };
   bots: { profiles: Record<string, BotProfile> };
-  gameTypes: { BUZZER?: RevealGameSettings };
+  gameTypes: Partial<Record<RevealGameType, RevealGameSettings>>;
+}
+
+/** The config of a game type, or undefined when it has none (not configured, or not a reveal game yet). */
+export function findRevealGameSettings(settings: BattleSettings, gameType: string): RevealGameSettings | undefined {
+  return (settings.gameTypes as Partial<Record<string, RevealGameSettings>>)[gameType];
 }
 
 /** The part of the settings a battle keeps for its whole life (battles.config). */
