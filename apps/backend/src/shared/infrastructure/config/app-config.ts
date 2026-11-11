@@ -78,6 +78,7 @@ const configSchema = z
     FOOTBALL_SYNC_PAST_DAYS: z.coerce.number().int().min(0).default(30),
     FOOTBALL_SYNC_FUTURE_DAYS: z.coerce.number().int().min(0).default(60),
     MOCK_FOOTBALL_SEED_DIR: z.string().min(1).default('prisma/seed/football'),
+    BATTLE_CONFIG_PATH: z.string().min(1).default('config/battles.dev.json'),
 
     RATE_LIMIT_AUTH_PER_MINUTE: z.coerce.number().int().min(1).default(20),
     TRUST_PROXY_HOPS: z.coerce.number().int().min(0).default(0),
@@ -149,6 +150,8 @@ export class AppConfig {
   readonly profile: { readonly usernamePattern: RegExp };
   readonly accountDeletion: { readonly recentSignInSeconds: number };
   readonly predictions: { readonly maxGoals: number };
+  /** The battle config file (ADR-0017); its contents are validated by the battles module. */
+  readonly battleConfigPath: string;
 
   constructor(env: ConfigEnv) {
     this.nodeEnv = env.NODE_ENV;
@@ -189,6 +192,7 @@ export class AppConfig {
     this.profile = { usernamePattern: new RegExp(env.USERNAME_PATTERN) };
     this.accountDeletion = { recentSignInSeconds: env.ACCOUNT_DELETION_RECENT_SIGN_IN_SECONDS };
     this.predictions = { maxGoals: env.PREDICTION_MAX_GOALS };
+    this.battleConfigPath = env.BATTLE_CONFIG_PATH;
     this.refreshToken = { slidingDays: env.REFRESH_TOKEN_SLIDING_DAYS, absoluteDays: env.REFRESH_TOKEN_ABSOLUTE_DAYS };
   }
 

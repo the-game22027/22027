@@ -112,6 +112,16 @@ export class PrismaQuestionReadRepository implements QuestionReadRepository {
     return rows.map(catalogEntityOf);
   }
 
+  async findPopularEntityIdsOfKind(kind: EntityKind, excludeIds: readonly string[], limit: number): Promise<string[]> {
+    const rows = await this.txHost.tx.answerEntity.findMany({
+      where: { kind, status: 'ACTIVE', id: { notIn: [...excludeIds] } },
+      orderBy: [{ popularity: 'desc' }, { id: 'asc' }],
+      take: limit,
+      select: { id: true },
+    });
+    return rows.map((row) => row.id);
+  }
+
   async findCurrentCatalogVersion(): Promise<string | null> {
     const batch = await this.txHost.tx.questionImportBatch.findFirst({
       where: { catalogChecksum: { not: null } },

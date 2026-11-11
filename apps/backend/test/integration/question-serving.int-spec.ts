@@ -284,5 +284,13 @@ describe('serving content to battles', () => {
       ]);
       await expect(catalog.findEntitiesByIds([])).resolves.toEqual([]);
     });
+
+    it('offers popular wrong answers of the same kind, never an accepted one', async () => {
+      const spain = await entityId(e.spain.externalRef);
+      const decoys = await catalog.findDecoyEntityIds('PLAYER', [await entityId(e.ronaldo.externalRef)], 50);
+      expect(decoys).toContain(await entityId(e.nani.externalRef));
+      expect(decoys).not.toContain(await entityId(e.ronaldo.externalRef));
+      expect(decoys).not.toContain(spain);
+    });
   });
 });

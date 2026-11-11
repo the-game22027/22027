@@ -9,10 +9,10 @@
 - The second buzz then sees the first one's result and gets `BUZZ_TAKEN`. No lock, no database race.
 - Different battles still run in parallel: the queue is per battle, not global.
 
-**In our code:** the battle engine (`docs/architecture/08-battle-games.md` §2.1, `03-workflows.md` §4.3 step 4). `battle_round_actions.action_no` records the order the engine decided.
+**In our code:** `runInQueue` in [live-battle.ts](../../apps/backend/src/modules/battles/application/live-battle.ts): each task is chained on the previous one's promise (`queue.then(task)`), commands and timers alike. `battle_round_actions.action_no` records the order the engine decided.
 
 **Watch out:**
-- Never `await` slow I/O in the middle of deciding. Decide first, then save, or one slow write stalls the whole battle.
+- Everything awaited inside the queue delays the next input. P6.1 saves each action inside it (a few ms, and the history is always in order); a slow database would show up as slow buzz acks, so watch `battle_buzz_latency_ms` before moving writes out.
 - With several API servers, a battle must still live on exactly one of them (ownership lock), or there are two queues again.
 
 **Check yourself:** why not use a database unique constraint to pick the first buzz?

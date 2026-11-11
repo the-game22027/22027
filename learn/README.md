@@ -97,3 +97,5 @@ New tracks are added when the first card needs one.
 | [mobile/rtl-and-localization](mobile/rtl-and-localization.md) | M0 | ARB strings and directional layouts; Arabic flips to RTL |
 | [testing/real-data-smoke-run](testing/real-data-smoke-run.md) | D.2 | Run the real pipeline once; the strict importer finds what fixtures miss |
 | [devops/deterministic-output](devops/deterministic-output.md) | D.2 | Same input, same bytes: sort everything, no randomness, no timestamps |
+| [backend/never-block-boot-on-a-dependency](backend/never-block-boot-on-a-dependency.md) | P6.1 | Start even when Redis or Postgres is down; clean up in the background |
+| [testing/seeded-randomness](testing/seeded-randomness.md) | P6.1 | A stored seed makes bot decisions replayable and testable |
