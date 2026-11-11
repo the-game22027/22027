@@ -93,7 +93,7 @@ Read these before writing code:
    - Map `DISPLAY_NAME_INVALID`, `USERNAME_INVALID` and `USERNAME_TAKEN` to localized messages.
 5. **App language and profile locale (DEC-62, recommended default)**
    - Changing the app language while signed in also sends `PATCH /v1/me {locale}`, best effort: a failure is ignored and the local choice stays.
-   - After sign-in, a device that never saved a language adopts the profile `locale`.
+   - After signing in to an existing account, a device that never saved a language adopts the profile `locale`; a new account gets the app language instead (its `locale` is only the server default).
 6. **Sessions list**
    - `GET /v1/auth/sessions`: device name, platform, last used (formatted in the app language and the device time zone), and a "This device" badge for `current`.
    - Revoke another session with `DELETE /v1/auth/sessions/{id}` after a confirm dialog.

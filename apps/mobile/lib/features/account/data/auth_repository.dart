@@ -15,11 +15,16 @@ class SignedInAccount {
     required this.session,
     required this.userId,
     required this.profileLocale,
+    required this.isNewUser,
   });
 
   final StoredSession session;
   final String userId;
   final String profileLocale;
+
+  /// True when this sign-in created the account: its [profileLocale] is then the server's
+  /// default, not a language the player chose.
+  final bool isNewUser;
 }
 
 class AuthRepository {
@@ -67,6 +72,7 @@ SignedInAccount _convertAuthTokensToSignedInAccount(AuthTokensDto tokens) =>
       session: convertAuthTokensToStoredSession(tokens),
       userId: tokens.user.id,
       profileLocale: tokens.user.locale,
+      isNewUser: tokens.isNewUser,
     );
 
 StoredSession convertAuthTokensToStoredSession(AuthTokensDto tokens) {

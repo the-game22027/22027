@@ -36,12 +36,15 @@ const _configuredDevConfig = AppConfig(
   googleServerClientId: 'web-client.apps.googleusercontent.com',
 );
 
-Map<String, Object?> _authTokensJson({String locale = 'en'}) => {
+Map<String, Object?> _authTokensJson({
+  String locale = 'en',
+  bool isNewUser = false,
+}) => {
   'accessToken': 'google-access',
   'accessTokenExpiresAt': '2030-01-01T00:00:00Z',
   'refreshToken': 'google-refresh',
   'user': {...meJson, 'locale': locale},
-  'isNewUser': true,
+  'isNewUser': isNewUser,
 };
 
 void main() {
@@ -185,6 +188,52 @@ void main() {
         AppLanguage.english,
       );
     });
+
+    test(
+      'a new account keeps the app language and sends it to the profile',
+      () async {
+        // The server gives every new account the same default locale.
+        adapter = FakeHttpAdapter(
+          (request) => request.method == 'PATCH'
+              ? jsonResponse({...meJson, 'locale': 'en'})
+              : jsonResponse(
+                  _authTokensJson(locale: 'ar', isNewUser: true),
+                  status: 201,
+                ),
+        );
+        final container = await createContainer();
+
+        await signInWithGoogle(container);
+
+        expect(
+          container.read(appLanguageControllerProvider),
+          AppLanguage.english,
+        );
+        final patch = adapter.sentRequests.last;
+        expect('${patch.method} ${patch.path}', 'PATCH /v1/me');
+        expect(jsonDecode(patch.data as String), {'locale': 'en'});
+      },
+    );
+
+    test(
+      'a failed locale update still keeps the new account signed in',
+      () async {
+        adapter = FakeHttpAdapter(
+          (request) => request.method == 'PATCH'
+              ? problemResponse(503, 'SERVICE_UNAVAILABLE')
+              : jsonResponse(
+                  _authTokensJson(locale: 'ar', isNewUser: true),
+                  status: 201,
+                ),
+        );
+        final container = await createContainer();
+
+        final state = await signInWithGoogle(container);
+
+        expect(state, isA<AsyncData<void>>());
+        expect(container.read(sessionControllerProvider).value, isNotNull);
+      },
+    );
   });
 
   testWidgets(
