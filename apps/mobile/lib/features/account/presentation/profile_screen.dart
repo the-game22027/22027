@@ -13,7 +13,7 @@ final _accountProfileProvider =
     );
 
 /// Display name and username. The language lives in Settings and is synced to the profile
-/// (DEC-62), so it is not edited twice.
+/// (DEC-63), so it is not edited twice.
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 

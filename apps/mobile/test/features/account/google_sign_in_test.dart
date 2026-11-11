@@ -150,7 +150,7 @@ void main() {
     },
   );
 
-  group('profile language on sign-in (DEC-62)', () {
+  group('profile language on sign-in (DEC-63)', () {
     test('a device with no saved language adopts the profile locale', () async {
       adapter = FakeHttpAdapter(
         (_) => jsonResponse(_authTokensJson(locale: 'ar'), status: 201),

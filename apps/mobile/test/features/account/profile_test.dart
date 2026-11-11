@@ -114,7 +114,7 @@ void main() {
     });
   });
 
-  group('app language follows to the profile (DEC-62)', () {
+  group('app language follows to the profile (DEC-63)', () {
     Future<void> changeLanguageToArabic(ProviderContainer container) async {
       container.listen(profileLocaleSyncProvider, (_, _) {});
       await container

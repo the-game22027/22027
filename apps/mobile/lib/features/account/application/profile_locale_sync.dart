@@ -5,7 +5,7 @@ import 'package:the_game/core/l10n/app_language_controller.dart';
 import 'package:the_game/core/session/session_controller.dart';
 import 'package:the_game/features/account/data/profile_repository.dart';
 
-/// TODO(DEC-62): recommended default. When a signed-in player changes the app language, the
+/// TODO(DEC-63): recommended default. When a signed-in player changes the app language, the
 /// profile `locale` follows, so the server answers in the same language on every device.
 /// Best effort: offline, the local choice still applies.
 ///
