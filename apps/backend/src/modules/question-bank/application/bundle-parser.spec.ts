@@ -87,3 +87,71 @@ describe('parseBundle', () => {
     expect(questions).toHaveLength(50);
   });
 });
+
+describe('parseBundle with game content and a catalog', () => {
+  const catalogLine = (externalRef: string, kind = 'PLAYER') =>
+    JSON.stringify({
+      externalRef,
+      kind,
+      names: { en: 'Cristiano Ronaldo', ar: 'كريستيانو رونالدو' },
+      aliases: { en: ['CR7'], ar: [] },
+      popularity: 400,
+      search: ['cristiano ronaldo', 'cr7'],
+    });
+  const careerLine = (content: Record<string, unknown> = {}) =>
+    JSON.stringify({
+      externalKey: 'career:ronaldo',
+      type: 'GAME',
+      gameType: 'CAREER',
+      category: 'world-cup',
+      difficulty: 1,
+      content: {
+        player: 'wikidata:Q11571',
+        spells: [
+          { club: 'wikidata:Q75729', fromYear: 2002, toYear: 2003 },
+          { club: 'wikidata:Q18656', fromYear: 2003, toYear: 2009, loan: false },
+        ],
+        ...content,
+      },
+      answers: [{ slot: 0, entities: ['wikidata:Q11571'] }],
+      provenance: { facts: [], sources: ['wikidata'], licenses: ['CC0-1.0'], kbVersion: 'none' },
+      humanReviewed: { en: true, ar: true },
+    });
+  const withCatalog = (questionLines: string[], catalogLines: string[], manifest: Record<string, unknown> = {}) => {
+    const catalogJsonl = Buffer.from(catalogLines.map((text) => `${text}\n`).join(''));
+    return { ...files(questionLines, { catalogChecksum: computeChecksum(catalogJsonl), ...manifest }), catalogJsonl };
+  };
+
+  it('reads game lines and the catalog', () => {
+    const { questions, catalog } = parseBundle(withCatalog([careerLine()], [catalogLine('wikidata:Q11571')]));
+    expect(questions[0].content).toMatchObject({
+      type: 'GAME',
+      body: { gameType: 'CAREER', spells: [{ loan: false }, { loan: false }] },
+    });
+    expect(catalog).toEqual([
+      expect.objectContaining({ externalRef: 'wikidata:Q11571', searchForms: ['cristiano ronaldo', 'cr7'] }),
+    ]);
+  });
+
+  it('reports problems inside the game content with their path', () => {
+    expect(problemsOf(files([careerLine({ player: 'not a ref' })]))).toContain('line 1: content.player');
+  });
+
+  it('reports a catalog that does not match its checksum, a repeated entity and a NUMBER entity', () => {
+    const bundle = withCatalog([careerLine()], [catalogLine('wikidata:Q1'), catalogLine('wikidata:Q1')], {
+      catalogChecksum: `sha256:${'0'.repeat(64)}`,
+    });
+    const problems = problemsOf(bundle);
+    expect(problems).toContain('catalog.jsonl does not match the manifest catalogChecksum');
+    expect(problems).toContain('wikidata:Q1 appears more than once');
+    expect(problemsOf(withCatalog([careerLine()], [catalogLine('wikidata:Q2', 'NUMBER')]))).toContain('kind');
+  });
+
+  it('requires the catalog file and its checksum to come together', () => {
+    const catalogJsonl = Buffer.from(`${catalogLine('wikidata:Q1')}\n`);
+    expect(problemsOf({ ...files([careerLine()]), catalogJsonl })).toContain('has no catalogChecksum');
+    expect(problemsOf(files([careerLine()], { catalogChecksum: computeChecksum(catalogJsonl) }))).toContain(
+      'has no catalog.jsonl',
+    );
+  });
+});

@@ -3,10 +3,17 @@ import { Transactional } from '@nestjs-cls/transactional';
 import type { PrismaService, TransactionalAdapterPrisma } from '@shared/infrastructure/persistence';
 import { CLOCK, type Clock, ID_GENERATOR, type IdGenerator } from '@shared/kernel';
 import { decideImportAction, type ImportDecision } from '../domain/import-decision';
-import { BundleVersionReusedError } from '../domain/question-bank-errors';
-import { type BundleQuestion, computeContentHash, localesOfQuestion } from '../domain/question-content';
+import { BundleVersionReusedError, InvalidBundleError } from '../domain/question-bank-errors';
+import {
+  type BundleQuestion,
+  computeContentHash,
+  type GameContent,
+  localesOfQuestion,
+} from '../domain/question-content';
+import { findCatalogReferenceProblems } from '../domain/question-rules';
 import { type BundleFiles, parseBundle } from './bundle-parser';
 import {
+  type ActiveEntity,
   QUESTION_IMPORT_REPOSITORY,
   type QuestionImportRepository,
   type QuestionWrite,
@@ -28,6 +35,8 @@ export interface ImportSummary {
   bundleVersion: string;
   alreadyImported: boolean;
   counts: ImportCounts;
+  /** Entities in the bundle's catalog, or null when it carried none. */
+  catalogSize: number | null;
 }
 
 const COUNT_FOR_ACTION: Record<ImportDecision['action'], keyof ImportCounts> = {
@@ -46,6 +55,33 @@ const emptyCounts = (): ImportCounts => ({
   newVersions: 0,
 });
 
+/** Every catalog entity a game round points at: answers, players, clubs, grid criteria. */
+const referencesOf = (content: GameContent): string[] => {
+  const refs = content.answers.flatMap((answer) => answer.entities);
+  const { body } = content;
+  switch (body.gameType) {
+    case 'CAREER':
+      return [...refs, body.player, ...body.spells.map((spell) => spell.club)];
+    case 'WHO_IS_PLAYER':
+      return [...refs, body.player];
+    case 'GRID':
+      return [...refs, ...body.rows.map((row) => row.entity), ...body.cols.map((col) => col.entity)];
+    case 'BUZZER':
+      return refs;
+  }
+};
+
+const answerRowsOf = (question: BundleQuestion, entities: Map<string, ActiveEntity>): QuestionWrite['answerRows'] =>
+  question.content.type === 'GAME'
+    ? question.content.answers.flatMap((answer) =>
+        answer.entities.map((ref) => {
+          const entity = entities.get(ref);
+          if (!entity) throw new Error(`Entity ${ref} was checked but not found`);
+          return { slot: answer.slot, entityId: entity.id };
+        }),
+      )
+    : [];
+
 @Injectable()
 export class ImportQuestionBundle {
   constructor(
@@ -56,15 +92,29 @@ export class ImportQuestionBundle {
 
   @Transactional<TransactionalAdapterPrisma<PrismaService>>({ timeout: IMPORT_TRANSACTION_TIMEOUT_MS })
   async importBundle(files: BundleFiles): Promise<ImportSummary> {
-    const { manifest, questions } = parseBundle(files);
+    const { manifest, questions, catalog } = parseBundle(files);
     const { bundleVersion } = manifest;
+    const catalogChecksum = manifest.catalogChecksum ?? null;
+    const catalogSize = manifest.catalogChecksum ? catalog.length : null;
     await this.repository.waitForOtherImports();
 
-    const previousChecksum = await this.repository.findBatchChecksum(bundleVersion);
-    if (previousChecksum === manifest.checksum) return { bundleVersion, alreadyImported: true, counts: emptyCounts() };
-    if (previousChecksum !== null) throw new BundleVersionReusedError(bundleVersion);
+    const previous = await this.repository.findBatchChecksums(bundleVersion);
+    if (previous && previous.checksum === manifest.checksum && previous.catalogChecksum === catalogChecksum) {
+      return { bundleVersion, alreadyImported: true, counts: emptyCounts(), catalogSize };
+    }
+    if (previous !== null) throw new BundleVersionReusedError(bundleVersion);
 
     const at = this.clock.now();
+    if (manifest.catalogChecksum) {
+      // A bundle's catalog is the whole catalog: entities it no longer lists are hidden.
+      await this.repository.replaceActiveCatalog(
+        catalog.map((entity) => ({ id: this.ids.next(), ...entity })),
+        bundleVersion,
+        at,
+      );
+    }
+    const entities = await this.findEntitiesUsedByGames(questions);
+
     const categoryIds = await this.repository.saveCategories(
       manifest.categories.map((category) => ({ id: this.ids.next(), ...category })),
     );
@@ -92,7 +142,8 @@ export class ImportQuestionBundle {
         categoryId: this.categoryIdOf(categoryIds, question),
         status,
         question,
-        optionIds: question.content.options.map(() => this.ids.next()),
+        optionIds: question.content.type === 'SINGLE_CHOICE' ? question.content.options.map(() => this.ids.next()) : [],
+        answerRows: answerRowsOf(question, entities),
         importBatchId: batchId,
         at,
       });
@@ -124,6 +175,7 @@ export class ImportQuestionBundle {
       id: batchId,
       bundleVersion,
       checksum: manifest.checksum,
+      catalogChecksum,
       generatorVersion: manifest.generatorVersion,
       kbVersion: manifest.kbVersion,
       stats: { ...counts },
@@ -133,7 +185,27 @@ export class ImportQuestionBundle {
     await this.repository.insertQuestions(inserts);
     await this.repository.replaceContent(replacements);
     await this.repository.recordReviews(reviews, at);
-    return { bundleVersion, alreadyImported: false, counts };
+    return { bundleVersion, alreadyImported: false, counts, catalogSize };
+  }
+
+  /**
+   * Looks up every catalog entity the game lines point at and checks kinds; throws InvalidBundleError
+   * listing every problem. Runs inside the transaction, so a rejected bundle also leaves the catalog as it was.
+   */
+  private async findEntitiesUsedByGames(questions: readonly BundleQuestion[]): Promise<Map<string, ActiveEntity>> {
+    const games = questions.filter(
+      (question): question is BundleQuestion & { content: GameContent } => question.content.type === 'GAME',
+    );
+    const entities = await this.repository.findActiveEntities(games.flatMap(({ content }) => referencesOf(content)));
+    const problems = questions.flatMap((question, index) =>
+      question.content.type === 'GAME'
+        ? findCatalogReferenceProblems(question.content, (ref) => entities.get(ref)).map(
+            (problem) => `line ${index + 1}: ${problem}`,
+          )
+        : [],
+    );
+    if (problems.length > 0) throw new InvalidBundleError(problems);
+    return entities;
   }
 
   private categoryIdOf(categoryIds: Map<string, string>, question: BundleQuestion): string {

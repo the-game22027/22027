@@ -85,6 +85,7 @@ describe('importing a question bundle', () => {
     expect(summary).toEqual({
       bundleVersion: version,
       alreadyImported: false,
+      catalogSize: null,
       counts: { inserted: 2, unchanged: 0, reviewsRecorded: 0, contentReplaced: 0, newVersions: 0 },
     });
     const [stored] = await versionsOf(reviewed);

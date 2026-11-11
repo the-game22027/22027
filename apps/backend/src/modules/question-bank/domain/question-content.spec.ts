@@ -1,6 +1,6 @@
-import { computeContentHash, type QuestionContent } from './question-content';
+import { computeContentHash, type SingleChoiceContent } from './question-content';
 
-const content = (): QuestionContent => ({
+const content = (): SingleChoiceContent => ({
   type: 'SINGLE_CHOICE',
   category: 'world-cup',
   difficulty: 2,
@@ -26,7 +26,7 @@ describe('computeContentHash', () => {
     expect(computeContentHash(a)).toBe(computeContentHash(b));
   });
 
-  it.each<[string, (value: QuestionContent) => void]>([
+  it.each<[string, (value: SingleChoiceContent) => void]>([
     ['the text', (value) => (value.locales.en = { text: 'Who won in 2010?', explanation: null })],
     ['the correct option', (value) => value.options.forEach((option) => (option.isCorrect = !option.isCorrect))],
     ['the difficulty', (value) => (value.difficulty = 3)],

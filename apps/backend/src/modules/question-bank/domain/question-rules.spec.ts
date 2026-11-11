@@ -1,9 +1,11 @@
-import type { BundleQuestion } from './question-content';
+import type { BundleQuestion, SingleChoiceContent } from './question-content';
+
+type SingleChoiceQuestion = BundleQuestion & { content: SingleChoiceContent };
 import { findQuestionProblems, findRepeatedValues } from './question-rules';
 
 const CATEGORIES = new Set(['world-cup']);
 
-const validQuestion = (): BundleQuestion => ({
+const validQuestion = (): SingleChoiceQuestion => ({
   externalKey: 'wc_winner:2010',
   content: {
     type: 'SINGLE_CHOICE',
@@ -23,7 +25,7 @@ const validQuestion = (): BundleQuestion => ({
   reviewedLocales: ['en'],
 });
 
-const problemsAfter = (change: (question: BundleQuestion) => void): string[] => {
+const problemsAfter = (change: (question: SingleChoiceQuestion) => void): string[] => {
   const question = validQuestion();
   change(question);
   return findQuestionProblems(question, CATEGORIES);
@@ -34,7 +36,7 @@ describe('findQuestionProblems', () => {
     expect(findQuestionProblems(validQuestion(), CATEGORIES)).toEqual([]);
   });
 
-  it.each<[string, (question: BundleQuestion) => void, string]>([
+  it.each<[string, (question: SingleChoiceQuestion) => void, string]>([
     ['an unknown category', (q) => (q.content.category = 'chess'), 'not in the manifest'],
     ['difficulty 6', (q) => (q.content.difficulty = 6), 'difficulty'],
     ['no locales', (q) => (q.content.locales = {}), 'no locales'],
