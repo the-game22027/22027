@@ -4,6 +4,7 @@ import argparse
 import sys
 from pathlib import Path
 
+from kb.bundle import build_bundle
 from kb.catalog import load_catalog_entries, write_catalog_file, write_entities_missing_a_name
 from kb.config import load_scope
 from kb.db import apply_pending_migrations, connect_to_knowledge_base
@@ -24,6 +25,19 @@ def main(argv: list[str] | None = None) -> int:
     missing.add_argument("--out", type=Path, default=Path(".out/names-missing-ar.csv"))
     catalog = commands.add_parser("catalog", help="write catalog.jsonl into a bundle folder")
     catalog.add_argument("--out", type=Path, required=True)
+    bundle = commands.add_parser(
+        "bundle", help="generate a bundle of game content with its catalog (07 §5.8)"
+    )
+    bundle.add_argument("--version", required=True, help="bundleVersion, never reused (e.g. dev-0002)")
+    bundle.add_argument("--out", type=Path, required=True)
+    bundle.add_argument("--careers", type=int, default=60)
+    bundle.add_argument("--buzzers", type=int, default=60)
+    bundle.add_argument(
+        "--catalog-min-player-sitelinks",
+        type=int,
+        default=None,
+        help="development only: a smaller catalog of popular players and what they point at",
+    )
     args = parser.parse_args(argv)
 
     with connect_to_knowledge_base() as connection:
@@ -45,6 +59,19 @@ def main(argv: list[str] | None = None) -> int:
             entries = load_catalog_entries(connection)
             checksum = write_catalog_file(entries, args.out)
             print(f"{len(entries)} entities → {args.out / 'catalog.jsonl'} ({checksum})")
+        elif args.command == "bundle":
+            summary = build_bundle(
+                connection,
+                args.version,
+                args.out,
+                args.careers,
+                args.buzzers,
+                args.catalog_min_player_sitelinks,
+            )
+            print(
+                f"{args.version}: {summary.question_count} rounds {summary.by_game_type}, "
+                f"catalog {summary.catalog_size} entities → {args.out}"
+            )
     return 0
 
 

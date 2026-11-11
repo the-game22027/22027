@@ -1,0 +1,31 @@
+{
+  "bundleVersion": "dev-0002",
+  "kbVersion": "wikidata-2026-11-11",
+  "generatorVersion": "kb-generate-1",
+  "questionCount": 120,
+  "checksum": "sha256:0f691bf633df384bf42d05f1fe509db16ddd1856331c838548ee53c619992e2b",
+  "catalogChecksum": "sha256:1302c008971ded7a73b270a39cb7fb1c737988db802016ad2828377050895515",
+  "categories": [
+    {
+      "slug": "careers",
+      "names": {
+        "en": "Careers",
+        "ar": "المسيرة"
+      }
+    },
+    {
+      "slug": "transfers",
+      "names": {
+        "en": "Transfers",
+        "ar": "الانتقالات"
+      }
+    },
+    {
+      "slug": "nationalities",
+      "names": {
+        "en": "Nationalities",
+        "ar": "الجنسيات"
+      }
+    }
+  ]
+}

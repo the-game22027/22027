@@ -116,11 +116,11 @@ describe('serving content to battles', () => {
     it('publishes the approved questions of a bundle once, and counts the drafts', async () => {
       const batch = await prisma.questionImportBatch.findUniqueOrThrow({ where: { bundleVersion } });
 
-      await expect(questionBank.publishApprovedQuestionsOfBundle(bundleVersion)).resolves.toEqual({
+      await expect(questionBank.publishQuestionsOfBundle(bundleVersion)).resolves.toEqual({
         publishedCount: 5,
         waitingForReviewCount: 1,
       });
-      await expect(questionBank.publishApprovedQuestionsOfBundle(bundleVersion)).resolves.toEqual({
+      await expect(questionBank.publishQuestionsOfBundle(bundleVersion)).resolves.toEqual({
         publishedCount: 0,
         waitingForReviewCount: 1,
       });
@@ -133,8 +133,25 @@ describe('serving content to battles', () => {
       ]);
     });
 
+    it('publishes drafts too when asked, for development bundles', async () => {
+      const version = `test-${randomUUID()}`;
+      const draftKey = newKey();
+      // No catalog: the bundle uses the one already imported, so the catalog version stays the same.
+      await moduleRef
+        .get(ImportQuestionBundle)
+        .importBundle(bundle(version, [buzzerLine(draftKey, e), careerLine(newKey(), e)]));
+
+      await expect(questionBank.publishQuestionsOfBundle(version, { includeDrafts: true })).resolves.toEqual({
+        publishedCount: 2,
+        waitingForReviewCount: 0,
+      });
+      await expect(prisma.question.findFirstOrThrow({ where: { externalKey: draftKey } })).resolves.toMatchObject({
+        status: 'PUBLISHED',
+      });
+    });
+
     it('refuses a bundle that was never imported', async () => {
-      await expect(questionBank.publishApprovedQuestionsOfBundle('never-imported')).rejects.toBeInstanceOf(
+      await expect(questionBank.publishQuestionsOfBundle('never-imported')).rejects.toBeInstanceOf(
         BundleNotImportedError,
       );
     });

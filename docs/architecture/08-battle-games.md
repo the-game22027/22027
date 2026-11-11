@@ -179,6 +179,7 @@ The interface is in `01-modules.md` §2.6. All of it is server side; the game ru
   - `DRAFT` questions are counted as "waiting for review" and stay as they are.
   - Writes one `QuestionsPublished { batchId, publishedCount }` event.
   - Running it again publishes nothing new and writes no event.
+  - `--include-drafts` also publishes `DRAFT` questions. It is for development bundles only, and is refused when `NODE_ENV=production` (`07` §5.8).
 - **`questions:disable <questionId> --reason <text>`:**
   - The question becomes `DISABLED` with that reason, and a `QuestionDisabled { questionId, reason }` event is written.
   - A question that is already disabled stays as it is, with no event.

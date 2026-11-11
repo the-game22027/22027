@@ -27,12 +27,17 @@ export class QuestionBankFacade {
     @Inject(CLOCK) private readonly clock: Clock,
   ) {}
 
+  /**
+   * Publishes a bundle's APPROVED questions. `includeDrafts` also publishes unreviewed ones: development
+   * bundles only, which the CLI enforces (07 §5.8).
+   */
   @Transactional()
-  async publishApprovedQuestionsOfBundle(bundleVersion: string): Promise<PublishSummary> {
+  async publishQuestionsOfBundle(bundleVersion: string, { includeDrafts = false } = {}): Promise<PublishSummary> {
     await this.questions.waitForOtherContentChanges();
     const batchId = await this.questions.findBatchIdByBundleVersion(bundleVersion);
     if (!batchId) throw new BundleNotImportedError(bundleVersion);
-    const publishedCount = await this.questions.publishApprovedQuestionsOfBatch(batchId, this.clock.now());
+    const statuses = includeDrafts ? (['APPROVED', 'DRAFT'] as const) : (['APPROVED'] as const);
+    const publishedCount = await this.questions.publishQuestionsOfBatch(batchId, statuses, this.clock.now());
     if (publishedCount > 0) {
       await this.outbox.write({
         type: 'QuestionsPublished',

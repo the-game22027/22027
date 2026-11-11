@@ -5,8 +5,8 @@ export interface QuestionStatusRepository {
   /** Takes the import lock: an import must never replace in place a question that is being published. */
   waitForOtherContentChanges(): Promise<void>;
   findBatchIdByBundleVersion(bundleVersion: string): Promise<string | null>;
-  /** Returns how many questions became PUBLISHED. */
-  publishApprovedQuestionsOfBatch(batchId: string, at: Date): Promise<number>;
+  /** Publishes the batch's questions that have one of these statuses; returns how many became PUBLISHED. */
+  publishQuestionsOfBatch(batchId: string, statuses: readonly ('DRAFT' | 'APPROVED')[], at: Date): Promise<number>;
   countDraftQuestionsOfBatch(batchId: string): Promise<number>;
   /** Returns false when the question was already disabled. */
   disableQuestionIfEnabled(questionId: string, reason: string, at: Date): Promise<boolean>;
