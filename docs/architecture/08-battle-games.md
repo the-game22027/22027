@@ -205,6 +205,7 @@ Stored in the battle config by game type, snapshotted on the battle row at creat
 | `showYears` | `CAREER` | DEC-54 |
 | `points.*` | all | DEC-33 |
 | `latencyGraceMs`, `readyTimeoutMs`, `reconnectGraceMs`, `betweenRoundsMs` (pause after `round:result`) | engine | DEC-32 |
+| `matchmaking.botFallbackAfterMs`, `tickMs`, `queueDisconnectGraceMs` | matchmaking | DEC-39 |
 | `bots.profiles.*` (`knowsAnswerByDifficulty`, `guessChance`, `buzzAtShareOfSteps`, `reactionDelayMs`, `typingDelayMs`) | bots | DEC-43 |
 | `selection.*` (`excludeLastBattles`, `difficulties`) | all | DEC-44 |
 

@@ -18,7 +18,7 @@ io("wss://<host>/battles", { auth: { token: "<accessToken>" }, transports: ["web
 - The token goes in the handshake `auth`, never in the query string. Outside production, namespace `/_dev/socket` (`whoami`) exercises this check until `/battles` exists.
 - Invalid/expired token → connection refused with `connect_error` `{ code: "UNAUTHENTICATED" }`.
 - On connect, the server reads the user's current activity (queue, room, battle) and joins the socket to the matching channels (`room:{roomId}`, `battle:{battleId}`). The client then sends `room:resync` / `battle:resync` to get a snapshot.
-- One user may have several sockets (devices). Events go to every socket of the user, but only one socket may send answers for a battle: the first that emitted `battle:ready` (the *active socket*).
+- One user may have several sockets (devices). Events go to every socket of the user, but only one socket may send answers for a battle: the *active socket*. It is the first that emitted `battle:ready`, and it moves to the socket that most recently sent `battle:resync` (a reconnecting device takes over).
 - Before the access token expires the server emits `auth:expiring`; the client sends `auth:refresh { token }` with a new access token. Revoked session → server emits `auth:revoked` and disconnects.
 
 ## 2. Envelopes
@@ -89,7 +89,7 @@ interface GridCriterion { kind: 'CLUB' | 'NATIONALITY' | 'COMPETITION_WON'; enti
 | `grid:claim` | `{ clientMsgId, battleId, roundNo, cell: { row, col }, answer: { entityId } }` | `GRID`. Sender's turn, received ≤ `turnDeadlineAt + latencyGrace`; cell free; player not already used on this board | `NOT_YOUR_TURN`, `CELL_TAKEN`, `PLAYER_ALREADY_USED`, `UNKNOWN_ENTITY`, `TURN_CLOSED`, `NOT_ACTIVE_SOCKET` |
 | `grid:skip` | `{ clientMsgId, battleId, roundNo }` | `GRID`. Sender's turn | `NOT_YOUR_TURN`, `TURN_CLOSED` |
 | `battle:resync` | `{ clientMsgId, battleId, lastSeq }` | Participant | `NOT_PARTICIPANT` (ack carries the snapshot) |
-| `battle:forfeit` | `{ clientMsgId, battleId }` | Participant; battle not finished | `INVALID_STATE` |
+| `battle:forfeit` | `{ clientMsgId, battleId }` | Participant; battle not finished. The participant leaves for good: last placement (DEC-33) | `NOT_PARTICIPANT`, `INVALID_STATE` |
 | `auth:refresh` | `{ token }` | — | `UNAUTHENTICATED` |
 
 Duplicate `clientMsgId` for the same user + battle → the stored ack is returned again; no state change. Unknown events are ignored and counted in metrics.
