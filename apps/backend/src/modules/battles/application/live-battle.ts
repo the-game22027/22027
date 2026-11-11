@@ -28,6 +28,8 @@ export interface Ack {
   clientMsgId: string;
   accepted: boolean;
   code?: string;
+  /** battle:resync only: what the player missed (WEBSOCKET.md §6). */
+  snapshot?: Record<string, unknown>;
 }
 
 export interface LiveParticipant {
@@ -40,9 +42,14 @@ export interface LiveParticipant {
   user: { id: string; displayName: string; username: string | null; avatarUrl: string | null } | null;
   bot: { profileKey: string; profile: BotProfile } | null;
   ready: boolean;
-  /** The socket that sent battle:ready; only it may buzz and answer (WEBSOCKET.md §1). */
+  /** The socket that sent battle:ready or, later, battle:resync; only it may buzz and answer (WEBSOCKET.md §1). */
   activeSocketId: string | null;
+  connected: boolean;
+  /** Left for good: forfeit, grace expired, or not ready in time. */
+  forfeited: boolean;
 }
+
+type ForfeitReason = 'FORFEIT' | 'GRACE_EXPIRED' | 'NOT_READY';
 
 export interface LiveBattleDependencies {
   repository: BattleRepository;
@@ -88,6 +95,8 @@ export class LiveBattle {
   private round: CurrentRound | null = null;
   /** clientMsgId of the command being handled, so its recorded action keeps it (duplicate detection). */
   private handlingClientMsgId: string | null = null;
+  /** Results of finished rounds, for snapshots. */
+  private readonly roundResults: { roundNo: number; winnerParticipantIds: string[] }[] = [];
 
   constructor(
     readonly id: string,
@@ -104,6 +113,10 @@ export class LiveBattle {
 
   get humanUserIds(): string[] {
     return this.participants.flatMap((participant) => (participant.userId ? [participant.userId] : []));
+  }
+
+  private get activeParticipants(): LiveParticipant[] {
+    return this.participants.filter((participant) => !participant.forfeited);
   }
 
   /** Announces the battle and starts the ready countdown. */
@@ -127,7 +140,7 @@ export class LiveBattle {
       participant.ready = true;
       participant.activeSocketId = socketId;
       await this.deps.repository.markParticipantReady(participant.id, this.deps.clock.now());
-      if (this.participants.every((other) => other.ready)) await this.startBattle();
+      if (this.activeParticipants.every((other) => other.ready)) await this.startBattle();
       return null;
     });
   }
@@ -145,6 +158,56 @@ export class LiveBattle {
       const problem = this.findRoundCommandProblem(participant, socketId, roundNo);
       if (problem) return problem;
       return this.judgeAndApplyAnswer(participant.id, answer);
+    });
+  }
+
+  /** Leaving for good (WEBSOCKET.md §3 `battle:forfeit`): last placement, and the others play on or win. */
+  forfeit(userId: string, clientMsgId: string): Promise<Ack> {
+    return this.handleCommand(userId, clientMsgId, async (participant) => {
+      if (this.status === 'FINISHED' || participant.forfeited) return 'INVALID_STATE';
+      await this.forfeitParticipant(participant, 'FORFEIT');
+      return null;
+    });
+  }
+
+  /**
+   * The full state a returning player needs (WEBSOCKET.md §6), with only what was already revealed. The
+   * resyncing socket becomes the active one, so a reconnecting device takes over.
+   */
+  resync(userId: string, socketId: string, clientMsgId: string): Promise<Ack> {
+    return this.runInQueue(async () => {
+      const viewer = this.participants.find((candidate) => candidate.userId === userId);
+      if (!viewer) return { clientMsgId, accepted: false, code: 'NOT_PARTICIPANT' };
+      if (viewer.ready && !viewer.forfeited) viewer.activeSocketId = socketId;
+      return Promise.resolve({ clientMsgId, accepted: true, snapshot: this.snapshotFor(viewer) });
+    });
+  }
+
+  /** The user's last socket dropped: the battle goes on, and they have `reconnectGraceMs` to come back. */
+  disconnect(userId: string): Promise<void> {
+    return this.runInQueue(async () => {
+      const participant = this.participants.find((candidate) => candidate.userId === userId);
+      if (!participant || !participant.connected || participant.forfeited || this.status === 'FINISHED') return;
+      participant.connected = false;
+      const now = this.deps.clock.now();
+      const graceUntil = new Date(now.getTime() + this.config.engine.reconnectGraceMs);
+      await this.deps.repository.markParticipantDisconnected(participant.id, now);
+      this.schedule(`grace:${participant.id}`, graceUntil, () => this.forfeitParticipant(participant, 'GRACE_EXPIRED'));
+      await this.emit('player:disconnected', () => ({
+        participantId: participant.id,
+        graceUntil: graceUntil.toISOString(),
+      }));
+    });
+  }
+
+  reconnect(userId: string): Promise<void> {
+    return this.runInQueue(async () => {
+      const participant = this.participants.find((candidate) => candidate.userId === userId);
+      if (!participant || participant.connected || participant.forfeited || this.status === 'FINISHED') return;
+      participant.connected = true;
+      this.cancel(`grace:${participant.id}`);
+      await this.deps.repository.markParticipantDisconnected(participant.id, null);
+      await this.emit('player:reconnected', () => ({ participantId: participant.id }));
     });
   }
 
@@ -217,11 +280,56 @@ export class LiveBattle {
 
   // ---- battle lifecycle ----
 
+  /** 03 §4.2: start with whoever is ready if that is at least two, otherwise cancel. A bot alone does not count. */
   private async onReadyDeadline(): Promise<void> {
     if (this.status !== 'WAITING_READY') return;
-    // A 1v1 needs both players (03 §4.2): anyone missing cancels it.
+    const ready = this.activeParticipants.filter((participant) => participant.ready);
+    if (ready.length < 2 || !ready.some((participant) => participant.kind === 'HUMAN')) {
+      await this.cancelBattle('READY_TIMEOUT');
+      return;
+    }
+    for (const participant of this.activeParticipants.filter((candidate) => !candidate.ready)) {
+      await this.forfeitParticipant(participant, 'NOT_READY');
+    }
+    if (this.status === 'WAITING_READY') await this.startBattle();
+  }
+
+  private async cancelBattle(reason: 'READY_TIMEOUT' | 'PLAYER_LEFT'): Promise<void> {
     await this.deps.repository.cancelBattle(this.id, this.deps.clock.now(), 'CANCELLED');
-    await this.emit('battle:cancelled', () => ({ reason: 'READY_TIMEOUT' }));
+    await this.emit('battle:cancelled', () => ({ reason }));
+    await this.finish();
+  }
+
+  /**
+   * One participant is out for good. Mid-round, the rules release their buzz; then the battle ends when
+   * no human is left (ABANDONED) or only one participant is (FORFEIT), as in 03 §4.3 step 8.
+   */
+  private async forfeitParticipant(participant: LiveParticipant, reason: ForfeitReason): Promise<void> {
+    if (participant.forfeited || this.status === 'FINISHED') return;
+    participant.forfeited = true;
+    this.cancel(`grace:${participant.id}`);
+    await this.deps.repository.markParticipantForfeited(participant.id, this.deps.clock.now());
+    await this.emit('player:forfeited', () => ({ participantId: participant.id, reason }));
+
+    if (this.status === 'WAITING_READY') {
+      if (reason !== 'NOT_READY') await this.cancelBattle('PLAYER_LEFT');
+      return;
+    }
+    const round = this.round;
+    if (round && round.state.phase !== 'CLOSED') {
+      const step = this.rules.participantLeft(round.state, participant.id, this.deps.clock.now());
+      round.state = step.state;
+      await this.applyEffects(step.effects);
+    }
+    if (this.status !== 'IN_PROGRESS') return;
+    const active = this.activeParticipants;
+    if (!active.some((candidate) => candidate.kind === 'HUMAN')) await this.abandon();
+    else if (active.length < 2) await this.completeBattle('FORFEIT');
+  }
+
+  private async abandon(): Promise<void> {
+    await this.deps.repository.abandonBattle(this.id, this.deps.clock.now());
+    await this.emit('battle:completed', () => ({ endReason: 'ABANDONED', placements: [], pointsPending: false }));
     await this.finish();
   }
 
@@ -254,7 +362,7 @@ export class LiveBattle {
     const step = this.rules.startRound(
       roundNo,
       stepCount,
-      this.participants.map((participant) => participant.id),
+      this.activeParticipants.map((participant) => participant.id),
       now,
     );
     this.round = {
@@ -279,6 +387,10 @@ export class LiveBattle {
     for (const [participantId, points] of Object.entries(result.points)) {
       this.scores.set(participantId, (this.scores.get(participantId) ?? 0) + points);
     }
+    this.roundResults.push({
+      roundNo: round.roundNo,
+      winnerParticipantIds: result.winnerParticipantId ? [result.winnerParticipantId] : [],
+    });
     const answerId = round.content.acceptedAnswers[0]?.entityIds[0];
     const body = round.content.body;
     await this.emit('round:result', (viewer) => ({
@@ -305,6 +417,7 @@ export class LiveBattle {
         score: this.scores.get(participant.id) ?? 0,
       })),
     }));
+    if (this.status !== 'IN_PROGRESS') return;
     if (this.roundIndex + 1 < this.questionIds.length) {
       this.schedule('next-round', new Date(now.getTime() + this.config.engine.betweenRoundsMs), () =>
         this.startNextRound(),
@@ -314,18 +427,31 @@ export class LiveBattle {
     }
   }
 
-  private async completeBattle(): Promise<void> {
-    const placements = placeParticipantsByScore(this.scores);
+  /** Those still in the battle are placed by score; those who left come after them, all as losses (DEC-33). */
+  private async completeBattle(endReason: 'COMPLETED' | 'FORFEIT' = 'COMPLETED'): Promise<void> {
+    const active = this.activeParticipants;
+    const stillIn = placeParticipantsByScore(
+      new Map(active.map((participant) => [participant.id, this.scores.get(participant.id) ?? 0])),
+    );
+    const left = this.participants
+      .filter((participant) => participant.forfeited)
+      .map((participant) => ({
+        participantId: participant.id,
+        score: this.scores.get(participant.id) ?? 0,
+        placement: active.length + 1,
+        outcome: 'LOSS' as const,
+      }));
+    const placements = [...stillIn, ...left];
     await this.deps.repository.completeBattle({
       battleId: this.id,
       endedAt: this.deps.clock.now(),
-      endReason: 'COMPLETED',
+      endReason,
       placements,
     });
     await this.emit('battle:completed', (viewer) => {
       const mine = placements.find((placement) => placement.participantId === viewer.id);
       return {
-        endReason: 'COMPLETED',
+        endReason,
         you: { placement: mine?.placement, outcome: mine?.outcome, score: mine?.score },
         placements: placements.map(({ participantId, placement, score }) => ({ participantId, placement, score })),
         // Bot battles earn no ledger points (DEC-41).
@@ -538,11 +664,45 @@ export class LiveBattle {
     return Promise.resolve();
   }
 
+  private snapshotFor(viewer: LiveParticipant): Record<string, unknown> {
+    const round = this.round;
+    const state = round?.state;
+    return {
+      status: this.status === 'FINISHED' ? 'FINISHED' : this.status,
+      gameType: this.gameType,
+      mode: 'MATCHMAKING',
+      players: this.playersFor(viewer),
+      ...(round && state
+        ? {
+            currentRound: {
+              roundNo: round.roundNo,
+              phase: state.phase,
+              stepCount: state.stepCount,
+              revealedClues: (round.stepsByLocale[viewer.locale] ?? []).slice(0, state.stepsRevealed),
+              buzzHolder: state.buzzHolder,
+              lockedOut: state.participants.filter((id) => this.rules.isLockedOut(state, id)),
+              deadlines: {
+                answerDeadlineAt: state.answerDeadlineAt?.toISOString() ?? null,
+                nextClueAt: state.phase === 'REVEALING' ? (state.nextDeadlineAt?.toISOString() ?? null) : null,
+              },
+            },
+          }
+        : {}),
+      rounds: this.roundResults,
+      scores: this.participants.map((participant) => ({
+        participantId: participant.id,
+        score: this.scores.get(participant.id) ?? 0,
+      })),
+      seq: this.seq,
+    };
+  }
+
   private playersFor(viewer: LiveParticipant): Record<string, unknown>[] {
     return this.participants.map((participant) => ({
       participantId: participant.id,
       kind: participant.kind,
       seat: participant.seat,
+      ...(participant.forfeited ? { forfeited: true } : {}),
       ...(participant.user ? { user: participant.user } : {}),
       ...(participant.bot ? { bot: { displayName: participant.bot.profile.displayNames[viewer.locale] } } : {}),
     }));

@@ -131,7 +131,25 @@ export class RevealAndBuzzRules {
     return { state, effects: [] };
   }
 
-  private isLockedOut(state: RevealRoundState, participant: ParticipantId): boolean {
+  /**
+   * A participant left the battle (forfeit or grace expired) mid-round (08 §3.1 step 7). A held buzz is
+   * released like a timeout, with no penalty, and the reveal resumes for the others.
+   */
+  participantLeft(state: RevealRoundState, who: ParticipantId, now: Date): Step {
+    if (state.phase === 'CLOSED' || !state.participants.includes(who)) return { state, effects: [] };
+    const remaining: RevealRoundState = { ...state, participants: state.participants.filter((id) => id !== who) };
+    if (state.buzzHolder === who) {
+      const next = this.lockOutAndContinue(remaining, who, { answer: null, timedOut: true }, now);
+      return { state: next.state, effects: [{ type: 'CANCEL', timer: ANSWER_TIMER }, ...next.effects] };
+    }
+    if (remaining.participants.every((id) => this.isLockedOut(remaining, id))) {
+      return this.closeRound(remaining, null, 'ALL_LOCKED_OUT');
+    }
+    return { state: remaining, effects: [] };
+  }
+
+  /** Whether this participant may not buzz again this round. */
+  isLockedOut(state: RevealRoundState, participant: ParticipantId): boolean {
     return (state.attemptsUsed[participant] ?? 0) >= this.config.attemptsPerPlayer;
   }
 

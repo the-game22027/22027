@@ -1,6 +1,7 @@
 import {
   MessageBody,
   type OnGatewayConnection,
+  type OnGatewayDisconnect,
   type OnGatewayInit,
   SubscribeMessage,
   WebSocketGateway,
@@ -15,9 +16,11 @@ import { MatchmakingService } from '../application/matchmaking.service';
 import {
   answerCommand,
   buzzCommand,
+  forfeitCommand,
   joinMatchmakingCommand,
   leaveMatchmakingCommand,
   readyCommand,
+  resyncCommand,
   timeSyncCommand,
 } from './battle-commands';
 import { SocketBattleNotifier, userChannel } from './socket-battle-notifier';
@@ -33,7 +36,9 @@ const clientMsgIdOf = (body: unknown): string =>
 
 /** The `/battles` namespace (WEBSOCKET.md). Thin: checks payloads, then hands commands to the application. */
 @WebSocketGateway({ namespace: '/battles' })
-export class BattlesGateway implements OnGatewayInit<Namespace>, OnGatewayConnection<Socket> {
+export class BattlesGateway
+  implements OnGatewayInit<Namespace>, OnGatewayConnection<Socket>, OnGatewayDisconnect<Socket>
+{
   constructor(
     private readonly authenticator: SocketAuthenticator,
     private readonly notifier: SocketBattleNotifier,
@@ -48,7 +53,18 @@ export class BattlesGateway implements OnGatewayInit<Namespace>, OnGatewayConnec
   }
 
   async handleConnection(socket: Socket): Promise<void> {
-    await socket.join(userChannel(userIdOf(socket)));
+    const userId = userIdOf(socket);
+    await socket.join(userChannel(userId));
+    this.matchmaking.userCameBack(userId);
+    await this.engine.userConnected(userId);
+  }
+
+  /** Only the user's last socket counts as leaving: another device may still be playing. */
+  async handleDisconnect(socket: Socket): Promise<void> {
+    const userId = userIdOf(socket);
+    if (await this.notifier.isUserConnected(userId)) return;
+    this.matchmaking.userWentOffline(userId);
+    await this.engine.userDisconnected(userId);
   }
 
   @SubscribeMessage('time:sync')
@@ -100,6 +116,20 @@ export class BattlesGateway implements OnGatewayInit<Namespace>, OnGatewayConnec
         command.answer,
         command.clientMsgId,
       ),
+    );
+  }
+
+  @SubscribeMessage('battle:resync')
+  resync(socket: Socket, body: unknown): Promise<Ack> {
+    return this.withPayload(resyncCommand, body, (command) =>
+      this.engine.resync(command.battleId, userIdOf(socket), socket.id, command.clientMsgId),
+    );
+  }
+
+  @SubscribeMessage('battle:forfeit')
+  forfeit(socket: Socket, body: unknown): Promise<Ack> {
+    return this.withPayload(forfeitCommand, body, (command) =>
+      this.engine.forfeit(command.battleId, userIdOf(socket), command.clientMsgId),
     );
   }
 

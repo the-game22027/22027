@@ -221,4 +221,33 @@ describe('RevealAndBuzzRules', () => {
       code: 'PARTICIPANT_FORFEITED',
     });
   });
+
+  describe('a participant leaving mid-round', () => {
+    it('releases a held buzz without penalty and resumes the reveal for the others', () => {
+      const buzzed = expectStep(rules.handleCommand(start().state, 'p1', { type: 'BUZZ' }, at(500)));
+      const left = rules.participantLeft(buzzed.state, 'p1', at(1_000));
+
+      expect(left.effects).toContainEqual({ type: 'CANCEL', timer: ANSWER_TIMER });
+      expect(events(left).map((event) => event.type)).toEqual(['WRONG_ANSWER', 'RESUMED']);
+      expect(left.state).toMatchObject({ phase: 'REVEALING', participants: ['p2'], points: {} });
+      expect(rules.handleCommand(left.state, 'p1', { type: 'BUZZ' }, at(1_100))).toEqual({
+        rejected: true,
+        code: 'PARTICIPANT_FORFEITED',
+      });
+    });
+
+    it('closes the round when everyone still in it is locked out', () => {
+      const buzzed = expectStep(rules.handleCommand(start().state, 'p1', { type: 'BUZZ' }, at(0)));
+      const wrong = expectStep(
+        rules.handleCommand(buzzed.state, 'p1', { type: 'ANSWER', answer: NANI, verdict: 'WRONG' }, at(100)),
+      );
+      const left = rules.participantLeft(wrong.state, 'p2', at(200));
+      expect(endOf(left)).toMatchObject({ result: { endReason: 'ALL_LOCKED_OUT', winnerParticipantId: null } });
+    });
+
+    it('changes nothing for someone who is not in the round', () => {
+      const state = start().state;
+      expect(rules.participantLeft(state, 'stranger', at(10))).toEqual({ state, effects: [] });
+    });
+  });
 });

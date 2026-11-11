@@ -40,8 +40,13 @@ const settingsSchema = z.strictObject({
     readyTimeoutMs: positiveMs,
     latencyGraceMs: z.number().int().nonnegative(),
     betweenRoundsMs: z.number().int().nonnegative(),
+    reconnectGraceMs: positiveMs,
   }),
-  matchmaking: z.strictObject({ botFallbackAfterMs: z.number().int().nonnegative() }),
+  matchmaking: z.strictObject({
+    botFallbackAfterMs: z.number().int().nonnegative(),
+    tickMs: positiveMs,
+    queueDisconnectGraceMs: z.number().int().nonnegative(),
+  }),
   bots: z.strictObject({
     profiles: z.record(z.string(), botProfile).refine((p) => Object.keys(p).length > 0, 'at least one'),
   }),

@@ -19,4 +19,9 @@ export class SocketBattleNotifier implements BattleNotifier {
   sendToUser(userId: string, type: string, payload: Record<string, unknown>): void {
     this.namespace?.to(userChannel(userId)).emit(type, payload);
   }
+
+  async isUserConnected(userId: string): Promise<boolean> {
+    if (!this.namespace) return false;
+    return (await this.namespace.in(userChannel(userId)).fetchSockets()).length > 0;
+  }
 }

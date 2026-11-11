@@ -20,8 +20,9 @@ export interface RevealGameSettings extends Omit<RevealAndBuzzConfig, 'latencyGr
 export interface BattleSettings {
   /** True for placeholder values; production refuses to start with them. */
   devOnly: boolean;
-  engine: { readyTimeoutMs: number; latencyGraceMs: number; betweenRoundsMs: number };
-  matchmaking: { botFallbackAfterMs: number };
+  engine: { readyTimeoutMs: number; latencyGraceMs: number; betweenRoundsMs: number; reconnectGraceMs: number };
+  /** How often the matcher pairs tickets, and how long a disconnected player keeps their ticket (03 §3.3). */
+  matchmaking: { botFallbackAfterMs: number; tickMs: number; queueDisconnectGraceMs: number };
   bots: { profiles: Record<string, BotProfile> };
   gameTypes: Partial<Record<RevealGameType, RevealGameSettings>>;
 }

@@ -34,7 +34,7 @@ export interface NewBattle {
 export interface BattleCompletion {
   battleId: string;
   endedAt: Date;
-  endReason: 'COMPLETED';
+  endReason: 'COMPLETED' | 'FORFEIT';
   placements: Placement[];
 }
 
@@ -55,6 +55,11 @@ export interface BattleRepository {
   /** Writes scores, placements and the BattleCompleted outbox event in one transaction. */
   completeBattle(completion: BattleCompletion): Promise<void>;
   cancelBattle(battleId: string, at: Date, endReason: 'CANCELLED'): Promise<void>;
+  /** No human is left in a running battle (03 §4.3 step 8): no points for anyone (DEC-33). */
+  abandonBattle(battleId: string, at: Date): Promise<void>;
+  /** null clears it (the player is back). */
+  markParticipantDisconnected(participantId: string, at: Date | null): Promise<void>;
+  markParticipantForfeited(participantId: string, at: Date): Promise<void>;
   /** After a restart nothing runs the unfinished battles any more (WEBSOCKET.md §6.5). Returns their human players. */
   abandonUnfinishedBattles(at: Date): Promise<{ battleIds: string[]; userIds: string[] }>;
   /** Content of the user's last `battleCount` battles (DEC-44). */

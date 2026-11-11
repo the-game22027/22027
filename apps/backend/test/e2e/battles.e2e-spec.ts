@@ -3,6 +3,7 @@ import { Test } from '@nestjs/testing';
 import { randomUUID } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
 import { io, type Socket } from 'socket.io-client';
+import request from 'supertest';
 import { ImportQuestionBundle } from '../../src/modules/question-bank/application/import-question-bundle';
 import { QuestionBankFacade } from '../../src/modules/question-bank/application/question-bank.facade';
 import { QuestionBankCliModule } from '../../src/modules/question-bank/question-bank-cli.module';
@@ -21,7 +22,7 @@ interface ServerEvent {
 }
 
 /** The dev config with fast timers and one bot profile, so a whole battle takes about a second. */
-function writeBattleConfig(bot: { knows: number; guess: number }): string {
+function writeBattleConfig(bot: { knows: number; guess: number }, botFallbackAfterMs = 50): string {
   return writeBattleConfigFile((json) => {
     const config = json as {
       engine: Record<string, number>;
@@ -29,8 +30,8 @@ function writeBattleConfig(bot: { knows: number; guess: number }): string {
       bots: { profiles: Record<string, Record<string, unknown>> };
       gameTypes: Record<string, Record<string, unknown>>;
     };
-    config.engine = { readyTimeoutMs: 1_500, latencyGraceMs: 50, betweenRoundsMs: 50 };
-    config.matchmaking = { botFallbackAfterMs: 50 };
+    config.engine = { readyTimeoutMs: 1_500, latencyGraceMs: 50, betweenRoundsMs: 50, reconnectGraceMs: 500 };
+    config.matchmaking = { botFallbackAfterMs, tickMs: 20, queueDisconnectGraceMs: 100 };
     config.bots.profiles = {
       only: {
         ...config.bots.profiles['rookie'],
@@ -92,13 +93,13 @@ describe('battles over WebSocket (e2e)', () => {
     await moduleRef.close();
   });
 
-  function startApp(bot: { knows: number; guess: number }) {
+  function startApp(bot: { knows: number; guess: number }, botFallbackAfterMs = 50) {
     let app: NestExpressApplication;
     let url = '';
     const sockets: Socket[] = [];
 
     beforeAll(async () => {
-      app = await createApiTestApp(testConfig({ BATTLE_CONFIG_PATH: writeBattleConfig(bot) }));
+      app = await createApiTestApp(testConfig({ BATTLE_CONFIG_PATH: writeBattleConfig(bot, botFallbackAfterMs) }));
       await app.listen(0);
       url = `http://127.0.0.1:${String((app.getHttpServer().address() as AddressInfo).port)}`;
     });
@@ -131,7 +132,26 @@ describe('battles over WebSocket (e2e)', () => {
           await new Promise((resolve) => setTimeout(resolve, 10));
         }
       };
-      return { session, socket, events, send, waitFor, prisma: () => app.get(PrismaService) };
+      const playState = async () =>
+        (
+          await request(app.getHttpServer())
+            .get('/v1/me/play-state')
+            .set('Authorization', `Bearer ${session.accessToken}`)
+            .expect(200)
+        ).body as { queue: { ticketId: string } | null; battle: { battleId: string } | null };
+      /** A second socket for the same user, as after a reconnect. */
+      const reconnect = async () => {
+        const again = io(`${url}/battles`, {
+          auth: { token: session.accessToken },
+          transports: ['websocket'],
+          reconnection: false,
+        });
+        sockets.push(again);
+        again.onAny((_name: string, payload: ServerEvent) => events.push(payload));
+        await new Promise<void>((resolve) => again.once('connect', resolve));
+        return again;
+      };
+      return { session, socket, events, send, waitFor, playState, reconnect, prisma: () => app.get(PrismaService) };
     };
     return { connectPlayer };
   }
@@ -231,11 +251,12 @@ describe('battles over WebSocket (e2e)', () => {
         accepted: false,
         code: 'PLAYER_BUSY',
       });
-      // Leaving right away beats the fallback in most runs; either way the player must be free afterwards.
+      // Leaving right away beats the bot fallback in most runs; either way the player must be free afterwards.
       await player.send('matchmaking:leave', {});
-      const found = player.events.find((ev) => ev.type === 'battle:found');
-      if (!found)
+      if (!player.events.some((ev) => ev.type === 'battle:found')) {
         expect(await player.send('matchmaking:join', { gameType: 'BUZZER' })).toMatchObject({ accepted: true });
+        await player.send('matchmaking:leave', {});
+      }
     });
 
     it('rejects a wrong-kind answer, a non-holder, and replays the ack of a duplicate message', async () => {
@@ -293,6 +314,99 @@ describe('battles over WebSocket (e2e)', () => {
       expect(buzzed.data['participantId']).not.toBe(found.data['youParticipantId']);
       const completed = await player.waitFor('battle:completed');
       expect(completed.data).toMatchObject({ you: { placement: 2, outcome: 'LOSS', score: 0 } });
+    });
+  });
+
+  describe('two humans', () => {
+    // The bot waits a minute here, so the matcher pairs the two players.
+    const { connectPlayer } = startApp({ knows: 0, guess: 0 }, 60_000);
+
+    const startHumanBattle = async () => {
+      const [first, second] = [await connectPlayer(), await connectPlayer()];
+      await first.send('matchmaking:join', { gameType: 'BUZZER' });
+      expect((await first.playState()).queue).not.toBeNull();
+      await second.send('matchmaking:join', { gameType: 'BUZZER' });
+      const found = await first.waitFor('battle:found');
+      const battleId = found.battleId as string;
+      expect((await second.waitFor('battle:found')).battleId).toBe(battleId);
+      expect((found.data['players'] as { kind: string }[]).map((p) => p.kind)).toEqual(['HUMAN', 'HUMAN']);
+      expect((await first.playState()).battle).toMatchObject({ battleId });
+      await first.send('battle:ready', { battleId });
+      await second.send('battle:ready', { battleId });
+      await first.waitFor('round:clue');
+      return { first, second, battleId, ids: { first: found.data['youParticipantId'] as string } };
+    };
+
+    it('pairs two queued players, and a forfeit gives the other one the win', async () => {
+      const { first, second, battleId, ids } = await startHumanBattle();
+
+      expect(await second.send('battle:forfeit', { battleId })).toMatchObject({ accepted: true });
+      expect((await first.waitFor('player:forfeited')).data).toMatchObject({ reason: 'FORFEIT' });
+      expect((await first.waitFor('battle:completed')).data).toMatchObject({
+        endReason: 'FORFEIT',
+        you: { placement: 1, outcome: 'WIN' },
+      });
+      expect((await second.waitFor('battle:completed')).data).toMatchObject({ you: { placement: 2, outcome: 'LOSS' } });
+      await expect(first.prisma().battle.findUniqueOrThrow({ where: { id: battleId } })).resolves.toMatchObject({
+        status: 'COMPLETED',
+        endReason: 'FORFEIT',
+        hasBot: false,
+      });
+      expect(ids.first).toBeTruthy();
+      expect(await first.send('matchmaking:join', { gameType: 'BUZZER' })).toMatchObject({ accepted: true });
+      await first.send('matchmaking:leave', {});
+    });
+
+    it('keeps the battle going through a disconnect, and the returning device takes over after resync', async () => {
+      const { first, second, battleId } = await startHumanBattle();
+
+      second.socket.disconnect();
+      const disconnected = await first.waitFor('player:disconnected');
+      expect(disconnected.data['graceUntil']).toBeTruthy();
+
+      const again = await second.reconnect();
+      await first.waitFor('player:reconnected');
+      const resync = (await again.emitWithAck('battle:resync', {
+        clientMsgId: randomUUID(),
+        battleId,
+        lastSeq: 0,
+      })) as {
+        accepted: boolean;
+        snapshot: { status: string; currentRound: { roundNo: number; revealedClues: string[] }; seq: number };
+      };
+      expect(resync.accepted).toBe(true);
+      expect(resync.snapshot).toMatchObject({ status: 'IN_PROGRESS', currentRound: { roundNo: 1 } });
+      expect(resync.snapshot.currentRound.revealedClues[0]).toBe('أي منتخب');
+
+      const buzz = (await again.emitWithAck('round:buzz', { clientMsgId: randomUUID(), battleId, roundNo: 1 })) as {
+        accepted: boolean;
+      };
+      expect(buzz.accepted).toBe(true);
+      await first.send('battle:forfeit', { battleId });
+      await second.waitFor('battle:completed');
+    });
+
+    it('forfeits a player who does not come back within the grace', async () => {
+      const { first, second } = await startHumanBattle();
+
+      second.socket.disconnect();
+      expect((await first.waitFor('player:forfeited')).data).toMatchObject({ reason: 'GRACE_EXPIRED' });
+      expect((await first.waitFor('battle:completed')).data).toMatchObject({
+        endReason: 'FORFEIT',
+        you: { outcome: 'WIN' },
+      });
+    });
+
+    it('drops the ticket of a queued player who disconnects (ghost ticket)', async () => {
+      const player = await connectPlayer();
+      await player.send('matchmaking:join', { gameType: 'BUZZER' });
+      player.socket.disconnect();
+
+      const deadline = Date.now() + 3_000;
+      while ((await player.playState()).queue && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+      expect((await player.playState()).queue).toBeNull();
     });
   });
 });
