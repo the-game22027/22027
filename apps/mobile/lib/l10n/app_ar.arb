@@ -1,0 +1,42 @@
+{
+  "@@locale": "ar",
+  "appTitle": "ذا جيم",
+
+  "signInTitle": "تسجيل الدخول",
+  "signInNotAvailableYet": "تسجيل الدخول عبر جوجل وفيسبوك وإكس قريبًا.",
+  "devSignInTitle": "دخول المطوّرين",
+  "devSignInExplanation": "للتطوير فقط: سجّل الدخول كلاعب وهمي. نفس المعرّف يدخل دائمًا بنفس اللاعب.",
+  "devSignInSubjectLabel": "المعرّف",
+  "devSignInSubjectHelper": "أي اسم، مثل alice",
+  "devSignInDisplayNameLabel": "الاسم الظاهر (اختياري)",
+  "signInButton": "تسجيل الدخول",
+  "fieldRequiredMessage": "هذا الحقل مطلوب",
+
+  "homeTitle": "الرئيسية",
+  "homeGreeting": "أهلًا، {displayName}",
+  "homeProfileLocale": "لغة الملف الشخصي: {locale}",
+  "signOutButton": "تسجيل الخروج",
+  "tryAgainButton": "حاول مرة أخرى",
+
+  "serverStatusTitle": "حالة الخادم",
+  "serverStatusUp": "الخادم يعمل",
+  "serverStatusDown": "الخادم متوقف",
+  "checkAgainButton": "تحقّق مرة أخرى",
+
+  "settingsTitle": "الإعدادات",
+  "languageSectionTitle": "اللغة",
+  "languageNameArabic": "العربية",
+  "languageNameEnglish": "English",
+
+  "errorValidationFailed": "بعض البيانات التي أدخلتها غير صحيحة.",
+  "errorSignInAgain": "انتهت جلستك. يرجى تسجيل الدخول مرة أخرى.",
+  "errorRateLimited": "محاولات كثيرة جدًا. انتظر قليلًا ثم حاول مرة أخرى.",
+  "errorNotFound": "لم نجد ما تبحث عنه.",
+  "errorAccountDisabled": "هذا الحساب معطّل.",
+  "errorNotAllowed": "غير مسموح لك بهذا الإجراء.",
+  "errorConflict": "هذا غير ممكن الآن.",
+  "errorServerProblem": "حدث خطأ من جهتنا. حاول مرة أخرى لاحقًا.",
+  "errorServerUnreachable": "تعذّر الوصول إلى الخادم. تحقّق من اتصالك بالإنترنت ثم حاول مرة أخرى.",
+  "errorRequestTimedOut": "تعذّر الوصول إلى الخادم الآن. حاول مرة أخرى.",
+  "errorUnexpected": "حدث خطأ غير متوقع. حاول مرة أخرى."
+}

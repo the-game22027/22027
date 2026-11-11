@@ -108,6 +108,7 @@ A battle now has a **game type**. Multiple choice is not a game: players type th
 | ID | Decision | Options | Recommended default | Lives in | Status |
 |---|---|---|---|---|---|
 | DEC-45 | Production football data provider (fixtures, live results) | A free tier of a football API (check commercial-use terms and delays) · paid API · semi-manual entry for a limited set of competitions | Shortlist free tiers in R1, verify licence and latency, keep the mock for dev; budget for paid data if no free licence allows commercial use | `FootballDataProvider` adapter | Pending |
+| DEC-52 | Mobile application id / bundle id (and the `--org` used by `flutter create`) | Decide now · decide with the final product name | Decide with the product name, before the first store upload. Until then the placeholder is `com.example.thegame` (`.dev` suffix for the dev flavor), which Google Play rejects, so it cannot ship by accident (ADR-0014) | Android `applicationId`, iOS bundle id, flavor config | Pending (decide before R2) |
 | DEC-46 | Release scope | Everything in one release · staged releases | **Chosen: everything in v1.0** (predictions, MOTM, battles with matchmaking/bots/rooms, friends, leagues, leaderboards, Google/Facebook/X sign-in; phone removed by ADR-0012) | Roadmap | Decided (2026-11-07) |
 
 ## Withdrawn

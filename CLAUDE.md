@@ -22,7 +22,7 @@ Current phase: **Phases 0-2 and P3.1 (prediction submit) implemented; P5.1 (ques
 
 ## 2. Hard constraints (do not violate)
 
-1. **Stack is fixed:** Node.js + TypeScript + NestJS, PostgreSQL + Prisma, Redis + BullMQ (only where justified), WebSockets (Socket.IO via `@nestjs/websockets`), Python for football data ingestion, Ollama for local AI, Docker Compose, OpenAPI/Swagger, Jest. Do **not** switch language, ORM, or framework. Mobile app: **Flutter** in `apps/mobile` (assumption A-09, confirm before scaffolding).
+1. **Stack is fixed:** Node.js + TypeScript + NestJS, PostgreSQL + Prisma, Redis + BullMQ (only where justified), WebSockets (Socket.IO via `@nestjs/websockets`), Python for football data ingestion, Ollama for local AI, Docker Compose, OpenAPI/Swagger, Jest. Do **not** switch language, ORM, or framework. Mobile app: **Flutter** in `apps/mobile` with **Riverpod** (state) and **go_router** (navigation), Flutter latest stable pinned with **fvm** (ADR-0014). Do not switch the mobile framework, state library or router.
 2. **Modular monolith.** No microservices, no Kafka, no event sourcing, no distributed real-time cluster until a measured bottleneck justifies it (`docs/adr/0001-modular-monolith.md`).
 3. **Zero budget.** No paid service may be *required* for development: no paid LLM APIs, paid football APIs, paid SMS, paid hosting, paid monitoring. Paid things are allowed only as optional production adapters behind a port, clearly labeled.
 4. **Mock football data first.** Real data replaces mocks later through the `FootballDataProvider` port.
@@ -47,7 +47,9 @@ Current phase: **Phases 0-2 and P3.1 (prediction submit) implemented; P5.1 (ques
 the-game/
 ├── CLAUDE.md                 # this file
 ├── docs/                     # architecture, API contract, decisions, ADRs, roadmap
-├── apps/mobile/              # Flutter app; REST client generated from the backend's openapi.json
+├── apps/mobile/              # Flutter app (ADR-0014); README.md explains how it talks to the backend
+│   ├── openapi/openapi.json  # snapshot of the backend contract; the REST client is generated from it
+│   └── lib/                  # app code, one folder per feature (structure set by M0)
 ├── apps/backend/             # NestJS modular monolith (api + worker entrypoints)
 │   ├── src/main.api.ts       # HTTP + WebSocket process
 │   ├── src/main.worker.ts    # BullMQ processors + schedulers
@@ -75,6 +77,7 @@ the-game/
 - Time-critical checks (kickoff lock, voting window) use the **database clock** (`now()`) inside the write statement, not `Date.now()` in Node.
 - Logging: `nestjs-pino`, structured JSON, `requestId` propagated, never log tokens, auth codes or personal data in full.
 - Tests: domain rules → unit tests (no Nest, no DB). Repositories/transactions/concurrency → integration tests against real Postgres/Redis via Testcontainers. Flows → e2e with Supertest and `socket.io-client`.
+- Mobile (Dart): file names `snake_case.dart`, `flutter analyze` clean with the committed lint rules, the same clear-function-name rule as above. Generated code (REST client, l10n) is never edited by hand. The app never decides lock state, correctness or timers itself; it shows what the server says (`serverTime`, problem+json `code`). User-facing text lives in Arabic + English ARB files, and layouts must work right-to-left.
 - Git: never commit to `main` directly. Branch `feat/<phase>-<topic>`, `fix/…`, `docs/…`, `chore/…`; Conventional Commits (`feat(predictions): …`); one PR per coherent change using `.github/pull_request_template.md`. **Merge with a merge commit, never squash or rebase** (`git merge --no-ff`, or `gh pr merge --merge`), so every individual commit stays visible in `main`'s history under its merge commit. Because each commit is kept, every commit must be meaningful: one logical step, a Conventional Commit message, building and passing tests on its own where practical; clean up WIP commits before opening the PR. Roadmap phases are GitHub milestones (`P0 …`), issues use `type:*` and `area:<module>` labels. Commit scopes name the area: `feat(backend/predictions): …`, `feat(mobile): …`, `docs(api): …`. Each app keeps its own toolchain (no root build orchestrator); CI jobs are path-filtered per app. A contract change updates `docs/api/`, the backend and the regenerated mobile client in the same PR when possible. Remote: `github.com/the-game22027/the-game`.
 
 ## 6. Commands
@@ -108,6 +111,27 @@ docker compose --profile observability up -d # Prometheus :9090, Grafana :3001
 docker compose --profile ai up -d ollama     # local LLM for the offline question pipeline
 ```
 
+Mobile (from `apps/mobile`; Flutter version pinned in `.fvmrc`, details in `apps/mobile/README.md`):
+
+```bash
+# one-time
+dart pub global activate fvm && fvm install  # installs the pinned Flutter
+fvm flutter pub get                          # also generates lib/l10n/generated
+
+# run (backend running on :3000; Android: forward the port first)
+adb reverse tcp:3000 tcp:3000
+fvm flutter run --flavor dev --dart-define-from-file=config/dev.json
+
+# quality
+dart format lib test                         # generated code excluded
+fvm flutter analyze
+fvm flutter test
+
+# REST contract
+tool/update_openapi.sh                       # backend running: snapshot /docs-json into openapi/openapi.json
+tool/generate_api_client.sh                  # Docker: regenerate packages/api_client from the snapshot
+```
+
 Football simulator, development only (from `apps/backend`; `npm run cli -- --help` lists every command):
 
 ```bash
@@ -134,6 +158,21 @@ Update this section when commands change. Do not document commands that do not e
 - Do not start implementation code for a phase before its design section exists in `docs/`.
 - When an open decision blocks work: list options + trade-offs + a recommended default, keep it **Pending** in `docs/DECISIONS.md`, and continue with the default behind configuration.
 
+### 7.1 Parallel sessions (backend + mobile at the same time)
+
+The user may run two Claude Code sessions at once, each in its own **git worktree** of this one repository (same history, same remote, different folder and branch):
+
+| Folder | Session | Owns |
+|---|---|---|
+| `the-game/` | backend | `apps/backend/`, `data/`, `docs/api/`, `docs/architecture/` |
+| `the-game-mobile/` | mobile | `apps/mobile/`, `learn/mobile/`, mobile ADRs, `.github/workflows/mobile-ci.yml` |
+
+- Stay inside the folders your session owns. If you need a backend or contract change, stop and write down what is needed (endpoint, field, error code) in your PR description for the user to take to the backend session. Never edit the other side's files.
+- Shared files (`CLAUDE.md`, `docs/ROADMAP.md`, `docs/DECISIONS.md`, `learn/README.md`): keep edits small and in your own lines or rows, so the two PRs merge without conflicts.
+- One backend process serves both: the API runs from the backend folder (`npm run start:api:dev`, port 3000). The mobile session reads the contract from `http://localhost:3000/docs-json` and does not start its own backend.
+- Docker services (Postgres, Redis) are shared. Never reset or drop the dev database from the mobile session.
+- Each session commits and pushes only its own branch, and merges only after the user says "merge".
+
 ## 8. Where things are documented
 
 | Topic | File |
@@ -151,6 +190,7 @@ Update this section when commands change. Do not document commands that do not e
 | Battle game types, shared engine, game rules, answer catalog | `docs/architecture/08-battle-games.md` |
 | REST contract | `docs/api/API.md` |
 | WebSocket (quiz battles + room lobby) contract | `docs/api/WEBSOCKET.md` |
+| Mobile app: stack decisions, how it talks to the backend | `docs/adr/0014-mobile-foundation.md`, `apps/mobile/README.md` |
 | Open decisions register | `docs/DECISIONS.md` |
 | Architecture Decision Records | `docs/adr/` |
 | Roadmap and phase exit criteria | `docs/ROADMAP.md` |
