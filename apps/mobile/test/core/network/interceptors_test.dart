@@ -6,7 +6,6 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:the_game/core/errors/app_error.dart';
 import 'package:the_game/core/l10n/app_language_controller.dart';
-import 'package:the_game/core/session/access_token_refresher.dart';
 import 'package:the_game/core/session/session_controller.dart';
 import 'package:the_game/core/storage/token_storage.dart';
 import 'package:the_game/features/auth/data/auth_repository.dart';
@@ -15,20 +14,6 @@ import 'package:the_game/features/home/data/home_repository.dart';
 import '../../helpers/fake_http_adapter.dart';
 import '../../helpers/in_memory_token_storage.dart';
 import '../../helpers/test_overrides.dart';
-
-class _RotatingRefresher implements AccessTokenRefresher {
-  int calls = 0;
-
-  @override
-  Future<StoredSession?> refreshAccessToken(StoredSession expired) async {
-    calls++;
-    return StoredSession(
-      accessToken: 'rotated-access-token',
-      accessTokenExpiresAt: DateTime.utc(2031),
-      refreshToken: 'rotated-refresh-token',
-    );
-  }
-}
 
 void main() {
   late List<String> logLines;
@@ -139,36 +124,6 @@ void main() {
     expect(container.read(sessionControllerProvider).value, isNull);
     expect(storage.session, isNull);
   });
-
-  test(
-    'a 401 retries once with refreshed tokens when a refresher is wired (M1 seam)',
-    () async {
-      final refresher = _RotatingRefresher();
-      final adapter = FakeHttpAdapter(
-        (request) =>
-            request.headers['Authorization'] == 'Bearer rotated-access-token'
-            ? jsonResponse(meJson)
-            : problemResponse(401, 'TOKEN_EXPIRED'),
-      );
-      final container = await createSignedInContainer(
-        adapter,
-        extraOverrides: [
-          accessTokenRefresherProvider.overrideWithValue(refresher),
-        ],
-      );
-
-      final profile = await container
-          .read(homeRepositoryProvider)
-          .fetchCurrentPlayerProfile();
-
-      expect(profile.displayName, 'Alice');
-      expect(refresher.calls, 1);
-      expect(
-        container.read(sessionControllerProvider).value?.accessToken,
-        'rotated-access-token',
-      );
-    },
-  );
 
   test('a 401 from a public route keeps the session', () async {
     final adapter = FakeHttpAdapter(

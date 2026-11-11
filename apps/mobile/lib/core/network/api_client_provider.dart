@@ -15,7 +15,33 @@ import 'package:uuid/uuid.dart';
 /// Tests override this with a fake adapter; production uses Dio's default one.
 final httpClientAdapterProvider = Provider<HttpClientAdapter?>((ref) => null);
 
-final dioProvider = Provider<Dio>((ref) {
+/// Dio for every request that does not need the session: the token refresh itself, and
+/// retries after a refresh (see [AuthInterceptor.retryDio]).
+final dioWithoutAuthProvider = Provider<Dio>(
+  (ref) => _createDioWithHeadersAndLogging(ref, addAuthInterceptor: null),
+);
+
+final dioProvider = Provider<Dio>(
+  (ref) => _createDioWithHeadersAndLogging(
+    ref,
+    addAuthInterceptor: (interceptors) => interceptors.add(
+      AuthInterceptor(
+        retryDio: ref.watch(dioWithoutAuthProvider),
+        readSession: () => ref.read(sessionControllerProvider).value,
+        startSession: (session) =>
+            ref.read(sessionControllerProvider.notifier).startSession(session),
+        endSession: () =>
+            ref.read(sessionControllerProvider.notifier).endSession(),
+        accessTokenRefresher: ref.watch(accessTokenRefresherProvider),
+      ),
+    ),
+  ),
+);
+
+Dio _createDioWithHeadersAndLogging(
+  Ref ref, {
+  required void Function(Interceptors interceptors)? addAuthInterceptor,
+}) {
   final config = ref.watch(appConfigProvider);
   final dio = Dio(
     BaseOptions(
@@ -29,28 +55,29 @@ final dioProvider = Provider<Dio>((ref) {
   if (adapter != null) dio.httpClientAdapter = adapter;
 
   const uuid = Uuid();
-  dio.interceptors.addAll([
+  dio.interceptors.add(
     RequestHeadersInterceptor(
       readLanguageCode: () => ref.read(appLanguageControllerProvider).code,
       createRequestId: uuid.v4,
     ),
-    AuthInterceptor(
-      dio: dio,
-      readSession: () => ref.read(sessionControllerProvider).value,
-      startSession: (session) =>
-          ref.read(sessionControllerProvider.notifier).startSession(session),
-      endSession: () =>
-          ref.read(sessionControllerProvider.notifier).endSession(),
-      accessTokenRefresher: ref.watch(accessTokenRefresherProvider),
-    ),
-    if (config.isDevFlavor)
+  );
+  addAuthInterceptor?.call(dio.interceptors);
+  if (config.isDevFlavor) {
+    dio.interceptors.add(
       SafeLoggingInterceptor(writeLogLine: (line) => debugPrint(line)),
-  ]);
+    );
+  }
   return dio;
-});
+}
 
 /// The generated REST client (`packages/api_client`). Only feature `data/` layers use it.
 final apiClientProvider = Provider<ApiClient>(
   // An empty interceptor list stops the generated client from adding its own auth interceptors.
   (ref) => ApiClient(dio: ref.watch(dioProvider), interceptors: const []),
+);
+
+/// The generated client without session handling, for the token refresh call.
+final apiClientWithoutAuthProvider = Provider<ApiClient>(
+  (ref) =>
+      ApiClient(dio: ref.watch(dioWithoutAuthProvider), interceptors: const []),
 );

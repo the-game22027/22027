@@ -5,7 +5,9 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:the_game/core/config/app_config.dart';
 import 'package:the_game/core/l10n/app_language_controller.dart';
 import 'package:the_game/core/network/api_client_provider.dart';
+import 'package:the_game/core/session/access_token_refresher.dart';
 import 'package:the_game/core/storage/token_storage.dart';
+import 'package:the_game/features/auth/data/api_access_token_refresher.dart';
 
 import 'in_memory_token_storage.dart';
 
@@ -30,6 +32,9 @@ Future<List<Override>> createTestOverrides({
   return [
     appConfigProvider.overrideWithValue(config),
     sharedPreferencesProvider.overrideWithValue(sharedPreferences),
+    accessTokenRefresherProvider.overrideWith(
+      (ref) => ref.watch(apiAccessTokenRefresherProvider),
+    ),
     tokenStorageProvider.overrideWithValue(
       tokenStorage ?? InMemoryTokenStorage(),
     ),

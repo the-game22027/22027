@@ -1,25 +1,42 @@
+import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:the_game/core/storage/token_storage.dart';
 
-/// Seam for refresh-token rotation (M1, `docs/architecture/04-auth.md` §5).
-///
-/// When an authenticated request gets a `401`, the auth interceptor asks this for new tokens
-/// before giving up. A non-null result means "retry the request with these tokens".
+/// What happened when the app tried to swap its refresh token for new tokens (ADR-0017).
+sealed class RefreshOutcome {
+  const RefreshOutcome();
+}
+
+class TokensRefreshed extends RefreshOutcome {
+  const TokensRefreshed(this.session);
+
+  final StoredSession session;
+}
+
+/// The server refused the refresh token (revoked, reused, expired, account disabled).
+/// Only this outcome signs the player out.
+class RefreshRejected extends RefreshOutcome {
+  const RefreshRejected();
+}
+
+/// The refresh could not be completed right now (no network, timeout, 429, 5xx).
+/// The session stays; the original request fails with this error instead.
+class RefreshNotCompleted extends RefreshOutcome {
+  const RefreshNotCompleted(this.cause);
+
+  final DioException cause;
+}
+
+/// Port between the auth interceptor (`core/`) and the refresh call (`features/auth/data`).
 abstract interface class AccessTokenRefresher {
-  Future<StoredSession?> refreshAccessToken(StoredSession expiredSession);
+  Future<RefreshOutcome> refreshAccessToken(StoredSession currentSession);
 }
 
-/// M0 behaviour: no refresh, so every `401` signs the player out.
-class NoAccessTokenRefresher implements AccessTokenRefresher {
-  const NoAccessTokenRefresher();
-
-  @override
-  Future<StoredSession?> refreshAccessToken(
-    StoredSession expiredSession,
-  ) async => null; // TODO(M1): call POST /v1/auth/refresh and rotate the stored tokens.
-}
-
+/// Overridden in `main.dart` with the auth feature's implementation, so `core/` does not
+/// import a feature.
 final accessTokenRefresherProvider = Provider<AccessTokenRefresher>(
-  (ref) => const NoAccessTokenRefresher(),
+  (ref) => throw UnimplementedError(
+    'accessTokenRefresherProvider must be overridden',
+  ),
 );
