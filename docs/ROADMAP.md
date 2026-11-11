@@ -152,6 +152,7 @@ Each mobile phase starts once the backend phase it consumes is merged. The API c
 ### M1 — Sign-in and profile (after P1)
 - Google sign-in, refresh rotation, sessions list, profile and privacy settings, account deletion.
 - **Exit:** sign in → kill the app → reopen still signed in; refresh reuse forces sign-out.
+- **Design:** ADR-0017 (refresh rotation on the client, Google sign-in, re-authentication), agent prompt `docs/prompts/mobile-m1-sign-in.md`.
 
 ### M2 — Matches, predictions, leaderboards (after P3 + P4)
 - Fixtures by date and competition, prediction editor locked by server `predictable` + `serverTime`, own history with scores, the four leaderboard periods, my rank.
