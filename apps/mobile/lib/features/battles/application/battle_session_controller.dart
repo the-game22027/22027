@@ -133,7 +133,10 @@ class BattleSessionController extends Notifier<BattleSessionState> {
   Future<BattleCommandResult> forfeitBattle() =>
       _sendBattleCommand('battle:forfeit');
 
-  /// Asks for a snapshot and applies it. Called on a `seq` gap and after a reconnect.
+  /// Asks for a snapshot and applies it. Called on a `seq` gap and after a reconnect. The
+  /// server refuses with `NOT_PARTICIPANT` once the battle is no longer live (finished or
+  /// abandoned while the player was away): the battle then ends here as
+  /// [BattlePhase.endedWhileAway] instead of waiting for events that will never come.
   Future<BattleCommandResult> resynchronizeBattle() async {
     final battle = state.battle;
     if (battle == null) {
@@ -143,17 +146,32 @@ class BattleSessionController extends Notifier<BattleSessionState> {
       'battleId': battle.battleId,
       'lastSeq': battle.lastSeq,
     });
-    if (result is BattleCommandAccepted && ref.mounted) {
-      final current = state.battle;
-      if (current != null && current.battleId == battle.battleId) {
+    final current = state.battle;
+    if (!ref.mounted ||
+        current == null ||
+        current.battleId != battle.battleId ||
+        current.isFinished) {
+      return result;
+    }
+    switch (result) {
+      case BattleCommandAccepted(:final ack):
         state = state.copyWith(
           battle: () => applyBattleSnapshot(
             current,
-            result.ack['snapshot'],
+            ack['snapshot'],
             viewerUserId: _viewerUserId,
           ),
         );
-      }
+      case BattleCommandRejected(code: 'NOT_PARTICIPANT'):
+        state = state.copyWith(
+          battle: () => current.copyWith(
+            phase: BattlePhase.endedWhileAway,
+            currentRound: () => null,
+            needsResync: false,
+          ),
+        );
+      case BattleCommandRejected():
+        break;
     }
     return result;
   }

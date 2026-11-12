@@ -230,6 +230,41 @@ void main() {
     expect(battle.scores['p-human'], 10);
   });
 
+  test('a resync refused with NOT_PARTICIPANT ends the battle', () async {
+    final container = await createContainer();
+    socket.answerCommand = (event, payload) => event == 'battle:resync'
+        ? const BattleCommandRejected('NOT_PARTICIPANT')
+        : BattleCommandAccepted({...payload, 'accepted': true});
+    await receiveBattleFound(container);
+
+    socket.receive(
+      'round:clue',
+      battleEnvelope('round:clue', 5, {'roundNo': 1, 'index': 2, 'clue': 'x'}),
+    );
+    await pumpEventQueue();
+
+    final battle = container.read(battleSessionProvider).battle!;
+    expect(battle.phase, BattlePhase.endedWhileAway);
+    expect(battle.isFinished, isTrue);
+    expect(battle.needsResync, isFalse);
+    expect(battle.currentRound, isNull);
+  });
+
+  test('a resync refused for another reason keeps the battle', () async {
+    final container = await createContainer();
+    socket.answerCommand = (event, payload) => event == 'battle:resync'
+        ? const BattleCommandRejected(BattleCommandRejected.noAck)
+        : BattleCommandAccepted({...payload, 'accepted': true});
+    await receiveBattleFound(container);
+
+    await controllerOf(container).resynchronizeBattle();
+
+    expect(
+      container.read(battleSessionProvider).battle?.phase,
+      BattlePhase.waitingReady,
+    );
+  });
+
   test(
     'connecting synchronizes the clock and resyncs a running battle',
     () async {
