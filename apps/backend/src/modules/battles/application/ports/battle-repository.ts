@@ -67,4 +67,6 @@ export interface BattleRepository {
   abandonUnfinishedBattles(at: Date): Promise<{ battleIds: string[]; userIds: string[] }>;
   /** Content of the user's last `battleCount` battles (DEC-44). */
   findRecentlyPlayedQuestionIds(userId: string, battleCount: number): Promise<string[]>;
+  /** A round with this question started in a battle the user took part in (08 §5.7). */
+  wasQuestionServedToUser(questionId: string, userId: string): Promise<boolean>;
 }

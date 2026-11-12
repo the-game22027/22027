@@ -56,3 +56,12 @@ export class InvalidDisableReasonError extends DomainError {
     super(`A disable reason is required, at most ${maxLength} characters.`);
   }
 }
+
+export class InvalidReportReasonError extends DomainError {
+  readonly code = 'INVALID_REPORT_REASON';
+  readonly kind = 'VALIDATION';
+
+  constructor(maxLength: number) {
+    super(`A report reason is 1 to ${String(maxLength)} characters of text.`);
+  }
+}

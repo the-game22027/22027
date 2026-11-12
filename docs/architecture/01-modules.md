@@ -88,7 +88,7 @@ Format per module: **Purpose · Responsibilities · Owned tables · Public inter
   - `RoundContentQuery.getContentForEngine(id, locales)`: full content for the server-side engine only, never sent to clients as is.
   - `AnswerChecker.judgeTypedText(contentId, slot, text, rules) → { verdict: CORRECT | WRONG, entityId, match }` (`08` §5.3). Bots skip it: the round runner checks their entity ids against the accepted answers it already holds.
   - `AnswerCatalogQuery.findEntitiesByIds(ids)` (names for events).
-  - `QuestionBankFacade.disableQuestion(id, reason)`.
+  - `QuestionBankFacade.disableQuestion(id, reason)`, `QuestionReports.reportQuestion(id, userId, reason)` (called by `battles`, which checks the question was served to the caller, 08 §5.7).
 - **Depends on:** nothing.
 - **Publishes:** `QuestionsPublished`, `QuestionDisabled`.
 - **Consumes:** `BattleCompleted` (its `questionResults` summary updates `question_stats`; deduplicated by battle id in `question_stats_applied`).
@@ -109,7 +109,7 @@ Removed with the Daily Quiz (ADR-0010, 2026-11-07). The section number is kept s
 - **Owned tables:** `battle_rooms`, `battle_room_members`, `battles`, `battle_participants`, `battle_rounds`, `battle_round_actions`. Redis keys: `mm:*` (queue, tickets) and `act:*` (current activity per user).
 - **Public interface:** WS namespace `/battles` (`api/WEBSOCKET.md`). REST through `MatchmakingFacade.join()/leave()`, `RoomsFacade.create()/join(code)/leave()/remove()/start()/close()`, `BattleQuery.get(id, viewer)`, `BattleQuery.listForUser(userId, cursor)`, `PlayStateQuery.get(userId)` (current queue, room or battle, used for app resume).
 - **Depends on:** `question-bank` (selector + answer key + playable payloads), `points` (active BATTLE rule set), `users` (public profiles), `social` (`isBlocked` checks when joining rooms).
-- **Publishes:** `BattleCompleted {battleId, gameType, mode, hasBot, roomId?, participants[{participantId, kind, userId?, score, placement, outcome, points}], questionResults[{questionId, endReason, stepsRevealed?, wrongAnswers, solved}], endedAt}` (`questionResults` has one item per round, so the payload stays small; it feeds difficulty calibration).
+- **Publishes:** `BattleCompleted {battleId, gameType, mode, hasBot, roomId?, endReason, ruleSetId, participants[{participantId, kind, userId?, score, placement, outcome, points}], questionResults[{questionId, roundNo, endReason, served, solved, wrongAnswers, stepsRevealed}], endedAt}` (stats count humans only, 08 §5.7) (`questionResults` has one item per round, so the payload stays small; it feeds difficulty calibration).
 - **Consumes:** `UserDeleted` (remove from queue and rooms, anonymize participants).
 - **Must not:** let the client advance rounds, decide correctness, or report scores; send a client any step or answer before it is revealed; compare answer text instead of entity ids; branch on `gameType` outside the game rules registry; create bots as `users` rows; give bots ledger points; hard-code round count, timers, room size, bot wait or per-mode points (DEC-31..33, 38..44).
 

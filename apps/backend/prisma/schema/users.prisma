@@ -24,6 +24,7 @@ model User {
   battleSeats     BattleParticipant[]
   pointEntries    PointEntry[]
   leaderboardRows LeaderboardEntry[]
+  questionReports QuestionReport[]
 
   @@map("users")
 }

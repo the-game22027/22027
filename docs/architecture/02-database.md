@@ -398,6 +398,12 @@ question_stats_applied (
   battle_id uuid PK,                    -- BattleCompleted already folded into question_stats (at-least-once dedup)
   applied_at timestamptz
 )
+question_reports (                      -- a player says a question they were served is wrong (08 §5.7)
+  id uuid PK, question_id uuid FK → questions, user_id uuid FK → users,
+  reason text,                          -- 1..500 characters
+  created_at timestamptz,
+  UNIQUE (question_id, user_id)         -- one report per player per question; a repeat changes nothing
+)
 ```
 
 ### 4.7 (removed) `quiz`

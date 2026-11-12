@@ -153,6 +153,11 @@ describe('battles over WebSocket (e2e)', () => {
             .set('Authorization', `Bearer ${session.accessToken}`)
             .expect(200)
         ).body as { queue: { ticketId: string } | null; battle: { battleId: string } | null };
+      const reportQuestion = (questionId: string, body: object) =>
+        request(app.getHttpServer())
+          .post(`/v1/questions/${questionId}/reports`)
+          .set('Authorization', `Bearer ${session.accessToken}`)
+          .send(body);
       /** A second socket for the same user, as after a reconnect. */
       const reconnect = async () => {
         const again = io(`${url}/battles`, {
@@ -165,7 +170,17 @@ describe('battles over WebSocket (e2e)', () => {
         await new Promise<void>((resolve) => again.once('connect', resolve));
         return again;
       };
-      return { session, socket, events, send, waitFor, playState, reconnect, prisma: () => app.get(PrismaService) };
+      return {
+        session,
+        socket,
+        events,
+        send,
+        waitFor,
+        playState,
+        reportQuestion,
+        reconnect,
+        prisma: () => app.get(PrismaService),
+      };
     };
     return { connectPlayer };
   }
@@ -246,6 +261,25 @@ describe('battles over WebSocket (e2e)', () => {
       expect((event.payload as { participants: { points: number }[] }).participants.map((p) => p.points)).toEqual([
         0, 0,
       ]);
+      // The player answered both rounds: each question was served and solved by a human (08 §5.7).
+      expect((event.payload as { questionResults: unknown[] }).questionResults).toEqual([
+        expect.objectContaining({ roundNo: 1, endReason: 'CORRECT', served: true, solved: true, wrongAnswers: 0 }),
+        expect.objectContaining({ roundNo: 2, endReason: 'CORRECT', served: true, solved: true, wrongAnswers: 0 }),
+      ]);
+
+      // A served question can be reported once; a repeat is a no-op, anything else is QUESTION_NOT_FOUND (08 §5.7).
+      const servedId = battle.rounds[0]?.questionId ?? '';
+      const firstResult = player.events.find((ev) => ev.type === 'round:result' && ev.battleId === battleId);
+      expect(firstResult?.data['questionId']).toBe(servedId);
+      await player.reportQuestion(servedId, { reason: '  the answer is wrong  ' }).expect(204);
+      await player.reportQuestion(servedId, { reason: 'second try' }).expect(204);
+      await expect(
+        prisma.questionReport.findMany({ where: { questionId: servedId, userId: player.session.userId } }),
+      ).resolves.toEqual([expect.objectContaining({ reason: 'the answer is wrong' })]);
+      const notServed = await player.reportQuestion(randomUUID(), { reason: 'wrong' }).expect(404);
+      expect((notServed.body as { code: string }).code).toBe('QUESTION_NOT_FOUND');
+      const blank = await player.reportQuestion(servedId, { reason: '   ' }).expect(400);
+      expect((blank.body as { code: string }).code).toBe('VALIDATION_FAILED');
     });
 
     it.each([

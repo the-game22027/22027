@@ -12,3 +12,13 @@ export class MatchmakingJoinRefusedError extends DomainError {
     );
   }
 }
+
+/** Unknown, or never served to this player: the same answer for both, so ids cannot be probed (08 §5.7). */
+export class ServedQuestionNotFoundError extends DomainError {
+  readonly code = 'QUESTION_NOT_FOUND';
+  readonly kind = 'NOT_FOUND';
+
+  constructor() {
+    super('You were not served this question in a battle.');
+  }
+}
