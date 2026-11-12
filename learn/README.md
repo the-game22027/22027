@@ -30,8 +30,32 @@ Rules: no history lessons, no filler, max ~30 lines. If it needs more, it is two
 | [security/](security/) | Auth, tokens, keys, secrets, common attacks |
 | [devops/](devops/) | CI/CD, Docker, health checks, monitoring, deployment |
 | [mobile/](mobile/) | Flutter side: API client, state, real-time, store release |
+| [redis/](redis/) | Redis and in-memory tools: data types, atomicity, TTLs, queues, persistence, production |
 
 New tracks are added when the first card needs one.
+
+### Redis track: reading order
+
+About 35 minutes in total. Cards marked *later* explain tools we have not needed yet, and when we will.
+
+1. [what-redis-is](redis/what-redis-is.md): in memory, one command at a time, Postgres stays the truth
+2. [data-types](redis/data-types.md): strings, hashes, lists, sets, sorted sets, streams
+3. [keys-naming-and-scan](redis/keys-naming-and-scan.md): `area:kind:id`, and `SCAN` instead of `KEYS`
+4. [ttl-and-expiry](redis/ttl-and-expiry.md): keys that clean themselves up after a crash
+5. [set-nx-claims-and-locks](redis/set-nx-claims-and-locks.md): one winner, release only what you own
+6. [multi-exec-pipelines-and-scripts](redis/multi-exec-pipelines-and-scripts.md): batch, transaction or script
+7. [atomic-redis-scripts](database/atomic-redis-scripts.md): read, decide and change in one Lua script
+8. [sorted-sets-for-queues-and-rankings](redis/sorted-sets-for-queues-and-rankings.md): matchmaking queue; why boards stayed in Postgres
+9. [client-connections-and-outages](redis/client-connections-and-outages.md): fail fast, fail open or pause, per feature
+10. [bullmq-on-redis](redis/bullmq-on-redis.md): queues, jobs, workers, retries, schedulers
+11. [persistence-rdb-and-aof](redis/persistence-rdb-and-aof.md): surviving a restart; persistence is not a backup
+12. [memory-and-eviction](redis/memory-and-eviction.md): `noeviction` for queues, LRU for caches
+13. [rate-limit-algorithms](redis/rate-limit-algorithms.md): fixed window (ours) vs sliding vs token bucket
+14. [inspecting-redis](redis/inspecting-redis.md): `redis-cli` commands for our keys
+15. [caching-patterns](redis/caching-patterns.md) *later*: cache-aside, invalidation, stampedes
+16. [pub-sub-and-streams](redis/pub-sub-and-streams.md) *later*: several API instances, Socket.IO adapter
+17. [redis-in-production](redis/redis-in-production.md) *later*: replicas, Sentinel, Cluster, security, licence
+18. [alternatives-and-similar-tools](redis/alternatives-and-similar-tools.md): Valkey, Memcached, RabbitMQ, Kafka, Postgres queues
 
 ## Index
 
@@ -110,6 +134,23 @@ New tracks are added when the first card needs one.
 | [testing/seeded-randomness](testing/seeded-randomness.md) | P6.1 | A stored seed makes bot decisions replayable and testable |
 | [backend/localize-per-viewer](backend/localize-per-viewer.md) | P6.2 | Store facts; render each player's text in their language at send time |
 | [database/atomic-redis-scripts](database/atomic-redis-scripts.md) | P6.3 | Read, decide and change inside one Lua script: no race between matcher and leave |
+| [redis/what-redis-is](redis/what-redis-is.md) | Redis | In-memory key-value server; Postgres stays the source of truth |
+| [redis/data-types](redis/data-types.md) | Redis | Pick the type by the question you need answered in one command |
+| [redis/keys-naming-and-scan](redis/keys-naming-and-scan.md) | Redis | `area:kind:id` names; walk keys with `SCAN`, never `KEYS` |
+| [redis/ttl-and-expiry](redis/ttl-and-expiry.md) | Redis | Set value and expiry in one command; a TTL is a crash backstop |
+| [redis/set-nx-claims-and-locks](redis/set-nx-claims-and-locks.md) | Redis | `SET NX EX` picks one winner; compare before release |
+| [redis/multi-exec-pipelines-and-scripts](redis/multi-exec-pipelines-and-scripts.md) | Redis | Pipeline saves trips, `MULTI` groups writes, Lua can decide |
+| [redis/sorted-sets-for-queues-and-rankings](redis/sorted-sets-for-queues-and-rankings.md) | Redis | Score by time for queues, by points for rankings |
+| [redis/client-connections-and-outages](redis/client-connections-and-outages.md) | Redis | Fail fast in the client; choose fail open or closed per feature |
+| [redis/bullmq-on-redis](redis/bullmq-on-redis.md) | Redis | Jobs in Redis: queues, workers, retries, schedulers, Bull Board |
+| [redis/persistence-rdb-and-aof](redis/persistence-rdb-and-aof.md) | Redis | Snapshots or a write log to survive restarts; not a backup |
+| [redis/memory-and-eviction](redis/memory-and-eviction.md) | Redis | `noeviction` for queues and state, LRU only for caches |
+| [redis/rate-limit-algorithms](redis/rate-limit-algorithms.md) | Redis | Fixed window, sliding log/counter, token bucket |
+| [redis/inspecting-redis](redis/inspecting-redis.md) | Redis | `redis-cli` commands to see our real keys |
+| [redis/caching-patterns](redis/caching-patterns.md) | later | Cache-aside, invalidation, stampedes; display data only |
+| [redis/pub-sub-and-streams](redis/pub-sub-and-streams.md) | later | Fire-and-forget broadcast vs a stored, acknowledged log |
+| [redis/redis-in-production](redis/redis-in-production.md) | later | Replicas, Sentinel, Cluster hash slots, security, licence |
+| [redis/alternatives-and-similar-tools](redis/alternatives-and-similar-tools.md) | Redis | Valkey, Dragonfly, Memcached, RabbitMQ, Kafka, Postgres queues |
 | [architecture/one-runner-per-mechanic](architecture/one-runner-per-mechanic.md) | P6.4 | The engine keeps what games share; one runner per mechanic owns a round |
 | [testing/test-what-the-build-ships](testing/test-what-the-build-ships.md) | fix | Tests must compile like the build: Swagger plugin metadata in e2e |
 | [backend/edit-distance-typo-tolerance](backend/edit-distance-typo-tolerance.md) | P6.6 | Few enough one-letter edits for the name's length: a typo, not a wrong answer |
