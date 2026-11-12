@@ -18,39 +18,10 @@ import { QuestionBankCliModule } from '../../src/modules/question-bank/question-
 import { CoreModule } from '../../src/shared/infrastructure/core.module';
 import { PrismaService } from '../../src/shared/infrastructure/persistence';
 import { UuidV7Generator } from '../../src/shared/kernel';
-import { bundle, buzzerLine, careerLine, common, entitySet } from '../support/question-bundles';
+import { bundle, buzzerLine, careerLine, entitySet, gridFixture } from '../support/question-bundles';
 import { testConfig } from '../support/test-app';
 
 const newKey = () => `test:${randomUUID()}`;
-
-/** Three clubs × three countries; every cell has one player, the top-left cell two. */
-const gridSetup = () => {
-  const id = randomUUID().slice(0, 8);
-  const entity = (name: string, kind: string) => ({
-    externalRef: `test:grid-${name}-${id}`,
-    kind,
-    names: { en: `${name} ${id}`, ar: `${name} ${id}` },
-    aliases: { en: [], ar: [] },
-    popularity: 1,
-    search: [`${name} ${id}`],
-  });
-  const clubs = ['club-a', 'club-b', 'club-c'].map((name) => entity(name, 'CLUB'));
-  const countries = ['land-a', 'land-b', 'land-c'].map((name) => entity(name, 'COUNTRY'));
-  const players = Array.from({ length: 10 }, (_, index) => entity(`player-${String(index)}`, 'PLAYER'));
-  const line = (key: string) => ({
-    ...common(key),
-    gameType: 'GRID',
-    content: {
-      rows: clubs.map((club) => ({ kind: 'CLUB', entity: club.externalRef })),
-      cols: countries.map((country) => ({ kind: 'NATIONALITY', entity: country.externalRef })),
-    },
-    answers: Array.from({ length: 9 }, (_, slot) => ({
-      slot,
-      entities: slot === 0 ? [players[0], players[9]].map((p) => p?.externalRef) : [players[slot]?.externalRef],
-    })),
-  });
-  return { entities: [...clubs, ...countries, ...players], line };
-};
 
 describe('serving content to battles', () => {
   let moduleRef: TestingModule;
@@ -63,7 +34,7 @@ describe('serving content to battles', () => {
   const ids = new UuidV7Generator();
 
   const e = entitySet();
-  const grid = gridSetup();
+  const grid = gridFixture();
   const keys = {
     career: newKey(),
     hardCareer: newKey(),

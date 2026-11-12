@@ -113,6 +113,26 @@
         "difficulties": null,
         "excludeLastBattles": 20
       }
+    },
+    "GRID": {
+      "enabled": true,
+      "roundCount": 3,
+      "turnMs": 20000,
+      "attemptsPerTurn": 1,
+      "skipsPerRound": null,
+      "maxTurns": 20,
+      "minAnswersPerCell": 2,
+      "revealAnswersAtEnd": true,
+      "showWrongAnswers": true,
+      "points": {
+        "roundWin": 10,
+        "roundDraw": 3,
+        "perCell": 1
+      },
+      "selection": {
+        "difficulties": null,
+        "excludeLastBattles": 20
+      }
     }
   }
 }
