@@ -19,5 +19,7 @@ M1.5 (data layer):
 
 - [etag-conditional-download](etag-conditional-download.md): `If-None-Match` and `304` for the answer catalog
 - [riverpod-paused-providers](riverpod-paused-providers.md): no listener, no retry
+- [server-clock-offset](server-clock-offset.md): countdowns in server time from `time:sync`
+- [sequenced-events-and-resync](sequenced-events-and-resync.md): apply battle events by `seq`; a gap asks for a snapshot
 
 Coming later: Socket.IO client and reconnection (M3), state for live battles, store release.

@@ -101,6 +101,8 @@ New tracks are added when the first card needs one.
 | [mobile/dispose-controllers-with-their-widget](mobile/dispose-controllers-with-their-widget.md) | M1 | Controllers live and die with their widget's `State` |
 | [mobile/etag-conditional-download](mobile/etag-conditional-download.md) | M1.5 | Download the answer catalog only when its version changed |
 | [mobile/riverpod-paused-providers](mobile/riverpod-paused-providers.md) | M1.5 | A provider without a listener does not retry |
+| [mobile/server-clock-offset](mobile/server-clock-offset.md) | M1.5 | Countdowns use the server clock, estimated from the fastest `time:sync` |
+| [mobile/sequenced-events-and-resync](mobile/sequenced-events-and-resync.md) | M1.5 | Apply battle events strictly by `seq`; a gap means resync |
 | [testing/real-data-smoke-run](testing/real-data-smoke-run.md) | D.2 | Run the real pipeline once; the strict importer finds what fixtures miss |
 | [devops/deterministic-output](devops/deterministic-output.md) | D.2 | Same input, same bytes: sort everything, no randomness, no timestamps |
 | [backend/never-block-boot-on-a-dependency](backend/never-block-boot-on-a-dependency.md) | P6.1 | Start even when Redis or Postgres is down; clean up in the background |
