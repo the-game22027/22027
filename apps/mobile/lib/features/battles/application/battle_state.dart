@@ -4,7 +4,17 @@ import 'package:the_game/features/battles/data/battle_events.dart';
 /// CLAUDE.md §2.6). [applyBattleEvent] and [applyBattleSnapshot] are pure, so every rule
 /// about ordering is tested without a socket.
 
-enum BattlePhase { waitingReady, inProgress, cancelled, completed }
+enum BattlePhase {
+  waitingReady,
+  inProgress,
+  cancelled,
+  completed,
+
+  /// The server no longer runs this battle, and the app missed how it ended (for example
+  /// the socket was down when `battle:completed` was sent, or the server restarted and
+  /// abandoned it). The result is not known here.
+  endedWhileAway,
+}
 
 sealed class CurrentRound {
   const CurrentRound(this.roundNo);
@@ -157,7 +167,9 @@ class BattleState {
       .firstOrNull;
 
   bool get isFinished =>
-      phase == BattlePhase.completed || phase == BattlePhase.cancelled;
+      phase == BattlePhase.completed ||
+      phase == BattlePhase.cancelled ||
+      phase == BattlePhase.endedWhileAway;
 
   BattleState copyWith({
     List<BattlePlayer>? players,

@@ -15,6 +15,7 @@
 **Watch out:**
 - Commands are never queued while disconnected: a buzz delivered seconds late is worse than none.
 - Each command has a `clientMsgId`, so a repeated command gets the stored ack, not a second effect.
+- A refused resync is an answer too. `NOT_PARTICIPANT` means the battle is no longer live (finished while away, or abandoned by a server restart): end it on the device (`endedWhileAway`), or the app waits forever for events that will never come. Found by the live test.
 
 **Check yourself:** why ignore events after a gap instead of applying them and fixing things when the snapshot arrives?
 <details><summary>Answer</summary>A later event applied to a state that missed an earlier one can produce a state that never existed on the server (and the screen would show it). The snapshot is the truth; until it arrives, keeping the last correct state is safer.</details>
