@@ -1,4 +1,10 @@
-import { Inject, Injectable, Logger, type OnApplicationBootstrap, type OnApplicationShutdown } from '@nestjs/common';
+import {
+  type BeforeApplicationShutdown,
+  Inject,
+  Injectable,
+  Logger,
+  type OnApplicationBootstrap,
+} from '@nestjs/common';
 import { randomInt } from 'node:crypto';
 import {
   AnswerCatalogQuery,
@@ -34,11 +40,12 @@ const battleActivity = (battleId: string): Activity => `BATTLE:${battleId}`;
  * and frees players when they end. Single instance for now; several instances need battle ownership (P6.3+).
  */
 @Injectable()
-export class BattleEngine implements OnApplicationBootstrap, OnApplicationShutdown {
+export class BattleEngine implements OnApplicationBootstrap, BeforeApplicationShutdown {
   private readonly logger = new Logger(BattleEngine.name);
   private readonly live = new Map<string, LiveBattle>();
   /** Which live battle each human is in, for disconnects and reconnects. */
   private readonly battleOfUser = new Map<string, string>();
+  private shuttingDown = false;
   /** Parsed BATTLE rule sets by id: a rule set never changes once stored. */
   private readonly pointsRuleSets = new Map<string, BattlePointsRuleSet>();
 
@@ -83,8 +90,14 @@ export class BattleEngine implements OnApplicationBootstrap, OnApplicationShutdo
       this.logger.warn(`Abandoned ${String(battleIds.length)} battles left by a previous process`);
   }
 
-  onApplicationShutdown(): void {
-    for (const battle of this.live.values()) battle.stopTimers();
+  /** Before, not on, shutdown: the database connection closes in the later hook, after this work is done. */
+  async beforeApplicationShutdown(): Promise<void> {
+    // From here on, sockets dropping and late commands find no battle, so nothing new reaches the database.
+    this.shuttingDown = true;
+    const battles = [...this.live.values()];
+    this.live.clear();
+    this.battleOfUser.clear();
+    await Promise.all(battles.map((battle) => battle.stopAndFinishQueuedWork()));
   }
 
   /**
@@ -97,6 +110,7 @@ export class BattleEngine implements OnApplicationBootstrap, OnApplicationShutdo
     players: { userId: string; queueActivity: Activity }[],
     withBot: boolean,
   ): Promise<string> {
+    if (this.shuttingDown) throw new Error('The API is shutting down');
     const game = findGameSettings(this.settings, gameType);
     if (!game) throw new Error(`${gameType} has no battle config`);
     const accounts = await Promise.all(

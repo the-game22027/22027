@@ -168,3 +168,4 @@ About 35 minutes in total. Cards marked *later* explain tools we have not needed
 | [database/conflicts-inside-transactions](database/conflicts-inside-transactions.md) | P7 | An error aborts the transaction: use `ON CONFLICT DO NOTHING` and count rows |
 | [database/trigram-search](database/trigram-search.md) | P7 | `pg_trgm` makes `ILIKE '%text%'` indexable; escape `%` and `_` |
 | [redis/peek-then-take](redis/peek-then-take.md) | P7 | Read, decide with outside data, then take atomically only if unchanged |
+| [backend/graceful-shutdown](backend/graceful-shutdown.md) | P7 | Refuse new work, finish queued work, then close the database |
