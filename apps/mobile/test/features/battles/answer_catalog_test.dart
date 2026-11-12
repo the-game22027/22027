@@ -110,6 +110,10 @@ void main() {
 
       expect(adapter.sentRequests.single.headers['If-None-Match'], isNull);
       expect(
+        adapter.sentRequests.single.headers['Authorization'],
+        'Bearer test-access-token',
+      );
+      expect(
         File('${directory.path}/answer_catalog.etag').readAsStringSync(),
         '"v1"',
       );

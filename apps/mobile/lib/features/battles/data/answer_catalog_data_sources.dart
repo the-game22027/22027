@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 
 import 'package:the_game/core/errors/app_error.dart';
 import 'package:the_game/core/network/api_client_provider.dart';
+import 'package:the_game/core/network/auth_interceptor.dart';
 
 /// The catalog body as received, with the `ETag` that identifies its version.
 class StoredAnswerCatalog {
@@ -47,6 +48,7 @@ class AnswerCatalogRemoteDataSource {
         '/v1/answer-catalog',
         options: Options(
           responseType: ResponseType.plain,
+          extra: bearerTokenRequiredExtra,
           headers: {'If-None-Match': ?knownEntityTag},
           validateStatus: (status) => status == 200 || status == 304,
         ),

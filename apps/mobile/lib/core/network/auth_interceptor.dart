@@ -87,6 +87,14 @@ class AuthInterceptor extends QueuedInterceptor {
   }
 }
 
+/// `Options.extra` for a hand-written request to a secured route, so the auth interceptor adds
+/// the access token and refreshes it on a `401`, as for generated calls.
+const bearerTokenRequiredExtra = <String, Object?>{
+  'secure': [
+    {'type': 'http', 'scheme': 'bearer', 'name': 'bearer'},
+  ],
+};
+
 /// The generated client puts the operation's OpenAPI `security` entries into `extra['secure']`.
 bool isBearerTokenRequired(RequestOptions options) {
   final security = options.extra['secure'];

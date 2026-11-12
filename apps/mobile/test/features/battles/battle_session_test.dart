@@ -237,6 +237,10 @@ void main() {
 
     // One REST call lets the auth interceptor refresh; no second loop after another refusal.
     expect(adapter.sentRequests.map((request) => request.path), ['/v1/me']);
+    expect(
+      adapter.sentRequests.single.headers['Authorization'],
+      'Bearer test-access-token',
+    );
     expect(socket.connectCount, 2);
   });
 
