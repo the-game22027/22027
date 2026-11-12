@@ -117,11 +117,11 @@ Removed with the Daily Quiz (ADR-0010, 2026-11-07). The section number is kept s
 - **Purpose:** Append-only ledger of every point awarded, plus the versioned scoring rule sets.
 - **Responsibilities:** Store `scoring_rule_sets` (config JSON per game type, versioned, activation dates); record ledger entries idempotently from game events; supersede entries when scores are recalculated; expose sums by user/category/time window.
 - **Owned tables:** `scoring_rule_sets`, `point_entries`.
-- **Public interface:** `ScoringRuleSetQuery.getActive(gameType, at)`, `PointsQuery.sum(userIds, category, from, to)`, `PointsQuery.listEntries(userId, cursor)`.
+- **Public interface:** `ScoringRuleSets.findActiveRuleSet(gameType)` and `activateRuleSet(gameType, name, config, createdBy)` (the game module validates `config` first, 08 §6.1), `PointsQuery.sum(userIds, category, from, to)`, `PointsQuery.listEntries(userId, cursor)`.
 - **Depends on:** `predictions` (`PredictionScoreQuery`, pulled by handler), otherwise event payloads.
 - **Publishes:** `PointsRecorded {userIds, categories, occurredAtMin, occurredAtMax}`, `PointsSuperseded {...}`, `ScoringRuleSetActivated`.
 - **Consumes:** `PredictionsScored`, `PredictionsVoided`, `MotmResultFinalized` (if votes earn points), `BattleCompleted` (human participants only; points per mode from the rule set, DEC-41).
-- **Must not:** contain game rules (each game module calculates, including per-mode battle points; the ledger only records).
+- **Must not:** contain game rules (each game module calculates and validates its own rule set config, including per-mode battle points; the ledger only records).
 
 ### 2.10 `leaderboards`
 - **Purpose:** Fast, paginated rankings per period and category.

@@ -439,7 +439,7 @@ battles (
   room_id uuid NULL FK → battle_rooms,  -- set when mode = ROOM; the FK is added with rooms (P8)
   has_bot boolean DEFAULT false,
   config jsonb,                         -- snapshot of the game type's config (08 §6) + engine timers
-  rule_set_id uuid NULL FK → scoring_rule_sets,   -- NULL until the points module exists (P6.5)
+  rule_set_id uuid NULL FK → scoring_rule_sets,   -- BATTLE rule set active at creation; NULL when none was (08 §6.1)
   created_at timestamptz, ready_deadline_at timestamptz,
   started_at timestamptz NULL, ended_at timestamptz NULL,
   end_reason text NULL,                 -- COMPLETED | FORFEIT | ABANDONED | CANCELLED
@@ -523,7 +523,7 @@ scoring_rule_sets (
   config jsonb,                         -- ALL weights/points live here; values TBD (DEC-01..)
   status rule_set_status DEFAULT 'DRAFT',
   effective_from timestamptz NULL,
-  created_at timestamptz, created_by text
+  created_at timestamptz, created_by text  -- created_by: 'cli' for now
 )
   UQ (game_type, version)
   UQ (game_type) WHERE status = 'ACTIVE'
@@ -534,7 +534,7 @@ point_entries (
   source_type text,                     -- PREDICTION | MOTM_VOTE | BATTLE_PARTICIPANT
   source_id uuid,                       -- prediction id, battle participant id...
   source_revision int DEFAULT 0,        -- e.g. matches.result_version used for the score
-  rule_set_id uuid NULL FK → scoring_rule_sets,   -- NULL until the points module exists (P6.5)
+  rule_set_id uuid FK → scoring_rule_sets,        -- every entry was computed with a rule set
   points int,
   occurred_at timestamptz,              -- business time: match end, battle end
   recorded_at timestamptz DEFAULT now(),

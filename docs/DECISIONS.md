@@ -40,7 +40,7 @@ Confirmed on 2026-11-07 by the product owner: no Daily Quiz, no solo mode, no as
 |---|---|---|---|---|---|
 | DEC-31 | Questions (rounds) per battle | Any N; same or different for rooms | Config; dev seed uses a placeholder flagged `DEV_ONLY` | Battle config `roundCount` | Pending |
 | DEC-32 | Battle timers | Round duration; ready timeout; reconnect grace; latency grace | Config | Battle config | Pending |
-| DEC-33 | Battle scoring, ties, placements, forfeits, abandoned battles | Points per correct · speed bonus · difficulty weighting · streaks; tie-break (total answer time, shared placement); forfeit = win with or without points; N-player placement points | Config; ties share placement; abandoned = no points | Rule set (`BATTLE`) | Pending |
+| DEC-33 | Battle scoring, ties, placements, forfeits, abandoned battles | Points per correct · speed bonus · difficulty weighting · streaks; tie-break (total answer time, shared placement); forfeit = win with or without points; N-player placement points | Config; ties share placement; abandoned = no points. Leaderboard points per mode by outcome, with `forfeitWinEarnsPoints` (structure in `08` §6.1, P6.5; values `DEV_ONLY`) | Rule set (`BATTLE`) | Pending |
 | DEC-37 | Matchmaking strategy | FIFO random · rating bands · region · locale | FIFO random in MVP; rating later | Matchmaking config | Decided (2026-11-07): recommended default |
 | DEC-38 | Private room size and start rule | Max players: 2 (1v1 only) or up to N; start: host only · auto-start when full · both | **Rooms are multiplayer (decided 2026-11-10): more than 2 players can play in one room.** Still pending: the limit N (`room.maxPlayers` is config, picked at playtesting; the dev seed is `DEV_ONLY`) and the start rule (default: the host starts once at least 2 members are present) | Room config | Decided in part |
 | DEC-39 | Bot fallback | Bots on/off; wait before a bot joins; bots in rooms too | Bots on in matchmaking only; wait = `matchmaking.botFallbackAfterMs` (product picks the value; dev seed `DEV_ONLY`) | Matchmaking config | Pending |
@@ -76,8 +76,8 @@ A battle now has a **game type**. Multiple choice is not a game: players type th
 
 | ID | Decision | Options | Recommended default | Lives in | Status |
 |---|---|---|---|---|---|
-| DEC-15 | Weekly boundary and timezone | Week start day; IANA timezone | Monday 00:00 in one platform timezone (choose the launch market's, e.g. `Africa/Cairo` or `Asia/Riyadh`) | Leaderboard config | Pending |
-| DEC-16 | Monthly boundary and timezone | Calendar month in a timezone | Same timezone as DEC-15 | Leaderboard config | Pending |
+| DEC-15 | Weekly boundary and timezone | Week start day; IANA timezone | **Chosen: timezone `Africa/Cairo`** (owner, 2026-11-12). Week start: Monday 00:00 (recommended default, a config value) | Leaderboard config | Decided (2026-11-12): timezone; week start is the default |
+| DEC-16 | Monthly boundary and timezone | Calendar month in a timezone | **Chosen: calendar month in `Africa/Cairo`** (same as DEC-15) | Leaderboard config | Decided (2026-11-12) |
 | DEC-17 | Season definition | Football season (e.g., Aug–May) · calendar year · per competition | Football season, fixed dates in `season_calendar` | `season_calendar` | Pending |
 | DEC-18 | Leaderboard categories | One overall board · separate prediction/battle boards · both | **Chosen: two separate boards, PREDICTIONS and BATTLES; no OVERALL board.** How the monthly prize applies to two boards is DEC-47 | `leaderboard_category` config | Decided (2026-11-07) |
 | DEC-47 | Monthly prize with two leaderboards | One prize per board (two monthly winners) · prize only on one board · alternate | One prize per board (each board has its own monthly leader) | Leaderboard/prize config | Pending |

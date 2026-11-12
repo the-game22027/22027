@@ -134,7 +134,7 @@ When the host starts the room, members receive `battle:found` with `mode: "ROOM"
 | `player:disconnected` | `{ participantId, graceUntil }` | A human's last socket dropped |
 | `player:reconnected` | `{ participantId }` | |
 | `player:forfeited` | `{ participantId, reason: "GRACE_EXPIRED" \| "FORFEIT" \| "NOT_READY" }` | Participant out of the battle |
-| `battle:completed` | `{ endReason: "COMPLETED" \| "FORFEIT" \| "ABANDONED", you?: { placement, outcome: "WIN" \| "LOSS" \| "DRAW", score }, placements: [{ participantId, placement, score }], pointsPending: boolean }` | End. Those who left are placed after everyone still in, as losses. `ABANDONED` (no human left) has no placements. Ledger points arrive asynchronously; `pointsPending` is false when this mode earns none (DEC-41) |
+| `battle:completed` | `{ endReason: "COMPLETED" \| "FORFEIT" \| "ABANDONED", you?: { placement, outcome: "WIN" \| "LOSS" \| "DRAW", score, points }, placements: [{ participantId, placement, score }], pointsPending: boolean }` | End. Those who left are placed after everyone still in, as losses. `ABANDONED` (no human left) has no placements. `you.points` is what this battle adds to your `BATTLES` leaderboards (`08` §6.1); it reaches them asynchronously, so `pointsPending` is true when it is above 0 (always false vs a bot or in a room, DEC-41) |
 | `battle:snapshot` | `{ status, gameType, mode, players, currentRound?: { roundNo, phase, revealedClues \| board, buzzHolder?, lockedOut[], deadlines }, rounds: [...results so far], scores, seq }` | Reply to resync and on reconnect. Contains only what was already revealed |
 
 ### 4.4 Session
