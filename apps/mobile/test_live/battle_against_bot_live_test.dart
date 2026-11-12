@@ -124,7 +124,14 @@ void main() {
         log.add('ready: ${_describe(await controller.markReady())}');
       }
 
-      final result = await finished.future.timeout(const Duration(minutes: 4));
+      final result = await finished.future.timeout(
+        const Duration(minutes: 4),
+        onTimeout: () => fail(
+          'no end after 4 minutes; '
+          'phase ${container.read(battleSessionProvider).battle?.phase}\n'
+          '${log.join('\n')}',
+        ),
+      );
       // ignore: avoid_print
       print(log.join('\n'));
       final error = result.lastServerError;
