@@ -21,6 +21,15 @@ export interface PublicUser {
   readonly avatarUrl: string | null;
 }
 
+/** A page of user search (03 §7.1): the caller decides who must not be found (blocks, themselves). */
+export interface UserSearch {
+  readonly text: string;
+  readonly excludedUserIds: readonly string[];
+  /** Keyset position: the last row of the previous page. */
+  readonly after: { readonly displayName: string; readonly id: string } | null;
+  readonly limit: number;
+}
+
 export interface NewUser {
   readonly id: string;
   readonly displayName: string;
