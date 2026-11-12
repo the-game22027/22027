@@ -18,7 +18,7 @@ A football-focused **social gaming platform** (not a CRUD app, not a simple quiz
 - Friends (mutual), privacy-aware prediction visibility.
 - A fact-first football knowledge database that feeds an offline question generator.
 
-Current phase: **Phases 0-2, P3.1 (prediction submit), P5, D.1-D.2, P6.1-P6.4, P6.5 (battle points ledger, leaderboards, question stats and reports) and P6.6 (typed text answers) implemented; mobile M0-M1 done; next: mobile M3 battles, then P7 friends (prediction scoring P3.2+ postponed, see `docs/ROADMAP.md`)**. See `docs/ROADMAP.md`.
+Current phase: **Phases 0-2, P3.1 (prediction submit), P5, D.1-D.2, P6.1-P6.4, P6.5 (battle points ledger, leaderboards, question stats and reports), P6.6 (typed text answers) and P7 (friends, blocks, prediction visibility) implemented; mobile M0-M1 done; next: P8 private rooms (DEC-58 Imposter rules first) and mobile M3 battles (prediction scoring P3.2+ postponed, see `docs/ROADMAP.md`)**. See `docs/ROADMAP.md`.
 
 ## 2. Hard constraints (do not violate)
 

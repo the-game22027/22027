@@ -128,7 +128,7 @@ Changes vs the original proposed order, and why:
 | P6.6 Typed text answers | ADR-0021: `{ text }` answers, `AnswerChecker.judgeTypedText` (normalizer in TypeScript with the `07` §5.7 vectors, edit distance, distinctive words, exact-match guard), `answers.*` config, `name_words` + GIN index, `answer_text` / `answer_match` on actions, pipeline `nameWords`; remove `GET /v1/answer-catalog`. Before M3, so the app is built against text answers. **Done (2026-11-12)**, with the `dev-0005` bundle | Tuning the tolerance numbers from logged `answer_match` values (playtesting) |
 
 ### P7 — Friends + blocks + prediction visibility
-- Friend requests, friendships, blocks, user search; `PredictionVisibilityPolicy`; friends' predictions endpoints; blocked pairs skipped by the matchmaker. Two PRs: **P7a** friends, blocks, search and per-user rate limits; **P7b** prediction visibility and the matcher (03 §7.1).
+- Friend requests, friendships, blocks, user search; `PredictionVisibilityPolicy`; friends' predictions endpoints; blocked pairs skipped by the matchmaker. Two PRs: **P7a** friends, blocks, search and per-user rate limits (#52); **P7b** prediction visibility and the matcher (03 §7.1). **Done (2026-11-13).**
 - **Exit:** visibility matrix tests (owner, friend before/after kickoff, non-friend, blocked) for every read path.
 
 ### P8 — Private battle rooms
