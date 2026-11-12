@@ -8,11 +8,11 @@
 - In widgets, `ref.watch` is a listener, so screens are not affected.
 - The app's retry policy (`chooseRetryDelayForFailedProvider`) retries only transient failures, 3 times; test containers use the same policy (`createSignedInTestContainer`).
 
-**In our code:** [retry_policy.dart](../../apps/mobile/lib/core/errors/retry_policy.dart), [test_overrides.dart](../../apps/mobile/test/helpers/test_overrides.dart), the catalog tests in [answer_catalog_test.dart](../../apps/mobile/test/features/battles/answer_catalog_test.dart).
+**In our code:** [retry_policy.dart](../../apps/mobile/lib/core/errors/retry_policy.dart), [test_overrides.dart](../../apps/mobile/test/helpers/test_overrides.dart), the match list tests in [football_test.dart](../../apps/mobile/test/features/football/football_test.dart).
 
 **Watch out:**
 - The symptom is a test timeout after 30 s, then "disposed during loading state" — not the real error.
 - Application code that awaits a provider's future without a widget watching it needs a listener too (or calls the repository directly).
 
-**Check yourself:** the catalog provider is not `autoDispose`. Why did the test still report it "disposed during loading"?
+**Check yourself:** a provider that is not `autoDispose` still failed with "disposed during loading" (the answer catalog provider, before ADR-0021 removed it). Why?
 <details><summary>Answer</summary>The provider stayed paused (no listener) until the test timed out; the container was then disposed at teardown while the provider was still loading.</details>

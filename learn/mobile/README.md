@@ -17,7 +17,7 @@ M1:
 
 M1.5 (data layer):
 
-- [etag-conditional-download](etag-conditional-download.md): `If-None-Match` and `304` for the answer catalog
+- [etag-conditional-download](etag-conditional-download.md): `If-None-Match` and `304` (the answer catalog, removed by ADR-0021)
 - [riverpod-paused-providers](riverpod-paused-providers.md): no listener, no retry
 - [server-clock-offset](server-clock-offset.md): countdowns in server time from `time:sync`
 - [sequenced-events-and-resync](sequenced-events-and-resync.md): apply battle events by `seq`; a gap asks for a snapshot

@@ -99,7 +99,7 @@ New tracks are added when the first card needs one.
 | [mobile/google-id-token-sign-in](mobile/google-id-token-sign-in.md) | M1 | Google signs a token for our client id; the backend checks it |
 | [mobile/reauthentication-before-sensitive-actions](mobile/reauthentication-before-sensitive-actions.md) | M1 | Sign in again, check it is the same player, then delete |
 | [mobile/dispose-controllers-with-their-widget](mobile/dispose-controllers-with-their-widget.md) | M1 | Controllers live and die with their widget's `State` |
-| [mobile/etag-conditional-download](mobile/etag-conditional-download.md) | M1.5 | Download the answer catalog only when its version changed |
+| [mobile/etag-conditional-download](mobile/etag-conditional-download.md) | M1.5 | Download a big file only when its version changed (used for the answer catalog until ADR-0021) |
 | [mobile/riverpod-paused-providers](mobile/riverpod-paused-providers.md) | M1.5 | A provider without a listener does not retry |
 | [mobile/server-clock-offset](mobile/server-clock-offset.md) | M1.5 | Countdowns use the server clock, estimated from the fastest `time:sync` |
 | [mobile/sequenced-events-and-resync](mobile/sequenced-events-and-resync.md) | M1.5 | Apply battle events strictly by `seq`; a gap means resync |
