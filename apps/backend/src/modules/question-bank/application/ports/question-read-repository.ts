@@ -1,5 +1,6 @@
 import type { Locale } from '@shared/kernel';
 import type { AnswerKind, EntityKind, GameBody, GameType } from '../../domain/question-content';
+import type { AnswerCandidate } from '../../domain/typed-text-judgement';
 
 export const QUESTION_READ_REPOSITORY = Symbol('QUESTION_READ_REPOSITORY');
 
@@ -30,6 +31,11 @@ export interface TypedAnswerLookup {
   isAcceptedForSlot: boolean;
 }
 
+export interface SlotAnswers {
+  roundAnswerKind: AnswerKind;
+  candidates: AnswerCandidate[];
+}
+
 export interface CatalogEntityView {
   id: string;
   kind: EntityKind;
@@ -51,6 +57,10 @@ export interface QuestionReadRepository {
   findEntityIdsByExternalRefs(externalRefs: readonly string[]): Promise<Map<string, string>>;
   /** Null when the content does not exist. */
   lookUpTypedAnswer(contentId: string, slot: number, entityId: string): Promise<TypedAnswerLookup | null>;
+  /** The accepted answers of a slot with their forms; null when the content does not exist. */
+  findSlotAnswers(contentId: string, slot: number): Promise<SlotAnswers | null>;
+  /** An active entity of this kind with exactly this full name or alias form, not one of `excludeIds`. */
+  findEntityIdNamedExactly(kind: AnswerKind, form: string, excludeIds: readonly string[]): Promise<string | null>;
   findEntitiesByIds(entityIds: readonly string[]): Promise<CatalogEntityView[]>;
   /** The most popular active entities of a kind, without the given ids: plausible wrong answers for bots. */
   findPopularEntityIdsOfKind(kind: EntityKind, excludeIds: readonly string[], limit: number): Promise<string[]>;

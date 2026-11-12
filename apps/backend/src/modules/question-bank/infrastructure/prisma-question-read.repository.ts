@@ -2,12 +2,14 @@ import { Injectable } from '@nestjs/common';
 import { TransactionHost } from '@nestjs-cls/transactional';
 import { Prisma } from '@generated/prisma/client';
 import type { PrismaService, TransactionalAdapterPrisma } from '@shared/infrastructure/persistence';
+import type { NameWord } from '../domain/answer-catalog';
 import type { AnswerKind, EntityKind, GameBody } from '../domain/question-content';
 import type {
   CatalogEntityView,
   CatalogSnapshot,
   ContentSelectionCriteria,
   QuestionReadRepository,
+  SlotAnswers,
   StoredGameContent,
   TypedAnswerLookup,
 } from '../application/ports/question-read-repository';
@@ -102,6 +104,46 @@ export class PrismaQuestionReadRepository implements QuestionReadRepository {
     const row = rows[0];
     if (!row?.answer_kind) return null;
     return { roundAnswerKind: row.answer_kind, entityKind: row.entity_kind, isAcceptedForSlot: row.is_accepted };
+  }
+
+  async findSlotAnswers(contentId: string, slot: number): Promise<SlotAnswers | null> {
+    const question = await this.txHost.tx.question.findUnique({
+      where: { id: contentId },
+      select: {
+        answerKind: true,
+        answers: {
+          where: { slot },
+          select: { entity: { select: { id: true, popularity: true, searchForms: true, nameWords: true } } },
+        },
+      },
+    });
+    if (!question?.answerKind) return null;
+    return {
+      roundAnswerKind: question.answerKind,
+      candidates: question.answers.map(({ entity }) => ({
+        entityId: entity.id,
+        popularity: entity.popularity,
+        searchForms: entity.searchForms,
+        nameWords: entity.nameWords as unknown as NameWord[],
+      })),
+    };
+  }
+
+  async findEntityIdNamedExactly(
+    kind: AnswerKind,
+    form: string,
+    excludeIds: readonly string[],
+  ): Promise<string | null> {
+    // `@>` lets Postgres use the GIN index on search_forms.
+    const rows = await this.txHost.tx.$queryRaw<{ id: string }[]>`
+      SELECT id::text FROM answer_entities
+      WHERE search_forms @> ARRAY[${form}]::text[]
+        AND kind = ${kind}::answer_kind
+        AND status = 'ACTIVE'
+        AND NOT (id = ANY(${[...excludeIds]}::uuid[]))
+      ORDER BY popularity DESC, id
+      LIMIT 1`;
+    return rows[0]?.id ?? null;
   }
 
   async findEntitiesByIds(entityIds: readonly string[]): Promise<CatalogEntityView[]> {
