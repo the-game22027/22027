@@ -21,7 +21,7 @@ export interface IncomingQuestion {
 
 export type ImportDecision =
   | { action: 'INSERT'; status: QuestionStatus }
-  | { action: 'UNCHANGED' }
+  | { action: 'UNCHANGED'; questionId: string }
   | { action: 'RECORD_REVIEWS'; questionId: string; newlyReviewedLocales: Locale[]; approve: boolean }
   | { action: 'REPLACE_CONTENT'; questionId: string; keyVersion: number; status: QuestionStatus }
   | { action: 'INSERT_NEW_VERSION'; keyVersion: number; status: QuestionStatus; disableQuestionId: string | null };
@@ -38,7 +38,7 @@ export function decideImportAction(latest: LatestQuestionVersion | null, incomin
 
   if (latest.contentHash === incoming.contentHash) {
     const newlyReviewedLocales = incoming.reviewedLocales.filter((locale) => !latest.reviewedLocales.includes(locale));
-    if (newlyReviewedLocales.length === 0) return { action: 'UNCHANGED' };
+    if (newlyReviewedLocales.length === 0) return { action: 'UNCHANGED', questionId: latest.id };
     const reviewedAfter = [...latest.reviewedLocales, ...newlyReviewedLocales];
     const approve = latest.status === 'DRAFT' && statusFromReviews(latest.locales, reviewedAfter) === 'APPROVED';
     return { action: 'RECORD_REVIEWS', questionId: latest.id, newlyReviewedLocales, approve };

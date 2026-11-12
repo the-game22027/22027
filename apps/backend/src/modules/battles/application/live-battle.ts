@@ -19,6 +19,7 @@ import {
 import { placeParticipantsByScore } from '../domain/placements';
 import { type RandomSource, randomIntegerBetween } from '../domain/random-source';
 import type { BattleConfigSnapshot } from './battle-settings';
+import { listEntityIdsShownInSteps, revealStepsForLocale } from './reveal-steps';
 import type { BattleNotifier } from './ports/battle-notifier';
 import type { BattleRepository } from './ports/battle-repository';
 import type { ScheduledTimer, TimerScheduler } from './ports/timer-scheduler';
@@ -238,14 +239,17 @@ export class LiveBattle {
     const roundNo = this.roundIndex + 1;
     const locales = [...new Set(this.participants.map((participant) => participant.locale))];
     const content = await this.deps.rounds.getContentForEngine(this.questionIds[this.roundIndex], locales);
-    if (content.body.gameType !== 'BUZZER')
-      throw new Error(`Battle ${this.id}: ${content.gameType} is not playable yet`);
-    const stepsByLocale = content.body.steps;
-    const stepCount = stepsByLocale[locales[0]]?.length ?? 0;
     const acceptedIds = content.acceptedAnswers.flatMap((slot) => slot.entityIds);
     const names = new Map(
-      (await this.deps.catalog.findEntitiesByIds(acceptedIds)).map((entity) => [entity.id, entity.names]),
+      (await this.deps.catalog.findEntitiesByIds([...acceptedIds, ...listEntityIdsShownInSteps(content.body)])).map(
+        (entity) => [entity.id, entity.names],
+      ),
     );
+    const showYears = { showYears: this.config.game.showYears ?? true };
+    const stepsByLocale = Object.fromEntries(
+      locales.map((locale) => [locale, revealStepsForLocale(content.body, names, locale, showYears)]),
+    ) as Partial<Record<Locale, string[]>>;
+    const stepCount = stepsByLocale[locales[0]]?.length ?? 0;
     const now = this.deps.clock.now();
     const step = this.rules.startRound(
       roundNo,

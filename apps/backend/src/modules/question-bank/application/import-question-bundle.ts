@@ -116,6 +116,7 @@ export class ImportQuestionBundle {
     const inserts: QuestionWrite[] = [];
     const replacements: QuestionWrite[] = [];
     const reviews: ReviewUpdate[] = [];
+    const carriedOver: string[] = [];
     const superseded: string[] = [];
     for (const question of questions) {
       const contentHash = computeContentHash(question.content);
@@ -151,6 +152,7 @@ export class ImportQuestionBundle {
           replacements.push(write(decision.questionId, decision.keyVersion, decision.status));
           break;
         case 'RECORD_REVIEWS':
+          carriedOver.push(decision.questionId);
           reviews.push({
             questionId: decision.questionId,
             newlyReviewedLocales: decision.newlyReviewedLocales,
@@ -158,6 +160,7 @@ export class ImportQuestionBundle {
           });
           break;
         case 'UNCHANGED':
+          carriedOver.push(decision.questionId);
           break;
       }
     }
@@ -176,6 +179,7 @@ export class ImportQuestionBundle {
     await this.repository.insertQuestions(inserts);
     await this.repository.replaceContent(replacements);
     await this.repository.recordReviews(reviews, at);
+    await this.repository.moveQuestionsToBatch(carriedOver, batchId);
     return { bundleVersion, alreadyImported: false, counts, catalogSize };
   }
 

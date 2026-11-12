@@ -63,6 +63,20 @@ export const buzzerLine = (
   answers: [{ slot: 0, entities: [e.spain.externalRef] }],
 });
 
+export const whoLine = (key: string, e: Entities) => ({
+  ...common(key),
+  gameType: 'WHO_IS_PLAYER',
+  content: {
+    player: e.ronaldo.externalRef,
+    clues: [
+      { kind: 'BIRTH_YEAR', text: { en: 'Born in 1985', ar: 'من مواليد 1985' } },
+      { kind: 'CLUB_COUNT', text: { en: 'Senior clubs: 6', ar: 'عدد أنديته: 6' } },
+      { kind: 'FIRST_CLUB', text: { en: 'Started his senior career at Sporting', ar: 'بدأ مسيرته مع سبورتنج' } },
+    ],
+  },
+  answers: [{ slot: 0, entities: [e.ronaldo.externalRef] }],
+});
+
 export const bundle = (bundleVersion: string, lines: object[], catalog?: object[]) => {
   const questionsJsonl = Buffer.from(lines.map((value) => JSON.stringify(value)).join('\n') + '\n');
   const catalogJsonl = catalog

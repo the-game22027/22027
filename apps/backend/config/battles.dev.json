@@ -71,6 +71,45 @@
         "difficulties": null,
         "excludeLastBattles": 20
       }
+    },
+    "CAREER": {
+      "enabled": true,
+      "roundCount": 5,
+      "revealIntervalMs": 3000,
+      "resumeDelayMs": 1500,
+      "answerWindowMs": 8000,
+      "finalWindowMs": 5000,
+      "attemptsPerPlayer": 1,
+      "showWrongAnswers": true,
+      "points": {
+        "correct": 10,
+        "perUnrevealedStep": 2,
+        "wrong": 0
+      },
+      "selection": {
+        "difficulties": null,
+        "excludeLastBattles": 20
+      },
+      "showYears": true
+    },
+    "WHO_IS_PLAYER": {
+      "enabled": true,
+      "roundCount": 5,
+      "revealIntervalMs": 3500,
+      "resumeDelayMs": 1500,
+      "answerWindowMs": 8000,
+      "finalWindowMs": 5000,
+      "attemptsPerPlayer": 1,
+      "showWrongAnswers": true,
+      "points": {
+        "correct": 10,
+        "perUnrevealedStep": 2,
+        "wrong": 0
+      },
+      "selection": {
+        "difficulties": null,
+        "excludeLastBattles": 20
+      }
     }
   }
 }

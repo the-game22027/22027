@@ -150,6 +150,23 @@ describe('serving content to battles', () => {
       });
     });
 
+    it('publishes a later bundle completely, including rounds it carried over unchanged', async () => {
+      const first = `test-${randomUUID()}`;
+      const second = `test-${randomUUID()}`;
+      const carried = careerLine(newKey(), e);
+      const fresh = careerLine(newKey(), e);
+      const importer = moduleRef.get(ImportQuestionBundle);
+      await importer.importBundle(bundle(first, [carried]));
+      await importer.importBundle(bundle(second, [carried, fresh]));
+
+      await expect(questionBank.publishQuestionsOfBundle(second)).resolves.toMatchObject({ publishedCount: 2 });
+      const statuses = await prisma.question.findMany({
+        where: { externalKey: { in: [carried.externalKey, fresh.externalKey] } },
+        select: { status: true },
+      });
+      expect(statuses.map((row) => row.status)).toEqual(['PUBLISHED', 'PUBLISHED']);
+    });
+
     it('refuses a bundle that was never imported', async () => {
       await expect(questionBank.publishQuestionsOfBundle('never-imported')).rejects.toBeInstanceOf(
         BundleNotImportedError,

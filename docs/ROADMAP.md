@@ -121,7 +121,7 @@ Changes vs the original proposed order, and why:
 | PR | Scope | Not yet |
 |---|---|---|
 | P6.1 Engine + `BUZZER` + bot | Tables `battles`, `battle_participants`, `battle_rounds`, `battle_round_actions` (`rule_set_id` nullable until P6.5); battle config file (ADR-0017); `/battles` gateway with `time:sync`, `matchmaking:join` / `leave`, `battle:ready`, `round:buzz`, `round:answer`; **every join becomes a bot battle after `botFallbackAfterMs`** (no human pairing yet); the engine (one command queue per battle, timers, `seq`, persistence, ready timeout, completion); `RevealAndBuzzRules` for `BUZZER`; bot strategy with seeded profiles; in-game score and placements; activity guard in Redis; on boot, unfinished battles become `ABANDONED` | Human pairing, reconnect and resync, forfeit, ledger points |
-| P6.2 `CAREER`, `WHO_IS_PLAYER` | Content kinds for the same rules; entity names in clues | |
+| P6.2 `CAREER`, `WHO_IS_PLAYER` | Content kinds for the same rules: steps rendered per locale from spells (club names from the catalog, `showYears`) and clues; both game types in the battle config; the `WHO_IS_PLAYER` generator (the D.2b part that P6.2 needs) and the `dev-0003` bundle | `GRID` generator (with P6.4) |
 | P6.3 Matchmaking and resilience | Redis queue per game type and matcher loop (human vs human), `battle:resync` and snapshots, disconnect grace and forfeit, `battle:forfeit`, stale battle sweeper, `GET /v1/me/play-state` | |
 | P6.4 `GRID` | `GridRules`, grid bot | |
 | P6.5 Points | `points` ledger and `BATTLES` leaderboards, `BattleCompleted` handlers (ledger, question stats), question reports | |

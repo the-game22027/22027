@@ -8,7 +8,7 @@ import {
 import type { GameType } from '@modules/question-bank';
 import { CLOCK, type Clock, ID_GENERATOR, type IdGenerator } from '@shared/kernel';
 import { BattleEngine, NoPlayableContentError } from './battle-engine';
-import { BATTLE_SETTINGS, type BattleSettings } from './battle-settings';
+import { BATTLE_SETTINGS, type BattleSettings, findRevealGameSettings } from './battle-settings';
 import { ACTIVITY_GUARD, type Activity, type ActivityGuard } from './ports/activity-guard';
 import { BATTLE_NOTIFIER, type BattleNotifier } from './ports/battle-notifier';
 import { type ScheduledTimer, TIMER_SCHEDULER, type TimerScheduler } from './ports/timer-scheduler';
@@ -70,7 +70,7 @@ export class MatchmakingService implements OnApplicationBootstrap, BeforeApplica
 
   /** Returns an error code for the ack, or null when the player is queued. */
   async join(userId: string, gameType: GameType): Promise<string | null> {
-    if (!this.settings.gameTypes[gameType as 'BUZZER']?.enabled) return 'GAME_TYPE_UNAVAILABLE';
+    if (!findRevealGameSettings(this.settings, gameType)?.enabled) return 'GAME_TYPE_UNAVAILABLE';
     const ticketId = this.ids.next();
     const activity: Activity = `QUEUE:${ticketId}`;
     if (!(await this.activities.claimActivity(userId, activity))) return 'PLAYER_BUSY';

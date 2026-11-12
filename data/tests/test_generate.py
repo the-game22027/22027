@@ -11,6 +11,7 @@ from kb.generate import (
     nationality_round,
     pick_spread_over_difficulties,
     senior_career_in_order,
+    who_is_player_round,
 )
 
 NAMES = {
@@ -157,3 +158,56 @@ def test_picks_take_turns_over_difficulties_so_a_short_bundle_is_not_all_hard():
     lines = [{"difficulty": 5, "id": i} for i in range(5)] + [{"difficulty": 1, "id": 9}]
     picked = pick_spread_over_difficulties(lines, 3)
     assert [line["difficulty"] for line in picked] == [1, 5, 5]
+
+
+def countries_of(ref):
+    return NAMES.get(ref) if ref == "wikidata:PT" else None
+
+
+def clubs_of(ref):
+    return None if ref in ("wikidata:PT", "wikidata:Q11571") else NAMES.get(ref)
+
+
+def test_who_is_the_player_gives_clues_from_hardest_to_easiest_in_both_languages():
+    player = PlayerFacts(
+        external_ref="wikidata:Q11571",
+        sitelinks=150,
+        names=NAMES["wikidata:Q11571"],
+        spells=(*CAREER, spell("s4", "wikidata:SCP", 2005, 2006, loan=True)),
+        country_refs=("wikidata:PT",),
+        birth_year=1985,
+    )
+    line = who_is_player_round(player, clubs_of, countries_of, "kb")
+
+    assert line["externalKey"] == "who:Q11571"
+    assert line["answers"] == [{"slot": 0, "entities": ["wikidata:Q11571"]}]
+    assert [(clue["kind"], clue["text"]["en"]) for clue in line["content"]["clues"]] == [
+        ("BIRTH_YEAR", "Born in 1985"),
+        ("CLUB_COUNT", "Senior clubs: 3"),
+        ("FIRST_CLUB", "Started his senior career at Sporting CP"),
+        ("LOAN", "Was loaned to Sporting CP in 2005"),
+        ("NATIONALITY", "Nationality: Portugal"),
+        ("LONGEST_SPELL", "At Real Madrid from 2009 to 2018"),
+        ("LAST_CLUB", "Last club: Real Madrid"),
+    ]
+    assert line["content"]["clues"][-1]["text"]["ar"] == "آخر أنديته: ريال مدريد"
+
+
+def test_who_is_the_player_needs_enough_clues():
+    sparse = PlayerFacts(
+        external_ref="wikidata:Q11571",
+        sitelinks=150,
+        names=NAMES["wikidata:Q11571"],
+        spells=(spell("s1", "wikidata:XX", 2002, None),),
+        country_refs=(),
+    )
+    assert who_is_player_round(sparse, clubs_of, countries_of, "kb") is None
+
+
+def test_an_open_last_spell_is_the_current_club():
+    player = ronaldo(*CAREER[:2], spell("s3", "wikidata:RM", 2009, None))
+    line = who_is_player_round(player, clubs_of, countries_of, "kb")
+    assert line["content"]["clues"][-1]["text"] == {
+        "en": "Current club: Real Madrid",
+        "ar": "ناديه الحالي: ريال مدريد",
+    }

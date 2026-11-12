@@ -73,5 +73,7 @@ export interface QuestionImportRepository {
   insertQuestions(questions: readonly QuestionWrite[]): Promise<void>;
   replaceContent(questions: readonly QuestionWrite[]): Promise<void>;
   recordReviews(updates: readonly ReviewUpdate[], at: Date): Promise<void>;
+  /** A question belongs to the last bundle that contained it, so publishing that bundle covers it (07 §5.5). */
+  moveQuestionsToBatch(questionIds: readonly string[], batchId: string): Promise<void>;
   disableQuestions(questionIds: readonly string[], reason: string, at: Date): Promise<void>;
 }

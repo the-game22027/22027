@@ -9,7 +9,7 @@ import { QuestionBankCliModule } from '../../src/modules/question-bank/question-
 import { CoreModule } from '../../src/shared/infrastructure/core.module';
 import { PrismaService } from '../../src/shared/infrastructure/persistence';
 import { writeBattleConfigFile } from '../support/battle-config';
-import { bundle, buzzerLine, entitySet } from '../support/question-bundles';
+import { bundle, buzzerLine, careerLine, entitySet, whoLine } from '../support/question-bundles';
 import { devSignIn } from '../support/sign-in';
 import { createApiTestApp, testConfig } from '../support/test-app';
 
@@ -27,7 +27,7 @@ function writeBattleConfig(bot: { knows: number; guess: number }): string {
       engine: Record<string, number>;
       matchmaking: Record<string, number>;
       bots: { profiles: Record<string, Record<string, unknown>> };
-      gameTypes: { BUZZER: Record<string, unknown> };
+      gameTypes: Record<string, Record<string, unknown>>;
     };
     config.engine = { readyTimeoutMs: 1_500, latencyGraceMs: 50, betweenRoundsMs: 50 };
     config.matchmaking = { botFallbackAfterMs: 50 };
@@ -41,14 +41,16 @@ function writeBattleConfig(bot: { knows: number; guess: number }): string {
         typingDelayMs: { min: 20, max: 20 },
       },
     };
-    Object.assign(config.gameTypes.BUZZER, {
-      roundCount: 2,
-      revealIntervalMs: 150,
-      resumeDelayMs: 50,
-      answerWindowMs: 1_000,
-      finalWindowMs: 300,
-      points: { correct: 10, perUnrevealedStep: 2, wrong: 0 },
-    });
+    for (const game of Object.values(config.gameTypes)) {
+      Object.assign(game, {
+        roundCount: 2,
+        revealIntervalMs: 150,
+        resumeDelayMs: 50,
+        answerWindowMs: 1_000,
+        finalWindowMs: 300,
+        points: { correct: 10, perUnrevealedStep: 2, wrong: 0 },
+      });
+    }
   });
 }
 
@@ -56,6 +58,7 @@ describe('battles over WebSocket (e2e)', () => {
   const e = entitySet();
   let spainId: string;
   let naniId: string;
+  let ronaldoId: string;
 
   /** Two published Buzzer rounds in both languages, both answered by Spain. */
   beforeAll(async () => {
@@ -73,6 +76,10 @@ describe('battles over WebSocket (e2e)', () => {
           [
             buzzerLine(`test:${randomUUID()}`, e, undefined, reviewed),
             buzzerLine(`test:${randomUUID()}`, e, undefined, reviewed),
+            careerLine(`test:${randomUUID()}`, e),
+            careerLine(`test:${randomUUID()}`, e),
+            whoLine(`test:${randomUUID()}`, e),
+            whoLine(`test:${randomUUID()}`, e),
           ],
           Object.values(e),
         ),
@@ -81,6 +88,7 @@ describe('battles over WebSocket (e2e)', () => {
     const prisma = moduleRef.get(PrismaService);
     spainId = (await prisma.answerEntity.findUniqueOrThrow({ where: { externalRef: e.spain.externalRef } })).id;
     naniId = (await prisma.answerEntity.findUniqueOrThrow({ where: { externalRef: e.nani.externalRef } })).id;
+    ronaldoId = (await prisma.answerEntity.findUniqueOrThrow({ where: { externalRef: e.ronaldo.externalRef } })).id;
     await moduleRef.close();
   });
 
@@ -183,6 +191,37 @@ describe('battles over WebSocket (e2e)', () => {
       });
       expect(event.payload).toMatchObject({ battleId, hasBot: true });
     });
+
+    it.each([
+      ['CAREER', 2, [`${e.sporting.names.ar} (2002–2003)`, `${e.united.names.ar} (2003–2009)`]],
+      ['WHO_IS_PLAYER', 3, ['من مواليد 1985', 'عدد أنديته: 6', 'بدأ مسيرته مع سبورتنج']],
+    ] as const)(
+      "plays %s: steps in the player's language, and the answer is the player",
+      async (gameType, stepCount, steps) => {
+        const player = await connectPlayer();
+        await player.send('matchmaking:join', { gameType });
+        const found = await player.waitFor('battle:found');
+        const battleId = found.battleId as string;
+        await player.send('battle:ready', { battleId });
+
+        const start = await player.waitFor('round:start');
+        expect(start.data).toMatchObject({ gameType, answerKind: 'PLAYER', stepCount });
+        expect((await player.waitFor('round:clue')).data).toMatchObject({ index: 1, clue: steps[0] });
+        await player.send('round:buzz', { battleId, roundNo: 1 });
+        await player.waitFor('round:buzzed');
+        expect(
+          await player.send('round:answer', { battleId, roundNo: 1, answer: { entityId: ronaldoId } }),
+        ).toMatchObject({
+          accepted: true,
+        });
+        const result = await player.waitFor('round:result');
+        expect(result.data['reveal']).toMatchObject({
+          steps,
+          answer: { entityId: ronaldoId, name: e.ronaldo.names.ar },
+        });
+        expect(result.data['winnerParticipantIds']).toEqual([found.data['youParticipantId']]);
+      },
+    );
 
     it('refuses a second queue for a busy player, and frees them when they leave', async () => {
       const player = await connectPlayer();

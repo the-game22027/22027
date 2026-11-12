@@ -144,9 +144,9 @@ Question bank (from `apps/backend`; available in every environment, not only dev
 
 ```bash
 npm run cli -- questions:import ../../data/bundles/dev-0001   # validate + import a bundle; re-import is a no-op
-npm run cli -- questions:import ../../data/bundles/dev-0002   # generated game content + its catalog (07 §5.8)
-npm run cli -- questions:publish dev-0002                     # APPROVED questions of that bundle → PUBLISHED (battles pick only these)
-npm run cli -- questions:publish dev-0002 --include-drafts    # development: also the unreviewed rounds (refused in production)
+npm run cli -- questions:import ../../data/bundles/dev-0003   # generated game content + its catalog (07 §5.8)
+npm run cli -- questions:publish dev-0003                     # APPROVED questions of that bundle → PUBLISHED (battles pick only these)
+npm run cli -- questions:publish dev-0003 --include-drafts    # development: also the unreviewed rounds (refused in production)
 npm run cli -- questions:disable <questionId> --reason "…"     # battles stop picking it at once
 python3 -I ../../data/generate/dev_bundle.py                  # rebuild the hand-written dev bundle (bump its version first)
 ```
@@ -160,7 +160,7 @@ python3 -m venv .venv && .venv/bin/pip install 'psycopg[binary]>=3.2' pytest ruf
 .venv/bin/python -m kb ingest --scope config/scope.toml           # 9 leagues; --refresh refetches from Wikidata
 .venv/bin/python -m kb names:missing --locale ar                  # entities without an Arabic name → .out/names-missing-ar.csv
 .venv/bin/python -m kb catalog --out .out/catalog                 # write catalog.jsonl
-.venv/bin/python -m kb bundle --version dev-0003 --out bundles/dev-0003 --careers 60 --buzzers 60 --catalog-min-player-sitelinks 40   # generated bundle (07 §5.8)
+.venv/bin/python -m kb bundle --version dev-0004 --out bundles/dev-0004 --careers 60 --buzzers 60 --who 60 --catalog-min-player-sitelinks 40   # generated bundle (07 §5.8)
 FOOTBALL_KB_TEST_URL=postgresql://game:game@localhost:5440/football_kb_test .venv/bin/python -m pytest   # needs CREATE DATABASE football_kb_test once
 .venv/bin/ruff check . && .venv/bin/ruff format --check .
 ```
