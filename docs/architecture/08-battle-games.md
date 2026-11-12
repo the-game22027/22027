@@ -56,6 +56,10 @@ interface Rejection { code: string }                                     // beco
 
 Readiness and `WAITING_READY`; round sequencing and `roundCount`; timers (one scheduler per battle, keyed by `TimerKey`; all cancelled at battle end); `seq` and `serverTime` on every event; persistence of rounds and actions; disconnect grace and forfeit; `battle:resync` snapshots (built from the rules' state through a `snapshotFor(participant)` method, so a client only ever sees what was revealed); bot scheduling (bots send commands through the same `handleCommand` path, with no `clientMsgId`); scoring hand-off (`BattleScorer` totals the rounds' points; placements as before); completion and `BattleCompleted`.
 
+### 2.4 Round runners (P6.4)
+
+The engine (`LiveBattle`) owns the battle; one **round runner** per mechanic owns a round. `RevealRoundRunner` serves `BUZZER`, `CAREER` and `WHO_IS_PLAYER`; `GridRoundRunner` serves `GRID`. A runner wraps its pure rules, renders its events per viewer, drives its bot and builds its part of the snapshot. It calls back into the battle to emit, schedule timers, record actions and end the round. Picking the runner from the content's game type is the registry of §2.2; nothing else in the engine looks at the game type.
+
 ## 3. Mechanics
 
 ### 3.1 Reveal and buzz (`BUZZER`, `CAREER`, `WHO_IS_PLAYER`)
@@ -80,7 +84,7 @@ stateDiagram-v2
 1. **Start:** the engine loads the round content (server side only). The rules emit `round:start` (game type, `answerKind`, `stepCount`, no clue text) and reveal step 1 with `round:clue`. They schedule the next reveal at `now + revealIntervalMs`.
 2. **Reveal:** each reveal timer emits `round:clue { index, clue }`, localized per player. A client never receives a step before it is revealed.
 3. **Buzz:** `round:buzz` is accepted when the round is `REVEALING` or `FINAL_WINDOW`, the sender is active and not locked out, and nobody else holds the buzz. The first accepted buzz wins because the engine processes a battle's commands in arrival order. Later buzzes get `BUZZ_TAKEN`. On acceptance: cancel the reveal timer and remember how much of the interval was left; emit `round:buzzed { participantId, answerDeadlineAt }`; schedule the answer timer at `now + answerWindowMs + latencyGraceMs`.
-4. **Answer:** only the buzz holder may send `round:answer`, once per buzz. The answer is an entity id of the round's `answerKind`, or a number when `answerKind = NUMBER`. Correctness is checked on the server (`AnswerChecker`, §5.3).
+4. **Answer:** only the buzz holder may send `round:answer`, once per buzz. The answer is the typed text, or a number when `answerKind = NUMBER`. The server judges it (`AnswerChecker`, §5.3).
    - **Correct:** record it, `END_ROUND` with the winner. `round:result` reveals every step and the answer to everyone.
    - **Wrong or timed out:** record it; the player is locked out for this round (`attemptsPerPlayer`, default 1). Emit `round:wrong { participantId, answer? }`. Whether the wrong answer is shown is `showWrongAnswers` (DEC-60). Then resume: the next reveal fires after the remaining part of the interval, or after `resumeDelayMs` when that is larger. Emit `round:resumed { nextClueAt }`.
 5. **End without a winner:** after the last step, the round stays open for `finalWindowMs` (`FINAL_WINDOW`). If nobody answers correctly by then, or every active participant is locked out, the round closes with no winner and `round:result` shows the answer.
@@ -102,8 +106,8 @@ stateDiagram-v2
 Approved on condition that the data supports it. The 2026-11-10 check passed (`07` §4.1).
 
 1. **Board:** 3 row criteria and 3 column criteria. A criterion is `{ kind: CLUB | NATIONALITY | COMPETITION_WON, entityId }`. Every cell has at least `minAnswersPerCell` valid players, guaranteed by the pipeline. The whole board is sent in `round:start`.
-2. **Turns:** players alternate; who starts is random per round (seeded). The player on turn has `turnMs` to send `grid:claim { cell, answer: { entityId } }`.
-   - Valid when: it is their turn, the cell is free, and the player was not already used on this board.
+2. **Turns:** players alternate; who starts is random per round (seeded). The player on turn has `turnMs` to send `grid:claim { cell, answer: { text } }`.
+   - Valid when: it is their turn and the cell is free. The text is judged against the cell's valid players (§5.3); naming a player already used on this board is rejected (`PLAYER_ALREADY_USED`).
    - **Correct** (the player fits both criteria): the cell is theirs. `grid:claimed`.
    - **Wrong:** the cell stays free. `grid:missed { cell, participantId, answer? }` (DEC-60). After `attemptsPerTurn` wrong tries (default 1) the turn passes.
    - **Timeout or `grid:skip`:** the turn passes. `skipsPerRound` limits skips; a skip beyond it gives the round to the opponent (as in KickBrain; config, default off).
@@ -116,7 +120,7 @@ Approved on condition that the data supports it. The 2026-11-10 check passed (`0
    - A wrong answer keeps the turn while `attemptsLeft > 0`, with the same deadline; it never uses the player up.
    - `skipsPerRound: null` means unlimited. With a number, the skip after the last allowed one gives the round to the opponent (`SKIP_LIMIT`).
    - A participant who leaves mid-round gives it to the other (`FORFEIT`, no points).
-   - Every cell is a slot of `question_answers` (`row * 3 + col`), so `AnswerChecker` judges a claim like any typed answer.
+   - Every cell is a slot of `question_answers` (`row * 3 + col`), so `AnswerChecker` judges a claim like any typed answer, with the cell's valid players as the accepted answers.
 
 ### 3.3 Bots
 
@@ -145,23 +149,26 @@ Round content lives in `question-bank` (`02-database.md` §4.6) and comes from b
 ## 5. Answer catalog and typed answers (DEC-55)
 
 ### 5.1 What it is
-A list of football entities a typed answer can be, with names in both languages: `answer_entities` (id, external ref such as `wikidata:Q11571`, kind, `names {en, ar}`, `popularity`) and `answer_entity_aliases` (alternative names per locale: "CR7", "رونالدو", "كريستيانو"). It is imported from the bundle with the content (`07` §5.4). The pipeline guarantees that every accepted answer is in the catalog.
+A list of football entities a typed answer can be, with names in both languages: `answer_entities` (id, external ref such as `wikidata:Q11571`, kind, `names {en, ar}`, `popularity`, normalized `search_forms`, distinctive `name_words`) and `answer_entity_aliases` (alternative names per locale: "CR7", "رونالدو", "كريستيانو"). It is imported from the bundle with the content (`07` §5.4) and **stays on the server** (ADR-0021): it judges typed text and gives names to events. The pipeline guarantees that every accepted answer is in the catalog.
 
-### 5.2 Search happens on the phone
-**Decision (technical):** the app downloads the catalog and searches it locally, instead of calling a search endpoint on every keystroke.
-- **Fairness:** in a speed game, a slow network would otherwise mean slow suggestions. Local search makes typing speed the same for everyone.
-- **Load:** no server call per keystroke.
-- **Size:** about 20-30k entities with names and aliases, roughly 1-2 MB compressed. Downloaded once, then refreshed only when the version changes (`GET /v1/answer-catalog`, `ETag`).
-- **Normalization:** the pipeline stores a normalized form of every name and alias (lower case, Latin accents removed; Arabic: alef forms أ إ آ → ا, ة → ه, ى → ي, tatweel and diacritics removed, leading "ال" ignored for matching). The app normalizes only what the user types, with the same rules. One rule list with shared test vectors lives in `07` §5.7, so the Dart and Python implementations cannot drift.
-- Suggestions are ranked by prefix match, then `popularity`. Nothing about the current round is used for ranking, so suggestions never hint at the answer.
+### 5.2 What the player does
+The player types the answer and sends it. **No suggestions are shown** (ADR-0021, DEC-55). The app sends `{ text }` (at most `answers.maxLength` characters) or `{ number }`. The app never receives the accepted answers or the catalog.
 
-### 5.3 Checking an answer
-The client sends `{ entityId }` (or `{ number }`). The server asks `AnswerChecker.checkTypedAnswer(contentId, slot, entityId)`. One indexed query returns one of three verdicts:
-- `UNKNOWN_ENTITY`: the entity does not exist, or is not of the round's `answerKind`.
-- `CORRECT`: the entity is in `question_answers` for that slot.
-- `WRONG`: otherwise.
+### 5.3 Judging an answer
+`AnswerChecker.judgeTypedText(contentId, slot, text, rules)` compares the text **only with the accepted answers of that slot**:
 
-Text is never compared. A `NUMBER` answer is compared by the game rules with `answerNumber` from the round content.
+1. **Normalize** the text (`07` §5.7). Empty: rejected with `EMPTY_ANSWER`, no attempt used.
+2. **Exact match** with a form of an accepted answer: `CORRECT`.
+3. **Exact match** with a full name or alias of **another** entity of the round's `answerKind`: `WRONG`, and that entity is the shown wrong answer (`تشابي` is Xabi Alonso, not a typo of `تشافي`).
+4. **Within the typo tolerance** of a form of an accepted answer: `CORRECT`.
+5. Otherwise `WRONG`, with nothing to show.
+
+- **Forms of an entity:** its full names (`ar`, `en`), its aliases, and each distinctive single word of its names: at least 3 letters, shared by at most `answers.singleWordMaxSharedBy` entities of the same kind (`name_words`, computed by the pipeline). `ليونيل` counts alone for Messi; `محمد` does not count alone for Mohamed Salah.
+- **Typo tolerance:** edit distance in letters (one letter added, missing, changed, or two neighbours swapped is one edit), by the form's letter count without spaces: `answers.typoTolerance`, default up to 4 letters exact, 5-8 letters 1 edit, 9+ letters 2 edits. `ميسب`, `مبسي` and `ميسيي` are one edit from `ميسي`.
+- **`GRID`:** the accepted answers are the cell's valid players. When the text fits several: the closest first, then one not used on this board, then the most popular. Only used players fit: `PLAYER_ALREADY_USED`.
+- **Result:** `{ verdict: CORRECT | WRONG, entityId | null, match: EXACT | TYPO | OTHER_ENTITY | NONE }`. The engine records the text, the entity and `match` on the action (for tuning the tolerance), and never shows the raw text to other players (DEC-60 shows only an `OTHER_ENTITY` match).
+- **Bots** answer with an entity id inside the server; they skip text judging.
+- A `NUMBER` answer is compared by the game rules with `answerNumber` from the round content.
 
 ### 5.4 What `question-bank` gives the engine (P5.2b)
 The interface is in `01-modules.md` §2.6. All of it is server side; the game rules decide what each event shows.
@@ -179,11 +186,8 @@ The interface is in `01-modules.md` §2.6. All of it is server side; the game ru
 - **`AnswerCatalogQuery.findEntitiesByIds(ids)`** returns names in both locales, because one battle can have players of both languages.
 - **`QuestionBankFacade.disableQuestion(id, reason)`** is used by the CLI now and by moderation later. Selection skips the content at once.
 
-### 5.5 `GET /v1/answer-catalog`
-- **Body:** `AnswerCatalog` (API.md §2) with every `ACTIVE` entity, most popular first.
-- **`version`:** the checksum of the last imported `catalog.jsonl`. The active set is exactly that file's entities (`07` §5.5), so the same checksum always means the same body. Before any catalog import it is `none` and the list is empty.
-- **Caching:** `ETag: "<version>"`. A matching `If-None-Match` gets `304` with no body. `Cache-Control: private, no-cache`: the phone keeps its copy and asks again before playing; a `304` costs a few bytes.
-- **Compression:** the API process builds the JSON and its gzip once per version and keeps both in memory (about 11 MB and 2 MB for 22k entities). A request with `Accept-Encoding: gzip` gets the gzip bytes. A new catalog import changes the version, and the next request builds again.
+### 5.5 `GET /v1/answer-catalog` (removed in P6.6)
+Built in P5.2 for on-device search. With no suggestions (ADR-0021) the app does not need the catalog, so the endpoint and its in-memory gzip cache are removed in P6.6.
 
 ### 5.6 Publishing and disabling (CLI)
 - **`questions:publish <bundleVersion>`:**
@@ -199,10 +203,6 @@ The interface is in `01-modules.md` §2.6. All of it is server side; the game ru
 
 **Question reports** (`POST /v1/questions/{id}/reports`) move to P6. They may only accept content the caller was served in a battle, and that needs `battle_rounds`.
 
-### 2.4 Round runners (P6.4)
-
-The engine (`LiveBattle`) owns the battle; one **round runner** per mechanic owns a round. `RevealRoundRunner` serves `BUZZER`, `CAREER` and `WHO_IS_PLAYER`; `GridRoundRunner` serves `GRID`. A runner wraps its pure rules, renders its events per viewer, drives its bot and builds its part of the snapshot. It calls back into the battle to emit, schedule timers, record actions and end the round. Picking the runner from the content's game type is the registry of §2.2; nothing else in the engine looks at the game type.
-
 ## 6. Configuration (per game type)
 
 Stored in the battle config by game type, snapshotted on the battle row at creation (as today). Dev seeds use obviously fake `DEV_ONLY` values. Product values are picked at playtesting.
@@ -213,6 +213,7 @@ Stored in the battle config by game type, snapshotted on the battle row at creat
 | `revealIntervalMs`, `resumeDelayMs`, `answerWindowMs`, `finalWindowMs`, `attemptsPerPlayer` | reveal and buzz | DEC-54 |
 | `turnMs`, `attemptsPerTurn`, `skipsPerRound` (`null` = unlimited), `maxTurns`, `minAnswersPerCell`, `revealAnswersAtEnd`, `points.roundWin`, `points.roundDraw`, `points.perCell` | grid | DEC-54, DEC-61 |
 | `showWrongAnswers` | all | DEC-60 |
+| `answers.maxLength`, `answers.typoTolerance` (letters → edits), `answers.singleWordMaxSharedBy` | all typed answers | DEC-55 |
 | `showYears` | `CAREER` | DEC-54 |
 | `points.*` | all | DEC-33 |
 | `latencyGraceMs`, `readyTimeoutMs`, `reconnectGraceMs`, `betweenRoundsMs` (pause after `round:result`) | engine | DEC-32 |

@@ -125,6 +125,7 @@ Changes vs the original proposed order, and why:
 | P6.3 Matchmaking and resilience | Redis queue per game type and matcher loop (human vs human, content in both players' locales), bot fallback from the queue, ghost tickets; `battle:resync` and snapshots (the resyncing socket becomes active); disconnect grace, forfeit (`battle:forfeit` and grace expiry), `ABANDONED` when no human is left; `GET /v1/me/play-state`, REST join and leave | Stale battle sweeper (needs several API instances, 05 §1); blocked pairs (P7) |
 | P6.4 `GRID` | `GridRules` (turns, claims, line, draw, skips, timeouts), the grid bot, round runners per mechanic (08 §2.4), `grid:claim` / `grid:skip`, the `GRID` generator (clubs × nationalities, 07 §5.8) and the `dev-0004` bundle | Club × club boards, `COMPETITION_WON` |
 | P6.5 Points | `points` ledger and `BATTLES` leaderboards, `BattleCompleted` handlers (ledger, question stats), question reports | |
+| P6.6 Typed text answers | ADR-0021: `{ text }` answers, `AnswerChecker.judgeTypedText` (normalizer in TypeScript with the `07` §5.7 vectors, edit distance, distinctive words, exact-match guard), `answers.*` config, `name_words` + GIN index, `answer_text` / `answer_match` on actions, pipeline `nameWords`; remove `GET /v1/answer-catalog`. Before M3, so the app is built against text answers | |
 
 ### P7 — Friends + blocks + prediction visibility
 - Friend requests, friendships, blocks, user search; `PredictionVisibilityPolicy`; friends' predictions endpoints; blocked pairs skipped by the matchmaker.

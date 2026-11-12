@@ -206,7 +206,7 @@ sequenceDiagram
     A->>GW: round:buzz (clientMsgId)
     GW->>BE: first valid buzz wins (one battle's commands are processed in arrival order)
     BE-->>B: round:buzzed (reveal paused)
-    A->>GW: round:answer (entityId picked from the answer catalog)
+    A->>GW: round:answer (typed text, judged with typo tolerance)
     Note over BE: a bot's buzz and answer are scheduled by the engine and use the same path
     BE->>DB: INSERT battle_round_actions (buzz, answer, in accepted order)
     BE-->>A: ack
