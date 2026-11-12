@@ -1,0 +1,5 @@
+export { PointsModule } from './points.module';
+export { PointsJobsModule } from './points-jobs.module';
+export { ScoringRuleSets, type RuleSetActivation } from './application/scoring-rule-sets';
+export type { ActiveRuleSet } from './application/ports/scoring-rule-set-repository';
+export type { ScoredGame } from './domain/battle-ledger-entries';
