@@ -4,6 +4,7 @@ import { Test } from '@nestjs/testing';
 import { ApiModule } from '../../src/api.module';
 import { configureHttpApp } from '../../src/bootstrap/configure-http-app';
 import { type AppConfig, loadConfig } from '../../src/shared/infrastructure/config';
+import { loadSwaggerPluginMetadata } from './swagger-metadata';
 
 const signingKey = generateKeyPairSync('ec', { namedCurve: 'P-256' })
   .privateKey.export({ type: 'pkcs8', format: 'pem' })
@@ -25,9 +26,16 @@ export function testConfig(overrides: Record<string, string> = {}): AppConfig {
 
 /** Boots the API exactly like main.api.ts (same module, same HTTP setup), without listening on a port. */
 export async function createApiTestApp(config: AppConfig = testConfig()): Promise<NestExpressApplication> {
+  await loadSwaggerPluginMetadata();
   const moduleRef = await Test.createTestingModule({ imports: [ApiModule.register(config)] }).compile();
   const app = moduleRef.createNestApplication<NestExpressApplication>({ bufferLogs: true, bodyParser: false });
-  configureHttpApp(app, { api: true });
-  await app.init();
+  try {
+    configureHttpApp(app, { api: true });
+    await app.init();
+  } catch (error) {
+    // Without this, the connections opened while compiling keep Jest from exiting after a failed boot.
+    await app.close();
+    throw error;
+  }
   return app;
 }
