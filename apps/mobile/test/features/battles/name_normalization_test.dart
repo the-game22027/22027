@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:the_game/features/answer_catalog/application/name_normalization.dart';
+import 'package:the_game/features/battles/application/name_normalization.dart';
 
 /// The same vectors as `data/tests/test_normalize.py` and `docs/architecture/07` §5.7: the
 /// Python pipeline and the app must agree on every one of them.

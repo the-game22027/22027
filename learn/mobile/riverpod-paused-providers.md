@@ -8,7 +8,7 @@
 - In widgets, `ref.watch` is a listener, so screens are not affected.
 - The app's retry policy (`chooseRetryDelayForFailedProvider`) retries only transient failures, 3 times; test containers use the same policy (`createSignedInTestContainer`).
 
-**In our code:** [retry_policy.dart](../../apps/mobile/lib/core/errors/retry_policy.dart), [test_overrides.dart](../../apps/mobile/test/helpers/test_overrides.dart), the catalog tests in [answer_catalog_test.dart](../../apps/mobile/test/features/answer_catalog/answer_catalog_test.dart).
+**In our code:** [retry_policy.dart](../../apps/mobile/lib/core/errors/retry_policy.dart), [test_overrides.dart](../../apps/mobile/test/helpers/test_overrides.dart), the catalog tests in [answer_catalog_test.dart](../../apps/mobile/test/features/battles/answer_catalog_test.dart).
 
 **Watch out:**
 - The symptom is a test timeout after 30 s, then "disposed during loading state" — not the real error.

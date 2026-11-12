@@ -5,9 +5,9 @@ import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:the_game/core/errors/app_error.dart';
-import 'package:the_game/features/answer_catalog/application/answer_catalog_controller.dart';
-import 'package:the_game/features/answer_catalog/data/answer_catalog.dart';
-import 'package:the_game/features/answer_catalog/data/answer_catalog_data_sources.dart';
+import 'package:the_game/features/battles/application/answer_catalog_controller.dart';
+import 'package:the_game/features/battles/data/answer_catalog.dart';
+import 'package:the_game/features/battles/data/answer_catalog_data_sources.dart';
 
 import '../../helpers/fake_http_adapter.dart';
 import '../../helpers/test_overrides.dart';

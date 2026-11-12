@@ -3,7 +3,7 @@ import 'package:unorm_dart/unorm_dart.dart' as unorm;
 /// Name normalization shared with the data pipeline (`docs/architecture/07` §5.7,
 /// `data/kb/normalize.py`). The catalog already stores the matching form of every name; the
 /// app applies the same rules only to what the player types. Both sides pass the same test
-/// vectors (`data/tests/test_normalize.py`, `test/features/answer_catalog/`).
+/// vectors (`data/tests/test_normalize.py`, `test/features/battles/`).
 
 /// Arabic harakat, Quranic marks and the superscript alef.
 final _arabicDiacritics = RegExp(

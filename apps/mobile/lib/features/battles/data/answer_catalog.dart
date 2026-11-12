@@ -1,6 +1,6 @@
 import 'dart:convert';
 
-import 'package:the_game/features/answer_catalog/application/name_normalization.dart';
+import 'package:the_game/features/battles/application/name_normalization.dart';
 
 /// What a typed answer can be (`AnswerKind` in `WEBSOCKET.md` §2, without `NUMBER`).
 enum AnswerEntityKind {

@@ -3,8 +3,8 @@ import 'dart:isolate';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:the_game/core/errors/app_error.dart';
-import 'package:the_game/features/answer_catalog/data/answer_catalog.dart';
-import 'package:the_game/features/answer_catalog/data/answer_catalog_data_sources.dart';
+import 'package:the_game/features/battles/data/answer_catalog.dart';
+import 'package:the_game/features/battles/data/answer_catalog_data_sources.dart';
 
 /// The answer catalog on the phone, kept current with the server (`08-battle-games.md` §5.5).
 class AnswerCatalogRepository {
