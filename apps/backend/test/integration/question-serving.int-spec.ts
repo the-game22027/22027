@@ -2,7 +2,6 @@ import { Test, type TestingModule } from '@nestjs/testing';
 import { randomUUID } from 'node:crypto';
 import { AnswerCatalogQuery } from '../../src/modules/question-bank/application/answer-catalog.query';
 import { AnswerChecker } from '../../src/modules/question-bank/application/answer-checker';
-import { computeChecksum } from '../../src/modules/question-bank/application/bundle-parser';
 import { ContentSelector } from '../../src/modules/question-bank/application/content-selector';
 import { ImportQuestionBundle } from '../../src/modules/question-bank/application/import-question-bundle';
 import type { ContentSelectionCriteria } from '../../src/modules/question-bank/application/ports/question-read-repository';
@@ -298,18 +297,6 @@ describe('serving content to battles', () => {
   });
 
   describe('answer catalog', () => {
-    it("versions the snapshot by the last catalog's checksum and lists only its entities", async () => {
-      const version = computeChecksum(files.catalogJsonl as Buffer);
-      await expect(catalog.findCurrentVersion()).resolves.toBe(version);
-
-      const snapshot = await catalog.getSnapshot();
-      expect(snapshot.version).toBe(version);
-      const ronaldo = snapshot.entities.find((entity) => entity.names.en === e.ronaldo.names.en);
-      expect(ronaldo).toMatchObject({ kind: 'PLAYER', search: e.ronaldo.search, popularity: 10 });
-      expect(snapshot.entities).toHaveLength(catalogEntities.length);
-      expect(snapshot.entities[0]?.popularity).toBe(10);
-    });
-
     it('finds entity names by id for battle events', async () => {
       const id = await entityId(e.spain.externalRef);
       await expect(catalog.findEntitiesByIds([id])).resolves.toEqual([

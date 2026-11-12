@@ -6,17 +6,13 @@ import type { NameWord } from '../domain/answer-catalog';
 import type { AnswerKind, EntityKind, GameBody } from '../domain/question-content';
 import type {
   CatalogEntityView,
-  CatalogSnapshot,
   ContentSelectionCriteria,
   QuestionReadRepository,
   SlotAnswers,
   StoredGameContent,
 } from '../application/ports/question-read-repository';
 
-// Reading 20-30k entities takes well under a second; the default 5 s leaves too little room on a slow machine.
-const CATALOG_SNAPSHOT_TIMEOUT_MS = 30_000;
-
-const CATALOG_ENTITY_COLUMNS = { id: true, kind: true, names: true, searchForms: true, popularity: true } as const;
+const CATALOG_ENTITY_COLUMNS = { id: true, kind: true, names: true, popularity: true } as const;
 
 type CatalogEntityRow = Prisma.AnswerEntityGetPayload<{ select: typeof CATALOG_ENTITY_COLUMNS }>;
 
@@ -24,7 +20,6 @@ const catalogEntityOf = (row: CatalogEntityRow): CatalogEntityView => ({
   id: row.id,
   kind: row.kind as EntityKind,
   names: row.names as unknown as CatalogEntityView['names'],
-  search: row.searchForms,
   popularity: row.popularity,
 });
 
@@ -146,31 +141,5 @@ export class PrismaQuestionReadRepository implements QuestionReadRepository {
       select: { id: true },
     });
     return rows.map((row) => row.id);
-  }
-
-  async findCurrentCatalogVersion(): Promise<string | null> {
-    const batch = await this.txHost.tx.questionImportBatch.findFirst({
-      where: { catalogChecksum: { not: null } },
-      orderBy: [{ importedAt: 'desc' }, { id: 'desc' }],
-      select: { catalogChecksum: true },
-    });
-    return batch?.catalogChecksum ?? null;
-  }
-
-  readCatalogSnapshot(): Promise<CatalogSnapshot | null> {
-    // REPEATABLE READ: an import committing between the two reads must not pair one version with another's entities.
-    return this.txHost.withTransaction(
-      { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead, timeout: CATALOG_SNAPSHOT_TIMEOUT_MS },
-      async () => {
-        const version = await this.findCurrentCatalogVersion();
-        if (version === null) return null;
-        const rows = await this.txHost.tx.answerEntity.findMany({
-          where: { status: 'ACTIVE' },
-          orderBy: [{ popularity: 'desc' }, { id: 'asc' }],
-          select: CATALOG_ENTITY_COLUMNS,
-        });
-        return { version, entities: rows.map(catalogEntityOf) };
-      },
-    );
   }
 }
