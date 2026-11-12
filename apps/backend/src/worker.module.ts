@@ -1,6 +1,7 @@
 import { BullModule } from '@nestjs/bullmq';
 import { type DynamicModule, Module } from '@nestjs/common';
 import { FootballJobsModule } from '@modules/football';
+import { LeaderboardsJobsModule } from '@modules/leaderboards';
 import { PointsJobsModule } from '@modules/points';
 import { AppConfig } from '@shared/infrastructure/config';
 import { CoreModule } from '@shared/infrastructure/core.module';
@@ -24,6 +25,7 @@ export class WorkerModule {
         }),
         FootballJobsModule,
         PointsJobsModule,
+        LeaderboardsJobsModule,
       ],
     };
   }

@@ -1,0 +1,68 @@
+// Owned by the leaderboards module (docs/architecture/02-database.md §4.10). Snapshots come with the prize work.
+
+enum LeaderboardKind {
+  WEEKLY
+  MONTHLY
+  SEASONAL
+  ALL_TIME
+
+  @@map("leaderboard_kind")
+}
+
+/// Decided (DEC-18): two separate boards, no overall one.
+enum LeaderboardCategory {
+  PREDICTIONS
+  BATTLES
+
+  @@map("leaderboard_category")
+}
+
+enum PeriodStatus {
+  OPEN
+  CLOSED
+  FINALIZED
+
+  @@map("period_status")
+}
+
+model LeaderboardPeriod {
+  id          String              @id @db.Uuid
+  kind        LeaderboardKind
+  category    LeaderboardCategory
+  /// 2026-W46 | 2026-11 | 2026-27 | all (03 §5.6)
+  periodKey   String              @map("period_key")
+  startsAt    DateTime            @map("starts_at") @db.Timestamptz(3)
+  /// null for ALL_TIME.
+  endsAt      DateTime?           @map("ends_at") @db.Timestamptz(3)
+  /// IANA name the boundaries were computed in (DEC-15/16).
+  timezone    String
+  /// Stays OPEN until the prize work stores closing; the API derives OPEN/CLOSED from the clock (03 §5.6).
+  status      PeriodStatus        @default(OPEN)
+  closedAt    DateTime?           @map("closed_at") @db.Timestamptz(3)
+  finalizedAt DateTime?           @map("finalized_at") @db.Timestamptz(3)
+
+  entries LeaderboardEntry[]
+
+  @@unique([kind, category, periodKey])
+  @@map("leaderboard_periods")
+}
+
+/// A projection of the ledger: deleting a period's rows and rebuilding them from point_entries is always safe.
+model LeaderboardEntry {
+  periodId     String    @map("period_id") @db.Uuid
+  userId       String    @map("user_id") @db.Uuid
+  points       BigInt    @default(0)
+  /// Meaning chosen by DEC-23; 0 until then.
+  tiebreak1    BigInt    @default(0) @map("tiebreak_1")
+  tiebreak2    BigInt    @default(0) @map("tiebreak_2")
+  lastScoredAt DateTime? @map("last_scored_at") @db.Timestamptz(3)
+  updatedAt    DateTime  @map("updated_at") @db.Timestamptz(3)
+
+  period LeaderboardPeriod @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  user   User              @relation(fields: [userId], references: [id])
+
+  @@id([periodId, userId])
+  /// Ranking and keyset pagination read the board in exactly this order.
+  @@index([periodId, points(sort: Desc), tiebreak1(sort: Desc), tiebreak2(sort: Desc), userId])
+  @@map("leaderboard_entries")
+}
