@@ -3,34 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:the_game/features/battles/data/answer_catalog.dart';
 import 'package:the_game/features/battles/data/battle_events.dart';
 
-const battleId = '0193b000-0000-7000-8000-000000000001';
-const serverTime = '2026-11-12T10:00:00.000Z';
-
-/// A battle event envelope as the backend's `LiveBattle.emit` builds it.
-Map<String, Object?> battleEnvelope(
-  String type,
-  int seq,
-  Map<String, Object?> data,
-) => {
-  'battleId': battleId,
-  'seq': seq,
-  'serverTime': serverTime,
-  'type': type,
-  'data': data,
-};
-
-const humanPlayerJson = {
-  'participantId': 'p-human',
-  'kind': 'HUMAN',
-  'seat': 1,
-  'user': {'id': 'u-1', 'displayName': 'Alice', 'username': null},
-};
-const botPlayerJson = {
-  'participantId': 'p-bot',
-  'kind': 'BOT',
-  'seat': 2,
-  'bot': {'displayName': 'Bot Karim'},
-};
+import 'battle_fixtures.dart';
 
 void main() {
   test('matchmaking:queued has no seq and reads the bot fallback time', () {

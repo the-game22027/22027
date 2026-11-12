@@ -537,8 +537,8 @@ BattleServerEvent parseBattleServerEvent(String eventName, Object? payload) {
           battleId: id,
           seq: sequence,
           roundNo: data.readInt('roundNo'),
-          rows: _readCriteria(data, 'rows'),
-          cols: _readCriteria(data, 'cols'),
+          rows: readGridCriteria(data.readObjectList('rows')),
+          cols: readGridCriteria(data.readObjectList('cols')),
           firstTurnParticipantId: data.readString('firstTurnParticipantId'),
         );
       }
@@ -731,8 +731,8 @@ List<BattlePlayer> readBattlePlayers(List<JsonObjectReader> players) => [
 List<BattlePlayer> _readPlayers(JsonObjectReader data) =>
     readBattlePlayers(data.readObjectList('players'));
 
-List<GridCriterion> _readCriteria(JsonObjectReader data, String key) => [
-  for (final criterion in data.readObjectList(key))
+List<GridCriterion> readGridCriteria(List<JsonObjectReader> criteria) => [
+  for (final criterion in criteria)
     GridCriterion(
       kind: switch (criterion.readString('kind')) {
         'CLUB' => GridCriterionKind.club,
