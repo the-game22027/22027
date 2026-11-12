@@ -7,22 +7,22 @@ import type {
   NewActiveRuleSet,
   ScoringRuleSetRepository,
 } from '../application/ports/scoring-rule-set-repository';
-import type { ScoredGame } from '../domain/battle-ledger-entries';
+import type { LedgerCategory } from '../domain/battle-ledger-entries';
 
 @Injectable()
 export class PrismaScoringRuleSetRepository implements ScoringRuleSetRepository {
   constructor(private readonly txHost: TransactionHost<TransactionalAdapterPrisma<PrismaService>>) {}
 
-  async findActiveRuleSet(game: ScoredGame): Promise<ActiveRuleSet | null> {
+  async findActiveRuleSet(game: LedgerCategory): Promise<ActiveRuleSet | null> {
     const row = await this.txHost.tx.scoringRuleSet.findFirst({ where: { gameType: game, status: 'ACTIVE' } });
     return row && { id: row.id, game: row.gameType, version: row.version, name: row.name, config: row.config };
   }
 
-  async waitForOtherActivations(game: ScoredGame): Promise<void> {
+  async waitForOtherActivations(game: LedgerCategory): Promise<void> {
     await this.txHost.tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`points:activate:${game}`}))`;
   }
 
-  async findHighestVersion(game: ScoredGame): Promise<number> {
+  async findHighestVersion(game: LedgerCategory): Promise<number> {
     const { _max } = await this.txHost.tx.scoringRuleSet.aggregate({
       where: { gameType: game },
       _max: { version: true },
@@ -30,7 +30,7 @@ export class PrismaScoringRuleSetRepository implements ScoringRuleSetRepository 
     return _max.version ?? 0;
   }
 
-  async retireActiveRuleSet(game: ScoredGame): Promise<void> {
+  async retireActiveRuleSet(game: LedgerCategory): Promise<void> {
     await this.txHost.tx.scoringRuleSet.updateMany({
       where: { gameType: game, status: 'ACTIVE' },
       data: { status: 'RETIRED' },

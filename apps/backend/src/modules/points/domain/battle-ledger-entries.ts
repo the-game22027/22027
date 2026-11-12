@@ -1,5 +1,8 @@
-/** The categories of the ledger and the games a rule set can score (02 §2 `game_type`). */
-export type ScoredGame = 'PREDICTION' | 'MOTM' | 'BATTLE';
+/**
+ * Which kind of points a ledger entry holds, and so which game a rule set scores (02 §2 `game_type`). Each
+ * leaderboard reads one category only: battle and prediction points never mix (DEC-18).
+ */
+export type LedgerCategory = 'PREDICTION' | 'MOTM' | 'BATTLE';
 
 /** What the points module reads from a `BattleCompleted` event (01 §6). */
 export interface CompletedBattle {
@@ -16,7 +19,7 @@ export interface CompletedBattle {
 
 export interface NewPointEntry {
   userId: string;
-  category: ScoredGame;
+  category: LedgerCategory;
   sourceType: 'BATTLE_PARTICIPANT';
   /** The battle participant id: one entry per player per battle. */
   sourceId: string;

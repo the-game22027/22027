@@ -3,7 +3,7 @@ import { Transactional } from '@nestjs-cls/transactional';
 import { isDeepStrictEqual } from 'node:util';
 import { OutboxWriter } from '@shared/infrastructure/outbox';
 import { CLOCK, type Clock, ID_GENERATOR, type IdGenerator } from '@shared/kernel';
-import type { ScoredGame } from '../domain/battle-ledger-entries';
+import type { LedgerCategory } from '../domain/battle-ledger-entries';
 import {
   type ActiveRuleSet,
   SCORING_RULE_SET_REPOSITORY,
@@ -27,14 +27,14 @@ export class ScoringRuleSets {
     private readonly outbox: OutboxWriter,
   ) {}
 
-  findActiveRuleSet(game: ScoredGame): Promise<ActiveRuleSet | null> {
+  findActiveRuleSet(game: LedgerCategory): Promise<ActiveRuleSet | null> {
     return this.ruleSets.findActiveRuleSet(game);
   }
 
   /** Stores the config as the next version and retires the active one, in one transaction. */
   @Transactional()
   async activateRuleSet(
-    game: ScoredGame,
+    game: LedgerCategory,
     name: string,
     config: unknown,
     createdBy: string,
