@@ -1,6 +1,64 @@
 {
   "components": {
     "schemas": {
+      "AnswerCatalogDto": {
+        "properties": {
+          "entities": {
+            "items": {
+              "$ref": "#/components/schemas/AnswerCatalogEntityDto"
+            },
+            "type": "array"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "entities"
+        ],
+        "type": "object"
+      },
+      "AnswerCatalogEntityDto": {
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "kind": {
+            "description": "One of ENTITY_KINDS; clients must tolerate unknown values.",
+            "enum": [
+              "PLAYER",
+              "CLUB",
+              "NATIONAL_TEAM",
+              "COUNTRY",
+              "COMPETITION",
+              "COACH"
+            ],
+            "type": "string"
+          },
+          "names": {
+            "$ref": "#/components/schemas/LocalizedEntityNamesDto"
+          },
+          "popularity": {
+            "type": "number"
+          },
+          "search": {
+            "description": "Normalized names and aliases (07 §5.7): what the app searches while the player types.",
+            "items": {
+              "type": "string"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "names",
+          "search",
+          "popularity"
+        ],
+        "type": "object"
+      },
       "AuthTokensDto": {
         "properties": {
           "accessToken": {
@@ -157,6 +215,21 @@
         ],
         "type": "object"
       },
+      "LocalizedEntityNamesDto": {
+        "properties": {
+          "ar": {
+            "type": "string"
+          },
+          "en": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "en",
+          "ar"
+        ],
+        "type": "object"
+      },
       "MatchCompetitionDto": {
         "properties": {
           "code": {
@@ -218,12 +291,12 @@
           },
           "status": {
             "enum": [
-              "SCHEDULED",
-              "LIVE",
-              "FINISHED",
-              "POSTPONED",
               "CANCELLED",
-              "ABANDONED"
+              "SCHEDULED",
+              "FINISHED",
+              "ABANDONED",
+              "LIVE",
+              "POSTPONED"
             ],
             "type": "string"
           }
@@ -297,12 +370,12 @@
           },
           "status": {
             "enum": [
-              "SCHEDULED",
-              "LIVE",
-              "FINISHED",
-              "POSTPONED",
               "CANCELLED",
-              "ABANDONED"
+              "SCHEDULED",
+              "FINISHED",
+              "ABANDONED",
+              "LIVE",
+              "POSTPONED"
             ],
             "type": "string"
           }
@@ -432,8 +505,8 @@
           },
           "outcome": {
             "enum": [
-              "HOME",
               "DRAW",
+              "HOME",
               "AWAY"
             ],
             "type": "string"
@@ -785,6 +858,36 @@
         },
         "tags": [
           "dev"
+        ]
+      }
+    },
+    "/v1/answer-catalog": {
+      "get": {
+        "operationId": "AnswerCatalogController_answerCatalog_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AnswerCatalogDto"
+                }
+              }
+            },
+            "description": ""
+          },
+          "304": {
+            "description": "The If-None-Match ETag is still the current version"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "08 §5.5. The body is written by hand: it is pre-serialized and pre-gzipped once per version.",
+        "tags": [
+          "question-bank"
         ]
       }
     },

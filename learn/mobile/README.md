@@ -15,4 +15,9 @@ M1:
 - [reauthentication-before-sensitive-actions](reauthentication-before-sensitive-actions.md): confirm it is you, and the different-account trap
 - [dispose-controllers-with-their-widget](dispose-controllers-with-their-widget.md): a dialog's text controller dies with its `State`, not with `showDialog`'s future
 
+M1.5 (data layer):
+
+- [etag-conditional-download](etag-conditional-download.md): `If-None-Match` and `304` for the answer catalog
+- [riverpod-paused-providers](riverpod-paused-providers.md): no listener, no retry
+
 Coming later: Socket.IO client and reconnection (M3), state for live battles, store release.

@@ -128,8 +128,8 @@ Map<String, dynamic> _$PredictionPickDtoToJson(PredictionPickDto instance) =>
     };
 
 const _$PredictionPickDtoOutcomeEnumEnumMap = {
-  PredictionPickDtoOutcomeEnum.HOME: 'HOME',
   PredictionPickDtoOutcomeEnum.DRAW: 'DRAW',
+  PredictionPickDtoOutcomeEnum.HOME: 'HOME',
   PredictionPickDtoOutcomeEnum.AWAY: 'AWAY',
   PredictionPickDtoOutcomeEnum.unknownDefaultOpenApi:
       'unknown_default_open_api',

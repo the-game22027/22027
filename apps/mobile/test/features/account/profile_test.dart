@@ -73,6 +73,59 @@ void main() {
 
       expect(readJsonBody(adapter.sentRequests.single), {'locale': 'ar'});
     });
+
+    test('sets avatar and favourite team, or clears them with nulls', () async {
+      await repository.updatePlayerAccountProfile(
+        avatarUrl: 'https://example.test/a.png',
+        favouriteTeamId: 'team-1',
+      );
+      await repository.updatePlayerAccountProfile(
+        removeAvatar: true,
+        removeFavouriteTeam: true,
+      );
+
+      expect(readJsonBody(adapter.sentRequests.first), {
+        'avatarUrl': 'https://example.test/a.png',
+        'favouriteTeamId': 'team-1',
+      });
+      expect(readJsonBody(adapter.sentRequests.last), {
+        'avatarUrl': null,
+        'favouriteTeamId': null,
+      });
+    });
+
+    test(
+      'reads identities and privacy, tolerating unknown providers',
+      () async {
+        adapter = FakeHttpAdapter(
+          (_) => jsonResponse({
+            ...meJson,
+            'favouriteTeamId': 'team-1',
+            'identities': [
+              {
+                'id': 'i-1',
+                'provider': 'GOOGLE',
+                'label': 'alice@example.test',
+              },
+              {'id': 'i-2', 'provider': 'APPLE', 'label': 'alice'},
+            ],
+            'privacy': {'predictionVisibility': 'FRIENDS_AFTER_KICKOFF'},
+          }),
+        );
+        repository = (await createContainer(
+          adapter,
+        )).read(profileRepositoryProvider);
+
+        final profile = await repository.fetchPlayerAccountProfile();
+
+        expect(profile.favouriteTeamId, 'team-1');
+        expect(profile.linkedIdentities.map((identity) => identity.provider), [
+          SignInProvider.google,
+          SignInProvider.unknown,
+        ]);
+        expect(profile.predictionVisibility, 'FRIENDS_AFTER_KICKOFF');
+      },
+    );
   });
 
   group('assignProfileSaveErrorToFields', () {

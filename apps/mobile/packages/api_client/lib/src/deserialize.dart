@@ -1,3 +1,5 @@
+import 'package:api_client/src/model/answer_catalog_dto.dart';
+import 'package:api_client/src/model/answer_catalog_entity_dto.dart';
 import 'package:api_client/src/model/auth_tokens_dto.dart';
 import 'package:api_client/src/model/competition_dto.dart';
 import 'package:api_client/src/model/competition_list_dto.dart';
@@ -5,6 +7,7 @@ import 'package:api_client/src/model/dev_sign_in_dto.dart';
 import 'package:api_client/src/model/device_dto.dart';
 import 'package:api_client/src/model/google_sign_in_dto.dart';
 import 'package:api_client/src/model/identity_dto.dart';
+import 'package:api_client/src/model/localized_entity_names_dto.dart';
 import 'package:api_client/src/model/match_competition_dto.dart';
 import 'package:api_client/src/model/match_detail_dto.dart';
 import 'package:api_client/src/model/match_page_dto.dart';
@@ -46,6 +49,12 @@ ReturnType deserialize<ReturnType, BaseType>(
       return (valueString == 'true' || valueString == '1') as ReturnType;
     case 'double':
       return (value is double ? value : double.parse('$value')) as ReturnType;
+    case 'AnswerCatalogDto':
+      return AnswerCatalogDto.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'AnswerCatalogEntityDto':
+      return AnswerCatalogEntityDto.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
     case 'AuthTokensDto':
       return AuthTokensDto.fromJson(value as Map<String, dynamic>)
           as ReturnType;
@@ -64,6 +73,9 @@ ReturnType deserialize<ReturnType, BaseType>(
           as ReturnType;
     case 'IdentityDto':
       return IdentityDto.fromJson(value as Map<String, dynamic>) as ReturnType;
+    case 'LocalizedEntityNamesDto':
+      return LocalizedEntityNamesDto.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
     case 'MatchCompetitionDto':
       return MatchCompetitionDto.fromJson(value as Map<String, dynamic>)
           as ReturnType;
