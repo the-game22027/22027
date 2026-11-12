@@ -16,6 +16,14 @@ export const answerCommand = z.object({
   roundNo,
   answer: z.union([z.strictObject({ entityId: z.string().min(1).max(64) }), z.strictObject({ number: z.number() })]),
 });
+export const gridClaimCommand = z.object({
+  clientMsgId,
+  battleId,
+  roundNo,
+  cell: z.object({ row: z.number().int().min(0).max(2), col: z.number().int().min(0).max(2) }),
+  answer: z.strictObject({ entityId: z.string().min(1).max(64) }),
+});
+export const gridSkipCommand = z.object({ clientMsgId, battleId, roundNo });
 export const resyncCommand = z.object({ clientMsgId, battleId, lastSeq: z.number().int().nonnegative().optional() });
 export const forfeitCommand = z.object({ clientMsgId, battleId });
 export const timeSyncCommand = z.object({ t0: z.number() });

@@ -9,7 +9,7 @@ import type { GameType } from '@modules/question-bank';
 import { UsersFacade } from '@modules/users';
 import { CLOCK, type Clock, ID_GENERATOR, type IdGenerator } from '@shared/kernel';
 import { BattleEngine, NoPlayableContentError } from './battle-engine';
-import { BATTLE_SETTINGS, type BattleSettings, findRevealGameSettings, type RevealGameType } from './battle-settings';
+import { BATTLE_SETTINGS, type BattleSettings, findGameSettings } from './battle-settings';
 import { ACTIVITY_GUARD, type Activity, type ActivityGuard } from './ports/activity-guard';
 import { BATTLE_NOTIFIER, type BattleNotifier } from './ports/battle-notifier';
 import { MATCHMAKING_QUEUE, type MatchmakingQueue, type QueueTicket } from './ports/matchmaking-queue';
@@ -69,7 +69,7 @@ export class MatchmakingService implements OnApplicationBootstrap, BeforeApplica
 
   /** Returns an error code for the ack, or null when the player is queued. */
   async join(userId: string, gameType: GameType): Promise<string | null> {
-    if (!findRevealGameSettings(this.settings, gameType)?.enabled) return 'GAME_TYPE_UNAVAILABLE';
+    if (!findGameSettings(this.settings, gameType)?.enabled) return 'GAME_TYPE_UNAVAILABLE';
     const account = await this.users.getAccount(userId);
     if (!account) return 'NOT_PARTICIPANT';
     const ticket: QueueTicket = {
@@ -153,8 +153,8 @@ export class MatchmakingService implements OnApplicationBootstrap, BeforeApplica
 
   /** One matcher tick: pair humans first, then give a bot to everyone who waited long enough. */
   private async runMatcherOnce(): Promise<void> {
-    const gameTypes = (Object.keys(this.settings.gameTypes) as RevealGameType[]).filter(
-      (gameType) => this.settings.gameTypes[gameType]?.enabled,
+    const gameTypes = (Object.keys(this.settings.gameTypes) as GameType[]).filter(
+      (gameType) => findGameSettings(this.settings, gameType)?.enabled,
     );
     for (const gameType of gameTypes) {
       for (;;) {

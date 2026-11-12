@@ -11,12 +11,7 @@ import { UsersFacade } from '@modules/users';
 import { CLOCK, type Clock, ID_GENERATOR, type IdGenerator, type Locale } from '@shared/kernel';
 import type { TypedAnswer } from '../domain/games/game-rules';
 import { SeededRandom } from '../domain/random-source';
-import {
-  BATTLE_SETTINGS,
-  type BattleConfigSnapshot,
-  type BattleSettings,
-  findRevealGameSettings,
-} from './battle-settings';
+import { BATTLE_SETTINGS, type BattleConfigSnapshot, type BattleSettings, findGameSettings } from './battle-settings';
 import { type Ack, LiveBattle, type LiveParticipant } from './live-battle';
 import { ACTIVITY_GUARD, type Activity, type ActivityGuard } from './ports/activity-guard';
 import { BATTLE_NOTIFIER, type BattleNotifier } from './ports/battle-notifier';
@@ -96,7 +91,7 @@ export class BattleEngine implements OnApplicationBootstrap, OnApplicationShutdo
     players: { userId: string; queueActivity: Activity }[],
     withBot: boolean,
   ): Promise<string> {
-    const game = findRevealGameSettings(this.settings, gameType);
+    const game = findGameSettings(this.settings, gameType);
     if (!game) throw new Error(`${gameType} has no battle config`);
     const accounts = await Promise.all(
       players.map(async ({ userId }) => {
@@ -225,6 +220,25 @@ export class BattleEngine implements OnApplicationBootstrap, OnApplicationShutdo
     );
   }
 
+  claimGridCell(
+    battleId: string,
+    userId: string,
+    socketId: string,
+    roundNo: number,
+    claim: { cell: number; entityId: string },
+    clientMsgId: string,
+  ): Promise<Ack> {
+    return this.withBattle(battleId, clientMsgId, (battle) =>
+      battle.roundCommand(userId, socketId, roundNo, { type: 'GRID_CLAIM', ...claim }, clientMsgId),
+    );
+  }
+
+  skipGridTurn(battleId: string, userId: string, socketId: string, roundNo: number, clientMsgId: string): Promise<Ack> {
+    return this.withBattle(battleId, clientMsgId, (battle) =>
+      battle.roundCommand(userId, socketId, roundNo, { type: 'GRID_SKIP' }, clientMsgId),
+    );
+  }
+
   forfeit(battleId: string, userId: string, clientMsgId: string): Promise<Ack> {
     return this.withBattle(battleId, clientMsgId, (battle) => battle.forfeit(userId, clientMsgId));
   }
@@ -271,7 +285,7 @@ export class BattleEngine implements OnApplicationBootstrap, OnApplicationShutdo
     locales: Locale[],
     roundCount: number,
   ): Promise<string[]> {
-    const game = findRevealGameSettings(this.settings, gameType);
+    const game = findGameSettings(this.settings, gameType);
     const window = game?.selection.excludeLastBattles ?? 0;
     const recent = [
       ...new Set(
@@ -283,6 +297,8 @@ export class BattleEngine implements OnApplicationBootstrap, OnApplicationShutdo
       count: roundCount,
       locales,
       ...(game?.selection.difficulties ? { difficulties: game.selection.difficulties } : {}),
+      // A grid is picked only when every cell has enough valid players (08 §6).
+      ...(game && 'minAnswersPerCell' in game ? { minAnswersPerSlot: game.minAnswersPerCell } : {}),
     };
     const fresh = await this.selector.pickContentIds({ ...criteria, excludeContentIds: recent });
     if (fresh.length === roundCount || recent.length === 0) {

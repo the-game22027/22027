@@ -32,8 +32,10 @@ export const isRejection = (value: unknown): value is Rejection =>
 /** One accepted player action or timeout, persisted to battle_round_actions in this order. */
 export interface RoundAction {
   participantId: ParticipantId;
-  kind: 'BUZZ' | 'ANSWER' | 'ANSWER_TIMEOUT';
+  kind: 'BUZZ' | 'ANSWER' | 'ANSWER_TIMEOUT' | 'GRID_CLAIM' | 'GRID_SKIP' | 'TURN_TIMEOUT';
   answer?: TypedAnswer;
+  /** Grid only: row * 3 + col. */
+  cell?: number;
   isCorrect?: boolean;
   points: number;
   at: Date;
@@ -43,7 +45,8 @@ export type TypedAnswer = { entityId: string } | { number: number };
 
 export interface RoundResult {
   winnerParticipantId: ParticipantId | null;
-  endReason: 'CORRECT' | 'NO_WINNER' | 'ALL_LOCKED_OUT';
+  endReason:
+    'CORRECT' | 'NO_WINNER' | 'ALL_LOCKED_OUT' | 'GRID_LINE' | 'GRID_FULL' | 'MAX_TURNS' | 'SKIP_LIMIT' | 'FORFEIT';
   /** Points earned in this round, by participant; missing means 0. */
   points: Record<ParticipantId, number>;
   stepsRevealed: number;

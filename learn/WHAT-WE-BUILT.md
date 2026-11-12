@@ -426,8 +426,8 @@ npm run start:worker:dev
 npm run start:api:dev
 npm run cli -- --help
 npm run cli -- mock:run-day --speed 6000x
-npm run cli -- questions:import ../../data/bundles/dev-0003
-npm run cli -- questions:publish dev-0003 --include-drafts
+npm run cli -- questions:import ../../data/bundles/dev-0004
+npm run cli -- questions:publish dev-0004 --include-drafts
 ```
 
 </div>

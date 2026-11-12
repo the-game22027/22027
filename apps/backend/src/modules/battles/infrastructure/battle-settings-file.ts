@@ -34,6 +34,23 @@ const revealGame = z.strictObject({
   }),
 });
 
+const gridGame = z.strictObject({
+  enabled: z.boolean(),
+  roundCount: z.number().int().positive(),
+  turnMs: positiveMs,
+  attemptsPerTurn: z.number().int().positive(),
+  skipsPerRound: z.number().int().nonnegative().nullable(),
+  maxTurns: z.number().int().positive(),
+  minAnswersPerCell: z.number().int().positive(),
+  revealAnswersAtEnd: z.boolean(),
+  showWrongAnswers: z.boolean(),
+  points: z.strictObject({ roundWin: z.number().int(), roundDraw: z.number().int(), perCell: z.number().int() }),
+  selection: z.strictObject({
+    difficulties: z.array(z.number().int().min(1).max(5)).min(1).nullable(),
+    excludeLastBattles: z.number().int().nonnegative(),
+  }),
+});
+
 const settingsSchema = z.strictObject({
   devOnly: z.boolean(),
   engine: z.strictObject({
@@ -54,6 +71,7 @@ const settingsSchema = z.strictObject({
     BUZZER: revealGame.optional(),
     CAREER: revealGame.extend({ showYears: z.boolean() }).optional(),
     WHO_IS_PLAYER: revealGame.optional(),
+    GRID: gridGame.optional(),
   }),
 });
 

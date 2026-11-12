@@ -343,6 +343,14 @@ The giveaway check of §5.5 runs here too: a round whose steps contain the answe
 
 The same career rules as `CAREER` apply (dated spells, at most one open spell). Clue counts per round are content; how many a game reveals is the round itself. The giveaway check drops a round whose clues contain the player's name.
 
+**`GRID` rounds (P6.4):** rows are 3 clubs, columns 3 nationalities (criteria `CLUB` and `NATIONALITY`).
+- **Valid players of a cell:** every catalog player with any spell at the club (dated or not) and that citizenship. Answers list them most popular first, so a bot's "correct" pick is the famous one.
+- **Candidates:** the most popular clubs and countries (by how many players they have in the knowledge base). Every combination is tried, and a board is kept only if each cell has at least `--grid-min-answers` players (default 3).
+- **Variety:** a club or a country appears in at most a few boards of one bundle.
+- **Difficulty:** from the emptiest cell: many answers is easy, few is hard.
+- **Key:** `grid:<club qids>:<country qids>` in board order.
+- **Later:** club × club boards ("played for both"), and `COMPETITION_WON` once trophies are ingested.
+
 **Difficulty:** a first guess from popularity (Wikipedia sitelinks). Answer statistics recalibrate it later (`calibrated_difficulty`).
 
 | Sitelinks | ≥ 100 | 60-99 | 40-59 | 20-39 | < 20 |

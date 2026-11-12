@@ -17,6 +17,8 @@ import {
   answerCommand,
   buzzCommand,
   forfeitCommand,
+  gridClaimCommand,
+  gridSkipCommand,
   joinMatchmakingCommand,
   leaveMatchmakingCommand,
   readyCommand,
@@ -116,6 +118,27 @@ export class BattlesGateway
         command.answer,
         command.clientMsgId,
       ),
+    );
+  }
+
+  @SubscribeMessage('grid:claim')
+  claimGridCell(socket: Socket, body: unknown): Promise<Ack> {
+    return this.withPayload(gridClaimCommand, body, (command) =>
+      this.engine.claimGridCell(
+        command.battleId,
+        userIdOf(socket),
+        socket.id,
+        command.roundNo,
+        { cell: command.cell.row * 3 + command.cell.col, entityId: command.answer.entityId },
+        command.clientMsgId,
+      ),
+    );
+  }
+
+  @SubscribeMessage('grid:skip')
+  skipGridTurn(socket: Socket, body: unknown): Promise<Ack> {
+    return this.withPayload(gridSkipCommand, body, (command) =>
+      this.engine.skipGridTurn(command.battleId, userIdOf(socket), socket.id, command.roundNo, command.clientMsgId),
     );
   }
 

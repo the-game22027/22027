@@ -19,6 +19,7 @@ from kb.generate import (
     pick_spread_over_difficulties,
     who_is_player_round,
 )
+from kb.grids import grid_rounds
 
 GENERATOR_VERSION = "kb-generate-1"
 CATEGORIES = [
@@ -26,6 +27,7 @@ CATEGORIES = [
     {"slug": "transfers", "names": {"en": "Transfers", "ar": "الانتقالات"}},
     {"slug": "nationalities", "names": {"en": "Nationalities", "ar": "الجنسيات"}},
     {"slug": "players", "names": {"en": "Players", "ar": "اللاعبون"}},
+    {"slug": "grids", "names": {"en": "Grids", "ar": "الشبكات"}},
 ]
 
 
@@ -46,6 +48,8 @@ def build_bundle(
     buzzer_count: int,
     catalog_min_player_sitelinks: int | None,
     who_count: int = 0,
+    grid_count: int = 0,
+    grid_min_answers: int = 3,
 ) -> BundleSummary:
     catalog = {entry["externalRef"]: entry for entry in load_catalog_entries(connection)}
     kb_version = _kb_version(connection)
@@ -70,7 +74,15 @@ def build_bundle(
     lines = sorted(
         pick_spread_over_difficulties(careers, career_count)
         + buzzers
-        + pick_spread_over_difficulties(whos, who_count),
+        + pick_spread_over_difficulties(whos, who_count)
+        + grid_rounds(
+            players,
+            club_names_of,
+            country_names_of,
+            kb_version,
+            count=grid_count,
+            min_answers=grid_min_answers,
+        ),
         key=lambda line: line["externalKey"],
     )
 
@@ -166,6 +178,8 @@ def _references_of_line(line: dict) -> set[str]:
         refs.update(spell["club"] for spell in content["spells"])
     if line["gameType"] == "WHO_IS_PLAYER":
         refs.add(content["player"])
+    if line["gameType"] == "GRID":
+        refs.update(criterion["entity"] for criterion in [*content["rows"], *content["cols"]])
     return refs
 
 

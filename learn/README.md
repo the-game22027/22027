@@ -105,3 +105,4 @@ New tracks are added when the first card needs one.
 | [testing/seeded-randomness](testing/seeded-randomness.md) | P6.1 | A stored seed makes bot decisions replayable and testable |
 | [backend/localize-per-viewer](backend/localize-per-viewer.md) | P6.2 | Store facts; render each player's text in their language at send time |
 | [database/atomic-redis-scripts](database/atomic-redis-scripts.md) | P6.3 | Read, decide and change inside one Lua script: no race between matcher and leave |
+| [architecture/one-runner-per-mechanic](architecture/one-runner-per-mechanic.md) | P6.4 | The engine keeps what games share; one runner per mechanic owns a round |

@@ -10,7 +10,7 @@ import { QuestionBankCliModule } from '../../src/modules/question-bank/question-
 import { CoreModule } from '../../src/shared/infrastructure/core.module';
 import { PrismaService } from '../../src/shared/infrastructure/persistence';
 import { writeBattleConfigFile } from '../support/battle-config';
-import { bundle, buzzerLine, careerLine, entitySet, whoLine } from '../support/question-bundles';
+import { bundle, buzzerLine, careerLine, entitySet, gridFixture, whoLine } from '../support/question-bundles';
 import { devSignIn } from '../support/sign-in';
 import { createApiTestApp, testConfig } from '../support/test-app';
 
@@ -42,7 +42,9 @@ function writeBattleConfig(bot: { knows: number; guess: number }, botFallbackAft
         typingDelayMs: { min: 20, max: 20 },
       },
     };
-    for (const game of Object.values(config.gameTypes)) {
+    const { GRID: grid, ...revealGames } = config.gameTypes;
+    if (grid) Object.assign(grid, { roundCount: 1, turnMs: 1_000, maxTurns: 20, minAnswersPerCell: 1 });
+    for (const game of Object.values(revealGames)) {
       Object.assign(game, {
         roundCount: 2,
         revealIntervalMs: 150,
@@ -57,6 +59,8 @@ function writeBattleConfig(bot: { knows: number; guess: number }, botFallbackAft
 
 describe('battles over WebSocket (e2e)', () => {
   const e = entitySet();
+  const grid = gridFixture();
+  const gridPlayerIds: string[] = [];
   let spainId: string;
   let naniId: string;
   let ronaldoId: string;
@@ -81,8 +85,9 @@ describe('battles over WebSocket (e2e)', () => {
             careerLine(`test:${randomUUID()}`, e),
             whoLine(`test:${randomUUID()}`, e),
             whoLine(`test:${randomUUID()}`, e),
+            grid.line(`test:${randomUUID()}`),
           ],
-          Object.values(e),
+          [...Object.values(e), ...grid.entities],
         ),
       );
     await moduleRef.get(QuestionBankFacade).publishQuestionsOfBundle(version);
@@ -90,6 +95,11 @@ describe('battles over WebSocket (e2e)', () => {
     spainId = (await prisma.answerEntity.findUniqueOrThrow({ where: { externalRef: e.spain.externalRef } })).id;
     naniId = (await prisma.answerEntity.findUniqueOrThrow({ where: { externalRef: e.nani.externalRef } })).id;
     ronaldoId = (await prisma.answerEntity.findUniqueOrThrow({ where: { externalRef: e.ronaldo.externalRef } })).id;
+    for (const player of grid.players) {
+      gridPlayerIds.push(
+        (await prisma.answerEntity.findUniqueOrThrow({ where: { externalRef: player.externalRef } })).id,
+      );
+    }
     await moduleRef.close();
   });
 
@@ -242,6 +252,71 @@ describe('battles over WebSocket (e2e)', () => {
         expect(result.data['winnerParticipantIds']).toEqual([found.data['youParticipantId']]);
       },
     );
+
+    it('plays GRID: the board with names, turns, refused moves, and three in a row wins', async () => {
+      const player = await connectPlayer();
+      await player.send('matchmaking:join', { gameType: 'GRID' });
+      const found = await player.waitFor('battle:found');
+      const battleId = found.battleId as string;
+      const me = found.data['youParticipantId'] as string;
+      await player.send('battle:ready', { battleId });
+
+      const start = await player.waitFor('round:start');
+      const rows = start.data['rows'] as { kind: string; entity: { name: string } }[];
+      expect(rows.map((row) => [row.kind, row.entity.name])).toEqual(
+        grid.entities.slice(0, 3).map((club) => ['CLUB', club.names.ar]),
+      );
+      const myTurn = () =>
+        player.waitFor('grid:turn', (event) => event.data['participantId'] === me && !handled.has(event.seq ?? 0));
+      const handled = new Set<number>();
+      const claim = async (row: number, col: number, entityId: string) => {
+        const turn = await myTurn();
+        handled.add(turn.seq ?? 0);
+        return player.send('grid:claim', { battleId, roundNo: 1, cell: { row, col }, answer: { entityId } });
+      };
+
+      // The silent bot always answers wrong, so the top row stays free for us.
+      expect(await claim(0, 0, gridPlayerIds[0])).toMatchObject({ accepted: true });
+      const claimed = await player.waitFor('grid:claimed', (event) => event.data['participantId'] === me);
+      expect(claimed.data).toMatchObject({ cell: { row: 0, col: 0 }, player: { entityId: gridPlayerIds[0] } });
+
+      const turn = await myTurn();
+      handled.add(turn.seq ?? 0);
+      expect(
+        await player.send('grid:claim', {
+          battleId,
+          roundNo: 1,
+          cell: { row: 0, col: 0 },
+          answer: { entityId: gridPlayerIds[1] },
+        }),
+      ).toMatchObject({ accepted: false, code: 'CELL_TAKEN' });
+      expect(
+        await player.send('grid:claim', {
+          battleId,
+          roundNo: 1,
+          cell: { row: 0, col: 1 },
+          answer: { entityId: gridPlayerIds[0] },
+        }),
+      ).toMatchObject({ accepted: false, code: 'PLAYER_ALREADY_USED' });
+      expect(
+        await player.send('grid:claim', {
+          battleId,
+          roundNo: 1,
+          cell: { row: 0, col: 1 },
+          answer: { entityId: gridPlayerIds[1] },
+        }),
+      ).toMatchObject({ accepted: true });
+
+      expect(await claim(0, 2, gridPlayerIds[2])).toMatchObject({ accepted: true });
+      const result = await player.waitFor('round:result');
+      expect(result.data['winnerParticipantIds']).toEqual([me]);
+      expect((result.data['reveal'] as { line: unknown[] }).line).toEqual([
+        { row: 0, col: 0 },
+        { row: 0, col: 1 },
+        { row: 0, col: 2 },
+      ]);
+      expect((await player.waitFor('battle:completed')).data).toMatchObject({ you: { outcome: 'WIN' } });
+    });
 
     it('refuses a second queue for a busy player, and frees them when they leave', async () => {
       const player = await connectPlayer();

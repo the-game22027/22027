@@ -1,28 +1,19 @@
 import type { Logger } from '@nestjs/common';
-import type {
-  AnswerCatalogQuery,
-  AnswerChecker,
-  EngineContent,
-  GameType,
-  RoundContentQuery,
-} from '@modules/question-bank';
-import type { Clock, Locale } from '@shared/kernel';
-import { type BotProfile, type BotRoundPlan, planBotRound } from '../domain/bots/reveal-and-buzz-bot';
-import { isRejection, type ParticipantId, type RoundResult, type TypedAnswer } from '../domain/games/game-rules';
-import {
-  type AnswerVerdict,
-  type RevealCommand,
-  type RevealEvent,
-  type RevealRoundState,
-  RevealAndBuzzRules,
-} from '../domain/games/reveal-and-buzz-rules';
+import type { AnswerCatalogQuery, AnswerChecker, GameType, RoundContentQuery } from '@modules/question-bank';
+import type { Clock } from '@shared/kernel';
+import type { ParticipantId, RoundAction, RoundResult, TypedAnswer } from '../domain/games/game-rules';
 import { placeParticipantsByScore } from '../domain/placements';
-import { type RandomSource, randomIntegerBetween } from '../domain/random-source';
-import type { BattleConfigSnapshot } from './battle-settings';
-import { listEntityIdsShownInSteps, revealStepsForLocale } from './reveal-steps';
+import type { RandomSource } from '../domain/random-source';
+import type { BattleConfigSnapshot, GridGameSettings, RevealGameSettings } from './battle-settings';
+import type { LiveParticipant } from './live-participant';
 import type { BattleNotifier } from './ports/battle-notifier';
 import type { BattleRepository } from './ports/battle-repository';
 import type { ScheduledTimer, TimerScheduler } from './ports/timer-scheduler';
+import { GridRoundRunner } from './rounds/grid-round-runner';
+import { RevealRoundRunner } from './rounds/reveal-round-runner';
+import type { PlayerCommand, RoundHost, RoundRunner, ViewerData } from './rounds/round-runner';
+
+export type { LiveParticipant } from './live-participant';
 
 export interface Ack {
   clientMsgId: string;
@@ -30,23 +21,6 @@ export interface Ack {
   code?: string;
   /** battle:resync only: what the player missed (WEBSOCKET.md §6). */
   snapshot?: Record<string, unknown>;
-}
-
-export interface LiveParticipant {
-  id: ParticipantId;
-  kind: 'HUMAN' | 'BOT';
-  userId: string | null;
-  locale: Locale;
-  seat: number;
-  /** Public profile for humans, display names for bots (DEC-40: bots are always labeled). */
-  user: { id: string; displayName: string; username: string | null; avatarUrl: string | null } | null;
-  bot: { profileKey: string; profile: BotProfile } | null;
-  ready: boolean;
-  /** The socket that sent battle:ready or, later, battle:resync; only it may buzz and answer (WEBSOCKET.md §1). */
-  activeSocketId: string | null;
-  connected: boolean;
-  /** Left for good: forfeit, grace expired, or not ready in time. */
-  forfeited: boolean;
 }
 
 type ForfeitReason = 'FORFEIT' | 'GRACE_EXPIRED' | 'NOT_READY';
@@ -65,19 +39,6 @@ export interface LiveBattleDependencies {
   onFinished: (battle: LiveBattle) => Promise<void>;
 }
 
-interface CurrentRound {
-  roundNo: number;
-  content: EngineContent;
-  state: RevealRoundState;
-  actionCount: number;
-  stepsByLocale: Partial<Record<Locale, string[]>>;
-  names: Map<string, { en: string; ar: string }>;
-  bots: Map<ParticipantId, { plan: BotRoundPlan; status: 'WAITING' | 'SCHEDULED' | 'DONE' }>;
-}
-
-// How many wrong answers a bot picks from when it answers wrong.
-const BOT_DECOY_POOL_SIZE = 30;
-
 /**
  * One battle while it is played: the imperative shell around the pure rules (08 §2). Every command and
  * timer of this battle runs through one queue, one at a time, in arrival order, which is what makes
@@ -90,9 +51,9 @@ export class LiveBattle {
   private readonly timers = new Map<string, ScheduledTimer>();
   private readonly acks = new Map<string, Ack>();
   private readonly scores = new Map<ParticipantId, number>();
-  private readonly rules: RevealAndBuzzRules;
   private roundIndex = -1;
-  private round: CurrentRound | null = null;
+  private runner: RoundRunner | null = null;
+  private roundActionCount = 0;
   /** clientMsgId of the command being handled, so its recorded action keeps it (duplicate detection). */
   private handlingClientMsgId: string | null = null;
   /** Results of finished rounds, for snapshots. */
@@ -107,7 +68,6 @@ export class LiveBattle {
     readonly readyDeadlineAt: Date,
     private readonly deps: LiveBattleDependencies,
   ) {
-    this.rules = new RevealAndBuzzRules({ ...config.game, latencyGraceMs: config.engine.latencyGraceMs });
     for (const participant of participants) this.scores.set(participant.id, 0);
   }
 
@@ -145,20 +105,27 @@ export class LiveBattle {
     });
   }
 
-  buzz(userId: string, socketId: string, roundNo: number, clientMsgId: string): Promise<Ack> {
+  /** A round command (buzz, answer, grid claim, skip): checked here for what every game shares, then by the round. */
+  roundCommand(
+    userId: string,
+    socketId: string,
+    roundNo: number,
+    command: PlayerCommand,
+    clientMsgId: string,
+  ): Promise<Ack> {
     return this.handleCommand(userId, clientMsgId, async (participant) => {
       const problem = this.findRoundCommandProblem(participant, socketId, roundNo);
       if (problem) return problem;
-      return this.applyRevealCommand(participant.id, { type: 'BUZZ' });
+      return this.runner ? this.runner.handleCommand(participant.id, command) : 'INVALID_STATE';
     });
   }
 
+  buzz(userId: string, socketId: string, roundNo: number, clientMsgId: string): Promise<Ack> {
+    return this.roundCommand(userId, socketId, roundNo, { type: 'BUZZ' }, clientMsgId);
+  }
+
   answer(userId: string, socketId: string, roundNo: number, answer: TypedAnswer, clientMsgId: string): Promise<Ack> {
-    return this.handleCommand(userId, clientMsgId, async (participant) => {
-      const problem = this.findRoundCommandProblem(participant, socketId, roundNo);
-      if (problem) return problem;
-      return this.judgeAndApplyAnswer(participant.id, answer);
-    });
+    return this.roundCommand(userId, socketId, roundNo, { type: 'ANSWER', answer }, clientMsgId);
   }
 
   /** Leaving for good (WEBSOCKET.md §3 `battle:forfeit`): last placement, and the others play on or win. */
@@ -253,10 +220,10 @@ export class LiveBattle {
   }
 
   private findRoundCommandProblem(participant: LiveParticipant, socketId: string, roundNo: number): string | null {
-    if (this.status !== 'IN_PROGRESS' || !this.round) return 'INVALID_STATE';
+    if (this.status !== 'IN_PROGRESS' || !this.runner) return 'INVALID_STATE';
     if (participant.activeSocketId !== socketId) return 'NOT_ACTIVE_SOCKET';
-    if (roundNo < this.round.roundNo) return 'ROUND_CLOSED';
-    if (roundNo > this.round.roundNo) return 'ROUND_NOT_CURRENT';
+    if (roundNo < this.runner.roundNo) return 'ROUND_CLOSED';
+    if (roundNo > this.runner.roundNo) return 'ROUND_NOT_CURRENT';
     return null;
   }
 
@@ -315,12 +282,7 @@ export class LiveBattle {
       if (reason !== 'NOT_READY') await this.cancelBattle('PLAYER_LEFT');
       return;
     }
-    const round = this.round;
-    if (round && round.state.phase !== 'CLOSED') {
-      const step = this.rules.participantLeft(round.state, participant.id, this.deps.clock.now());
-      round.state = step.state;
-      await this.applyEffects(step.effects);
-    }
+    await this.runner?.participantLeft(participant.id);
     if (this.status !== 'IN_PROGRESS') return;
     const active = this.activeParticipants;
     if (!active.some((candidate) => candidate.kind === 'HUMAN')) await this.abandon();
@@ -347,67 +309,65 @@ export class LiveBattle {
     const roundNo = this.roundIndex + 1;
     const locales = [...new Set(this.participants.map((participant) => participant.locale))];
     const content = await this.deps.rounds.getContentForEngine(this.questionIds[this.roundIndex], locales);
-    const acceptedIds = content.acceptedAnswers.flatMap((slot) => slot.entityIds);
-    const names = new Map(
-      (await this.deps.catalog.findEntitiesByIds([...acceptedIds, ...listEntityIdsShownInSteps(content.body)])).map(
-        (entity) => [entity.id, entity.names],
-      ),
-    );
-    const showYears = { showYears: this.config.game.showYears ?? true };
-    const stepsByLocale = Object.fromEntries(
-      locales.map((locale) => [locale, revealStepsForLocale(content.body, names, locale, showYears)]),
-    ) as Partial<Record<Locale, string[]>>;
-    const stepCount = stepsByLocale[locales[0]]?.length ?? 0;
-    const now = this.deps.clock.now();
-    const step = this.rules.startRound(
-      roundNo,
-      stepCount,
-      this.activeParticipants.map((participant) => participant.id),
-      now,
-    );
-    this.round = {
-      roundNo,
-      content,
-      state: step.state,
-      actionCount: 0,
-      stepsByLocale,
-      names,
-      bots: this.planBots(content, stepCount),
-    };
-    await this.deps.repository.markRoundStarted(this.id, roundNo, now);
-    await this.applyEffects(step.effects);
+    const host = this.roundHost();
+    const latencyGraceMs = this.config.engine.latencyGraceMs;
+    // The registry of 08 §2.2: the one place that picks a mechanic from the game type.
+    this.runner =
+      content.body.gameType === 'GRID'
+        ? new GridRoundRunner(roundNo, content, this.config.game as GridGameSettings, latencyGraceMs, host)
+        : new RevealRoundRunner(roundNo, content, this.config.game as RevealGameSettings, latencyGraceMs, host);
+    this.roundActionCount = 0;
+    await this.deps.repository.markRoundStarted(this.id, roundNo, this.deps.clock.now());
+    await this.runner.start();
   }
 
-  private async endRound(result: RoundResult): Promise<void> {
-    const round = this.round;
-    if (!round) return;
-    for (const key of [...this.timers.keys()]) if (key.startsWith('bot-')) this.cancel(key);
+  private roundHost(): RoundHost {
+    return {
+      gameType: this.gameType,
+      random: this.deps.random,
+      checker: this.deps.checker,
+      catalog: this.deps.catalog,
+      now: () => this.deps.clock.now(),
+      participants: () => this.participants,
+      activeParticipantIds: () => this.activeParticipants.map((participant) => participant.id),
+      emit: (type, dataFor) => this.emit(type, dataFor),
+      schedule: (key, at, task) => this.schedule(`round:${key}`, at, task),
+      cancel: (key) => this.cancel(`round:${key}`),
+      recordAction: (action) => this.recordRoundAction(action),
+      endRound: (result, revealFor) => this.endRound(result, revealFor),
+    };
+  }
+
+  private async recordRoundAction(action: RoundAction): Promise<void> {
+    if (!this.runner) return;
+    this.roundActionCount += 1;
+    const isTimeout = action.kind === 'ANSWER_TIMEOUT' || action.kind === 'TURN_TIMEOUT';
+    await this.deps.repository.recordRoundAction(
+      this.id,
+      this.runner.roundNo,
+      this.roundActionCount,
+      action,
+      isTimeout ? null : this.handlingClientMsgId,
+    );
+  }
+
+  private async endRound(result: RoundResult, revealFor: ViewerData): Promise<void> {
+    const runner = this.runner;
+    if (!runner) return;
+    for (const key of [...this.timers.keys()]) if (key.startsWith('round:')) this.cancel(key);
     const now = this.deps.clock.now();
-    await this.deps.repository.closeRound(this.id, round.roundNo, result, now);
+    await this.deps.repository.closeRound(this.id, runner.roundNo, result, now);
     for (const [participantId, points] of Object.entries(result.points)) {
       this.scores.set(participantId, (this.scores.get(participantId) ?? 0) + points);
     }
     this.roundResults.push({
-      roundNo: round.roundNo,
+      roundNo: runner.roundNo,
       winnerParticipantIds: result.winnerParticipantId ? [result.winnerParticipantId] : [],
     });
-    const answerId = round.content.acceptedAnswers[0]?.entityIds[0];
-    const body = round.content.body;
     await this.emit('round:result', (viewer) => ({
-      roundNo: round.roundNo,
+      roundNo: runner.roundNo,
       winnerParticipantIds: result.winnerParticipantId ? [result.winnerParticipantId] : [],
-      reveal: {
-        steps: round.stepsByLocale[viewer.locale] ?? [],
-        answer:
-          body.gameType === 'BUZZER' && body.answerNumber !== null
-            ? { number: body.answerNumber }
-            : answerId
-              ? { entityId: answerId, name: round.names.get(answerId)?.[viewer.locale] ?? '' }
-              : null,
-        ...(body.gameType === 'BUZZER' && body.explanation?.[viewer.locale]
-          ? { explanation: body.explanation[viewer.locale] }
-          : {}),
-      },
+      reveal: revealFor(viewer),
       points: this.participants.map((participant) => ({
         participantId: participant.id,
         points: result.points[participant.id] ?? 0,
@@ -467,184 +427,6 @@ export class LiveBattle {
     await this.deps.onFinished(this);
   }
 
-  // ---- rules ----
-
-  private async applyRevealCommand(from: ParticipantId, command: RevealCommand): Promise<string | null> {
-    const round = this.round;
-    if (!round) return 'INVALID_STATE';
-    const result = this.rules.handleCommand(round.state, from, command, this.deps.clock.now());
-    if (isRejection(result)) return result.code;
-    round.state = result.state;
-    await this.applyEffects(result.effects);
-    return null;
-  }
-
-  private async judgeAndApplyAnswer(from: ParticipantId, answer: TypedAnswer): Promise<string | null> {
-    const round = this.round;
-    if (!round) return 'INVALID_STATE';
-    const rejection = this.rules.findAnswerRejection(round.state, from, this.deps.clock.now());
-    if (rejection) return rejection.code;
-    const verdict = await this.judgeAnswer(round, answer);
-    if (verdict === 'UNKNOWN_ENTITY') return 'UNKNOWN_ENTITY';
-    return this.applyRevealCommand(from, { type: 'ANSWER', answer, verdict });
-  }
-
-  private async judgeAnswer(round: CurrentRound, answer: TypedAnswer): Promise<AnswerVerdict | 'UNKNOWN_ENTITY'> {
-    if ('number' in answer) {
-      if (round.content.answerKind !== 'NUMBER') return 'UNKNOWN_ENTITY';
-      const body = round.content.body;
-      return body.gameType === 'BUZZER' && body.answerNumber === answer.number ? 'CORRECT' : 'WRONG';
-    }
-    if (round.content.answerKind === 'NUMBER') return 'UNKNOWN_ENTITY';
-    return this.deps.checker.checkTypedAnswer(round.content.contentId, 0, answer.entityId);
-  }
-
-  private async onRulesTimer(timer: string): Promise<void> {
-    const round = this.round;
-    if (!round) return;
-    const step = this.rules.handleTimer(round.state, timer, this.deps.clock.now());
-    round.state = step.state;
-    await this.applyEffects(step.effects);
-  }
-
-  private async applyEffects(effects: ReturnType<RevealAndBuzzRules['startRound']>['effects']): Promise<void> {
-    for (const effect of effects) {
-      const round = this.round;
-      if (!round) return;
-      switch (effect.type) {
-        case 'EMIT':
-          await this.emitRevealEvent(round, effect.event);
-          break;
-        case 'SCHEDULE':
-          this.schedule(`rules:${effect.timer}`, effect.at, () => this.onRulesTimer(effect.timer));
-          break;
-        case 'CANCEL':
-          this.cancel(`rules:${effect.timer}`);
-          break;
-        case 'RECORD_ACTION':
-          round.actionCount += 1;
-          await this.deps.repository.recordRoundAction(
-            this.id,
-            round.roundNo,
-            round.actionCount,
-            effect.action,
-            effect.action.kind === 'ANSWER_TIMEOUT' ? null : this.handlingClientMsgId,
-          );
-          break;
-        case 'END_ROUND':
-          await this.endRound(effect.result);
-          return;
-      }
-    }
-    this.scheduleBotBuzzes();
-  }
-
-  private async emitRevealEvent(round: CurrentRound, event: RevealEvent): Promise<void> {
-    switch (event.type) {
-      case 'ROUND_STARTED':
-        return this.emit('round:start', () => ({
-          roundNo: event.roundNo,
-          gameType: this.gameType,
-          answerKind: round.content.answerKind,
-          stepCount: event.stepCount,
-        }));
-      case 'CLUE_REVEALED':
-        return this.emit('round:clue', (viewer) => ({
-          roundNo: event.roundNo,
-          index: event.index,
-          clue: round.stepsByLocale[viewer.locale]?.[event.index - 1] ?? '',
-          nextClueAt: event.nextClueAt?.toISOString() ?? null,
-        }));
-      case 'BUZZED':
-        this.scheduleBotAnswer(round, event.participantId);
-        return this.emit('round:buzzed', () => ({
-          roundNo: event.roundNo,
-          participantId: event.participantId,
-          answerDeadlineAt: event.answerDeadlineAt.toISOString(),
-        }));
-      case 'WRONG_ANSWER': {
-        const answer = event.answer;
-        const names =
-          answer && 'entityId' in answer
-            ? new Map((await this.deps.catalog.findEntitiesByIds([answer.entityId])).map((e) => [e.id, e.names]))
-            : new Map<string, { en: string; ar: string }>();
-        return this.emit('round:wrong', (viewer) => ({
-          roundNo: event.roundNo,
-          participantId: event.participantId,
-          ...(answer
-            ? {
-                answer:
-                  'entityId' in answer
-                    ? { entityId: answer.entityId, name: names.get(answer.entityId)?.[viewer.locale] ?? '' }
-                    : answer,
-              }
-            : {}),
-          timedOut: event.timedOut,
-        }));
-      }
-      case 'RESUMED':
-        return this.emit('round:resumed', () => ({
-          roundNo: event.roundNo,
-          nextClueAt: event.nextClueAt?.toISOString() ?? null,
-        }));
-    }
-  }
-
-  // ---- bots (08 §3.3) ----
-
-  private planBots(content: EngineContent, stepCount: number): CurrentRound['bots'] {
-    const plans: CurrentRound['bots'] = new Map();
-    for (const participant of this.participants) {
-      if (!participant.bot) continue;
-      const plan = planBotRound(participant.bot.profile, content.difficulty, stepCount, this.deps.random);
-      plans.set(participant.id, { plan, status: plan.buzzAfterStep === null ? 'DONE' : 'WAITING' });
-    }
-    return plans;
-  }
-
-  /** A bot buzzes a little after its planned step is out, if the buzzer is free and it is not locked out. */
-  private scheduleBotBuzzes(): void {
-    const round = this.round;
-    if (!round || round.state.phase === 'CLOSED' || round.state.phase === 'ANSWERING') return;
-    for (const [botId, bot] of round.bots) {
-      if (bot.status !== 'WAITING' || round.state.stepsRevealed < (bot.plan.buzzAfterStep ?? Infinity)) continue;
-      const profile = this.participants.find((participant) => participant.id === botId)?.bot?.profile;
-      if (!profile) continue;
-      bot.status = 'SCHEDULED';
-      const delay = randomIntegerBetween(this.deps.random, profile.reactionDelayMs.min, profile.reactionDelayMs.max);
-      this.schedule(`bot-buzz:${botId}`, new Date(this.deps.clock.now().getTime() + delay), async () => {
-        const code = await this.applyRevealCommand(botId, { type: 'BUZZ' });
-        // Someone else holds the buzzer: try again when the reveal resumes.
-        bot.status = code === 'BUZZ_TAKEN' ? 'WAITING' : 'DONE';
-      });
-    }
-  }
-
-  private scheduleBotAnswer(round: CurrentRound, buzzerId: ParticipantId): void {
-    const bot = round.bots.get(buzzerId);
-    if (!bot) return;
-    const at = new Date(this.deps.clock.now().getTime() + bot.plan.typingDelayMs);
-    this.schedule(`bot-answer:${buzzerId}`, at, async () => {
-      const answer = await this.chooseBotAnswer(round, bot.plan.answersCorrectly);
-      if (answer) await this.judgeAndApplyAnswer(buzzerId, answer);
-    });
-  }
-
-  private async chooseBotAnswer(round: CurrentRound, correct: boolean): Promise<TypedAnswer | null> {
-    const { content } = round;
-    const accepted = content.acceptedAnswers.flatMap((slot) => slot.entityIds);
-    if (content.answerKind === 'NUMBER') {
-      const body = content.body;
-      const number = body.gameType === 'BUZZER' ? body.answerNumber : null;
-      if (number === null) return null;
-      return { number: correct ? number : number + randomIntegerBetween(this.deps.random, 1, 3) };
-    }
-    if (correct) return accepted[0] ? { entityId: accepted[0] } : null;
-    const decoys = await this.deps.catalog.findDecoyEntityIds(content.answerKind, accepted, BOT_DECOY_POOL_SIZE);
-    if (decoys.length === 0) return null;
-    return { entityId: decoys[randomIntegerBetween(this.deps.random, 0, decoys.length - 1)] };
-  }
-
   // ---- events ----
 
   /** One event to every human, each in their own locale; all share one `seq` (WEBSOCKET.md §2). */
@@ -665,29 +447,12 @@ export class LiveBattle {
   }
 
   private snapshotFor(viewer: LiveParticipant): Record<string, unknown> {
-    const round = this.round;
-    const state = round?.state;
     return {
-      status: this.status === 'FINISHED' ? 'FINISHED' : this.status,
+      status: this.status,
       gameType: this.gameType,
       mode: 'MATCHMAKING',
       players: this.playersFor(viewer),
-      ...(round && state
-        ? {
-            currentRound: {
-              roundNo: round.roundNo,
-              phase: state.phase,
-              stepCount: state.stepCount,
-              revealedClues: (round.stepsByLocale[viewer.locale] ?? []).slice(0, state.stepsRevealed),
-              buzzHolder: state.buzzHolder,
-              lockedOut: state.participants.filter((id) => this.rules.isLockedOut(state, id)),
-              deadlines: {
-                answerDeadlineAt: state.answerDeadlineAt?.toISOString() ?? null,
-                nextClueAt: state.phase === 'REVEALING' ? (state.nextDeadlineAt?.toISOString() ?? null) : null,
-              },
-            },
-          }
-        : {}),
+      ...(this.runner ? { currentRound: this.runner.snapshotFor(viewer) } : {}),
       rounds: this.roundResults,
       scores: this.participants.map((participant) => ({
         participantId: participant.id,
@@ -710,15 +475,8 @@ export class LiveBattle {
 
   /** What a client may know about the rules: timers and attempts, never content (WEBSOCKET.md §4.3). */
   private publicConfig(): Record<string, unknown> {
-    const { game, engine } = this.config;
-    return {
-      roundCount: this.questionIds.length,
-      revealIntervalMs: game.revealIntervalMs,
-      answerWindowMs: game.answerWindowMs,
-      finalWindowMs: game.finalWindowMs,
-      attemptsPerPlayer: game.attemptsPerPlayer,
-      showWrongAnswers: game.showWrongAnswers,
-      betweenRoundsMs: engine.betweenRoundsMs,
-    };
+    const hidden = new Set(['enabled', 'points', 'selection']);
+    const rules = Object.fromEntries(Object.entries(this.config.game).filter(([key]) => !hidden.has(key)));
+    return { ...rules, roundCount: this.questionIds.length, betweenRoundsMs: this.config.engine.betweenRoundsMs };
   }
 }
