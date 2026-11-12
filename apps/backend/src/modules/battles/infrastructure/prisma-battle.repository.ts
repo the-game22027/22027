@@ -150,6 +150,21 @@ export class PrismaBattleRepository implements BattleRepository {
     });
   }
 
+  async abandonBattle(battleId: string, at: Date): Promise<void> {
+    await this.txHost.tx.battle.updateMany({
+      where: { id: battleId, status: { in: UNFINISHED } },
+      data: { status: 'ABANDONED', endedAt: at, endReason: 'ABANDONED', version: { increment: 1 } },
+    });
+  }
+
+  async markParticipantDisconnected(participantId: string, at: Date | null): Promise<void> {
+    await this.txHost.tx.battleParticipant.update({ where: { id: participantId }, data: { disconnectedAt: at } });
+  }
+
+  async markParticipantForfeited(participantId: string, at: Date): Promise<void> {
+    await this.txHost.tx.battleParticipant.update({ where: { id: participantId }, data: { forfeitedAt: at } });
+  }
+
   async abandonUnfinishedBattles(at: Date): Promise<{ battleIds: string[]; userIds: string[] }> {
     return this.txHost.withTransaction(async () => {
       const tx = this.txHost.tx;

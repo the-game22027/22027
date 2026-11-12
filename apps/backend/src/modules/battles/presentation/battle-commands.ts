@@ -16,4 +16,6 @@ export const answerCommand = z.object({
   roundNo,
   answer: z.union([z.strictObject({ entityId: z.string().min(1).max(64) }), z.strictObject({ number: z.number() })]),
 });
+export const resyncCommand = z.object({ clientMsgId, battleId, lastSeq: z.number().int().nonnegative().optional() });
+export const forfeitCommand = z.object({ clientMsgId, battleId });
 export const timeSyncCommand = z.object({ t0: z.number() });

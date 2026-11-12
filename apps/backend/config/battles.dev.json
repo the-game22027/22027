@@ -3,10 +3,13 @@
   "engine": {
     "readyTimeoutMs": 15000,
     "latencyGraceMs": 300,
-    "betweenRoundsMs": 3000
+    "betweenRoundsMs": 3000,
+    "reconnectGraceMs": 20000
   },
   "matchmaking": {
-    "botFallbackAfterMs": 3000
+    "botFallbackAfterMs": 3000,
+    "tickMs": 500,
+    "queueDisconnectGraceMs": 5000
   },
   "bots": {
     "profiles": {
