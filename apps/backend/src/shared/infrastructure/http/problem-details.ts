@@ -10,6 +10,8 @@ export interface ProblemDetails {
   instance: string;
   traceId: string;
   errors?: FieldError[];
+  /** RFC 9457 extension members from a domain error's `details`, e.g. `requestId`. */
+  [extension: string]: unknown;
 }
 
 export interface FieldError {

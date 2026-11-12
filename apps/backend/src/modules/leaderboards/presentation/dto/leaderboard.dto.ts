@@ -1,5 +1,6 @@
 import { Type } from 'class-transformer';
 import { IsIn, IsInt, IsOptional, IsString, Matches, MaxLength, Min } from 'class-validator';
+import { PublicUserDto } from '@modules/users';
 import { type Board, BOARDS } from '../../domain/boards';
 import { PERIOD_KINDS, type PeriodKind } from '../../domain/period-calendar';
 
@@ -46,13 +47,6 @@ export class LeaderboardPeriodDto {
 
 export class LeaderboardPeriodListDto {
   items!: LeaderboardPeriodDto[];
-}
-
-export class PublicUserDto {
-  id!: string;
-  displayName!: string;
-  username!: string | null;
-  avatarUrl!: string | null;
 }
 
 export class LeaderboardRowDto {

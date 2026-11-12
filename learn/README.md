@@ -162,3 +162,7 @@ About 35 minutes in total. Cards marked *later* explain tools we have not needed
 | [database/recompute-instead-of-increment](database/recompute-instead-of-increment.md) | P6.5b | Write the sum from the source rows under a lock, never `+=` |
 | [testing/library-state-shared-across-apps](testing/library-state-shared-across-apps.md) | P6.5b | Two Nest apps in one test process share static library state |
 | [database/dedup-table-for-increments](database/dedup-table-for-increments.md) | P6.5c | Mark the event applied in the same transaction as the `+=` |
+| [security/hide-existence-with-404](security/hide-existence-with-404.md) | P7 | A block answers like an unknown player, in both directions |
+| [database/unordered-pair-rows](database/unordered-pair-rows.md) | P7 | Store A–B once, low id first; unique per pair with LEAST/GREATEST |
+| [database/conflicts-inside-transactions](database/conflicts-inside-transactions.md) | P7 | An error aborts the transaction: use `ON CONFLICT DO NOTHING` and count rows |
+| [database/trigram-search](database/trigram-search.md) | P7 | `pg_trgm` makes `ILIKE '%text%'` indexable; escape `%` and `_` |
