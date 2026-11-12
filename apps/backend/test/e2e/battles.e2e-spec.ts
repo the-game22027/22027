@@ -269,6 +269,8 @@ describe('battles over WebSocket (e2e)', () => {
 
       // A served question can be reported once; a repeat is a no-op, anything else is QUESTION_NOT_FOUND (08 §5.7).
       const servedId = battle.rounds[0]?.questionId ?? '';
+      const firstResult = player.events.find((ev) => ev.type === 'round:result' && ev.battleId === battleId);
+      expect(firstResult?.data['questionId']).toBe(servedId);
       await player.reportQuestion(servedId, { reason: '  the answer is wrong  ' }).expect(204);
       await player.reportQuestion(servedId, { reason: 'second try' }).expect(204);
       await expect(

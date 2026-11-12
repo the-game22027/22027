@@ -368,6 +368,8 @@ export class LiveBattle {
     });
     await this.emit('round:result', (viewer) => ({
       roundNo: runner.roundNo,
+      // Sent only once the round is over, for POST /v1/questions/{id}/reports (08 §5.7).
+      questionId: this.questionIds[runner.roundNo - 1],
       winnerParticipantIds: result.winnerParticipantId ? [result.winnerParticipantId] : [],
       reveal: revealFor(viewer),
       points: this.participants.map((participant) => ({
