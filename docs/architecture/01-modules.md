@@ -117,7 +117,7 @@ Removed with the Daily Quiz (ADR-0010, 2026-11-07). The section number is kept s
 - **Purpose:** Append-only ledger of every point awarded, plus the versioned scoring rule sets.
 - **Responsibilities:** Store `scoring_rule_sets` (config JSON per game type, versioned, activation dates); record ledger entries idempotently from game events; supersede entries when scores are recalculated; expose sums by user/category/time window.
 - **Owned tables:** `scoring_rule_sets`, `point_entries`.
-- **Public interface:** `ScoringRuleSets.findActiveRuleSet(gameType)` and `activateRuleSet(gameType, name, config, createdBy)` (the game module validates `config` first, 08 §6.1), `PointsQuery.sum(userIds, category, from, to)`, `PointsQuery.listEntries(userId, cursor)`.
+- **Public interface:** `PointsQuery.sumPointsOfUsers(userIds, category, from, to)` (leaderboard projection), `ScoringRuleSets.findActiveRuleSet(gameType)` and `activateRuleSet(gameType, name, config, createdBy)` (the game module validates `config` first, 08 §6.1), `PointsQuery.sum(userIds, category, from, to)`, `PointsQuery.listEntries(userId, cursor)`.
 - **Depends on:** `predictions` (`PredictionScoreQuery`, pulled by handler), otherwise event payloads.
 - **Publishes:** `PointsRecorded {userIds, categories, occurredAtMin, occurredAtMax}`, `PointsSuperseded {...}`, `ScoringRuleSetActivated`.
 - **Consumes:** `PredictionsScored`, `PredictionsVoided`, `MotmResultFinalized` (if votes earn points), `BattleCompleted` (human participants only; points per mode from the rule set, DEC-41).
@@ -125,8 +125,8 @@ Removed with the Daily Quiz (ADR-0010, 2026-11-07). The section number is kept s
 
 ### 2.10 `leaderboards`
 - **Purpose:** Fast, paginated rankings per period and category.
-- **Responsibilities:** Generate periods (weekly/monthly/seasonal/all-time) from a timezone + season calendar config; maintain `leaderboard_entries` incrementally from `PointsRecorded`; rebuild a period from the ledger; compute ranks with configured tie-breaks; freeze snapshots at period close (prize); expose global and user-set (league) rankings.
-- **Owned tables:** `leaderboard_periods`, `leaderboard_entries`, `leaderboard_snapshots`, `season_calendar`.
+- **Responsibilities:** Generate periods (weekly/monthly/seasonal/all-time) from a timezone + seasons config; maintain `leaderboard_entries` incrementally from `PointsRecorded`; rebuild a period from the ledger; compute ranks with configured tie-breaks; freeze snapshots at period close (prize); expose global and user-set (league) rankings.
+- **Owned tables:** `leaderboard_periods`, `leaderboard_entries`, `leaderboard_snapshots` (seasons come from config, 03 §5.6).
 - **Public interface:** `LeaderboardQuery.page(periodKey, category, cursor)`, `aroundUser(...)`, `forUserSet(userIds, window, category, cursor)`.
 - **Depends on:** `points` (ledger reads for rebuild and user-set rankings), `users` (display data).
 - **Publishes:** `LeaderboardPeriodClosed`, `LeaderboardSnapshotFinalized` (prize workflow, future).

@@ -79,6 +79,7 @@ Content-Type: application/problem+json
 | `USERNAME_TAKEN` | 409 | Username belongs to someone else (case-insensitive) |
 | `TEAM_NOT_FOUND` | 422 | Favourite team does not exist |
 | `INVALID_CURSOR` | 400 | Pagination cursor was altered or is not ours |
+| `PERIOD_NOT_FOUND` | 404 | Leaderboard period key is malformed, or names a season the calendar does not have |
 | `IDEMPOTENCY_KEY_REUSED` | 422 | Same key, different request |
 | `PRECONDITION_FAILED` | 412 | `If-Match` mismatch |
 | `ACCOUNT_EXISTS_FOR_EMAIL` | 409 | Verified email belongs to another account (`linkWith` hint) |
@@ -180,7 +181,9 @@ interface PlayState { queue?: MatchmakingTicket | null; room?: BattleRoom | null
 interface LeaderboardRow { rank: number; user: PublicUser; points: number; isMe: boolean }
 interface LeaderboardPage { period: { kind: 'WEEKLY'|'MONTHLY'|'SEASONAL'|'ALL_TIME'; key: string; startsAt: string;
   endsAt?: string | null; status: string }; category: string; items: LeaderboardRow[]; nextCursor: string | null }
-interface MyRank { rank: number | null; points: number; around: LeaderboardRow[] }
+interface MyRank { rank: number | null; points: number; around: LeaderboardRow[] }   // rank null: no points in this period yet
+interface LeaderboardPeriod { kind: 'WEEKLY'|'MONTHLY'|'SEASONAL'|'ALL_TIME'; key: string; startsAt: string;
+  endsAt: string | null; status: 'OPEN' | 'CLOSED' }   // LeaderboardPage.period has this shape
 
 // ---- Leagues ----
 interface League { id: string; name: string; description?: string | null; owner: PublicUser; memberCount: number;
@@ -282,9 +285,9 @@ Matchmaking can also be joined over WS (`matchmaking:join`). Room lifecycle is R
 
 | | Method | Path | Auth | Purpose / notes |
 |---|---|---|---|---|
-| ✅ | GET | `/v1/leaderboards/periods?kind=` | U | Current and recent periods |
-| ✅ | GET | `/v1/leaderboards/{kind}/{periodKey}?category=&cursor=` | U | `LeaderboardPage`; `periodKey=current` allowed |
-| ✅ | GET | `/v1/leaderboards/{kind}/{periodKey}/me?category=` | U | `MyRank` with neighbours |
+| ✅ | GET | `/v1/leaderboards/periods?kind=` | U | `{ items: LeaderboardPeriod[] }`: the current period and up to 11 before it, newest first (03 §5.6) |
+| ✅ | GET | `/v1/leaderboards/{kind}/{periodKey}?category=&limit=&cursor=` | U | `LeaderboardPage`; `periodKey=current` allowed; `category` required (`BATTLES` \| `PREDICTIONS`); equal points share a rank |
+| ✅ | GET | `/v1/leaderboards/{kind}/{periodKey}/me?category=` | U | `MyRank` with two neighbours on each side |
 | 🔜 | GET | `/v1/leaderboards/{kind}/{periodKey}/friends` | U | Friends-only ranking |
 
 ### 6.9 Private leagues

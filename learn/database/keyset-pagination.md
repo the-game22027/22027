@@ -9,7 +9,7 @@
 - Fetch `limit + 1` rows. An extra row means there's another page, with no `COUNT`.
 - The cursor is opaque base64, so clients can't depend on its shape.
 
-**In our code:** `listMatches` in [football.query.ts](../../apps/backend/src/modules/football/application/football.query.ts) and [prisma-football-read.repository.ts](../../apps/backend/src/modules/football/infrastructure/prisma-football-read.repository.ts), page-walking test in [football.e2e-spec.ts](../../apps/backend/test/e2e/football.e2e-spec.ts).
+**In our code:** `listMatches` in [football.query.ts](../../apps/backend/src/modules/football/application/football.query.ts) and [prisma-football-read.repository.ts](../../apps/backend/src/modules/football/infrastructure/prisma-football-read.repository.ts), page-walking test in [football.e2e-spec.ts](../../apps/backend/test/e2e/football.e2e-spec.ts). Mixed directions (`points DESC … user_id ASC`) cannot use a row comparison `(a, b) < (x, y)`, so the leaderboard writes the OR chain out: `comesAfter` in [prisma-leaderboard.repository.ts](../../apps/backend/src/modules/leaderboards/infrastructure/prisma-leaderboard.repository.ts).
 
 **Watch out:** you can't jump to page 7. Fine for a scrolling feed; wrong for a numbered table. A cursor is user input, so validate it (`INVALID_CURSOR`).
 

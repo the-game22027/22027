@@ -78,7 +78,7 @@ A battle now has a **game type**. Multiple choice is not a game: players type th
 |---|---|---|---|---|---|
 | DEC-15 | Weekly boundary and timezone | Week start day; IANA timezone | **Chosen: timezone `Africa/Cairo`** (owner, 2026-11-12). Week start: Monday 00:00 (recommended default, a config value) | Leaderboard config | Decided (2026-11-12): timezone; week start is the default |
 | DEC-16 | Monthly boundary and timezone | Calendar month in a timezone | **Chosen: calendar month in `Africa/Cairo`** (same as DEC-15) | Leaderboard config | Decided (2026-11-12) |
-| DEC-17 | Season definition | Football season (e.g., Aug–May) · calendar year · per competition | Football season, fixed dates in `season_calendar` | `season_calendar` | Pending |
+| DEC-17 | Season definition | Football season (e.g., Aug–May) · calendar year · per competition | Football season, fixed dates in the `seasons` list of the leaderboard config (`DEV_ONLY` dates until decided) | Leaderboard config `seasons` | Pending |
 | DEC-18 | Leaderboard categories | One overall board · separate prediction/battle boards · both | **Chosen: two separate boards, PREDICTIONS and BATTLES; no OVERALL board.** How the monthly prize applies to two boards is DEC-47 | `leaderboard_category` config | Decided (2026-11-07) |
 | DEC-47 | Monthly prize with two leaderboards | One prize per board (two monthly winners) · prize only on one board · alternate | One prize per board (each board has its own monthly leader) | Leaderboard/prize config | Pending |
 | DEC-23 | Tie-breaking | Earliest to reach the score · more exact scores · fewer predictions · shared rank | Shared rank in display; deterministic ordering by configured tie-breakers for prizes | Leaderboard config (`tiebreak_1/2` mapping) | Pending |

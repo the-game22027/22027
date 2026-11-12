@@ -550,13 +550,12 @@ Battle points are recorded per human participant (`source_id` = participant id, 
 ### 4.10 `leaderboards`
 
 ```sql
-season_calendar ( id uuid PK, label text UQ, starts_at timestamptz, ends_at timestamptz )   -- DEC-17
 leaderboard_periods (
   id uuid PK, kind leaderboard_kind, category leaderboard_category,
   period_key text,                      -- '2026-W45' | '2026-11' | '2026-27' | 'all'
   starts_at timestamptz, ends_at timestamptz NULL,   -- NULL for ALL_TIME
   timezone text,                        -- IANA name used to compute boundaries (DEC-15/16)
-  status period_status DEFAULT 'OPEN',
+  status period_status DEFAULT 'OPEN',  -- stays OPEN until the prize work (03 §5.6); the API derives OPEN/CLOSED from the clock
   closed_at timestamptz NULL, finalized_at timestamptz NULL
 )
   UQ (kind, category, period_key)
@@ -569,7 +568,7 @@ leaderboard_entries (
   PRIMARY KEY (period_id, user_id)
 )
   IX (period_id, points DESC, tiebreak_1 DESC, tiebreak_2 DESC, user_id)   -- ranking + keyset pagination
-leaderboard_snapshots (
+leaderboard_snapshots (                -- created with the prize work (DEC-28/47), not in P6.5b
   period_id uuid FK → leaderboard_periods, user_id uuid FK → users,
   rank int, points bigint, tiebreak_1 bigint, tiebreak_2 bigint, frozen_at timestamptz,
   PRIMARY KEY (period_id, user_id)
