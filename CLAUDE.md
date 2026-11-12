@@ -18,7 +18,7 @@ A football-focused **social gaming platform** (not a CRUD app, not a simple quiz
 - Friends (mutual), privacy-aware prediction visibility.
 - A fact-first football knowledge database that feeds an offline question generator.
 
-Current phase: **Phases 0-2, P3.1 (prediction submit), P5, D.1-D.2, P6.1-P6.4, P6.5a-b (battle points ledger, leaderboards) and P6.6 (typed text answers) implemented; mobile M0-M1 done; next: P6.5c question stats and reports, and mobile M3 battles (prediction scoring P3.2+ postponed, see `docs/ROADMAP.md`)**. See `docs/ROADMAP.md`.
+Current phase: **Phases 0-2, P3.1 (prediction submit), P5, D.1-D.2, P6.1-P6.4, P6.5 (battle points ledger, leaderboards, question stats and reports) and P6.6 (typed text answers) implemented; mobile M0-M1 done; next: mobile M3 battles, then P7 friends (prediction scoring P3.2+ postponed, see `docs/ROADMAP.md`)**. See `docs/ROADMAP.md`.
 
 ## 2. Hard constraints (do not violate)
 
@@ -148,6 +148,7 @@ npm run cli -- questions:import ../../data/bundles/dev-0005   # generated game c
 npm run cli -- questions:publish dev-0005                     # APPROVED questions of that bundle → PUBLISHED (battles pick only these)
 npm run cli -- questions:publish dev-0005 --include-drafts    # development: also the unreviewed rounds (refused in production)
 npm run cli -- questions:disable <questionId> --reason "…"     # battles stop picking it at once
+npm run cli -- questions:reports [--limit 20]                  # most reported questions with their latest reasons (08 §5.7)
 python3 -I ../../data/generate/dev_bundle.py                  # rebuild the hand-written dev bundle (bump its version first)
 ```
 

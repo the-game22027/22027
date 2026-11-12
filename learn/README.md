@@ -120,3 +120,4 @@ New tracks are added when the first card needs one.
 | [backend/time-zone-period-boundaries](backend/time-zone-period-boundaries.md) | P6.5b | Store UTC; cut weeks and months at local midnight, across daylight saving |
 | [database/recompute-instead-of-increment](database/recompute-instead-of-increment.md) | P6.5b | Write the sum from the source rows under a lock, never `+=` |
 | [testing/library-state-shared-across-apps](testing/library-state-shared-across-apps.md) | P6.5b | Two Nest apps in one test process share static library state |
+| [database/dedup-table-for-increments](database/dedup-table-for-increments.md) | P6.5c | Mark the event applied in the same transaction as the `+=` |

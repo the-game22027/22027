@@ -88,7 +88,7 @@ Format per module: **Purpose · Responsibilities · Owned tables · Public inter
   - `RoundContentQuery.getContentForEngine(id, locales)`: full content for the server-side engine only, never sent to clients as is.
   - `AnswerChecker.judgeTypedText(contentId, slot, text, rules) → { verdict: CORRECT | WRONG, entityId, match }` (`08` §5.3). Bots skip it: the round runner checks their entity ids against the accepted answers it already holds.
   - `AnswerCatalogQuery.findEntitiesByIds(ids)` (names for events).
-  - `QuestionBankFacade.disableQuestion(id, reason)`, `QuestionBankFacade.reportQuestion(id, userId, reason)` (called by `battles`, which checks the question was served to the caller, 08 §5.7).
+  - `QuestionBankFacade.disableQuestion(id, reason)`, `QuestionReports.reportQuestion(id, userId, reason)` (called by `battles`, which checks the question was served to the caller, 08 §5.7).
 - **Depends on:** nothing.
 - **Publishes:** `QuestionsPublished`, `QuestionDisabled`.
 - **Consumes:** `BattleCompleted` (its `questionResults` summary updates `question_stats`; deduplicated by battle id in `question_stats_applied`).

@@ -80,6 +80,7 @@ Content-Type: application/problem+json
 | `TEAM_NOT_FOUND` | 422 | Favourite team does not exist |
 | `INVALID_CURSOR` | 400 | Pagination cursor was altered or is not ours |
 | `QUESTION_NOT_FOUND` | 404 | Unknown question, or one the caller was never served in a battle (indistinguishable on purpose) |
+| `INVALID_REPORT_REASON` | 400 | Report reason is blank or longer than 500 characters (the DTO usually answers `VALIDATION_FAILED` first) |
 | `PERIOD_NOT_FOUND` | 404 | Leaderboard period key is malformed, or names a season the calendar does not have |
 | `IDEMPOTENCY_KEY_REUSED` | 422 | Same key, different request |
 | `PRECONDITION_FAILED` | 412 | `If-Match` mismatch |
