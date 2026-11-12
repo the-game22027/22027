@@ -91,6 +91,7 @@ New tracks are added when the first card needs one.
 | [backend/http-caching-etag](backend/http-caching-etag.md) | P5.2 | Tag the version; `304` when the client already has it |
 | [database/random-rows-in-sql](database/random-rows-in-sql.md) | P5.2 | Filter in `WHERE`, then `ORDER BY random() LIMIT n` |
 | [mobile/generated-rest-client](mobile/generated-rest-client.md) | M0 | The contract generates the client; regenerate, never hand-edit |
+| [mobile/build-runner-part-files](mobile/build-runner-part-files.md) | M1.5 | What `.g.dart` files are: JSON and `copyWith` code written by `build_runner` |
 | [mobile/secure-token-storage](mobile/secure-token-storage.md) | M0 | Tokens in the OS keystore; the server's 401 decides expiry |
 | [mobile/riverpod-providers-as-di](mobile/riverpod-providers-as-di.md) | M0 | Providers build dependencies; tests swap them with overrides |
 | [mobile/go-router-redirect-guard](mobile/go-router-redirect-guard.md) | M0 | One pure function decides where each player may go |
