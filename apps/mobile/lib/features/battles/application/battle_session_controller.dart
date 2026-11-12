@@ -108,10 +108,11 @@ class BattleSessionController extends Notifier<BattleSessionState> {
   Future<BattleCommandResult> buzz() =>
       _sendRoundCommand('round:buzz', const {});
 
-  /// Answers with an entity picked from the catalog suggestions (never free text, DEC-55).
-  Future<BattleCommandResult> answerWithEntity(String entityId) =>
+  /// Sends what the player typed. The server judges it, typos included (ADR-0021); a blank
+  /// answer comes back as `EMPTY_ANSWER`, the verdict arrives as an event.
+  Future<BattleCommandResult> answerWithText(String text) =>
       _sendRoundCommand('round:answer', {
-        'answer': {'entityId': entityId},
+        'answer': {'text': text},
       });
 
   Future<BattleCommandResult> answerWithNumber(num number) =>
@@ -119,10 +120,10 @@ class BattleSessionController extends Notifier<BattleSessionState> {
         'answer': {'number': number},
       });
 
-  Future<BattleCommandResult> claimGridCell(GridCell cell, String entityId) =>
+  Future<BattleCommandResult> claimGridCell(GridCell cell, String text) =>
       _sendRoundCommand('grid:claim', {
         'cell': {'row': cell.row, 'col': cell.col},
-        'answer': {'entityId': entityId},
+        'answer': {'text': text},
       });
 
   Future<BattleCommandResult> skipGridTurn() =>

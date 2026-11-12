@@ -153,7 +153,7 @@ void main() {
     );
     await pumpEventQueue();
     await controller.buzz();
-    await controller.answerWithEntity('e-ronaldo');
+    await controller.answerWithText('رونالدوو');
 
     expect(socket.sentEventNames, [
       'battle:ready',
@@ -163,7 +163,36 @@ void main() {
     final (_, answer) = socket.sentCommands.last;
     expect(answer['battleId'], battleId);
     expect(answer['roundNo'], 3);
-    expect(answer['answer'], {'entityId': 'e-ronaldo'});
+    expect(answer['answer'], {'text': 'رونالدوو'});
+  });
+
+  test('a grid claim sends the cell and the typed text', () async {
+    final container = await createContainer();
+    final controller = controllerOf(container);
+    Map<String, Object?> criterion(String kind) => {
+      'kind': kind,
+      'entity': {'entityId': kind, 'name': kind},
+    };
+
+    await receiveBattleFound(container);
+    socket.receive(
+      'round:start',
+      battleEnvelope('round:start', 2, {
+        'roundNo': 1,
+        'gameType': 'GRID',
+        'rows': [for (var i = 0; i < 3; i++) criterion('CLUB')],
+        'cols': [for (var i = 0; i < 3; i++) criterion('NATIONALITY')],
+        'firstTurnParticipantId': 'p-human',
+      }),
+    );
+    await pumpEventQueue();
+    await controller.claimGridCell(const GridCell(row: 0, col: 1), 'زيدان');
+
+    final (event, claim) = socket.sentCommands.last;
+    expect(event, 'grid:claim');
+    expect(claim['roundNo'], 1);
+    expect(claim['cell'], {'row': 0, 'col': 1});
+    expect(claim['answer'], {'text': 'زيدان'});
   });
 
   test('a seq gap sends battle:resync and applies the snapshot', () async {

@@ -5,12 +5,12 @@
 //   fvm flutter test test_live/battle_against_bot_live_test.dart
 //
 // The dev database needs published BUZZER content; without it the server answers
-// NO_CONTENT, which the test reports instead of failing silently.
+// NO_CONTENT, which the test reports instead of failing silently. Answers are typed text
+// (ADR-0021), so the backend needs P6.6.
 @Tags(['live'])
 library;
 
 import 'dart:async';
-import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -19,10 +19,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:the_game/core/config/app_config.dart';
 import 'package:the_game/core/session/session_controller.dart';
 import 'package:the_game/core/storage/token_storage.dart';
-import 'package:the_game/features/battles/application/answer_catalog_controller.dart';
 import 'package:the_game/features/battles/application/battle_session_controller.dart';
 import 'package:the_game/features/battles/application/battle_state.dart';
-import 'package:the_game/features/battles/data/answer_catalog_data_sources.dart';
 import 'package:the_game/features/battles/data/battle_events.dart';
 import 'package:the_game/features/battles/data/battle_socket_connection.dart';
 
@@ -51,8 +49,6 @@ void main() {
         refreshToken: tokens['refreshToken']! as String,
       );
 
-      final catalogDirectory = await Directory.systemTemp.createTemp('live');
-      addTearDown(() => catalogDirectory.delete(recursive: true));
       final container = ProviderContainer(
         overrides: [
           ...await createTestOverrides(
@@ -63,18 +59,10 @@ void main() {
             tokenStorage: InMemoryTokenStorage(session),
             savedLanguageCode: 'en',
           ),
-          answerCatalogFileStoreProvider.overrideWithValue(
-            AnswerCatalogFileStore(() async => catalogDirectory),
-          ),
         ],
       );
       addTearDown(container.dispose);
       await container.read(sessionControllerProvider.future);
-
-      final catalog = await container
-          .read(answerCatalogProvider.notifier)
-          .revalidateBeforePlaying();
-      printOnFailure('catalog ${catalog.version}: ${catalog.entities.length}');
 
       final log = <String>[];
       container
@@ -99,8 +87,8 @@ void main() {
           finished.complete(session);
         }
         final round = battle.currentRound;
-        // Buzz once per round after the second clue, and answer with the most popular
-        // suggestion for "a": probably wrong, which exercises round:wrong too.
+        // Buzz once per round after the second clue and type a guess: probably wrong, which
+        // exercises round:wrong too.
         if (round is RevealRound &&
             round.revealedClues.length >= 2 &&
             round.buzzHolderParticipantId == null &&
@@ -109,13 +97,9 @@ void main() {
           final buzz = await controller.buzz();
           log.add('buzz round ${round.roundNo}: ${_describe(buzz)}');
           if (buzz is BattleCommandAccepted) {
-            final kind = round.answerKind?.entityKind;
-            final guess = kind == null
-                ? null
-                : catalog.findSuggestions('a', kinds: {kind}).firstOrNull;
-            final answer = guess == null
+            final answer = (round.answerKind?.expectsNumber ?? false)
                 ? await controller.answerWithNumber(0)
-                : await controller.answerWithEntity(guess.id);
+                : await controller.answerWithText('Messi');
             log.add('answer round ${round.roundNo}: ${_describe(answer)}');
           }
         }
