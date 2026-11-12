@@ -3,6 +3,7 @@
 import csv
 import hashlib
 import json
+import re
 from collections import Counter
 from pathlib import Path
 
@@ -13,6 +14,8 @@ from kb.normalize import matching_form_of_name
 CATALOG_KINDS = ("PLAYER", "CLUB", "COUNTRY")
 # Shorter words never count alone as an answer (ADR-0021).
 NAME_WORD_MIN_LETTERS = 3
+# Wikidata labels can carry a disambiguation such as "(لاعب كرة قدم)", which nobody types.
+_PARENTHESES = re.compile(r"\([^)]*\)")
 
 
 def load_catalog_entries(connection: psycopg.Connection) -> list[dict]:
@@ -52,7 +55,7 @@ def search_forms_of_entry(entry: dict) -> list[str]:
     names = [*entry["names"].values(), *entry["aliases"]["en"], *entry["aliases"]["ar"]]
     forms = []
     for name in names:
-        form = matching_form_of_name(name)
+        form = matching_form_of_name(_without_parentheses(name))
         if form and form not in forms:
             forms.append(form)
     return forms
@@ -62,7 +65,7 @@ def name_words_of_entry(entry: dict) -> list[str]:
     """Distinct single words of the entity's names (not aliases), in matching form, long enough to count."""
     words = []
     for name in entry["names"].values():
-        for word in matching_form_of_name(name).split(" "):
+        for word in matching_form_of_name(_without_parentheses(name)).split(" "):
             if len(word) >= NAME_WORD_MIN_LETTERS and word not in words:
                 words.append(word)
     return words
@@ -113,6 +116,10 @@ def write_entities_missing_a_name(connection: psycopg.Connection, locale: str, o
         for external_ref, kind, sitelinks, english in rows:
             writer.writerow([external_ref, kind, sitelinks, english or "", ""])
     return len(rows)
+
+
+def _without_parentheses(name: str) -> str:
+    return _PARENTHESES.sub(" ", name)
 
 
 def _entry_sort_key(entry: dict) -> tuple[str, int]:

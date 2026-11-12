@@ -41,6 +41,13 @@ def test_name_words_count_entities_of_the_same_kind_that_share_a_word() -> None:
     assert {"form": "ronaldo", "sharedBy": 1} in entries[2]["nameWords"]
 
 
+def test_parenthesized_disambiguation_is_not_part_of_any_form() -> None:
+    footballer = entry(names={"en": "Mohamed Salah (footballer)", "ar": "محمد صلاح (لاعب كرة قدم)"})
+    add_name_words([footballer])
+    assert search_forms_of_entry(footballer)[:2] == ["mohamed salah", "محمد صلاح"]
+    assert [word["form"] for word in footballer["nameWords"]] == ["mohamed", "salah", "محمد", "صلاح"]
+
+
 def test_name_words_skip_short_words_and_the_arabic_article() -> None:
     entries = [
         entry(names={"en": "Ben Yedder", "ar": "وسام بن يدر"}),
