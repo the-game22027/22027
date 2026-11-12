@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:the_game/core/config/app_config.dart';
+import 'package:the_game/core/errors/retry_policy.dart';
 import 'package:the_game/core/l10n/app_language_controller.dart';
 import 'package:the_game/core/network/api_client_provider.dart';
 import 'package:the_game/core/session/access_token_refresher.dart';
@@ -46,13 +47,14 @@ Future<List<Override>> createTestOverrides({
   ];
 }
 
-/// A container with a signed-in player whose requests go to [httpClientAdapter]; disposed
-/// after the test.
+/// A container with a signed-in player whose requests go to [httpClientAdapter], retrying
+/// failed providers like the app does; disposed after the test.
 Future<ProviderContainer> createSignedInTestContainer(
   HttpClientAdapter httpClientAdapter, {
   List<Override> extraOverrides = const [],
 }) async {
   final container = ProviderContainer(
+    retry: chooseRetryDelayForFailedProvider,
     overrides: [
       ...await createTestOverrides(
         tokenStorage: InMemoryTokenStorage(testSession),
