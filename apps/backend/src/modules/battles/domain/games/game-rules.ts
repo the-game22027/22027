@@ -33,7 +33,7 @@ export const isRejection = (value: unknown): value is Rejection =>
 export interface RoundAction {
   participantId: ParticipantId;
   kind: 'BUZZ' | 'ANSWER' | 'ANSWER_TIMEOUT' | 'GRID_CLAIM' | 'GRID_SKIP' | 'TURN_TIMEOUT';
-  answer?: TypedAnswer;
+  answer?: JudgedAnswer;
   /** Grid only: row * 3 + col. */
   cell?: number;
   isCorrect?: boolean;
@@ -41,7 +41,14 @@ export interface RoundAction {
   at: Date;
 }
 
-export type TypedAnswer = { entityId: string } | { number: number };
+/** How a typed text matched an answer (08 §5.3); question-bank's `TextMatch`, repeated to keep the domain plain. */
+export type TextMatch = 'EXACT' | 'TYPO' | 'OTHER_ENTITY' | 'NONE';
+
+/**
+ * An answer after the server judged it. `entityId` is the entity it names, or null when it names nobody. `text`
+ * and `match` exist only for a human's typed text, which is recorded but never shown to others (ADR-0021).
+ */
+export type JudgedAnswer = { entityId: string | null; text?: string; match?: TextMatch } | { number: number };
 
 export interface RoundResult {
   winnerParticipantId: ParticipantId | null;

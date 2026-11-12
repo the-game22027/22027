@@ -1,7 +1,7 @@
 import type { Logger } from '@nestjs/common';
 import type { AnswerCatalogQuery, AnswerChecker, GameType, RoundContentQuery } from '@modules/question-bank';
 import type { Clock } from '@shared/kernel';
-import type { ParticipantId, RoundAction, RoundResult, TypedAnswer } from '../domain/games/game-rules';
+import type { ParticipantId, RoundAction, RoundResult } from '../domain/games/game-rules';
 import { placeParticipantsByScore } from '../domain/placements';
 import type { RandomSource } from '../domain/random-source';
 import type { BattleConfigSnapshot, GridGameSettings, RevealGameSettings } from './battle-settings';
@@ -11,7 +11,7 @@ import type { BattleRepository } from './ports/battle-repository';
 import type { ScheduledTimer, TimerScheduler } from './ports/timer-scheduler';
 import { GridRoundRunner } from './rounds/grid-round-runner';
 import { RevealRoundRunner } from './rounds/reveal-round-runner';
-import type { PlayerCommand, RoundHost, RoundRunner, ViewerData } from './rounds/round-runner';
+import type { PlayerAnswer, PlayerCommand, RoundHost, RoundRunner, ViewerData } from './rounds/round-runner';
 
 export type { LiveParticipant } from './live-participant';
 
@@ -124,7 +124,7 @@ export class LiveBattle {
     return this.roundCommand(userId, socketId, roundNo, { type: 'BUZZ' }, clientMsgId);
   }
 
-  answer(userId: string, socketId: string, roundNo: number, answer: TypedAnswer, clientMsgId: string): Promise<Ack> {
+  answer(userId: string, socketId: string, roundNo: number, answer: PlayerAnswer, clientMsgId: string): Promise<Ack> {
     return this.roundCommand(userId, socketId, roundNo, { type: 'ANSWER', answer }, clientMsgId);
   }
 
@@ -327,6 +327,7 @@ export class LiveBattle {
       random: this.deps.random,
       checker: this.deps.checker,
       catalog: this.deps.catalog,
+      answerRules: this.config.answers,
       now: () => this.deps.clock.now(),
       participants: () => this.participants,
       activeParticipantIds: () => this.activeParticipants.map((participant) => participant.id),
@@ -477,6 +478,11 @@ export class LiveBattle {
   private publicConfig(): Record<string, unknown> {
     const hidden = new Set(['enabled', 'points', 'selection']);
     const rules = Object.fromEntries(Object.entries(this.config.game).filter(([key]) => !hidden.has(key)));
-    return { ...rules, roundCount: this.questionIds.length, betweenRoundsMs: this.config.engine.betweenRoundsMs };
+    return {
+      ...rules,
+      roundCount: this.questionIds.length,
+      betweenRoundsMs: this.config.engine.betweenRoundsMs,
+      answerMaxLength: this.config.answers.maxLength,
+    };
   }
 }

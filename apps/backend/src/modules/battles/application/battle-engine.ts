@@ -9,7 +9,6 @@ import {
 } from '@modules/question-bank';
 import { UsersFacade } from '@modules/users';
 import { CLOCK, type Clock, ID_GENERATOR, type IdGenerator, type Locale } from '@shared/kernel';
-import type { TypedAnswer } from '../domain/games/game-rules';
 import { SeededRandom } from '../domain/random-source';
 import { BATTLE_SETTINGS, type BattleConfigSnapshot, type BattleSettings, findGameSettings } from './battle-settings';
 import { type Ack, LiveBattle, type LiveParticipant } from './live-battle';
@@ -17,6 +16,7 @@ import { ACTIVITY_GUARD, type Activity, type ActivityGuard } from './ports/activ
 import { BATTLE_NOTIFIER, type BattleNotifier } from './ports/battle-notifier';
 import { BATTLE_REPOSITORY, type BattleRepository } from './ports/battle-repository';
 import { TIMER_SCHEDULER, type TimerScheduler } from './ports/timer-scheduler';
+import type { PlayerAnswer } from './rounds/round-runner';
 
 export class NoPlayableContentError extends Error {
   constructor(gameType: GameType, locales: Locale[]) {
@@ -114,7 +114,13 @@ export class BattleEngine implements OnApplicationBootstrap, OnApplicationShutdo
     const now = this.clock.now();
     const battleId = this.ids.next();
     const readyDeadlineAt = new Date(now.getTime() + this.settings.engine.readyTimeoutMs);
-    const config: BattleConfigSnapshot = { game, engine: this.settings.engine, botProfile: botProfileKey, seed };
+    const config: BattleConfigSnapshot = {
+      game,
+      engine: this.settings.engine,
+      answers: this.settings.answers,
+      botProfile: botProfileKey,
+      seed,
+    };
 
     const participants: LiveParticipant[] = accounts.map((account, seat) => ({
       id: this.ids.next(),
@@ -212,7 +218,7 @@ export class BattleEngine implements OnApplicationBootstrap, OnApplicationShutdo
     userId: string,
     socketId: string,
     roundNo: number,
-    answer: TypedAnswer,
+    answer: PlayerAnswer,
     clientMsgId: string,
   ): Promise<Ack> {
     return this.withBattle(battleId, clientMsgId, (battle) =>
@@ -225,11 +231,17 @@ export class BattleEngine implements OnApplicationBootstrap, OnApplicationShutdo
     userId: string,
     socketId: string,
     roundNo: number,
-    claim: { cell: number; entityId: string },
+    claim: { cell: number; text: string },
     clientMsgId: string,
   ): Promise<Ack> {
     return this.withBattle(battleId, clientMsgId, (battle) =>
-      battle.roundCommand(userId, socketId, roundNo, { type: 'GRID_CLAIM', ...claim }, clientMsgId),
+      battle.roundCommand(
+        userId,
+        socketId,
+        roundNo,
+        { type: 'GRID_CLAIM', cell: claim.cell, answer: { text: claim.text } },
+        clientMsgId,
+      ),
     );
   }
 

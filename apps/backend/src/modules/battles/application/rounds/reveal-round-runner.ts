@@ -1,7 +1,7 @@
 import type { EngineContent } from '@modules/question-bank';
 import type { Locale } from '@shared/kernel';
 import { type BotRoundPlan, planBotRound } from '../../domain/bots/reveal-and-buzz-bot';
-import { type Effect, isRejection, type ParticipantId, type TypedAnswer } from '../../domain/games/game-rules';
+import { type Effect, isRejection, type JudgedAnswer, type ParticipantId } from '../../domain/games/game-rules';
 import {
   type AnswerVerdict,
   type RevealCommand,
@@ -13,9 +13,11 @@ import { randomIntegerBetween } from '../../domain/random-source';
 import type { RevealGameSettings } from '../battle-settings';
 import { listEntityIdsShownInSteps, revealStepsForLocale } from '../reveal-steps';
 import {
+  type BotAnswer,
   type EntityNames,
   entityRef,
   loadEntityNames,
+  type PlayerAnswer,
   type PlayerCommand,
   type RoundHost,
   type RoundRunner,
@@ -108,23 +110,36 @@ export class RevealRoundRunner implements RoundRunner {
     return null;
   }
 
-  private async judgeAndApplyAnswer(from: ParticipantId, answer: TypedAnswer): Promise<string | null> {
+  private async judgeAndApplyAnswer(from: ParticipantId, answer: PlayerAnswer | BotAnswer): Promise<string | null> {
     if (!this.state) return 'INVALID_STATE';
     const rejection = this.rules.findAnswerRejection(this.state, from, this.host.now());
     if (rejection) return rejection.code;
-    const verdict = await this.judgeAnswer(answer);
-    if (verdict === 'UNKNOWN_ENTITY') return 'UNKNOWN_ENTITY';
-    return this.applyRevealCommand(from, { type: 'ANSWER', answer, verdict });
+    const judged = await this.judgeAnswer(answer);
+    if (typeof judged === 'string') return judged;
+    return this.applyRevealCommand(from, { type: 'ANSWER', ...judged });
   }
 
-  private async judgeAnswer(answer: TypedAnswer): Promise<AnswerVerdict | 'UNKNOWN_ENTITY'> {
+  /** The judged answer and its verdict, or the ack's error code. */
+  private async judgeAnswer(
+    answer: PlayerAnswer | BotAnswer,
+  ): Promise<{ answer: JudgedAnswer; verdict: AnswerVerdict } | string> {
     const { body, answerKind, contentId } = this.content;
+    // The round told the client its answerKind, so a number for a name (or the reverse) is a malformed payload.
+    if ('number' in answer !== (answerKind === 'NUMBER')) return 'INVALID_PAYLOAD';
     if ('number' in answer) {
-      if (answerKind !== 'NUMBER') return 'UNKNOWN_ENTITY';
-      return body.gameType === 'BUZZER' && body.answerNumber === answer.number ? 'CORRECT' : 'WRONG';
+      const correct = body.gameType === 'BUZZER' && body.answerNumber === answer.number;
+      return { answer, verdict: correct ? 'CORRECT' : 'WRONG' };
     }
-    if (answerKind === 'NUMBER') return 'UNKNOWN_ENTITY';
-    return this.host.checker.checkTypedAnswer(contentId, 0, answer.entityId);
+    if ('entityId' in answer) {
+      const accepted = this.content.acceptedAnswers.find((slot) => slot.slot === 0)?.entityIds ?? [];
+      return { answer, verdict: accepted.includes(answer.entityId) ? 'CORRECT' : 'WRONG' };
+    }
+    const judgement = await this.host.checker.judgeTypedText(contentId, 0, answer.text, this.host.answerRules);
+    if (judgement.verdict === 'EMPTY') return 'EMPTY_ANSWER';
+    return {
+      answer: { entityId: judgement.entityId, text: answer.text, match: judgement.match },
+      verdict: judgement.verdict,
+    };
   }
 
   private async applyEffects(effects: Effect<RevealEvent>[]): Promise<void> {
@@ -198,15 +213,17 @@ export class RevealRoundRunner implements RoundRunner {
           answerDeadlineAt: event.answerDeadlineAt.toISOString(),
         }));
       case 'WRONG_ANSWER': {
+        // Only a named entity or a number is shown: the typed text never reaches other players (ADR-0021).
         const answer = event.answer;
-        const names =
-          answer && 'entityId' in answer
-            ? await loadEntityNames(this.host.catalog, [answer.entityId])
-            : (new Map() as EntityNames);
+        const shownEntityId = answer && 'entityId' in answer ? answer.entityId : null;
+        const names = shownEntityId
+          ? await loadEntityNames(this.host.catalog, [shownEntityId])
+          : (new Map() as EntityNames);
         return this.host.emit('round:wrong', (viewer) => ({
           roundNo: event.roundNo,
           participantId: event.participantId,
-          ...(answer ? { answer: 'entityId' in answer ? entityRef(names, answer.entityId, viewer) : answer } : {}),
+          ...(shownEntityId ? { answer: entityRef(names, shownEntityId, viewer) } : {}),
+          ...(answer && 'number' in answer ? { answer: { number: answer.number } } : {}),
           timedOut: event.timedOut,
         }));
       }
@@ -248,7 +265,7 @@ export class RevealRoundRunner implements RoundRunner {
     });
   }
 
-  private async chooseBotAnswer(correct: boolean): Promise<TypedAnswer | null> {
+  private async chooseBotAnswer(correct: boolean): Promise<{ number: number } | BotAnswer | null> {
     const { content } = this;
     const accepted = content.acceptedAnswers.flatMap((slot) => slot.entityIds);
     if (content.answerKind === 'NUMBER') {
