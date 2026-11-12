@@ -246,6 +246,11 @@ describe('battles over WebSocket (e2e)', () => {
       expect((event.payload as { participants: { points: number }[] }).participants.map((p) => p.points)).toEqual([
         0, 0,
       ]);
+      // The player answered both rounds: each question was served and solved by a human (08 §5.7).
+      expect((event.payload as { questionResults: unknown[] }).questionResults).toEqual([
+        expect.objectContaining({ roundNo: 1, endReason: 'CORRECT', served: true, solved: true, wrongAnswers: 0 }),
+        expect.objectContaining({ roundNo: 2, endReason: 'CORRECT', served: true, solved: true, wrongAnswers: 0 }),
+      ]);
     });
 
     it.each([

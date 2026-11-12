@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { TransactionHost } from '@nestjs-cls/transactional';
 import type { Prisma } from '@generated/prisma/client';
 import { OutboxWriter } from '@shared/infrastructure/outbox';
+import { summarizeRoundForQuestionStats } from '../domain/question-results';
 import type { PrismaService, TransactionalAdapterPrisma } from '@shared/infrastructure/persistence';
 import type { RoundAction, RoundResult } from '../domain/games/game-rules';
 import type { BattleCompletion, BattleRepository, NewBattle } from '../application/ports/battle-repository';
@@ -116,8 +117,11 @@ export class PrismaBattleRepository implements BattleRepository {
       const battle = await tx.battle.update({
         where: { id: battleId },
         data: { status: 'COMPLETED', endedAt, endReason, version: { increment: 1 } },
-        include: { participants: true, rounds: { orderBy: { roundNo: 'asc' } } },
+        include: { participants: true, rounds: { orderBy: { roundNo: 'asc' }, include: { actions: true } } },
       });
+      const humanIds = new Set(
+        battle.participants.filter((participant) => participant.kind === 'HUMAN').map((participant) => participant.id),
+      );
       await this.outbox.write({
         type: 'BattleCompleted',
         version: 1,
@@ -142,12 +146,7 @@ export class PrismaBattleRepository implements BattleRepository {
             outcome: participant.outcome,
             points: leaderboardPoints[participant.id] ?? 0,
           })),
-          questionResults: battle.rounds.map((round) => ({
-            roundNo: round.roundNo,
-            questionId: round.questionId,
-            answeredCorrectly: round.endReason === 'CORRECT',
-            stepsRevealed: round.stepsRevealed,
-          })),
+          questionResults: battle.rounds.map((round) => summarizeRoundForQuestionStats(round, humanIds)),
         },
       });
     });
