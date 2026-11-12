@@ -321,7 +321,7 @@ questions (
   calibrated_difficulty numeric NULL,   -- from play data (future job)
   status question_status DEFAULT 'DRAFT',
   available_locales text[],             -- e.g. {en,ar}; selection filters on viewer locale
-  topics text[] DEFAULT '{}',           -- e.g. {la-liga,premier-league}; room filters (ADR-0018); empty = General only
+  topics text[] DEFAULT '{}',           -- e.g. {la-liga,premier-league}; room filters (ADR-0019); empty = General only
   provenance jsonb,                     -- {facts:[...], sources:[...], licenses:[...], kbVersion:"..."}
   license_flags text[] DEFAULT '{}',    -- e.g. {CC-BY-SA-4.0}: lets us filter or attribute
   valid_until timestamptz NULL,         -- volatile facts ("current record holder")
@@ -415,7 +415,7 @@ battle_rooms (
   host_user_id uuid FK → users,
   status battle_room_status DEFAULT 'LOBBY',
   game_type battle_game_type,           -- picked by the host; can change in LOBBY between battles
-  config jsonb,                         -- {maxPlayers, ...} (DEC-38) and the host's filters {topics, difficultyLevel} (ADR-0018); game config is snapshotted on each battle
+  config jsonb,                         -- {maxPlayers, ...} (DEC-38) and the host's filters {topics, difficultyLevel} (ADR-0019); game config is snapshotted on each battle
   current_battle_id uuid NULL,          -- set while IN_BATTLE (FK added after battles exists)
   created_at timestamptz, last_activity_at timestamptz,
   expires_at timestamptz,               -- idle timeout (DEC-42); pushed forward on activity

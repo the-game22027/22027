@@ -300,10 +300,10 @@ Test vectors (both implementations must pass them):
 | `مُحَمَّد صَلاح` | `محمد صلاح` |
 | `٢٠١٠` | `2010` |
 
-### 5.9 Topics (ADR-0018, D.3)
+### 5.9 Topics (ADR-0019, D.3)
 
 - **What:** each bundle line gets `topics: string[]`, and the manifest lists every topic once: `{ slug, names: { en, ar } }`. A line may only use listed topics (checked on import, like categories).
-- **Tagging rule (DEC-63, recommended):** a round gets every topic it touches.
+- **Tagging rule (DEC-64, recommended):** a round gets every topic it touches.
   - A club in a career or a question → that club's league. Wikidata gives the current league (`P118`), so a relegated club moves with the next ingest; accepted for v1.
   - A match → its competition (`world-cup`, `champions-league`, a league).
   - A national team → `national-teams`, plus the tournament when there is one.

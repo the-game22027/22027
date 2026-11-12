@@ -1,8 +1,8 @@
-# ADR-0018: Question topics, and topic and difficulty filters in private rooms
+# ADR-0019: Question topics, and topic and difficulty filters in private rooms
 
 - **Status:** Accepted
 - **Date:** 2026-11-11
-- **Related:** DEC-63, DEC-64, DEC-44, DEC-38; ADR-0015; `08-battle-games.md` §8; `07` §5.9
+- **Related:** DEC-64, DEC-65, DEC-44, DEC-38; ADR-0015; `08-battle-games.md` §8; `07` §5.9
 
 ## Context
 The product owner wants a room's host to choose what the questions are about and how hard they are: general questions, or only La Liga, only the Premier League, and so on, each at a difficulty level. Today a round has a `category` (what kind of question: careers, transfers, nationalities) and a `difficulty` (1-5). Nothing says which competition a round is about. A Career round can touch several leagues: Ronaldo's career is Premier League, La Liga, Serie A and Saudi league at once.
@@ -13,7 +13,7 @@ Constraints: the bank must stay large enough per filter (risk K-09), matchmaking
 - **Topics are a new dimension of content, separate from `category`.** Every round carries `topics: string[]` (for example `la-liga`, `premier-league`, `world-cup`, `national-teams`). The pipeline assigns them; the bundle manifest lists every topic with its names in both languages, like categories. The app stores them in `questions.topics` with a GIN index.
 - **"General" is no filter**, not a topic: it plays everything.
 - **Difficulty levels are named ranges in config** (`room.difficultyLevels`, e.g. `EASY → [1, 2]`). `MIXED` is no filter.
-- **Only private rooms filter** (for now). The host picks topics and a level while in `LOBBY`; the battle snapshots them. Random matchmaking stays unfiltered (DEC-64).
+- **Only private rooms filter** (for now). The host picks topics and a level while in `LOBBY`; the battle snapshots them. Random matchmaking stays unfiltered (DEC-65).
 - **The app never offers an empty choice.** `GET /v1/battle-topics?gameType=` returns the topics that have published content in the caller's locale, with counts per difficulty level. Starting a room whose filters cannot fill `roundCount` rounds fails with `409 NOT_ENOUGH_CONTENT`.
 - **`ContentSelector`** gets `topics` (any of them) next to `difficulties`. The exposure window (DEC-44) still applies inside the filter.
 

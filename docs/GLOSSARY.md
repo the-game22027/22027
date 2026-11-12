@@ -27,8 +27,8 @@
 | **Participant** | A seat in a battle: `HUMAN` (a user) or `BOT`. Identified in the protocol by `participantId` |
 | **Matchmaking ticket** | A user's place in the Redis queue; removed when matched, cancelled, or turned into a bot battle |
 | **Bot fallback** | Giving a queued player a bot opponent after `botFallbackAfterMs` (DEC-39) |
-| **Topic** | What a round is about (`la-liga`, `world-cup`, `national-teams`); a round can have several. Separate from its category (what kind of question). Room hosts filter by topic (ADR-0018) |
-| **Difficulty level** | A named range of difficulties a room host can pick: `EASY`, `MEDIUM`, `HARD` or `MIXED` (config `room.difficultyLevels`, DEC-63) |
+| **Topic** | What a round is about (`la-liga`, `world-cup`, `national-teams`); a round can have several. Separate from its category (what kind of question). Room hosts filter by topic (ADR-0019) |
+| **Difficulty level** | A named range of difficulties a room host can pick: `EASY`, `MEDIUM`, `HARD` or `MIXED` (config `room.difficultyLevels`, DEC-64) |
 | **Bot / bot profile** | Server-side participant with no socket; its accuracy and answer delays come from a configured profile (DEC-43). Never a `users` row, never earns ledger points, always labeled (DEC-40) |
 | **Room (private battle room)** | A multiplayer lobby created by a host and joined with a code, holding 2 up to `room.maxPlayers` players (DEC-38); starting it creates a battle with `mode = ROOM`; can host rematches (DEC-42) |
 | **Room code** | Short, unambiguous, random code identifying a live room; reusable after the room closes |

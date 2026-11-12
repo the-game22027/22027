@@ -165,7 +165,7 @@ interface BattlePlayer { participantId: string; kind: 'HUMAN' | 'BOT'; user?: Pu
 interface BattleRoom { id: string; code: string; status: 'LOBBY' | 'IN_BATTLE' | 'CLOSED';
   host: PublicUser; members: { user: PublicUser; joinedAt: string }[];
   maxPlayers: number; gameType: GameType; expiresAt: string; currentBattleId?: string | null; createdAt: string;
-  topics: string[]; difficultyLevel: 'MIXED' | 'EASY' | 'MEDIUM' | 'HARD' }   // ADR-0018; topics [] = General
+  topics: string[]; difficultyLevel: 'MIXED' | 'EASY' | 'MEDIUM' | 'HARD' }   // ADR-0019; topics [] = General
 interface BattleTopic { slug: string; name: string; counts: { MIXED: number; EASY: number; MEDIUM: number; HARD: number } }   // name in the caller's locale
 interface BattleSummary { id: string; gameType: GameType; mode: 'MATCHMAKING' | 'ROOM'; hasBot: boolean; status: string;
   players: BattlePlayer[]; myScore: number; myPlacement?: number | null;
@@ -270,7 +270,7 @@ Matchmaking can also be joined over WS (`matchmaking:join`). Room lifecycle is R
 | ✅ | POST | `/v1/battles/matchmaking` | U | `{gameType}` → join that game's 1v1 queue (DEC-59) → `MatchmakingTicket` (`409 PLAYER_BUSY` / `GAME_TYPE_UNAVAILABLE`). Bot fallback after `botFallbackAt` (DEC-39) |
 | ✅ | DELETE | `/v1/battles/matchmaking` | U | Leave the queue (`204`; no-op if not queued) |
 | ✅ | POST | `/v1/battle-rooms` | U | `{gameType}` → create a private room (`Idempotency-Key`) → `201 BattleRoom` with its `code`; caller is host (`409 PLAYER_BUSY` / `GAME_TYPE_UNAVAILABLE`) |
-| ✅ | GET | `/v1/battle-topics?gameType=` | U | `{ items: BattleTopic[] }`: topics with published content of that game type in the caller's locale, with counts per difficulty level, so the app only offers choices that can fill a battle (ADR-0018) |
+| ✅ | GET | `/v1/battle-topics?gameType=` | U | `{ items: BattleTopic[] }`: topics with published content of that game type in the caller's locale, with counts per difficulty level, so the app only offers choices that can fill a battle (ADR-0019) |
 | ✅ | PATCH | `/v1/battle-rooms/{roomId}` | U (host) | `{gameType?, topics?, difficultyLevel?}` while in `LOBBY` → `BattleRoom` (`409 ROOM_NOT_IN_LOBBY` / `GAME_TYPE_UNAVAILABLE`); members get `room:updated` |
 | ✅ | POST | `/v1/battle-rooms/join` | U | `{code}` → `200 BattleRoom` (`404 ROOM_NOT_FOUND`, `409 ROOM_FULL` / `ROOM_NOT_IN_LOBBY` / `PLAYER_BUSY`); strict rate limit |
 | ✅ | GET | `/v1/battle-rooms/{roomId}` | U (member) | `BattleRoom` |
