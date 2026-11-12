@@ -79,6 +79,7 @@ Content-Type: application/problem+json
 | `USERNAME_TAKEN` | 409 | Username belongs to someone else (case-insensitive) |
 | `TEAM_NOT_FOUND` | 422 | Favourite team does not exist |
 | `INVALID_CURSOR` | 400 | Pagination cursor was altered or is not ours |
+| `QUESTION_NOT_FOUND` | 404 | Unknown question, or one the caller was never served in a battle (indistinguishable on purpose) |
 | `PERIOD_NOT_FOUND` | 404 | Leaderboard period key is malformed, or names a season the calendar does not have |
 | `IDEMPOTENCY_KEY_REUSED` | 422 | Same key, different request |
 | `PRECONDITION_FAILED` | 412 | `If-Match` mismatch |
@@ -256,7 +257,7 @@ Legend: **Auth** P = public, U = authenticated user. **MVP** ✅ / Future 🔜.
 
 | | Method | Path | Auth | Purpose / notes |
 |---|---|---|---|---|
-| ✅ | POST | `/v1/questions/{questionId}/reports` | U | Report a wrong question `{reason}` (only questions the caller was served in a battle); feeds moderation. Moved to P6: it needs `battle_rounds` |
+| ✅ | POST | `/v1/questions/{questionId}/reports` | U | Report a wrong question `{ reason }` (1..500 characters) → `204`. Only questions the caller was served in a battle, otherwise `404 QUESTION_NOT_FOUND`; a repeat is a no-op `204` (`08` §5.7) |
 | ❌ | GET | `/v1/answer-catalog` | U | Removed (P6.6): the app shows no suggestions, so it no longer downloads the catalog (ADR-0021, DEC-55) |
 
 The Daily Quiz endpoints were removed (ADR-0010). Round content is served only inside battles over WebSocket, step by step.
