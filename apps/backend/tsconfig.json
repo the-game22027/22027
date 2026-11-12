@@ -26,5 +26,7 @@
       "@generated/*": ["./src/generated/*"]
     }
   },
-  "include": ["src/**/*", "test/**/*", "scripts/**/*", "prisma.config.ts", "jest*.config.ts"]
+  "include": ["src/**/*", "test/**/*", "scripts/**/*", "prisma.config.ts", "jest*.config.ts"],
+  // Written by the e2e setup for one test run (test/support/swagger-metadata.ts); a stale copy must not break builds.
+  "exclude": ["node_modules", "dist", "src/generated/swagger-metadata.ts"]
 }
