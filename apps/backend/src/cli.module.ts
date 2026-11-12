@@ -1,4 +1,5 @@
 import { type DynamicModule, Module } from '@nestjs/common';
+import { BattlesCliModule } from '@modules/battles';
 import { FootballSimulatorModule } from '@modules/football';
 import { QuestionBankCliModule } from '@modules/question-bank';
 import { AppConfig } from '@shared/infrastructure/config';
@@ -12,6 +13,7 @@ export class CliModule {
       imports: [
         CoreModule.register(config),
         QuestionBankCliModule,
+        BattlesCliModule,
         ...(config.devToolsEnabled ? [FootballSimulatorModule] : []),
       ],
     };

@@ -4,6 +4,8 @@ import { randomUUID } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
 import { io, type Socket } from 'socket.io-client';
 import request from 'supertest';
+import { readFileSync } from 'node:fs';
+import { ActivateBattleRuleSet, BattlesCliModule } from '../../src/modules/battles';
 import { ImportQuestionBundle } from '../../src/modules/question-bank/application/import-question-bundle';
 import { QuestionBankFacade } from '../../src/modules/question-bank/application/question-bank.facade';
 import { QuestionBankCliModule } from '../../src/modules/question-bank/question-bank-cli.module';
@@ -68,9 +70,11 @@ describe('battles over WebSocket (e2e)', () => {
   /** Two published Buzzer rounds in both languages, both answered by Spain. */
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
-      imports: [CoreModule.register(testConfig()), QuestionBankCliModule],
+      imports: [CoreModule.register(testConfig()), QuestionBankCliModule, BattlesCliModule],
     }).compile();
     await moduleRef.init();
+    const ruleSetFile = JSON.parse(readFileSync('config/scoring/battle.dev.json', 'utf8')) as { config: unknown };
+    await moduleRef.get(ActivateBattleRuleSet).activateBattleRuleSet('e2e', ruleSetFile.config, 'test');
     const version = `battle-e2e-${randomUUID()}`;
     const reviewed = { en: true, ar: true };
     await moduleRef
@@ -204,7 +208,12 @@ describe('battles over WebSocket (e2e)', () => {
       }
 
       const completed = await player.waitFor('battle:completed');
-      expect(completed.data).toMatchObject({ endReason: 'COMPLETED', you: { placement: 1, outcome: 'WIN' } });
+      // A win against a bot earns no leaderboard points (DEC-41).
+      expect(completed.data).toMatchObject({
+        endReason: 'COMPLETED',
+        you: { placement: 1, outcome: 'WIN', points: 0 },
+        pointsPending: false,
+      });
 
       const seqs = player.events.filter((event) => event.battleId === battleId).map((event) => event.seq as number);
       expect(seqs).toEqual([...seqs].sort((a, b) => a - b));
@@ -216,6 +225,7 @@ describe('battles over WebSocket (e2e)', () => {
         include: { participants: true, rounds: { include: { actions: true } } },
       });
       expect(battle).toMatchObject({ status: 'COMPLETED', endReason: 'COMPLETED', hasBot: true, gameType: 'BUZZER' });
+      expect(battle.ruleSetId).toEqual(expect.any(String));
       expect(battle.rounds.map((round) => round.endReason)).toEqual(['CORRECT', 'CORRECT']);
       expect(battle.rounds[0]?.actions.map((action) => action.kind)).toEqual(['BUZZ', 'ANSWER']);
       expect(battle.rounds[0]?.actions[1]).toMatchObject({
@@ -227,7 +237,15 @@ describe('battles over WebSocket (e2e)', () => {
       const event = await prisma.outboxEvent.findFirstOrThrow({
         where: { aggregateId: battleId, type: 'BattleCompleted' },
       });
-      expect(event.payload).toMatchObject({ battleId, hasBot: true });
+      expect(event.payload).toMatchObject({
+        battleId,
+        hasBot: true,
+        ruleSetId: battle.ruleSetId,
+        endReason: 'COMPLETED',
+      });
+      expect((event.payload as { participants: { points: number }[] }).participants.map((p) => p.points)).toEqual([
+        0, 0,
+      ]);
     });
 
     it.each([
@@ -438,16 +456,27 @@ describe('battles over WebSocket (e2e)', () => {
 
       expect(await second.send('battle:forfeit', { battleId })).toMatchObject({ accepted: true });
       expect((await first.waitFor('player:forfeited')).data).toMatchObject({ reason: 'FORFEIT' });
+      // The dev rule set gives a win against a human 30 points, also by forfeit.
       expect((await first.waitFor('battle:completed')).data).toMatchObject({
         endReason: 'FORFEIT',
-        you: { placement: 1, outcome: 'WIN' },
+        you: { placement: 1, outcome: 'WIN', points: 30 },
+        pointsPending: true,
       });
-      expect((await second.waitFor('battle:completed')).data).toMatchObject({ you: { placement: 2, outcome: 'LOSS' } });
+      expect((await second.waitFor('battle:completed')).data).toMatchObject({
+        you: { placement: 2, outcome: 'LOSS', points: 0 },
+        pointsPending: false,
+      });
       await expect(first.prisma().battle.findUniqueOrThrow({ where: { id: battleId } })).resolves.toMatchObject({
         status: 'COMPLETED',
         endReason: 'FORFEIT',
         hasBot: false,
       });
+      const event = await first.prisma().outboxEvent.findFirstOrThrow({
+        where: { aggregateId: battleId, type: 'BattleCompleted' },
+      });
+      expect((event.payload as { participants: { participantId: string; points: number }[] }).participants).toEqual(
+        expect.arrayContaining([expect.objectContaining({ participantId: ids.first, points: 30 })]),
+      );
       expect(ids.first).toBeTruthy();
       expect(await first.send('matchmaking:join', { gameType: 'BUZZER' })).toMatchObject({ accepted: true });
       await first.send('matchmaking:leave', {});

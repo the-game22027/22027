@@ -7,9 +7,12 @@ import {
   type GameType,
   RoundContentQuery,
 } from '@modules/question-bank';
+import { ScoringRuleSets } from '@modules/points';
 import { UsersFacade } from '@modules/users';
 import { CLOCK, type Clock, ID_GENERATOR, type IdGenerator, type Locale } from '@shared/kernel';
+import { type BattlePointsRuleSet, selectRuleForBattleMode } from '../domain/leaderboard-points';
 import { SeededRandom } from '../domain/random-source';
+import { parseBattlePointsRuleSet } from './battle-points-rule-set';
 import { BATTLE_SETTINGS, type BattleConfigSnapshot, type BattleSettings, findGameSettings } from './battle-settings';
 import { type Ack, LiveBattle, type LiveParticipant } from './live-battle';
 import { ACTIVITY_GUARD, type Activity, type ActivityGuard } from './ports/activity-guard';
@@ -36,6 +39,8 @@ export class BattleEngine implements OnApplicationBootstrap, OnApplicationShutdo
   private readonly live = new Map<string, LiveBattle>();
   /** Which live battle each human is in, for disconnects and reconnects. */
   private readonly battleOfUser = new Map<string, string>();
+  /** Parsed BATTLE rule sets by id: a rule set never changes once stored. */
+  private readonly pointsRuleSets = new Map<string, BattlePointsRuleSet>();
 
   constructor(
     @Inject(BATTLE_REPOSITORY) private readonly battles: BattleRepository,
@@ -50,6 +55,7 @@ export class BattleEngine implements OnApplicationBootstrap, OnApplicationShutdo
     private readonly checker: AnswerChecker,
     private readonly catalog: AnswerCatalogQuery,
     private readonly users: UsersFacade,
+    private readonly scoringRuleSets: ScoringRuleSets,
   ) {}
 
   /**
@@ -120,6 +126,7 @@ export class BattleEngine implements OnApplicationBootstrap, OnApplicationShutdo
       answers: this.settings.answers,
       botProfile: botProfileKey,
       seed,
+      leaderboardPoints: await this.findLeaderboardPointsOfMatchmakingBattle(botProfileKey !== null),
     };
 
     const participants: LiveParticipant[] = accounts.map((account, seat) => ({
@@ -162,6 +169,7 @@ export class BattleEngine implements OnApplicationBootstrap, OnApplicationShutdo
       gameType,
       hasBot: botProfileKey !== null,
       config,
+      ruleSetId: config.leaderboardPoints?.ruleSetId ?? null,
       createdAt: now,
       readyDeadlineAt,
       questionIds,
@@ -203,6 +211,23 @@ export class BattleEngine implements OnApplicationBootstrap, OnApplicationShutdo
     for (const { userId } of players) this.battleOfUser.set(userId, battleId);
     await battle.open();
     return battleId;
+  }
+
+  /** The active BATTLE rule set's section for this mode (08 §6.1); null when none is active. */
+  private async findLeaderboardPointsOfMatchmakingBattle(
+    hasBot: boolean,
+  ): Promise<BattleConfigSnapshot['leaderboardPoints']> {
+    const active = await this.scoringRuleSets.findActiveRuleSet('BATTLE');
+    if (!active) {
+      this.logger.warn('No active BATTLE rule set: this battle earns no leaderboard points (08 §6.1)');
+      return null;
+    }
+    let ruleSet = this.pointsRuleSets.get(active.id);
+    if (!ruleSet) {
+      ruleSet = parseBattlePointsRuleSet(active.config);
+      this.pointsRuleSets.set(active.id, ruleSet);
+    }
+    return { ruleSetId: active.id, rule: selectRuleForBattleMode(ruleSet, 'MATCHMAKING', hasBot) };
   }
 
   ready(battleId: string, userId: string, socketId: string, clientMsgId: string): Promise<Ack> {

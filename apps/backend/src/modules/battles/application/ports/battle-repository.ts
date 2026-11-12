@@ -24,6 +24,7 @@ export interface NewBattle {
   gameType: GameType;
   hasBot: boolean;
   config: BattleConfigSnapshot;
+  ruleSetId: string | null;
   createdAt: Date;
   readyDeadlineAt: Date;
   participants: NewParticipant[];
@@ -36,6 +37,8 @@ export interface BattleCompletion {
   endedAt: Date;
   endReason: 'COMPLETED' | 'FORFEIT';
   placements: Placement[];
+  /** Per participant: what the battle adds to the BATTLES leaderboards (08 §6.1). */
+  leaderboardPoints: Record<string, number>;
 }
 
 /** Persistence of every battle transition (03 §4.3). The engine is the referee; these rows are the history. */
