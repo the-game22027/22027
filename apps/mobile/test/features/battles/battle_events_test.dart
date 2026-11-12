@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:the_game/features/battles/data/answer_catalog.dart';
 import 'package:the_game/features/battles/data/battle_events.dart';
 
 import 'battle_fixtures.dart';
@@ -88,7 +87,7 @@ void main() {
             )
             as GridRoundStarted;
 
-    expect(reveal.answerKind.entityKind, AnswerEntityKind.player);
+    expect(reveal.answerKind.code, 'PLAYER');
     expect(reveal.stepCount, 6);
     expect(grid.cols.first.kind, GridCriterionKind.nationality);
     expect(grid.firstTurnParticipantId, 'p-bot');

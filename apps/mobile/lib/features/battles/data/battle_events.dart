@@ -1,7 +1,6 @@
-import 'package:the_game/features/battles/data/answer_catalog.dart';
-
 /// Server → client events of the `/battles` namespace (`WEBSOCKET.md` §2, §4), parsed from
 /// their envelope. Screens and the battle state reducer use these, never raw maps.
+library;
 
 enum GameType { buzzer, career, whoIsPlayer, grid, unknown }
 
@@ -86,20 +85,14 @@ class GridCriterion {
   final EntityRef entity;
 }
 
-/// What the round expects: an entity of one kind, or a number.
+/// What the round expects: a name of one kind (`PLAYER`, `CLUB`, …), typed as text, or a
+/// number. Screens use it for the hint and the keyboard.
 class RoundAnswerKind {
   const RoundAnswerKind(this.code);
 
   final String code;
 
   bool get expectsNumber => code == 'NUMBER';
-
-  /// The catalog kind to search, or `null` for a number (or a kind this app does not know).
-  AnswerEntityKind? get entityKind {
-    if (expectsNumber) return null;
-    final kind = findAnswerEntityKindByCode(code);
-    return kind == AnswerEntityKind.unknown ? null : kind;
-  }
 }
 
 class ParticipantScore {

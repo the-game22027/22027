@@ -1,7 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:the_game/features/battles/application/battle_state.dart';
-import 'package:the_game/features/battles/data/answer_catalog.dart';
 import 'package:the_game/features/battles/data/battle_events.dart';
 
 import 'battle_fixtures.dart';
@@ -52,7 +51,7 @@ void main() {
 
     final buzzed = state.currentRound! as RevealRound;
     expect(state.phase, BattlePhase.inProgress);
-    expect(buzzed.answerKind?.entityKind, AnswerEntityKind.player);
+    expect(buzzed.answerKind?.code, 'PLAYER');
     expect(buzzed.revealedClues, ['first']);
     expect(buzzed.buzzHolderParticipantId, 'p-bot');
     expect(buzzed.nextClueAt, isNull, reason: 'the reveal pauses on a buzz');
