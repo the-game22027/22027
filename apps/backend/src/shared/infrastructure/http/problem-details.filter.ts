@@ -40,7 +40,11 @@ export class ProblemDetailsFilter implements ExceptionFilter {
     const instance = request.originalUrl.split('?')[0] ?? request.originalUrl;
 
     if (exception instanceof DomainError) {
-      return this.build(STATUS_BY_KIND[exception.kind], exception.code, instance, traceId, exception.message);
+      // Details become RFC 9457 extension members; the standard members always win over them.
+      return {
+        ...exception.details,
+        ...this.build(STATUS_BY_KIND[exception.kind], exception.code, instance, traceId, exception.message),
+      };
     }
     if (exception instanceof RequestValidationException) {
       return {
