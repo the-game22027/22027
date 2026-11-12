@@ -372,3 +372,30 @@ canView(viewer, owner, match, ownerSettings, platformDefault):
 ```
 
 Decided (DEC-21): friends see predictions only after kickoff, with no per-user setting in v1.0, because seeing friends' picks before kickoff enables copying in leagues (risk K-03). Every read path (`friends' predictions for a match`, `a user's prediction history`, future feed and share cards) must go through this policy and has its own integration test.
+
+### 7.1 What P7 builds
+
+**A block is invisible.** Every path answers a blocked user (either direction) exactly like an unknown one: `404 USER_NOT_FOUND`. Blocks are checked in both directions everywhere.
+
+**P7a: friends, blocks, search** (module `social`; users search lives here too, because `users` cannot depend on `social`):
+
+- **Send** `POST /v1/friend-requests { userId }` → `201` with the request.
+  - The same request again (same direction, still pending) → `200` with that request: naturally idempotent. A generic `Idempotency-Key` store is not built yet.
+  - The other player already asked you → `409 FRIEND_REQUEST_EXISTS`, with `requestId` in the problem details so the app can offer "accept".
+  - Already friends → `409 ALREADY_FRIENDS`. Yourself → `422 CANNOT_TARGET_YOURSELF`. Unknown, deleted or blocked either way → `404 USER_NOT_FOUND`.
+  - Two players asking each other at the same moment: the partial unique index lets one insert win; the other gets `409 FRIEND_REQUEST_EXISTS`.
+- **Accept / decline** (addressee only) and **cancel** `DELETE` (requester only): someone else's or unknown → `404 FRIEND_REQUEST_NOT_FOUND`; no longer pending → `409 FRIEND_REQUEST_NOT_PENDING`. Each is a conditional update `WHERE status = 'PENDING'`, so accept and cancel racing cannot both win. Accept inserts the friendship in the same transaction and writes `FriendshipCreated`.
+- **Lists:** `GET /v1/friend-requests?direction=incoming|outgoing`, `GET /v1/me/friends` (`{ user, since }`, newest first) and `GET /v1/me/blocks`, all keyset pages.
+- **Unfriend** `DELETE /v1/me/friends/{userId}` → `204`, also when not friends; writes `FriendshipRemoved` when a row was removed.
+- **Block** `PUT /v1/me/blocks/{userId}` → `204`, idempotent. In one transaction: the block row, the friendship removed, every pending request between the two cancelled, `UserBlocked` (and `FriendshipRemoved` if they were friends). **Unblock** `DELETE` → `204`, restores nothing.
+- **A profile** `GET /v1/users/{userId}` → `PublicUser` + `relationship`: `SELF | NONE | FRIENDS | REQUEST_SENT | REQUEST_RECEIVED` (+ `requestId` for the last two).
+- **Search** `GET /v1/users?query=` (2 to 50 characters, trimmed): username starting with the query, or display name containing it, both case-insensitive; active users only; never yourself or a block either way; ordered by display name, then id; keyset pages. A trigram index (`pg_trgm`) serves the display-name match.
+- **Rate limits per user** (API §7): search 30 per minute, friend requests 30 per hour, from config (`RATE_LIMIT_USER_SEARCH_PER_MINUTE`, `RATE_LIMIT_FRIEND_REQUESTS_PER_HOUR`); `429 RATE_LIMITED` with `Retry-After`.
+- **Events** (no consumers yet): `FriendshipCreated { userA, userB }`, `FriendshipRemoved { userA, userB, reason: UNFRIENDED | BLOCKED }`, `UserBlocked { blockerId, blockedId }`.
+
+**P7b: prediction visibility and matchmaking:**
+
+- `GET /v1/matches/{matchId}/predictions/friends` → friends' predictions for that match, only once kickoff has passed (before it: an empty page). `GET /v1/users/{userId}/predictions` → yourself: everything; a friend: only matches past kickoff; anyone else, or a block → `404 USER_NOT_FOUND`. Both read kickoff against the **database clock** in the query. `score` stays `null` until prediction scoring (P3.2).
+- **The matcher skips blocked pairs:** it takes up to 50 of the oldest tickets in one script, pairs them oldest first while skipping blocked pairs (`SocialQuery.findBlockedPairs`), and puts the rest back with their original queue time. A ticket goes back only if the player still holds that queue activity, so a player who left meanwhile leaves no ghost. A blocked pair that stays alone falls back to bots as usual.
+
+**Not in P7:** cleanup on `UserDeleted` (nothing publishes it yet), the friends leaderboard, the activity feed (DEC-34), Arabic letter normalization in search.

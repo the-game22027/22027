@@ -102,7 +102,11 @@ Content-Type: application/problem+json
 | `ROOM_NOT_ENOUGH_PLAYERS` | 409 | Start with fewer than 2 members |
 | `GAME_TYPE_UNAVAILABLE` | 409 | The game type is switched off in config (matchmaking join, room create or update) |
 | `GAME_TYPE_PLAYER_COUNT` | 409 | The room's member count does not fit the game type (`GRID` needs exactly 2, DEC-61) |
-| `FRIEND_REQUEST_EXISTS` / `ALREADY_FRIENDS` | 409 | Social |
+| `FRIEND_REQUEST_EXISTS` / `ALREADY_FRIENDS` | 409 | Social; `FRIEND_REQUEST_EXISTS` carries the existing `requestId` (03 §7.1) |
+| `FRIEND_REQUEST_NOT_FOUND` | 404 | Unknown request, or not yours to answer or cancel |
+| `FRIEND_REQUEST_NOT_PENDING` | 409 | Already accepted, declined or cancelled |
+| `USER_NOT_FOUND` | 404 | Unknown or deleted user, or a block in either direction (indistinguishable on purpose) |
+| `CANNOT_TARGET_YOURSELF` | 422 | Befriending or blocking yourself |
 | `LEAGUE_FULL` | 409 | Membership limit (DEC-22) |
 | `LEAGUE_INVITE_INVALID` | 404 | Unknown/expired/revoked code |
 | `LEAGUE_ALREADY_MEMBER` | 409 | |
@@ -223,8 +227,8 @@ Legend: **Auth** P = public, U = authenticated user. **MVP** ✅ / Future 🔜.
 | ✅ | PATCH | `/v1/me` | U | displayName, username (`null` clears), avatarUrl (`https`, `null` clears), locale, favouriteTeamId (`null` clears) → `Me` |
 | 🔜 | PATCH | `/v1/me/privacy` | U | Future privacy settings. Prediction visibility is fixed in v1.0 (DEC-21: friends after kickoff) |
 | ✅ | DELETE | `/v1/me` | U (recent sign-in) | Request deletion → `202`; signs out every device; signing in during the grace period cancels it. `403 RECENT_SIGN_IN_REQUIRED` when the sign-in is too old |
-| ✅ | GET | `/v1/users/{userId}` | U | `PublicUser` (+ friendship status) |
-| ✅ | GET | `/v1/users?query=&cursor=` | U | Search by display name/username; rate limited; excludes blocked |
+| ✅ | GET | `/v1/users/{userId}` | U | `PublicUser` + `relationship` (`SELF`, `NONE`, `FRIENDS`, `REQUEST_SENT`, `REQUEST_RECEIVED`, + `requestId`); a block → `404` (03 §7.1) |
+| ✅ | GET | `/v1/users?query=&cursor=` | U | Search: username prefix or display name containing `query` (2..50 chars); 30/min per user; excludes you and blocks both ways |
 
 ### 6.3 Football (read-only)
 
@@ -323,6 +327,7 @@ Matchmaking can also be joined over WS (`matchmaking:join`). Room lifecycle is R
 | ✅ | DELETE | `/v1/me/friends/{userId}` | U | Unfriend |
 | ✅ | PUT | `/v1/me/blocks/{userId}` | U | Block (removes friendship and pending requests) |
 | ✅ | DELETE | `/v1/me/blocks/{userId}` | U | Unblock |
+| ✅ | GET | `/v1/me/blocks?cursor=` | U | Players you blocked, so the app can offer unblock |
 | 🔜 | GET | `/v1/me/feed` | U | Activity feed (DEC-34) |
 
 ### 6.11 Operations

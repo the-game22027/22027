@@ -147,7 +147,7 @@ Removed with the Daily Quiz (ADR-0010, 2026-11-07). The section number is kept s
 - **Purpose:** Relationships between users.
 - **Responsibilities:** Friend requests (send, accept, decline, cancel), friendships (mutual), unfriend, blocking (Recommended for abuse prevention), friendship queries.
 - **Owned tables:** `friend_requests`, `friendships`, `user_blocks`.
-- **Public interface:** `SocialQuery.areFriends(a, b)`, `listFriendIds(userId)`, `isBlocked(a, b)`.
+- **Public interface:** `SocialQuery.areFriends(a, b)`, `listFriendIds(userId)`, `isBlocked(a, b)`, `findBlockedPairs(userIds)` (the matcher). Also serves `GET /v1/users` and `/v1/users/{id}`, because they must hide blocks and `users` cannot depend on `social` (03 §7.1).
 - **Depends on:** `users`.
 - **Publishes:** `FriendshipCreated`, `FriendshipRemoved`, `UserBlocked`.
 - **Consumes:** `UserDeleted`.
