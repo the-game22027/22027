@@ -91,6 +91,13 @@ export class PrismaFootballReadRepository implements FootballReadRepository {
     return this.txHost.tx.match.findUnique({ where: { id: matchId }, select: { status: true, kickoffAt: true } });
   }
 
+  async findMatchIdsPastKickoff(matchIds: readonly string[]): Promise<string[]> {
+    if (matchIds.length === 0) return [];
+    const rows = await this.txHost.tx.$queryRaw<{ id: string }[]>`
+      SELECT id::text FROM matches WHERE id = ANY(${[...matchIds]}::uuid[]) AND kickoff_at <= now()`;
+    return rows.map((row) => row.id);
+  }
+
   async listSquad(matchId: string): Promise<SquadPlayerRecord[]> {
     const rows = await this.txHost.tx.matchSquadPlayer.findMany({
       where: { matchId },

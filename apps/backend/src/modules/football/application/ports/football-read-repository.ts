@@ -12,6 +12,8 @@ export interface FootballReadRepository {
   listMatches(filter: MatchFilter, after: MatchPosition | undefined, take: number): Promise<MatchRecord[]>;
   findMatch(matchId: string): Promise<MatchRecord | null>;
   findLockFacts(matchId: string): Promise<MatchLockFacts | null>;
+  /** Compares with the database clock, like the prediction lock (ADR-0009). */
+  findMatchIdsPastKickoff(matchIds: readonly string[]): Promise<string[]>;
   listSquad(matchId: string): Promise<SquadPlayerRecord[]>;
 }
 
