@@ -84,6 +84,12 @@ describe('HTTP cross-cutting behaviour (development mode)', () => {
     const metrics = await request(app.getHttpServer()).get('/metrics').expect(200);
     expect(metrics.text).toContain('http_request_duration_seconds');
   });
+
+  it('builds the OpenAPI document from every DTO', async () => {
+    const res = await request(app.getHttpServer()).get('/docs-json').expect(200);
+    expect(res.body.paths).toHaveProperty(['/v1/me/play-state']);
+    expect(res.body.components.schemas.PlayStateDto.properties).toHaveProperty('room');
+  });
 });
 
 describe('production mode', () => {

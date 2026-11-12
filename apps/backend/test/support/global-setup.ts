@@ -2,6 +2,7 @@ import { execFileSync } from 'node:child_process';
 import { resolve } from 'node:path';
 import { PostgreSqlContainer, type StartedPostgreSqlContainer } from '@testcontainers/postgresql';
 import { RedisContainer, type StartedRedisContainer } from '@testcontainers/redis';
+import { generateSwaggerPluginMetadata } from './swagger-metadata';
 
 declare global {
   var __TEST_CONTAINERS__: [StartedPostgreSqlContainer, StartedRedisContainer] | undefined;
@@ -25,5 +26,6 @@ export default async function globalSetup(): Promise<void> {
     stdio: 'pipe',
   });
 
+  generateSwaggerPluginMetadata();
   globalThis.__TEST_CONTAINERS__ = [postgres, redis];
 }
