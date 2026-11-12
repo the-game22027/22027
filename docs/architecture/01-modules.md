@@ -86,10 +86,9 @@ Format per module: **Purpose · Responsibilities · Owned tables · Public inter
 - **Public interface** (details in `08-battle-games.md` §5.4):
   - `ContentSelector.pickContentIds(criteria) → contentIds`.
   - `RoundContentQuery.getContentForEngine(id, locales)`: full content for the server-side engine only, never sent to clients as is.
-  - `AnswerChecker.checkTypedAnswer(contentId, slot, entityId) → CORRECT | WRONG | UNKNOWN_ENTITY`.
+  - `AnswerChecker.judgeTypedText(contentId, slot, text, rules) → { verdict: CORRECT | WRONG, entityId, match }` (`08` §5.3); `checkTypedAnswer(contentId, slot, entityId)` stays for bots.
   - `AnswerCatalogQuery.findEntitiesByIds(ids)` (names for events).
   - `QuestionBankFacade.disableQuestion(id, reason)`.
-  - `GET /v1/answer-catalog` is served by this module's own controller.
 - **Depends on:** nothing.
 - **Publishes:** `QuestionsPublished`, `QuestionDisabled`.
 - **Consumes:** `BattleCompleted` (its `questionResults` summary updates `question_stats`; deduplicated by battle id in `question_stats_applied`).

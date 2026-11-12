@@ -1,6 +1,6 @@
 # ADR-0015: Several game types on one shared battle engine; answers are typed, not chosen
 
-- **Status:** Accepted (product decision by the owner, 2026-11-10)
+- **Status:** Accepted (product decision by the owner, 2026-11-10); point 5 superseded by ADR-0021 (typed text with typo tolerance)
 - **Date:** 2026-11-10
 - **Related:** amends ADR-0010 and ADR-0006; DEC-53..DEC-59; PRD §5.4; ROADMAP P5.2, P6, P8, Track D
 
@@ -32,7 +32,7 @@ Constraints that still hold: real-time PvP only, 2..N participants, bot fallback
    - Wrong answer or no answer in time: that player is locked out for the rest of the round, and the reveal resumes for the others.
    - Everyone locked out, or the reveal and the final timer end with no correct answer: the round ends with no winner.
    - Every number (reveal pace, answer window, attempts per player, final timer) is configuration.
-5. **Typed answers are matched by id, not by spelling (DEC-55).** The app ships an **answer catalog** of football entities (players, clubs, national teams, competitions) with names and alternative names in Arabic and English. The player types, picks a suggestion, and the client sends the entity id. The server compares ids. Numeric answers (a year, a count) are sent as numbers. No fuzzy text matching.
+5. **Superseded by ADR-0021 (2026-11-12).** **Typed answers are matched by id, not by spelling (DEC-55).** The app ships an **answer catalog** of football entities (players, clubs, national teams, competitions) with names and alternative names in Arabic and English. The player types, picks a suggestion, and the client sends the entity id. The server compares ids. Numeric answers (a year, a count) are sent as numbers. No fuzzy text matching.
 6. **Game content comes from the offline pipeline**, as before (ADR-0007). The bundle grows to carry the answer catalog and the new content shapes (buzzer questions with an answer entity, careers, clue sets, grid criteria). `GRID`, `CAREER` and `WHO_IS_PLAYER` content is generated from data, not written by hand.
 7. **Multiple choice is not a game type.** The P5.1 import machinery (bundles, checksums, content hash, versions, reviews) stays as built. The question content shape gets a typed-answer form in the P5.2 design; options become optional.
 8. **Rules stay adjustable.** Anything that is a number or a yes/no rule of a game lives in that game's configuration, per game type.

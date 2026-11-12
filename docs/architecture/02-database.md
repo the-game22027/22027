@@ -367,13 +367,15 @@ answer_entities (                       -- the answer catalog (08 §5)
   external_ref text UQ,                 -- e.g. wikidata:Q11571; upsert key on import
   kind answer_kind,                     -- CHECK kind <> 'NUMBER'
   names jsonb,                          -- {en, ar}; display names
-  popularity int DEFAULT 0,             -- ranks suggestions; from the pipeline (Wikipedia sitelinks)
-  search_forms text[],                  -- normalized names + aliases (07 §5.7); what the app matches against
+  popularity int DEFAULT 0,             -- breaks ties between valid grid players; from the pipeline (Wikipedia sitelinks)
+  search_forms text[],                  -- normalized names + aliases (07 §5.7); what typed text is judged against
+  name_words jsonb,                     -- [{form, sharedBy}]: single words that may count alone (ADR-0021)
   catalog_version text,                 -- bundle version that last imported it
   status text DEFAULT 'ACTIVE',         -- ACTIVE | HIDDEN (dropped by a newer catalog; kept for history)
   updated_at timestamptz
 )
   IX (kind)
+  IX GIN (search_forms)                 -- exact match of another entity (08 §5.3 step 3)
 answer_entity_aliases (                 -- alternative names per locale, shown as "also known as"
   entity_id uuid FK → answer_entities ON DELETE CASCADE,
   locale text, alias text,
@@ -383,7 +385,7 @@ answer_entity_aliases (                 -- alternative names per locale, shown a
 -- question_import_batches also gets: catalog_checksum text NULL
 ```
 
-The app searches the catalog on the phone (`08` §5.2), so the server needs no search index; `GET /v1/answer-catalog` streams the active catalog as one versioned, cached document.
+The server judges typed text against the round's accepted answers (`08` §5.3, ADR-0021); the GIN index finds an exact match of another entity in one lookup. The catalog is not sent to phones.
 
 ```sql
 question_stats (
@@ -480,7 +482,9 @@ battle_round_actions (                  -- everything players did in a round, in
   action_no smallint,                   -- 1, 2, 3... per round: the engine's acceptance order
   participant_id uuid FK → battle_participants,
   kind text,                            -- BUZZ | ANSWER | ANSWER_TIMEOUT | GRID_CLAIM | GRID_SKIP | TURN_TIMEOUT
-  entity_id uuid NULL FK → answer_entities,   -- ANSWER / GRID_CLAIM with an entity
+  entity_id uuid NULL FK → answer_entities,   -- ANSWER / GRID_CLAIM: the entity the text matched
+  answer_text text NULL,                -- what the player typed (humans); never shown to others
+  answer_match text NULL,               -- EXACT | TYPO | OTHER_ENTITY | NONE: for tuning the tolerance
   number_answer numeric NULL,           -- ANSWER when answer_kind = NUMBER
   cell smallint NULL,                   -- GRID_* : row * 3 + col
   is_correct boolean NULL, points int DEFAULT 0,
