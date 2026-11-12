@@ -35,6 +35,6 @@ describe('convertToMatchingForm', () => {
   });
 
   it('gives an empty form to blank text', () => {
-    expect(convertToMatchingForm('  ـ ')).toBe('');
+    expect(convertToMatchingForm('  \u0640 ')).toBe('');
   });
 });

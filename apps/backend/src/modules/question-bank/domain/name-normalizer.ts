@@ -3,8 +3,8 @@
  * with catalog forms the pipeline normalized, so both sides must pass the same test vectors.
  */
 
-const ARABIC_DIACRITICS = /[ؐ-ًؚ-ٰٟۖ-ۭ]/g;
-const TATWEEL = /ـ/g;
+const ARABIC_DIACRITICS = /[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06ED]/g;
+const TATWEEL = /\u0640/g;
 const ARABIC_LETTERS: Record<string, string> = {
   أ: 'ا',
   إ: 'ا',
@@ -35,7 +35,7 @@ export function normalizeName(text: string): string {
   // Only marks on Latin (and other pre-Arabic) letters are accents; Arabic marks are handled below.
   const withoutAccents = lowered
     .normalize('NFD')
-    .replace(COMBINING_MARK, (mark) => (mark < '؀' ? '' : mark))
+    .replace(COMBINING_MARK, (mark) => (mark < '\u0600' ? '' : mark))
     .normalize('NFC');
   return withoutAccents
     .replace(ARABIC_DIACRITICS, '')
