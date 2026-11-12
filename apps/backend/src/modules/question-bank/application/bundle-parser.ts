@@ -103,6 +103,8 @@ const catalogLineSchema = z.strictObject({
   aliases: z.strictObject({ en: z.array(nonEmpty), ar: z.array(nonEmpty) }),
   popularity: z.number().int().nonnegative(),
   search: z.array(nonEmpty).min(1),
+  // Optional: bundles made before ADR-0021 have none, and then only full names and aliases count.
+  nameWords: z.array(z.strictObject({ form: nonEmpty, sharedBy: z.number().int().positive() })).default([]),
 });
 
 export type BundleManifest = z.infer<typeof manifestSchema>;

@@ -108,16 +108,19 @@ export class PrismaQuestionImportRepository implements QuestionImportRepository 
     for (const chunk of chunksOf(entities, CATALOG_CHUNK_SIZE)) {
       // One statement per chunk instead of one per entity: 20k+ entities would otherwise take minutes.
       const saved = await tx.$queryRaw<{ id: string }[]>`
-        INSERT INTO answer_entities (id, external_ref, kind, names, popularity, search_forms, catalog_version, status, updated_at)
+        INSERT INTO answer_entities
+          (id, external_ref, kind, names, popularity, search_forms, name_words, catalog_version, status, updated_at)
         SELECT row.id, row.external_ref, row.kind::answer_kind, row.names::jsonb, row.popularity,
-               ARRAY(SELECT json_array_elements_text(row.search_forms::json)), ${catalogVersion}, 'ACTIVE', ${at}
+               ARRAY(SELECT json_array_elements_text(row.search_forms::json)), row.name_words::jsonb,
+               ${catalogVersion}, 'ACTIVE', ${at}
         FROM unnest(${chunk.map((e) => e.id)}::uuid[], ${chunk.map((e) => e.externalRef)}::text[],
                     ${chunk.map((e) => e.kind)}::text[], ${chunk.map((e) => JSON.stringify(e.names))}::text[],
-                    ${chunk.map((e) => e.popularity)}::int[], ${chunk.map((e) => JSON.stringify(e.searchForms))}::text[])
-             AS row(id, external_ref, kind, names, popularity, search_forms)
+                    ${chunk.map((e) => e.popularity)}::int[], ${chunk.map((e) => JSON.stringify(e.searchForms))}::text[],
+                    ${chunk.map((e) => JSON.stringify(e.nameWords))}::text[])
+             AS row(id, external_ref, kind, names, popularity, search_forms, name_words)
         ON CONFLICT (external_ref) DO UPDATE SET
           kind = EXCLUDED.kind, names = EXCLUDED.names, popularity = EXCLUDED.popularity,
-          search_forms = EXCLUDED.search_forms, catalog_version = EXCLUDED.catalog_version,
+          search_forms = EXCLUDED.search_forms, name_words = EXCLUDED.name_words, catalog_version = EXCLUDED.catalog_version,
           status = 'ACTIVE', updated_at = EXCLUDED.updated_at
         RETURNING id::text`;
       const savedIds = saved.map((row) => row.id);
