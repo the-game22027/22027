@@ -221,6 +221,13 @@ Stored in the battle config by game type, snapshotted on the battle row at creat
 | `bots.profiles.*` (`knowsAnswerByDifficulty`, `guessChance`, `buzzAtShareOfSteps`, `reactionDelayMs`, `typingDelayMs`) | bots | DEC-43 |
 | `selection.*` (`excludeLastBattles`, `difficulties`) | all | DEC-44 |
 
+## 7. Fairness and abuse
+
+- **The client never holds what it should not show:** unrevealed steps, accepted answers, valid grid answers. Snapshots on resync contain only revealed steps.
+- **Buzz order is server arrival order.** A player on a slower network buzzes "later". Accepted for v1.0. Measure buzz-to-receive delays (`battle_buzz_latency_ms` from client timestamps, used for metrics only, never for ordering) before deciding whether compensation is needed.
+- **Answer lookups:** a cheater could search the web during the answer window. The window is short by design (`answerWindowMs`). Not solvable on the client; accepted.
+- **Monetization hook:** starting play still goes through the two entry use cases only (ADR-0016).
+
 ## 8. Question topics and difficulty in private rooms (ADR-0019, DEC-64)
 
 - **Topics:** every round carries `topics` (07 §5.9), separate from its `category`. "General" plays everything.
@@ -228,10 +235,3 @@ Stored in the battle config by game type, snapshotted on the battle row at creat
 - **Selection:** `ContentSelector.pickContentIds` gets `topics` (any of them) and the level's `difficulties`. The exposure window still applies inside the filter and relaxes as usual (DEC-44).
 - **Availability:** `GET /v1/battle-topics?gameType=` lists topics with published content in the caller's locale and counts per level, so the app only offers choices that can fill a battle. A room start that cannot fill `roundCount` rounds fails with `409 NOT_ENOUGH_CONTENT` and changes nothing.
 - **Random matchmaking** stays unfiltered (DEC-65).
-
-## 7. Fairness and abuse
-
-- **The client never holds what it should not show:** unrevealed steps, accepted answers, valid grid answers. Snapshots on resync contain only revealed steps.
-- **Buzz order is server arrival order.** A player on a slower network buzzes "later". Accepted for v1.0. Measure buzz-to-receive delays (`battle_buzz_latency_ms` from client timestamps, used for metrics only, never for ordering) before deciding whether compensation is needed.
-- **Answer lookups:** a cheater could search the web during the answer window. The window is short by design (`answerWindowMs`). Not solvable on the client; accepted.
-- **Monetization hook:** starting play still goes through the two entry use cases only (ADR-0016).
