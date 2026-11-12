@@ -288,7 +288,7 @@ In a 1v1, "≥ 2 ready" means both, so a missing player cancels the battle. A bo
 |---|---|---|
 | WEEKLY | ISO week `2026-W45` | Week start day + timezone from config (recommended: Monday 00:00 platform timezone) |
 | MONTHLY | `2026-11` | Calendar month in the platform timezone |
-| SEASONAL | `2026-27` | From `season_calendar` (recommended: football season, roughly Aug–May; confirm) |
+| SEASONAL | `2026-27` | From the `seasons` list of the leaderboard config (DEC-17 pending, `DEV_ONLY` dates) |
 | ALL_TIME | `all` | Never closes |
 
 The period calculator is a pure domain function `(occurredAt, kind, tz, seasonCalendar) → periodKey`, heavily unit-tested around DST and year boundaries.
@@ -334,6 +334,16 @@ Supersession sends a negative delta (old) and a positive delta (new). Idempotenc
 ### 5.5 Future expansion
 
 New categories (e.g., MOTM accuracy) = new enum value + contribution mapping. League boards reuse the same ledger query with a user set.
+
+### 5.6 What P6.5b builds
+
+- **Calendar config** (`config/leaderboards.dev.json`, path in `LEADERBOARD_CONFIG_PATH`): `timezone` (`Africa/Cairo`, DEC-15/16), `weekStartsOn` (`MONDAY`), `seasons: [{ key, startsOn, endsBefore }]` (local dates, DEC-17). The file carries `devOnly` while the season dates are placeholders, and production refuses it. Seasons live in config instead of a `season_calendar` table: they are a tuning value, not data. Changing the timezone or week start later means rebuilding the boards.
+- **Period keys:** `WEEKLY` is the ISO week of the week's first local day (`2026-W46`; with a Monday start it is the plain ISO week), `MONTHLY` is `2026-11`, `SEASONAL` is the season's `key`, `ALL_TIME` is `all`. A time outside every season belongs to no seasonal board. The period calculator is a pure domain function, using the built-in `Intl` time zone data, tested across Cairo's daylight saving changes.
+- **Boards per ledger category:** `BATTLE` → `BATTLES`, `PREDICTION` → `PREDICTIONS`, `MOTM` → none (DEC-08).
+- **Projection:** `PointsRecorded` → queue `leaderboards` → for each board and kind, every period from the one containing `occurredAtMin` to the one containing `occurredAtMax`: upsert the period row, then recompute each user's absolute sum from the ledger (`PointsQuery.sumPointsOfUsers`) and upsert it (delete the row when the sum is 0). One transaction holds an advisory lock per (board, user), taken in user id order, so two handlers for one player run one after the other and the last one reads every committed entry.
+- **Ranking:** rows are ordered by `points DESC, tiebreak_1 DESC, tiebreak_2 DESC, user_id`, the index order. The tie-break columns stay 0 until DEC-23 picks their meaning (`TODO(DEC-23)`). The rank shown is standard competition ranking on points only: equal points share a rank (1, 1, 3), the recommended display default.
+- **Status:** `OPEN` until `endsAt`, then `CLOSED`, derived from the server clock on read. Closing jobs, `FINALIZED`, snapshots and prizes come with the prize work (DEC-28/47); until then `leaderboard_periods.status` stays `OPEN`.
+- **Endpoints** (`docs/api/API.md` §6.8): `category` is required (`BATTLES` or `PREDICTIONS`); the `PREDICTIONS` board stays empty until prediction scoring (P3.2). `periods` is computed from the calendar (the current period and up to 11 before it), so it needs no database. A malformed key or an unknown season is `404 PERIOD_NOT_FOUND`; a well-formed key with no points yet is an empty page. `/me` returns the player's rank and two rows on each side.
 
 ---
 
