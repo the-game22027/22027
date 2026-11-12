@@ -1,11 +1,11 @@
 import type { Logger } from '@nestjs/common';
 import type { AnswerCatalogQuery, AnswerChecker, GameType, RoundContentQuery } from '@modules/question-bank';
-import type { Clock, Locale } from '@shared/kernel';
-import type { BotProfile } from '../domain/bots/reveal-and-buzz-bot';
+import type { Clock } from '@shared/kernel';
 import type { ParticipantId, RoundAction, RoundResult, TypedAnswer } from '../domain/games/game-rules';
 import { placeParticipantsByScore } from '../domain/placements';
 import type { RandomSource } from '../domain/random-source';
 import type { BattleConfigSnapshot, GridGameSettings, RevealGameSettings } from './battle-settings';
+import type { LiveParticipant } from './live-participant';
 import type { BattleNotifier } from './ports/battle-notifier';
 import type { BattleRepository } from './ports/battle-repository';
 import type { ScheduledTimer, TimerScheduler } from './ports/timer-scheduler';
@@ -13,29 +13,14 @@ import { GridRoundRunner } from './rounds/grid-round-runner';
 import { RevealRoundRunner } from './rounds/reveal-round-runner';
 import type { PlayerCommand, RoundHost, RoundRunner, ViewerData } from './rounds/round-runner';
 
+export type { LiveParticipant } from './live-participant';
+
 export interface Ack {
   clientMsgId: string;
   accepted: boolean;
   code?: string;
   /** battle:resync only: what the player missed (WEBSOCKET.md §6). */
   snapshot?: Record<string, unknown>;
-}
-
-export interface LiveParticipant {
-  id: ParticipantId;
-  kind: 'HUMAN' | 'BOT';
-  userId: string | null;
-  locale: Locale;
-  seat: number;
-  /** Public profile for humans, display names for bots (DEC-40: bots are always labeled). */
-  user: { id: string; displayName: string; username: string | null; avatarUrl: string | null } | null;
-  bot: { profileKey: string; profile: BotProfile } | null;
-  ready: boolean;
-  /** The socket that sent battle:ready or, later, battle:resync; only it may buzz and answer (WEBSOCKET.md §1). */
-  activeSocketId: string | null;
-  connected: boolean;
-  /** Left for good: forfeit, grace expired, or not ready in time. */
-  forfeited: boolean;
 }
 
 type ForfeitReason = 'FORFEIT' | 'GRACE_EXPIRED' | 'NOT_READY';

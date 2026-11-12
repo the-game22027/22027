@@ -1,7 +1,7 @@
 import type { AnswerCatalogQuery, AnswerChecker } from '@modules/question-bank';
 import type { ParticipantId, RoundAction, RoundResult, TypedAnswer } from '../../domain/games/game-rules';
 import type { RandomSource } from '../../domain/random-source';
-import type { LiveParticipant } from '../live-battle';
+import type { LiveParticipant } from '../live-participant';
 
 /** Every round command a player (or a bot) can send, whatever the game (WEBSOCKET.md §3). */
 export type PlayerCommand =

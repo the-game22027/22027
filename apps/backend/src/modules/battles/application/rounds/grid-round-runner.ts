@@ -4,7 +4,7 @@ import { type Effect, isRejection, type ParticipantId } from '../../domain/games
 import { type GridEvent, GridRules, type GridRoundState } from '../../domain/games/grid-rules';
 import { randomIntegerBetween } from '../../domain/random-source';
 import type { GridGameSettings } from '../battle-settings';
-import type { LiveParticipant } from '../live-battle';
+import type { LiveParticipant } from '../live-participant';
 import {
   type EntityNames,
   entityRef,
