@@ -202,4 +202,14 @@ export class PrismaBattleRepository implements BattleRepository {
       JOIN battle_rounds r ON r.battle_id = recent.battle_id`;
     return rows.map((row) => row.question_id);
   }
+
+  async wasQuestionServedToUser(questionId: string, userId: string): Promise<boolean> {
+    const [row] = await this.txHost.tx.$queryRaw<{ served: boolean }[]>`
+      SELECT EXISTS (
+        SELECT 1 FROM battle_rounds r
+        JOIN battle_participants p ON p.battle_id = r.battle_id
+        WHERE r.question_id = ${questionId}::uuid AND p.user_id = ${userId}::uuid AND r.started_at IS NOT NULL
+      ) AS served`;
+    return row?.served ?? false;
+  }
 }

@@ -3,6 +3,7 @@ export { QuestionBankCliModule } from './question-bank-cli.module';
 export { QuestionBankJobsModule } from './question-bank-jobs.module';
 export { ImportQuestionBundle, type ImportSummary } from './application/import-question-bundle';
 export { QuestionBankFacade, type PublishSummary } from './application/question-bank.facade';
+export { QuestionReports } from './application/question-reports';
 export { ContentSelector } from './application/content-selector';
 export { RoundContentQuery } from './application/round-content.query';
 export { AnswerChecker } from './application/answer-checker';
