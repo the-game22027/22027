@@ -66,10 +66,10 @@ class PredictionPickDto {
 }
 
 enum PredictionPickDtoOutcomeEnum {
-  @JsonValue(r'HOME')
-  HOME(r'HOME'),
   @JsonValue(r'DRAW')
   DRAW(r'DRAW'),
+  @JsonValue(r'HOME')
+  HOME(r'HOME'),
   @JsonValue(r'AWAY')
   AWAY(r'AWAY'),
   @JsonValue(r'unknown_default_open_api')

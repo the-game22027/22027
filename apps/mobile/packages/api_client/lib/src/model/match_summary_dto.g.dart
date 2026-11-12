@@ -214,11 +214,11 @@ Map<String, dynamic> _$MatchSummaryDtoToJson(MatchSummaryDto instance) =>
     };
 
 const _$MatchSummaryDtoStatusEnumEnumMap = {
-  MatchSummaryDtoStatusEnum.SCHEDULED: 'SCHEDULED',
-  MatchSummaryDtoStatusEnum.LIVE: 'LIVE',
-  MatchSummaryDtoStatusEnum.FINISHED: 'FINISHED',
-  MatchSummaryDtoStatusEnum.POSTPONED: 'POSTPONED',
   MatchSummaryDtoStatusEnum.CANCELLED: 'CANCELLED',
+  MatchSummaryDtoStatusEnum.SCHEDULED: 'SCHEDULED',
+  MatchSummaryDtoStatusEnum.FINISHED: 'FINISHED',
   MatchSummaryDtoStatusEnum.ABANDONED: 'ABANDONED',
+  MatchSummaryDtoStatusEnum.LIVE: 'LIVE',
+  MatchSummaryDtoStatusEnum.POSTPONED: 'POSTPONED',
   MatchSummaryDtoStatusEnum.unknownDefaultOpenApi: 'unknown_default_open_api',
 };
