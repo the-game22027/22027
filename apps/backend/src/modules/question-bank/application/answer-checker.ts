@@ -1,8 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { isUuidV7 } from '@shared/kernel';
 import { QuestionNotFoundError } from '../domain/question-bank-errors';
 import { convertToMatchingForm } from '../domain/name-normalizer';
-import { judgeTypedAnswer, type TypedAnswerVerdict } from '../domain/typed-answer';
 import {
   findClosestAcceptedAnswer,
   type TypedAnswerRules,
@@ -36,13 +34,5 @@ export class AnswerChecker {
     if (named) return { verdict: 'WRONG', entityId: named, match: 'OTHER_ENTITY' };
     if (closest) return { verdict: 'CORRECT', entityId: closest.entityId, match: 'TYPO' };
     return { verdict: 'WRONG', entityId: null, match: 'NONE' };
-  }
-
-  async checkTypedAnswer(contentId: string, slot: number, entityId: string): Promise<TypedAnswerVerdict> {
-    // Every catalog id is a UUID v7; anything else cannot be an entity, and would make Postgres reject the cast.
-    if (!isUuidV7(entityId)) return 'UNKNOWN_ENTITY';
-    const lookup = await this.questions.lookUpTypedAnswer(contentId, slot, entityId);
-    if (!lookup) throw new QuestionNotFoundError(contentId);
-    return judgeTypedAnswer(lookup);
   }
 }

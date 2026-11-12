@@ -215,20 +215,6 @@ describe('serving content to battles', () => {
         [8, 1],
       ]);
     });
-
-    it('judges a typed answer by entity id and kind', async () => {
-      const check = (entity: string) => checker.checkTypedAnswer(contentId.career, 0, entity);
-
-      await expect(check(await entityId(e.ronaldo.externalRef))).resolves.toBe('CORRECT');
-      await expect(check(await entityId(e.nani.externalRef))).resolves.toBe('WRONG');
-      await expect(check(await entityId(e.sporting.externalRef))).resolves.toBe('UNKNOWN_ENTITY');
-      await expect(check(ids.next())).resolves.toBe('UNKNOWN_ENTITY');
-      await expect(check('not-an-id')).resolves.toBe('UNKNOWN_ENTITY');
-      await expect(checker.checkTypedAnswer(contentId.career, 1, await entityId(e.ronaldo.externalRef))).resolves.toBe(
-        'WRONG',
-      );
-      await expect(checker.checkTypedAnswer(ids.next(), 0, ids.next())).rejects.toBeInstanceOf(QuestionNotFoundError);
-    });
   });
 
   describe('typed text answers (ADR-0021)', () => {

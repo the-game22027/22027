@@ -11,7 +11,6 @@ import type {
   QuestionReadRepository,
   SlotAnswers,
   StoredGameContent,
-  TypedAnswerLookup,
 } from '../application/ports/question-read-repository';
 
 // Reading 20-30k entities takes well under a second; the default 5 s leaves too little room on a slow machine.
@@ -89,21 +88,6 @@ export class PrismaQuestionReadRepository implements QuestionReadRepository {
       select: { id: true, externalRef: true },
     });
     return new Map(rows.map((row) => [row.externalRef, row.id]));
-  }
-
-  async lookUpTypedAnswer(contentId: string, slot: number, entityId: string): Promise<TypedAnswerLookup | null> {
-    const rows = await this.txHost.tx.$queryRaw<
-      { answer_kind: AnswerKind | null; entity_kind: EntityKind | null; is_accepted: boolean }[]
-    >`
-      SELECT q.answer_kind::text AS answer_kind, e.kind::text AS entity_kind,
-             EXISTS (SELECT 1 FROM question_answers a
-                     WHERE a.question_id = q.id AND a.slot = ${slot} AND a.entity_id = e.id) AS is_accepted
-      FROM questions q
-      LEFT JOIN answer_entities e ON e.id = ${entityId}::uuid
-      WHERE q.id = ${contentId}::uuid`;
-    const row = rows[0];
-    if (!row?.answer_kind) return null;
-    return { roundAnswerKind: row.answer_kind, entityKind: row.entity_kind, isAcceptedForSlot: row.is_accepted };
   }
 
   async findSlotAnswers(contentId: string, slot: number): Promise<SlotAnswers | null> {

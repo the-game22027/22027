@@ -24,13 +24,6 @@ export interface StoredGameContent {
   answers: { slot: number; entityId: string }[];
 }
 
-export interface TypedAnswerLookup {
-  roundAnswerKind: AnswerKind;
-  /** Null when no entity has the answered id. */
-  entityKind: EntityKind | null;
-  isAcceptedForSlot: boolean;
-}
-
 export interface SlotAnswers {
   roundAnswerKind: AnswerKind;
   candidates: AnswerCandidate[];
@@ -55,8 +48,6 @@ export interface QuestionReadRepository {
   findGameContent(contentId: string): Promise<StoredGameContent | null>;
   /** Entity ids by external ref, hidden entities included (old content may still point at them). */
   findEntityIdsByExternalRefs(externalRefs: readonly string[]): Promise<Map<string, string>>;
-  /** Null when the content does not exist. */
-  lookUpTypedAnswer(contentId: string, slot: number, entityId: string): Promise<TypedAnswerLookup | null>;
   /** The accepted answers of a slot with their forms; null when the content does not exist. */
   findSlotAnswers(contentId: string, slot: number): Promise<SlotAnswers | null>;
   /** An active entity of this kind with exactly this full name or alias form, not one of `excludeIds`. */
