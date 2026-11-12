@@ -13,6 +13,14 @@ export interface UserAccount {
   readonly predictionVisibility: string | null;
 }
 
+/** What any player may see of another (docs/api/API.md §5 `PublicUser`). */
+export interface PublicUser {
+  readonly id: string;
+  readonly displayName: string;
+  readonly username: string | null;
+  readonly avatarUrl: string | null;
+}
+
 export interface NewUser {
   readonly id: string;
   readonly displayName: string;

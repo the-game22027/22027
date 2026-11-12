@@ -4,7 +4,7 @@ import type { PrismaService, TransactionalAdapterPrisma } from '@shared/infrastr
 import { DEFAULT_LOCALE, isSupportedLocale } from '@shared/kernel';
 import { Prisma } from '@generated/prisma/client';
 import type { UserRepository } from '../application/ports/user-repository';
-import type { NewUser, ProfilePatch, UserAccount } from '../application/user-account';
+import type { NewUser, ProfilePatch, PublicUser, UserAccount } from '../application/user-account';
 import { UnknownTeamError, UsernameTakenError } from '../domain/user-errors';
 
 @Injectable()
@@ -37,6 +37,15 @@ export class PrismaUserRepository implements UserRepository {
       favouriteTeamId: user.profile.favouriteTeamId,
       predictionVisibility: user.privacySettings?.predictionVisibility ?? null,
     };
+  }
+
+  async findPublicUsers(userIds: readonly string[]): Promise<PublicUser[]> {
+    if (userIds.length === 0) return [];
+    const profiles = await this.txHost.tx.userProfile.findMany({
+      where: { userId: { in: [...userIds] } },
+      select: { userId: true, displayName: true, username: true, avatarUrl: true },
+    });
+    return profiles.map(({ userId, ...profile }) => ({ id: userId, ...profile }));
   }
 
   async updateProfile(userId: string, patch: ProfilePatch): Promise<void> {
