@@ -150,7 +150,7 @@ export class AppConfig {
   readonly profile: { readonly usernamePattern: RegExp };
   readonly accountDeletion: { readonly recentSignInSeconds: number };
   readonly predictions: { readonly maxGoals: number };
-  /** The battle config file (ADR-0017); its contents are validated by the battles module. */
+  /** The battle config file (ADR-0018); its contents are validated by the battles module. */
   readonly battleConfigPath: string;
 
   constructor(env: ConfigEnv) {

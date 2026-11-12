@@ -90,7 +90,7 @@ describe('production mode', () => {
   let app: NestExpressApplication;
 
   beforeAll(async () => {
-    // Production refuses placeholder battle values (ADR-0017), so this boot gets a file marked as reviewed.
+    // Production refuses placeholder battle values (ADR-0018), so this boot gets a file marked as reviewed.
     const battleConfig = writeBattleConfigFile((config) => {
       config['devOnly'] = false;
     });
