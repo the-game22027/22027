@@ -14,7 +14,6 @@ import 'package:api_client/src/api/football_api.dart';
 import 'package:api_client/src/api/me_api.dart';
 import 'package:api_client/src/api/ops_api.dart';
 import 'package:api_client/src/api/predictions_api.dart';
-import 'package:api_client/src/api/question_bank_api.dart';
 
 class ApiClient {
   static const String basePath = r'http://localhost';
@@ -179,11 +178,5 @@ class ApiClient {
   /// by doing that all interceptors will not be executed
   PredictionsApi getPredictionsApi() {
     return PredictionsApi(dio);
-  }
-
-  /// Get QuestionBankApi instance, base route and serializer can be overridden by a given but be careful,
-  /// by doing that all interceptors will not be executed
-  QuestionBankApi getQuestionBankApi() {
-    return QuestionBankApi(dio);
   }
 }

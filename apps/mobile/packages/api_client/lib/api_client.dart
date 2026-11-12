@@ -15,10 +15,7 @@ export 'package:api_client/src/api/football_api.dart';
 export 'package:api_client/src/api/me_api.dart';
 export 'package:api_client/src/api/ops_api.dart';
 export 'package:api_client/src/api/predictions_api.dart';
-export 'package:api_client/src/api/question_bank_api.dart';
 
-export 'package:api_client/src/model/answer_catalog_dto.dart';
-export 'package:api_client/src/model/answer_catalog_entity_dto.dart';
 export 'package:api_client/src/model/auth_tokens_dto.dart';
 export 'package:api_client/src/model/competition_dto.dart';
 export 'package:api_client/src/model/competition_list_dto.dart';
@@ -27,7 +24,6 @@ export 'package:api_client/src/model/device_dto.dart';
 export 'package:api_client/src/model/google_sign_in_dto.dart';
 export 'package:api_client/src/model/identity_dto.dart';
 export 'package:api_client/src/model/join_matchmaking_dto.dart';
-export 'package:api_client/src/model/localized_entity_names_dto.dart';
 export 'package:api_client/src/model/match_competition_dto.dart';
 export 'package:api_client/src/model/match_detail_dto.dart';
 export 'package:api_client/src/model/match_page_dto.dart';

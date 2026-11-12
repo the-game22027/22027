@@ -88,13 +88,10 @@ Class | Method | HTTP request | Description
 [*OpsApi*](doc/OpsApi.md) | [**healthControllerReady**](doc/OpsApi.md#healthcontrollerready) | **GET** /health/ready | 
 [*PredictionsApi*](doc/PredictionsApi.md) | [**predictionsControllerGetOwnV1**](doc/PredictionsApi.md#predictionscontrollergetownv1) | **GET** /v1/matches/{matchId}/prediction | 
 [*PredictionsApi*](doc/PredictionsApi.md) | [**predictionsControllerSubmitV1**](doc/PredictionsApi.md#predictionscontrollersubmitv1) | **PUT** /v1/matches/{matchId}/prediction | 
-[*QuestionBankApi*](doc/QuestionBankApi.md) | [**answerCatalogControllerAnswerCatalogV1**](doc/QuestionBankApi.md#answercatalogcontrolleranswercatalogv1) | **GET** /v1/answer-catalog | 08 §5.5. The body is written by hand: it is pre-serialized and pre-gzipped once per version.
 
 
 ## Documentation For Models
 
- - [AnswerCatalogDto](doc/AnswerCatalogDto.md)
- - [AnswerCatalogEntityDto](doc/AnswerCatalogEntityDto.md)
  - [AuthTokensDto](doc/AuthTokensDto.md)
  - [CompetitionDto](doc/CompetitionDto.md)
  - [CompetitionListDto](doc/CompetitionListDto.md)
@@ -103,7 +100,6 @@ Class | Method | HTTP request | Description
  - [GoogleSignInDto](doc/GoogleSignInDto.md)
  - [IdentityDto](doc/IdentityDto.md)
  - [JoinMatchmakingDto](doc/JoinMatchmakingDto.md)
- - [LocalizedEntityNamesDto](doc/LocalizedEntityNamesDto.md)
  - [MatchCompetitionDto](doc/MatchCompetitionDto.md)
  - [MatchDetailDto](doc/MatchDetailDto.md)
  - [MatchPageDto](doc/MatchPageDto.md)
