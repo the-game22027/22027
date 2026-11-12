@@ -151,6 +151,12 @@ npm run cli -- questions:disable <questionId> --reason "…"     # battles stop 
 python3 -I ../../data/generate/dev_bundle.py                  # rebuild the hand-written dev bundle (bump its version first)
 ```
 
+Scoring rule sets (from `apps/backend`; a battle keeps the rule set active when it was created, `08` §6.1):
+
+```bash
+npm run cli -- battles:activate-rule-set config/scoring/battle.dev.json   # BATTLE leaderboard points; same config again = no-op; devOnly refused in production
+```
+
 Knowledge base pipeline (from `data/`; Python 3.12+, writes to the `football_kb` database, `FOOTBALL_KB_URL` overrides the default local URL):
 
 ```bash

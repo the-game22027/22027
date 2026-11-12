@@ -1,6 +1,7 @@
 import { BullModule } from '@nestjs/bullmq';
 import { type DynamicModule, Module } from '@nestjs/common';
 import { FootballJobsModule } from '@modules/football';
+import { PointsJobsModule } from '@modules/points';
 import { AppConfig } from '@shared/infrastructure/config';
 import { CoreModule } from '@shared/infrastructure/core.module';
 import { OutboxPublisherModule } from '@shared/infrastructure/outbox';
@@ -22,6 +23,7 @@ export class WorkerModule {
           useFactory: (appConfig: AppConfig) => ({ connection: { url: appConfig.redisUrl } }),
         }),
         FootballJobsModule,
+        PointsJobsModule,
       ],
     };
   }

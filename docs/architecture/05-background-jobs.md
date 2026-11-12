@@ -18,7 +18,7 @@
 | Void predictions | `MatchCancelled`, postponement policy | Event handler | `predictions` | Conditional update `status <> 'VOID'` | |
 | Open MOTM poll | `MatchFinished` | Event handler | `motm` | UQ `motm_polls.match_id` | Schedules the close job |
 | Close + aggregate MOTM | `closes_at` | BullMQ **delayed job** + sweeper (every minute) | `motm` | `UPDATE ... WHERE status='OPEN' AND closes_at <= now()` | Sweeper covers lost delayed jobs |
-| Record points | Game completion events | Event handler | `points` | UQ `(source_type, source_id, rule_set_id, source_revision)` | Supersedes older revisions |
+| Record points | Game completion events (`BattleCompleted` → subscriber `points.record-battle-points`, P6.5) | Event handler | `points` | UQ `(source_type, source_id, rule_set_id, source_revision)` | Supersedes older revisions; writes `PointsRecorded` only when a row was inserted |
 | Update leaderboards | `PointsRecorded`, `PointsSuperseded` | Event handler | `leaderboards` | Recompute absolute value per (period, user) under an advisory lock | Never `+=` without a guard |
 | Period lifecycle | Schedule (hourly) | BullMQ job scheduler | `leaderboards` | Upsert periods by UQ; conditional status changes | Creates upcoming periods, closes ended ones, finalizes after grace (DEC-28) |
 | Stale battle sweeper | Schedule (1 min) | BullMQ job scheduler | `battles` | Conditional status update | Marks battles without an owner heartbeat `ABANDONED`; returns their rooms to `LOBBY`. **Built with several API instances:** with one instance the boot cleanup (unfinished battles → `ABANDONED`) and the engine's own timers cover it (P6.3 decision, 2026-11-11) |

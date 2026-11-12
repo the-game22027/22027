@@ -115,3 +115,5 @@ New tracks are added when the first card needs one.
 | [backend/edit-distance-typo-tolerance](backend/edit-distance-typo-tolerance.md) | P6.6 | Few enough one-letter edits for the name's length: a typo, not a wrong answer |
 | [database/gin-index-array-contains](database/gin-index-array-contains.md) | P6.6 | Element → rows; `arr @> ARRAY[x]` uses it, `x = ANY(arr)` does not |
 | [testing/shared-test-vectors](testing/shared-test-vectors.md) | P6.6 | Two implementations, one table of inputs and outputs, run in both |
+| [architecture/append-only-ledger](architecture/append-only-ledger.md) | P6.5 | Add a row per award; totals and leaderboards are rebuildable sums |
+| [backend/snapshot-rules-at-start](backend/snapshot-rules-at-start.md) | P6.5 | A battle keeps the rule set it started with; new rules apply from the next one |

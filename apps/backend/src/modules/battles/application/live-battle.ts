@@ -2,6 +2,7 @@ import type { Logger } from '@nestjs/common';
 import type { AnswerCatalogQuery, AnswerChecker, GameType, RoundContentQuery } from '@modules/question-bank';
 import type { Clock } from '@shared/kernel';
 import type { ParticipantId, RoundAction, RoundResult } from '../domain/games/game-rules';
+import { calculateLeaderboardPoints } from '../domain/leaderboard-points';
 import { placeParticipantsByScore } from '../domain/placements';
 import type { RandomSource } from '../domain/random-source';
 import type { BattleConfigSnapshot, GridGameSettings, RevealGameSettings } from './battle-settings';
@@ -403,20 +404,31 @@ export class LiveBattle {
         outcome: 'LOSS' as const,
       }));
     const placements = [...stillIn, ...left];
+    const rule = this.config.leaderboardPoints?.rule ?? null;
+    const leaderboardPoints = Object.fromEntries(
+      placements.map(({ participantId, outcome }) => [
+        participantId,
+        this.participants.find((participant) => participant.id === participantId)?.kind === 'HUMAN'
+          ? calculateLeaderboardPoints(rule, outcome, endReason)
+          : 0,
+      ]),
+    );
     await this.deps.repository.completeBattle({
       battleId: this.id,
       endedAt: this.deps.clock.now(),
       endReason,
       placements,
+      leaderboardPoints,
     });
     await this.emit('battle:completed', (viewer) => {
       const mine = placements.find((placement) => placement.participantId === viewer.id);
+      const points = leaderboardPoints[viewer.id] ?? 0;
       return {
         endReason,
-        you: { placement: mine?.placement, outcome: mine?.outcome, score: mine?.score },
+        you: { placement: mine?.placement, outcome: mine?.outcome, score: mine?.score, points },
         placements: placements.map(({ participantId, placement, score }) => ({ participantId, placement, score })),
-        // Bot battles earn no ledger points (DEC-41).
-        pointsPending: false,
+        // The ledger and leaderboards update asynchronously (08 §6.1).
+        pointsPending: points > 0,
       };
     });
     await this.finish();

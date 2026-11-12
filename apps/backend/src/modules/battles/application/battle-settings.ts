@@ -1,4 +1,5 @@
 import type { TypedAnswerRules } from '@modules/question-bank';
+import type { LeaderboardPointsRule } from '../domain/leaderboard-points';
 import type { BotProfile } from '../domain/bots/reveal-and-buzz-bot';
 import type { GridConfig } from '../domain/games/grid-rules';
 import type { RevealAndBuzzConfig } from '../domain/games/reveal-and-buzz-rules';
@@ -57,4 +58,6 @@ export interface BattleConfigSnapshot {
   botProfile: string | null;
   /** Seeds the bot's random source, so a bot battle replays identically. */
   seed: number;
+  /** This battle's mode section of the BATTLE rule set active at creation; null when none was (08 §6.1). */
+  leaderboardPoints: { ruleSetId: string; rule: LeaderboardPointsRule } | null;
 }

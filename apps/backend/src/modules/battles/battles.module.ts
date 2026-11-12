@@ -1,5 +1,6 @@
 import { type DynamicModule, Module } from '@nestjs/common';
 import { AuthModule } from '@modules/auth';
+import { PointsModule } from '@modules/points';
 import { QuestionBankModule } from '@modules/question-bank';
 import { UsersModule } from '@modules/users';
 import { AppConfig } from '@shared/infrastructure/config';
@@ -26,7 +27,7 @@ export class BattlesModule {
   static register(config: AppConfig): DynamicModule {
     return {
       module: BattlesModule,
-      imports: [AuthModule.register(config), QuestionBankModule, UsersModule],
+      imports: [AuthModule.register(config), PointsModule, QuestionBankModule, UsersModule],
       controllers: [BattlesController],
       providers: [
         BattleEngine,

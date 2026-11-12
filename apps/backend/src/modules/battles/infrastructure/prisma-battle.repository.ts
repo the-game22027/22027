@@ -26,6 +26,7 @@ export class PrismaBattleRepository implements BattleRepository {
           gameType: battle.gameType,
           hasBot: battle.hasBot,
           config: battle.config as unknown as Prisma.InputJsonValue,
+          ruleSetId: battle.ruleSetId,
           createdAt: battle.createdAt,
           readyDeadlineAt: battle.readyDeadlineAt,
         },
@@ -100,7 +101,13 @@ export class PrismaBattleRepository implements BattleRepository {
     });
   }
 
-  async completeBattle({ battleId, endedAt, endReason, placements }: BattleCompletion): Promise<void> {
+  async completeBattle({
+    battleId,
+    endedAt,
+    endReason,
+    placements,
+    leaderboardPoints,
+  }: BattleCompletion): Promise<void> {
     await this.txHost.withTransaction(async () => {
       const tx = this.txHost.tx;
       for (const { participantId, score, placement, outcome } of placements) {
@@ -124,6 +131,8 @@ export class PrismaBattleRepository implements BattleRepository {
           hasBot: battle.hasBot,
           roomId: battle.roomId,
           endedAt: endedAt.toISOString(),
+          endReason,
+          ruleSetId: battle.ruleSetId,
           participants: battle.participants.map((participant) => ({
             participantId: participant.id,
             kind: participant.kind,
@@ -131,8 +140,7 @@ export class PrismaBattleRepository implements BattleRepository {
             score: participant.score,
             placement: participant.placement,
             outcome: participant.outcome,
-            // Ledger points come from the BATTLE rule set (P6.5); bot battles earn none (DEC-41).
-            points: 0,
+            points: leaderboardPoints[participant.id] ?? 0,
           })),
           questionResults: battle.rounds.map((round) => ({
             roundNo: round.roundNo,
