@@ -254,7 +254,7 @@ Legend: **Auth** P = public, U = authenticated user. **MVP** ✅ / Future 🔜.
 | | Method | Path | Auth | Purpose / notes |
 |---|---|---|---|---|
 | ✅ | POST | `/v1/questions/{questionId}/reports` | U | Report a wrong question `{reason}` (only questions the caller was served in a battle); feeds moderation. Moved to P6: it needs `battle_rounds` |
-| ❌ | GET | `/v1/answer-catalog` | U | Removed in P6.6: the app shows no suggestions, so it no longer downloads the catalog (ADR-0021, DEC-55) |
+| ❌ | GET | `/v1/answer-catalog` | U | Removed (P6.6): the app shows no suggestions, so it no longer downloads the catalog (ADR-0021, DEC-55) |
 
 The Daily Quiz endpoints were removed (ADR-0010). Round content is served only inside battles over WebSocket, step by step.
 

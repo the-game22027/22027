@@ -186,8 +186,8 @@ The interface is in `01-modules.md` §2.6. All of it is server side; the game ru
 - **`AnswerCatalogQuery.findEntitiesByIds(ids)`** returns names in both locales, because one battle can have players of both languages.
 - **`QuestionBankFacade.disableQuestion(id, reason)`** is used by the CLI now and by moderation later. Selection skips the content at once.
 
-### 5.5 `GET /v1/answer-catalog` (removed in P6.6)
-Built in P5.2 for on-device search. With no suggestions (ADR-0021) the app does not need the catalog, so the endpoint and its in-memory gzip cache are removed in P6.6.
+### 5.5 `GET /v1/answer-catalog` (removed)
+Built in P5.2 for on-device search. With no suggestions (ADR-0021) the app does not need the catalog, so P6.6 removed the endpoint and its in-memory gzip cache.
 
 ### 5.6 Publishing and disabling (CLI)
 - **`questions:publish <bundleVersion>`:**

@@ -107,3 +107,6 @@ New tracks are added when the first card needs one.
 | [database/atomic-redis-scripts](database/atomic-redis-scripts.md) | P6.3 | Read, decide and change inside one Lua script: no race between matcher and leave |
 | [architecture/one-runner-per-mechanic](architecture/one-runner-per-mechanic.md) | P6.4 | The engine keeps what games share; one runner per mechanic owns a round |
 | [testing/test-what-the-build-ships](testing/test-what-the-build-ships.md) | fix | Tests must compile like the build: Swagger plugin metadata in e2e |
+| [backend/edit-distance-typo-tolerance](backend/edit-distance-typo-tolerance.md) | P6.6 | Few enough one-letter edits for the name's length: a typo, not a wrong answer |
+| [database/gin-index-array-contains](database/gin-index-array-contains.md) | P6.6 | Element → rows; `arr @> ARRAY[x]` uses it, `x = ANY(arr)` does not |
+| [testing/shared-test-vectors](testing/shared-test-vectors.md) | P6.6 | Two implementations, one table of inputs and outputs, run in both |
