@@ -28,7 +28,7 @@ export interface RevealGameSettings extends CommonGameSettings, Omit<RevealAndBu
   showYears?: boolean;
 }
 
-/** The battle config file (ADR-0017), validated at boot. Every value is configuration, most are still open. */
+/** The battle config file (ADR-0018), validated at boot. Every value is configuration, most are still open. */
 export interface BattleSettings {
   /** True for placeholder values; production refuses to start with them. */
   devOnly: boolean;

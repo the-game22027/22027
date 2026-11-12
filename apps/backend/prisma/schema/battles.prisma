@@ -40,7 +40,7 @@ model Battle {
   /// Set when mode = ROOM; the foreign key to battle_rooms comes with rooms (P8).
   roomId          String?        @map("room_id") @db.Uuid
   hasBot          Boolean        @default(false) @map("has_bot")
-  /// Snapshot of the game type's config and the engine timers at creation (ADR-0017).
+  /// Snapshot of the game type's config and the engine timers at creation (ADR-0018).
   config          Json
   /// The BATTLE scoring rule set; null until the points module exists (P6.5).
   ruleSetId       String?        @map("rule_set_id") @db.Uuid

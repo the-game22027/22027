@@ -77,7 +77,7 @@ const settingsSchema = z.strictObject({
 
 export class InvalidBattleSettingsError extends Error {}
 
-/** Reads and checks the battle config file (ADR-0017). Throws at boot: a bad file must not start the API. */
+/** Reads and checks the battle config file (ADR-0018). Throws at boot: a bad file must not start the API. */
 export function loadBattleSettingsFile(path: string, isProduction: boolean): BattleSettings {
   let json: unknown;
   try {
@@ -92,7 +92,7 @@ export function loadBattleSettingsFile(path: string, isProduction: boolean): Bat
   }
   if (isProduction && result.data.devOnly) {
     throw new InvalidBattleSettingsError(
-      `Battle config ${path} holds placeholder values ("devOnly": true); production needs a reviewed config (ADR-0017).`,
+      `Battle config ${path} holds placeholder values ("devOnly": true); production needs a reviewed config (ADR-0018).`,
     );
   }
   return result.data;

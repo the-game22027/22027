@@ -1,7 +1,7 @@
-# ADR-0017: Battle configuration in a validated JSON file
+# ADR-0018: Battle configuration in a validated JSON file
 
 - **Status:** Accepted
-- **Date:** 2026-11-11
+- **Date:** 2026-11-11 (numbered ADR-0017 until 2026-11-12, when it clashed with the mobile ADR-0017)
 - **Related:** DEC-31, DEC-32, DEC-33, DEC-39, DEC-43, DEC-44, DEC-54, DEC-60; `08-battle-games.md` §6; ADR-0015
 
 ## Context
