@@ -48,6 +48,8 @@ export interface LiveBattleDependencies {
 export class LiveBattle {
   status: 'WAITING_READY' | 'IN_PROGRESS' | 'FINISHED' = 'WAITING_READY';
   private seq = 0;
+  /** Set at shutdown: no new timers. */
+  private stopped = false;
   private queue: Promise<unknown> = Promise.resolve();
   private readonly timers = new Map<string, ScheduledTimer>();
   private readonly acks = new Map<string, Ack>();
@@ -185,6 +187,20 @@ export class LiveBattle {
     this.timers.clear();
   }
 
+  /**
+   * Stops the timers, then waits for the work already queued (a timer that fired, a command being handled), so
+   * nothing writes to the database after it has closed.
+   */
+  async stopAndFinishQueuedWork(): Promise<void> {
+    this.stopped = true;
+    this.stopTimers();
+    let queued: Promise<unknown>;
+    do {
+      queued = this.queue;
+      await queued;
+    } while (queued !== this.queue);
+  }
+
   // ---- command plumbing ----
 
   private runInQueue<T>(task: () => Promise<T>): Promise<T> {
@@ -229,6 +245,8 @@ export class LiveBattle {
   }
 
   private schedule(key: string, at: Date, task: () => Promise<void>): void {
+    // Work still finishing during shutdown must not start new timers.
+    if (this.stopped) return;
     this.cancel(key);
     this.timers.set(
       key,

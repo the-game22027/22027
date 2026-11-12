@@ -55,7 +55,8 @@ About 35 minutes in total. Cards marked *later* explain tools we have not needed
 15. [caching-patterns](redis/caching-patterns.md) *later*: cache-aside, invalidation, stampedes
 16. [pub-sub-and-streams](redis/pub-sub-and-streams.md) *later*: several API instances, Socket.IO adapter
 17. [redis-in-production](redis/redis-in-production.md) *later*: replicas, Sentinel, Cluster, security, licence
-18. [alternatives-and-similar-tools](redis/alternatives-and-similar-tools.md): Valkey, Memcached, RabbitMQ, Kafka, Postgres queues
+18. [peek-then-take](redis/peek-then-take.md): decide with data Redis lacks, then take only if nothing changed
+19. [alternatives-and-similar-tools](redis/alternatives-and-similar-tools.md): Valkey, Memcached, RabbitMQ, Kafka, Postgres queues
 
 ## Index
 
@@ -166,3 +167,5 @@ About 35 minutes in total. Cards marked *later* explain tools we have not needed
 | [database/unordered-pair-rows](database/unordered-pair-rows.md) | P7 | Store A–B once, low id first; unique per pair with LEAST/GREATEST |
 | [database/conflicts-inside-transactions](database/conflicts-inside-transactions.md) | P7 | An error aborts the transaction: use `ON CONFLICT DO NOTHING` and count rows |
 | [database/trigram-search](database/trigram-search.md) | P7 | `pg_trgm` makes `ILIKE '%text%'` indexable; escape `%` and `_` |
+| [redis/peek-then-take](redis/peek-then-take.md) | P7 | Read, decide with outside data, then take atomically only if unchanged |
+| [backend/graceful-shutdown](backend/graceful-shutdown.md) | P7 | Refuse new work, finish queued work, then close the database |

@@ -4,16 +4,13 @@ import { type AuthContext, CurrentUser } from '@modules/auth';
 import type { StoredPrediction } from '../application/ports/prediction-repository';
 import { PredictionQuery } from '../application/prediction.query';
 import { PredictionsFacade } from '../application/predictions.facade';
-import { outcomeOf } from '../domain/exact-score';
 import { PredictionDto, SubmitPredictionDto } from './dto/prediction.dto';
+import { picksOf } from './prediction-picks';
 
 const toDto = (prediction: StoredPrediction, locked: boolean): PredictionDto => ({
   id: prediction.id,
   matchId: prediction.matchId,
-  picks: [
-    { type: 'EXACT_SCORE', ...prediction.score },
-    { type: 'RESULT', outcome: outcomeOf(prediction.score) },
-  ],
+  picks: picksOf(prediction.score),
   revision: prediction.revision,
   status: prediction.status,
   updatedAt: prediction.updatedAt.toISOString(),

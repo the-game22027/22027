@@ -1,5 +1,6 @@
 import { Type } from 'class-transformer';
-import { ArrayMaxSize, IsArray, IsInt, IsOptional, IsString, ValidateNested } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsInt, IsOptional, IsString, MaxLength, Min, ValidateNested } from 'class-validator';
+import { PublicUserDto } from '@modules/users';
 
 export class SubmittedPickDto {
   @IsString()
@@ -37,4 +38,45 @@ export class PredictionDto {
   status!: 'ACTIVE' | 'VOID';
   updatedAt!: string;
   locked!: boolean;
+}
+
+export class PredictionPageQueryDto {
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  limit?: number;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(512)
+  cursor?: string;
+}
+
+/** Another player's prediction, shown only when the visibility policy allows it (DEC-21). */
+export class VisiblePredictionDto {
+  matchId!: string;
+  picks!: PredictionPickDto[];
+  status!: 'ACTIVE' | 'VOID';
+  updatedAt!: string;
+  /** null until prediction scoring exists (P3.2). */
+  score!: { points: number } | null;
+}
+
+export class VisiblePredictionPageDto {
+  items!: VisiblePredictionDto[];
+  nextCursor!: string | null;
+}
+
+export class FriendPredictionDto {
+  user!: PublicUserDto;
+  picks!: PredictionPickDto[];
+  status!: 'ACTIVE' | 'VOID';
+  /** null until prediction scoring exists (P3.2). */
+  score!: { points: number } | null;
+}
+
+export class FriendPredictionPageDto {
+  items!: FriendPredictionDto[];
+  nextCursor!: string | null;
 }

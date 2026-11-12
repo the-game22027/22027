@@ -118,4 +118,56 @@ describe('predictions API (e2e)', () => {
   it('answers 400 for a match id that is not a uuid', async () => {
     await put('not-a-uuid', exact(1, 0)).expect(400);
   });
+
+  it("shows a friend's prediction only after kickoff, and nobody else's (DEC-21)", async () => {
+    const [owner, friend, stranger] = [await devSignIn(app), await devSignIn(app), await devSignIn(app)];
+    const prisma = app.get(PrismaService);
+    const started = await world.createMatch(PAST, 'FINISHED');
+    await prisma.prediction.create({
+      data: {
+        id: randomUUID(),
+        userId: owner.userId,
+        matchId: started.id,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        picks: { create: { pickType: 'EXACT_SCORE', homeScore: 3, awayScore: 0 } },
+      },
+    });
+    const sent = await request(app.getHttpServer())
+      .post('/v1/friend-requests')
+      .set(...bearer(owner))
+      .send({ userId: friend.userId })
+      .expect(201);
+    await request(app.getHttpServer())
+      .post(`/v1/friend-requests/${(sent.body as { id: string }).id}/accept`)
+      .set(...bearer(friend))
+      .expect(200);
+
+    const forMatch = await request(app.getHttpServer())
+      .get(`/v1/matches/${started.id}/predictions/friends`)
+      .set(...bearer(friend))
+      .expect(200);
+    expect(forMatch.body).toMatchObject({
+      items: [
+        {
+          user: { id: owner.userId },
+          picks: [
+            { type: 'EXACT_SCORE', home: 3, away: 0 },
+            { type: 'RESULT', outcome: 'HOME' },
+          ],
+          score: null,
+        },
+      ],
+    });
+    const history = await request(app.getHttpServer())
+      .get(`/v1/users/${owner.userId}/predictions`)
+      .set(...bearer(friend))
+      .expect(200);
+    expect((history.body as { items: { matchId: string }[] }).items.map((item) => item.matchId)).toEqual([started.id]);
+    const refused = await request(app.getHttpServer())
+      .get(`/v1/users/${owner.userId}/predictions`)
+      .set(...bearer(stranger))
+      .expect(404);
+    expect(codeOf(refused)).toBe('USER_NOT_FOUND');
+  });
 });

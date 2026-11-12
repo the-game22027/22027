@@ -158,6 +158,11 @@ describe('battles over WebSocket (e2e)', () => {
           .post(`/v1/questions/${questionId}/reports`)
           .set('Authorization', `Bearer ${session.accessToken}`)
           .send(body);
+      const block = (userId: string) =>
+        request(app.getHttpServer())
+          .put(`/v1/me/blocks/${userId}`)
+          .set('Authorization', `Bearer ${session.accessToken}`)
+          .expect(204);
       /** A second socket for the same user, as after a reconnect. */
       const reconnect = async () => {
         const again = io(`${url}/battles`, {
@@ -178,6 +183,7 @@ describe('battles over WebSocket (e2e)', () => {
         waitFor,
         playState,
         reportQuestion,
+        block,
         reconnect,
         prisma: () => app.get(PrismaService),
       };
@@ -566,6 +572,28 @@ describe('battles over WebSocket (e2e)', () => {
         await new Promise((resolve) => setTimeout(resolve, 50));
       }
       expect((await player.playState()).queue).toBeNull();
+    });
+  });
+
+  describe('two humans who blocked each other', () => {
+    // A short bot wait: blocked players must each end up with a bot, never with each other (03 §7.1).
+    const { connectPlayer } = startApp({ knows: 0, guess: 0 }, 1500);
+
+    it('never pairs them, and each gets a bot', async () => {
+      const [first, second] = [await connectPlayer(), await connectPlayer()];
+      await second.block(first.session.userId);
+
+      await first.send('matchmaking:join', { gameType: 'BUZZER' });
+      await second.send('matchmaking:join', { gameType: 'BUZZER' });
+      const [firstFound, secondFound] = [await first.waitFor('battle:found'), await second.waitFor('battle:found')];
+
+      expect(firstFound.battleId).not.toBe(secondFound.battleId);
+      for (const found of [firstFound, secondFound]) {
+        expect((found.data['players'] as { kind: string }[]).map((player) => player.kind).sort()).toEqual([
+          'BOT',
+          'HUMAN',
+        ]);
+      }
     });
   });
 });

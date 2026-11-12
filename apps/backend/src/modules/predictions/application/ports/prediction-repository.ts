@@ -11,6 +11,12 @@ export interface StoredPrediction {
   readonly score: ExactScore;
 }
 
+/** A prediction with its owner, for the read paths that show other players' predictions. */
+export interface OwnedPrediction extends StoredPrediction {
+  readonly userId: string;
+  readonly createdAt: Date;
+}
+
 export interface PredictionKey {
   readonly userId: string;
   readonly matchId: string;
@@ -31,6 +37,19 @@ export interface PredictionRepository {
   insertIfAbsent(id: string, key: PredictionKey): Promise<boolean>;
   saveRevision(write: PredictionRevisionWrite): Promise<void>;
   findOwn(key: PredictionKey): Promise<StoredPrediction | null>;
+  /** One match, these players; ordered by user id (keyset `afterUserId`). */
+  listPredictionsOfUsersForMatch(
+    matchId: string,
+    userIds: readonly string[],
+    afterUserId: string | null,
+    limit: number,
+  ): Promise<OwnedPrediction[]>;
+  /** Newest first by when the prediction was made (keyset `after`). */
+  listPredictionsOfUser(
+    userId: string,
+    after: { createdAt: Date; id: string } | null,
+    limit: number,
+  ): Promise<OwnedPrediction[]>;
 }
 
 export const PREDICTION_REPOSITORY = Symbol('PREDICTION_REPOSITORY');

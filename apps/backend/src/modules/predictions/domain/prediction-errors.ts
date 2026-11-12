@@ -35,3 +35,13 @@ export class PredictionNotFoundError extends DomainError {
     super('Prediction not found.');
   }
 }
+
+/** Not yourself, not a friend, or a block either way: like an unknown player (03 §7.1). */
+export class PredictionOwnerNotFoundError extends DomainError {
+  readonly code = 'USER_NOT_FOUND';
+  readonly kind = 'NOT_FOUND';
+
+  constructor() {
+    super('There is no such player.');
+  }
+}
