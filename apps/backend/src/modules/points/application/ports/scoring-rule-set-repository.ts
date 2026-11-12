@@ -1,10 +1,10 @@
-import type { ScoredGame } from '../../domain/battle-ledger-entries';
+import type { LedgerCategory } from '../../domain/battle-ledger-entries';
 
 export const SCORING_RULE_SET_REPOSITORY = Symbol('SCORING_RULE_SET_REPOSITORY');
 
 export interface ActiveRuleSet {
   id: string;
-  game: ScoredGame;
+  game: LedgerCategory;
   version: number;
   name: string;
   /** Validated by the game module that owns the rules (01 §2.9). */
@@ -13,7 +13,7 @@ export interface ActiveRuleSet {
 
 export interface NewActiveRuleSet {
   id: string;
-  game: ScoredGame;
+  game: LedgerCategory;
   version: number;
   name: string;
   config: unknown;
@@ -22,10 +22,10 @@ export interface NewActiveRuleSet {
 }
 
 export interface ScoringRuleSetRepository {
-  findActiveRuleSet(game: ScoredGame): Promise<ActiveRuleSet | null>;
+  findActiveRuleSet(game: LedgerCategory): Promise<ActiveRuleSet | null>;
   /** Holds until the transaction ends, so two activations of one game run one after the other. */
-  waitForOtherActivations(game: ScoredGame): Promise<void>;
-  findHighestVersion(game: ScoredGame): Promise<number>;
-  retireActiveRuleSet(game: ScoredGame): Promise<void>;
+  waitForOtherActivations(game: LedgerCategory): Promise<void>;
+  findHighestVersion(game: LedgerCategory): Promise<number>;
+  retireActiveRuleSet(game: LedgerCategory): Promise<void>;
   insertActiveRuleSet(ruleSet: NewActiveRuleSet): Promise<void>;
 }

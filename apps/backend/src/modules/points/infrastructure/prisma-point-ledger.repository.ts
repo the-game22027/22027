@@ -3,7 +3,7 @@ import { TransactionHost } from '@nestjs-cls/transactional';
 import type { PrismaService, TransactionalAdapterPrisma } from '@shared/infrastructure/persistence';
 import { ID_GENERATOR, type IdGenerator } from '@shared/kernel';
 import type { PointLedgerRepository, TimeWindow, UserPointsSum } from '../application/ports/point-ledger-repository';
-import type { NewPointEntry, ScoredGame } from '../domain/battle-ledger-entries';
+import type { NewPointEntry, LedgerCategory } from '../domain/battle-ledger-entries';
 
 @Injectable()
 export class PrismaPointLedgerRepository implements PointLedgerRepository {
@@ -25,7 +25,7 @@ export class PrismaPointLedgerRepository implements PointLedgerRepository {
 
   async sumPointsOfUsers(
     userIds: readonly string[],
-    category: ScoredGame,
+    category: LedgerCategory,
     { from, to }: TimeWindow,
   ): Promise<UserPointsSum[]> {
     if (userIds.length === 0) return [];
