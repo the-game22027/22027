@@ -163,8 +163,8 @@ The player types the answer and sends it. **No suggestions are shown** (ADR-0021
 4. **Within the typo tolerance** of a form of an accepted answer: `CORRECT`.
 5. Otherwise `WRONG`, with nothing to show.
 
-- **Forms of an entity:** its full names (`ar`, `en`), its aliases, and each distinctive single word of its names: at least 3 letters, shared by at most `answers.singleWordMaxSharedBy` entities of the same kind (`name_words`, computed by the pipeline). `ليونيل` counts alone for Messi; `محمد` does not count alone for Mohamed Salah.
-- **Typo tolerance:** edit distance in letters (one letter added, missing, changed, or two neighbours swapped is one edit), by the form's letter count without spaces: `answers.typoTolerance`, default up to 4 letters exact, 5-8 letters 1 edit, 9+ letters 2 edits. `ميسب`, `مبسي` and `ميسيي` are one edit from `ميسي`.
+- **Forms of an entity:** its full names (`ar`, `en`), its aliases, and each distinctive single word of its names: at least 3 letters, shared by at most `answers.singleWordMaxSharedBy` entities of the same kind (default 15; `name_words`, computed by the pipeline over the whole knowledge base). `ليونيل` counts alone for Messi; `محمد` does not count alone for Mohamed Salah.
+- **Typo tolerance:** edit distance in letters (one letter added, missing, changed, or two neighbours swapped is one edit), by the form's letter count without spaces: `answers.typoTolerance`, default up to 3 letters exact, 4-7 letters 1 edit, 8+ letters 2 edits. `ميسب`, `مبسي` and `ميسيي` are one edit from `ميسي`.
 - **`GRID`:** the accepted answers are the cell's valid players. When the text fits several: the closest first, then one not used on this board, then the most popular. Only used players fit: `PLAYER_ALREADY_USED`.
 - **Result:** `{ verdict: CORRECT | WRONG, entityId | null, match: EXACT | TYPO | OTHER_ENTITY | NONE }`. The engine records the text, the entity and `match` on the action (for tuning the tolerance), and never shows the raw text to other players (DEC-60 shows only an `OTHER_ENTITY` match).
 - **Bots** answer with an entity id inside the server; they skip text judging.
@@ -186,8 +186,8 @@ The interface is in `01-modules.md` §2.6. All of it is server side; the game ru
 - **`AnswerCatalogQuery.findEntitiesByIds(ids)`** returns names in both locales, because one battle can have players of both languages.
 - **`QuestionBankFacade.disableQuestion(id, reason)`** is used by the CLI now and by moderation later. Selection skips the content at once.
 
-### 5.5 `GET /v1/answer-catalog` (removed in P6.6)
-Built in P5.2 for on-device search. With no suggestions (ADR-0021) the app does not need the catalog, so the endpoint and its in-memory gzip cache are removed in P6.6.
+### 5.5 `GET /v1/answer-catalog` (removed)
+Built in P5.2 for on-device search. With no suggestions (ADR-0021) the app does not need the catalog, so P6.6 removed the endpoint and its in-memory gzip cache.
 
 ### 5.6 Publishing and disabling (CLI)
 - **`questions:publish <bundleVersion>`:**

@@ -31,7 +31,7 @@ describe('GridRules', () => {
     entityId: string,
     verdict: 'CORRECT' | 'WRONG' = 'CORRECT',
     ms = 100,
-  ) => ok(rules.handleCommand(state, who, { type: 'GRID_CLAIM', cell, entityId, verdict }, at(ms)));
+  ) => ok(rules.handleCommand(state, who, { type: 'GRID_CLAIM', cell, answer: { entityId }, verdict }, at(ms)));
 
   it('starts with the first turn and its timer (deadline plus grace)', () => {
     const step = start();
@@ -53,7 +53,7 @@ describe('GridRules', () => {
   it('refuses the wrong player, a taken cell, and a player already used on the board', () => {
     const after = claim(start().state, 'a', 4, 'zidane').state;
     const tryClaim = (who: string, cell: number, entityId: string, ms = 200) =>
-      rules.handleCommand(after, who, { type: 'GRID_CLAIM', cell, entityId, verdict: 'CORRECT' }, at(ms));
+      rules.handleCommand(after, who, { type: 'GRID_CLAIM', cell, answer: { entityId }, verdict: 'CORRECT' }, at(ms));
     expect(tryClaim('a', 0, 'x')).toEqual({ rejected: true, code: 'NOT_YOUR_TURN' });
     expect(tryClaim('b', 4, 'x')).toEqual({ rejected: true, code: 'CELL_TAKEN' });
     expect(tryClaim('b', 0, 'zidane')).toEqual({ rejected: true, code: 'PLAYER_ALREADY_USED' });
@@ -100,15 +100,32 @@ describe('GridRules', () => {
       twice.handleCommand(
         start(twice).state,
         'a',
-        { type: 'GRID_CLAIM', cell: 0, entityId: 'x', verdict: 'WRONG' },
+        { type: 'GRID_CLAIM', cell: 0, answer: { entityId: 'x' }, verdict: 'WRONG' },
         at(10),
       ),
     );
     expect(first.state).toMatchObject({ turnOf: 'a', attemptsLeft: 1, board: Array(9).fill(null), usedPlayers: [] });
     const second = ok(
-      twice.handleCommand(first.state, 'a', { type: 'GRID_CLAIM', cell: 0, entityId: 'y', verdict: 'WRONG' }, at(20)),
+      twice.handleCommand(
+        first.state,
+        'a',
+        { type: 'GRID_CLAIM', cell: 0, answer: { entityId: null, text: 'nobody', match: 'NONE' }, verdict: 'WRONG' },
+        at(20),
+      ),
     );
     expect(second.state.turnOf).toBe('b');
+  });
+
+  it('records the typed text of a miss, and shows no player when the text named nobody (ADR-0021)', () => {
+    const answer = { entityId: null, text: 'nobody', match: 'NONE' as const };
+    const step = ok(
+      rules.handleCommand(start().state, 'a', { type: 'GRID_CLAIM', cell: 0, answer, verdict: 'WRONG' }, at(10)),
+    );
+    expect(step.effects).toContainEqual({
+      type: 'RECORD_ACTION',
+      action: expect.objectContaining({ answer, isCorrect: false }) as unknown,
+    });
+    expect(events(step)[0]).toMatchObject({ type: 'MISSED', entityId: null });
   });
 
   it('passes the turn on a timeout or a skip, and a skip beyond the limit gives the round away', () => {

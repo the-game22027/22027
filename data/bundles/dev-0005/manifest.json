@@ -1,0 +1,45 @@
+{
+  "bundleVersion": "dev-0005",
+  "kbVersion": "wikidata-2026-11-11",
+  "generatorVersion": "kb-generate-2",
+  "questionCount": 199,
+  "checksum": "sha256:38c4f792ebbef213de38bc937b5774334f78521f52c5e9cee22dcaf8063c4cfe",
+  "catalogChecksum": "sha256:0d325946fb51f3b2f76b4387383e319c2bfeee62a15e708f170571dd20a88758",
+  "categories": [
+    {
+      "slug": "careers",
+      "names": {
+        "en": "Careers",
+        "ar": "المسيرة"
+      }
+    },
+    {
+      "slug": "transfers",
+      "names": {
+        "en": "Transfers",
+        "ar": "الانتقالات"
+      }
+    },
+    {
+      "slug": "nationalities",
+      "names": {
+        "en": "Nationalities",
+        "ar": "الجنسيات"
+      }
+    },
+    {
+      "slug": "players",
+      "names": {
+        "en": "Players",
+        "ar": "اللاعبون"
+      }
+    },
+    {
+      "slug": "grids",
+      "names": {
+        "en": "Grids",
+        "ar": "الشبكات"
+      }
+    }
+  ]
+}

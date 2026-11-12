@@ -55,6 +55,24 @@
       }
     }
   },
+  "answers": {
+    "maxLength": 60,
+    "typoTolerance": [
+      {
+        "fromLetters": 0,
+        "edits": 0
+      },
+      {
+        "fromLetters": 4,
+        "edits": 1
+      },
+      {
+        "fromLetters": 8,
+        "edits": 2
+      }
+    ],
+    "singleWordMaxSharedBy": 15
+  },
   "gameTypes": {
     "BUZZER": {
       "enabled": true,

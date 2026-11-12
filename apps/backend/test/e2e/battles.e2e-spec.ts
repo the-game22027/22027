@@ -193,7 +193,9 @@ describe('battles over WebSocket (e2e)', () => {
 
         expect(await player.send('round:buzz', { battleId, roundNo })).toMatchObject({ accepted: true });
         await player.waitFor('round:buzzed', (event) => event.data['roundNo'] === roundNo);
-        expect(await player.send('round:answer', { battleId, roundNo, answer: { entityId: spainId } })).toMatchObject({
+        // Typed in another case than the catalog's name: normalizing makes it an exact match (ADR-0021).
+        const typed = roundNo === 1 ? e.spain.names.en.toUpperCase() : e.spain.names.en;
+        expect(await player.send('round:answer', { battleId, roundNo, answer: { text: typed } })).toMatchObject({
           accepted: true,
         });
         const result = await player.waitFor('round:result', (event) => event.data['roundNo'] === roundNo);
@@ -216,6 +218,12 @@ describe('battles over WebSocket (e2e)', () => {
       expect(battle).toMatchObject({ status: 'COMPLETED', endReason: 'COMPLETED', hasBot: true, gameType: 'BUZZER' });
       expect(battle.rounds.map((round) => round.endReason)).toEqual(['CORRECT', 'CORRECT']);
       expect(battle.rounds[0]?.actions.map((action) => action.kind)).toEqual(['BUZZ', 'ANSWER']);
+      expect(battle.rounds[0]?.actions[1]).toMatchObject({
+        entityId: spainId,
+        answerText: e.spain.names.en.toUpperCase(),
+        answerMatch: 'EXACT',
+        isCorrect: true,
+      });
       const event = await prisma.outboxEvent.findFirstOrThrow({
         where: { aggregateId: battleId, type: 'BattleCompleted' },
       });
@@ -239,9 +247,9 @@ describe('battles over WebSocket (e2e)', () => {
         expect((await player.waitFor('round:clue')).data).toMatchObject({ index: 1, clue: steps[0] });
         await player.send('round:buzz', { battleId, roundNo: 1 });
         await player.waitFor('round:buzzed');
-        expect(
-          await player.send('round:answer', { battleId, roundNo: 1, answer: { entityId: ronaldoId } }),
-        ).toMatchObject({
+        // One letter too many: within the typo tolerance of the name (08 §5.3).
+        const typo = e.ronaldo.names.en.replace('Ronaldo', 'Ronalldo');
+        expect(await player.send('round:answer', { battleId, roundNo: 1, answer: { text: typo } })).toMatchObject({
           accepted: true,
         });
         const result = await player.waitFor('round:result');
@@ -269,14 +277,15 @@ describe('battles over WebSocket (e2e)', () => {
       const myTurn = () =>
         player.waitFor('grid:turn', (event) => event.data['participantId'] === me && !handled.has(event.seq ?? 0));
       const handled = new Set<number>();
-      const claim = async (row: number, col: number, entityId: string) => {
+      const nameOf = (index: number) => grid.players[index]?.names.en ?? '';
+      const claim = async (row: number, col: number, text: string) => {
         const turn = await myTurn();
         handled.add(turn.seq ?? 0);
-        return player.send('grid:claim', { battleId, roundNo: 1, cell: { row, col }, answer: { entityId } });
+        return player.send('grid:claim', { battleId, roundNo: 1, cell: { row, col }, answer: { text } });
       };
 
       // The silent bot always answers wrong, so the top row stays free for us.
-      expect(await claim(0, 0, gridPlayerIds[0])).toMatchObject({ accepted: true });
+      expect(await claim(0, 0, nameOf(0))).toMatchObject({ accepted: true });
       const claimed = await player.waitFor('grid:claimed', (event) => event.data['participantId'] === me);
       expect(claimed.data).toMatchObject({ cell: { row: 0, col: 0 }, player: { entityId: gridPlayerIds[0] } });
 
@@ -287,7 +296,7 @@ describe('battles over WebSocket (e2e)', () => {
           battleId,
           roundNo: 1,
           cell: { row: 0, col: 0 },
-          answer: { entityId: gridPlayerIds[1] },
+          answer: { text: nameOf(1) },
         }),
       ).toMatchObject({ accepted: false, code: 'CELL_TAKEN' });
       expect(
@@ -295,7 +304,7 @@ describe('battles over WebSocket (e2e)', () => {
           battleId,
           roundNo: 1,
           cell: { row: 0, col: 1 },
-          answer: { entityId: gridPlayerIds[0] },
+          answer: { text: nameOf(0) },
         }),
       ).toMatchObject({ accepted: false, code: 'PLAYER_ALREADY_USED' });
       expect(
@@ -303,11 +312,11 @@ describe('battles over WebSocket (e2e)', () => {
           battleId,
           roundNo: 1,
           cell: { row: 0, col: 1 },
-          answer: { entityId: gridPlayerIds[1] },
+          answer: { text: nameOf(1) },
         }),
       ).toMatchObject({ accepted: true });
 
-      expect(await claim(0, 2, gridPlayerIds[2])).toMatchObject({ accepted: true });
+      expect(await claim(0, 2, nameOf(2))).toMatchObject({ accepted: true });
       const result = await player.waitFor('round:result');
       expect(result.data['winnerParticipantIds']).toEqual([me]);
       expect((result.data['reveal'] as { line: unknown[] }).line).toEqual([
@@ -334,14 +343,15 @@ describe('battles over WebSocket (e2e)', () => {
       }
     });
 
-    it('rejects a wrong-kind answer, a non-holder, and replays the ack of a duplicate message', async () => {
+    it('rejects a non-holder, a number for a name and a blank answer, replays a duplicate ack, and shows a wrong name', async () => {
       const player = await connectPlayer();
-      await player.send('matchmaking:join', { gameType: 'BUZZER' });
+      // A career round: its answer is a player, so another player's exact name is shown as the wrong answer.
+      await player.send('matchmaking:join', { gameType: 'CAREER' });
       const battleId = (await player.waitFor('battle:found')).battleId as string;
       await player.send('battle:ready', { battleId });
       await player.waitFor('round:clue');
 
-      expect(await player.send('round:answer', { battleId, roundNo: 1, answer: { entityId: spainId } })).toMatchObject({
+      expect(await player.send('round:answer', { battleId, roundNo: 1, answer: { text: 'ronaldo' } })).toMatchObject({
         accepted: false,
         code: 'NOT_BUZZ_HOLDER',
       });
@@ -349,10 +359,21 @@ describe('battles over WebSocket (e2e)', () => {
       const buzz = () => player.socket.emitWithAck('round:buzz', { clientMsgId: buzzId, battleId, roundNo: 1 });
       expect(await buzz()).toEqual({ clientMsgId: buzzId, accepted: true });
       expect(await buzz()).toEqual({ clientMsgId: buzzId, accepted: true });
-      expect(await player.send('round:answer', { battleId, roundNo: 1, answer: { entityId: naniId } })).toMatchObject({
+      expect(await player.send('round:answer', { battleId, roundNo: 1, answer: { number: 2010 } })).toMatchObject({
         accepted: false,
-        code: 'UNKNOWN_ENTITY',
+        code: 'INVALID_PAYLOAD',
       });
+      expect(await player.send('round:answer', { battleId, roundNo: 1, answer: { text: ' ـ ' } })).toMatchObject({
+        accepted: false,
+        code: 'EMPTY_ANSWER',
+      });
+      // Exactly another player's name: wrong, and shown as that player, never as the typed text (DEC-60).
+      expect(
+        await player.send('round:answer', { battleId, roundNo: 1, answer: { text: e.nani.names.en } }),
+      ).toMatchObject({ accepted: true });
+      const wrong = await player.waitFor('round:wrong');
+      expect(wrong.data['answer']).toEqual({ entityId: naniId, name: e.nani.names.ar });
+      expect(JSON.stringify(wrong.data)).not.toContain(e.nani.names.en);
       expect(await player.send('round:buzz', { battleId, roundNo: 2 })).toMatchObject({
         accepted: false,
         code: 'ROUND_NOT_CURRENT',

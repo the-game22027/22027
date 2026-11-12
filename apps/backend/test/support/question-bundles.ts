@@ -13,6 +13,7 @@ export const entitySet = () => {
     aliases: { en: [`${name}-alias`], ar: [] as string[] },
     popularity: 10,
     search: [`${name.toLowerCase()} ${id}`],
+    nameWords: [{ form: `${name.toLowerCase()}${id}`, sharedBy: 1 }],
   });
   return {
     ronaldo: entity('Ronaldo', 'PLAYER', 'رونالدو'),

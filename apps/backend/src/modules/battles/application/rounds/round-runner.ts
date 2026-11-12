@@ -1,13 +1,19 @@
-import type { AnswerCatalogQuery, AnswerChecker } from '@modules/question-bank';
-import type { ParticipantId, RoundAction, RoundResult, TypedAnswer } from '../../domain/games/game-rules';
+import type { AnswerCatalogQuery, AnswerChecker, TypedAnswerRules } from '@modules/question-bank';
+import type { ParticipantId, RoundAction, RoundResult } from '../../domain/games/game-rules';
 import type { RandomSource } from '../../domain/random-source';
 import type { LiveParticipant } from '../live-participant';
+
+/** An answer as a player sends it (WEBSOCKET.md §2): typed text, or a number. */
+export type PlayerAnswer = { text: string } | { number: number };
+
+/** Bots answer with an entity id inside the server and skip text judging (08 §5.3). */
+export type BotAnswer = { entityId: string };
 
 /** Every round command a player (or a bot) can send, whatever the game (WEBSOCKET.md §3). */
 export type PlayerCommand =
   | { type: 'BUZZ' }
-  | { type: 'ANSWER'; answer: TypedAnswer }
-  | { type: 'GRID_CLAIM'; cell: number; entityId: string }
+  | { type: 'ANSWER'; answer: PlayerAnswer | BotAnswer }
+  | { type: 'GRID_CLAIM'; cell: number; answer: { text: string } | BotAnswer }
   | { type: 'GRID_SKIP' };
 
 export type ViewerData = (viewer: LiveParticipant) => Record<string, unknown>;
@@ -18,6 +24,7 @@ export interface RoundHost {
   readonly random: RandomSource;
   readonly checker: AnswerChecker;
   readonly catalog: AnswerCatalogQuery;
+  readonly answerRules: TypedAnswerRules;
   now(): Date;
   participants(): LiveParticipant[];
   activeParticipantIds(): ParticipantId[];

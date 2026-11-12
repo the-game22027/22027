@@ -2,7 +2,6 @@ import { Test, type TestingModule } from '@nestjs/testing';
 import { randomUUID } from 'node:crypto';
 import { AnswerCatalogQuery } from '../../src/modules/question-bank/application/answer-catalog.query';
 import { AnswerChecker } from '../../src/modules/question-bank/application/answer-checker';
-import { computeChecksum } from '../../src/modules/question-bank/application/bundle-parser';
 import { ContentSelector } from '../../src/modules/question-bank/application/content-selector';
 import { ImportQuestionBundle } from '../../src/modules/question-bank/application/import-question-bundle';
 import type { ContentSelectionCriteria } from '../../src/modules/question-bank/application/ports/question-read-repository';
@@ -44,7 +43,13 @@ describe('serving content to battles', () => {
     grid: newKey(),
   };
   const bundleVersion = `test-${randomUUID()}`;
-  const catalogEntities = [...Object.values(e), ...grid.entities];
+  // One letter away from Ronaldo's name: typing it exactly must not pass as a typo of Ronaldo (08 §5.3).
+  const ronaldoTwin = {
+    ...e.nani,
+    externalRef: `${e.ronaldo.externalRef}-twin`,
+    search: [e.ronaldo.search[0].replace('ronaldo', 'ronaldx')],
+  };
+  const catalogEntities = [...Object.values(e), ronaldoTwin, ...grid.entities];
   const files = bundle(
     bundleVersion,
     [
@@ -209,19 +214,58 @@ describe('serving content to battles', () => {
         [8, 1],
       ]);
     });
+  });
 
-    it('judges a typed answer by entity id and kind', async () => {
-      const check = (entity: string) => checker.checkTypedAnswer(contentId.career, 0, entity);
+  describe('typed text answers (ADR-0021)', () => {
+    const rules = {
+      maxLength: 40,
+      typoTolerance: [
+        { fromLetters: 0, edits: 0 },
+        { fromLetters: 4, edits: 1 },
+        { fromLetters: 8, edits: 2 },
+      ],
+      singleWordMaxSharedBy: 2,
+    };
+    const judge = (text: string, slot = 0) => checker.judgeTypedText(contentId.career, slot, text, rules);
 
-      await expect(check(await entityId(e.ronaldo.externalRef))).resolves.toBe('CORRECT');
-      await expect(check(await entityId(e.nani.externalRef))).resolves.toBe('WRONG');
-      await expect(check(await entityId(e.sporting.externalRef))).resolves.toBe('UNKNOWN_ENTITY');
-      await expect(check(ids.next())).resolves.toBe('UNKNOWN_ENTITY');
-      await expect(check('not-an-id')).resolves.toBe('UNKNOWN_ENTITY');
-      await expect(checker.checkTypedAnswer(contentId.career, 1, await entityId(e.ronaldo.externalRef))).resolves.toBe(
-        'WRONG',
+    it('accepts a full name, a distinctive single word and a typo', async () => {
+      const ronaldo = await entityId(e.ronaldo.externalRef);
+      await expect(judge(e.ronaldo.search[0].toUpperCase())).resolves.toEqual({
+        verdict: 'CORRECT',
+        entityId: ronaldo,
+        match: 'EXACT',
+      });
+      await expect(judge(e.ronaldo.nameWords[0].form)).resolves.toMatchObject({ verdict: 'CORRECT', match: 'EXACT' });
+      await expect(judge(e.ronaldo.search[0].replace('ronaldo', 'ronldo'))).resolves.toEqual({
+        verdict: 'CORRECT',
+        entityId: ronaldo,
+        match: 'TYPO',
+      });
+    });
+
+    it("calls another entity's exact name wrong, even one typo from the answer", async () => {
+      await expect(judge(ronaldoTwin.search[0])).resolves.toEqual({
+        verdict: 'WRONG',
+        entityId: await entityId(ronaldoTwin.externalRef),
+        match: 'OTHER_ENTITY',
+      });
+      await expect(judge(e.nani.search[0])).resolves.toMatchObject({ verdict: 'WRONG', match: 'OTHER_ENTITY' });
+      // Slot 1 of a career round accepts nobody, so Ronaldo is just another player there.
+      await expect(judge(e.ronaldo.search[0], 1)).resolves.toMatchObject({ verdict: 'WRONG', match: 'OTHER_ENTITY' });
+    });
+
+    it('shows nothing for text that names nobody, or an entity of another kind', async () => {
+      const nothing = { verdict: 'WRONG', entityId: null, match: 'NONE' };
+      await expect(judge('somebody else entirely')).resolves.toEqual(nothing);
+      await expect(judge(e.sporting.search[0])).resolves.toEqual(nothing);
+    });
+
+    it('refuses blank and too long text, and unknown content', async () => {
+      await expect(judge('  ')).resolves.toEqual({ verdict: 'EMPTY' });
+      await expect(judge('x'.repeat(41))).resolves.toEqual({ verdict: 'EMPTY' });
+      await expect(checker.judgeTypedText(ids.next(), 0, 'ronaldo', rules)).rejects.toBeInstanceOf(
+        QuestionNotFoundError,
       );
-      await expect(checker.checkTypedAnswer(ids.next(), 0, ids.next())).rejects.toBeInstanceOf(QuestionNotFoundError);
     });
   });
 
@@ -253,18 +297,6 @@ describe('serving content to battles', () => {
   });
 
   describe('answer catalog', () => {
-    it("versions the snapshot by the last catalog's checksum and lists only its entities", async () => {
-      const version = computeChecksum(files.catalogJsonl as Buffer);
-      await expect(catalog.findCurrentVersion()).resolves.toBe(version);
-
-      const snapshot = await catalog.getSnapshot();
-      expect(snapshot.version).toBe(version);
-      const ronaldo = snapshot.entities.find((entity) => entity.names.en === e.ronaldo.names.en);
-      expect(ronaldo).toMatchObject({ kind: 'PLAYER', search: e.ronaldo.search, popularity: 10 });
-      expect(snapshot.entities).toHaveLength(catalogEntities.length);
-      expect(snapshot.entities[0]?.popularity).toBe(10);
-    });
-
     it('finds entity names by id for battle events', async () => {
       const id = await entityId(e.spain.externalRef);
       await expect(catalog.findEntitiesByIds([id])).resolves.toEqual([

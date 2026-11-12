@@ -18,7 +18,7 @@ A football-focused **social gaming platform** (not a CRUD app, not a simple quiz
 - Friends (mutual), privacy-aware prediction visibility.
 - A fact-first football knowledge database that feeds an offline question generator.
 
-Current phase: **Phases 0-2 and P3.1 (prediction submit) implemented; P5.1 (question import) merged; G0 game types design done; next: D.1 Wikidata careers + answer catalog, then P5.2 and P6 (prediction scoring P3.2+ postponed, see `docs/ROADMAP.md`)**. See `docs/ROADMAP.md`.
+Current phase: **Phases 0-2, P3.1 (prediction submit), P5, D.1-D.2, P6.1-P6.4 and P6.6 (typed text answers) implemented; mobile M0-M1 done; next: P6.5 points and mobile M3 battles (prediction scoring P3.2+ postponed, see `docs/ROADMAP.md`)**. See `docs/ROADMAP.md`.
 
 ## 2. Hard constraints (do not violate)
 
@@ -144,9 +144,9 @@ Question bank (from `apps/backend`; available in every environment, not only dev
 
 ```bash
 npm run cli -- questions:import ../../data/bundles/dev-0001   # validate + import a bundle; re-import is a no-op
-npm run cli -- questions:import ../../data/bundles/dev-0004   # generated game content + its catalog (07 §5.8)
-npm run cli -- questions:publish dev-0004                     # APPROVED questions of that bundle → PUBLISHED (battles pick only these)
-npm run cli -- questions:publish dev-0004 --include-drafts    # development: also the unreviewed rounds (refused in production)
+npm run cli -- questions:import ../../data/bundles/dev-0005   # generated game content + its catalog (07 §5.8)
+npm run cli -- questions:publish dev-0005                     # APPROVED questions of that bundle → PUBLISHED (battles pick only these)
+npm run cli -- questions:publish dev-0005 --include-drafts    # development: also the unreviewed rounds (refused in production)
 npm run cli -- questions:disable <questionId> --reason "…"     # battles stop picking it at once
 python3 -I ../../data/generate/dev_bundle.py                  # rebuild the hand-written dev bundle (bump its version first)
 ```
@@ -160,7 +160,7 @@ python3 -m venv .venv && .venv/bin/pip install 'psycopg[binary]>=3.2' pytest ruf
 .venv/bin/python -m kb ingest --scope config/scope.toml           # 9 leagues; --refresh refetches from Wikidata
 .venv/bin/python -m kb names:missing --locale ar                  # entities without an Arabic name → .out/names-missing-ar.csv
 .venv/bin/python -m kb catalog --out .out/catalog                 # write catalog.jsonl
-.venv/bin/python -m kb bundle --version dev-0005 --out bundles/dev-0005 --careers 60 --buzzers 60 --who 60 --grids 30 --catalog-min-player-sitelinks 40   # generated bundle (07 §5.8)
+.venv/bin/python -m kb bundle --version dev-0006 --out bundles/dev-0006 --careers 60 --buzzers 60 --who 60 --grids 30 --catalog-min-player-sitelinks 40   # generated bundle (07 §5.8)
 FOOTBALL_KB_TEST_URL=postgresql://game:game@localhost:5440/football_kb_test .venv/bin/python -m pytest   # needs CREATE DATABASE football_kb_test once
 .venv/bin/ruff check . && .venv/bin/ruff format --check .
 ```

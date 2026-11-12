@@ -129,7 +129,7 @@ export class BattlesGateway
         userIdOf(socket),
         socket.id,
         command.roundNo,
-        { cell: command.cell.row * 3 + command.cell.col, entityId: command.answer.entityId },
+        { cell: command.cell.row * 3 + command.cell.col, text: command.answer.text },
         command.clientMsgId,
       ),
     );

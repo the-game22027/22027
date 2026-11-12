@@ -119,6 +119,10 @@ model BattleRoundAction {
   kind          String
   entityId      String?  @map("entity_id") @db.Uuid
   numberAnswer  Decimal? @map("number_answer") @db.Decimal
+  /// What a human typed; never shown to other players (ADR-0021).
+  answerText    String?  @map("answer_text")
+  /// EXACT | TYPO | OTHER_ENTITY | NONE: how the text was judged, for tuning the typo tolerance.
+  answerMatch   String?  @map("answer_match")
   cell          Int?     @db.SmallInt
   isCorrect     Boolean? @map("is_correct")
   points        Int      @default(0)

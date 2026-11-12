@@ -85,7 +85,7 @@ interface GridCriterion { kind: 'CLUB' | 'NATIONALITY' | 'COMPETITION_WON'; enti
 | `room:resync` | `{ clientMsgId, roomId }` | Caller is a member | `ROOM_NOT_FOUND` (ack carries `BattleRoomSnapshot`) |
 | `battle:ready` | `{ clientMsgId, battleId }` | Participant; battle `WAITING_READY`; sets the active socket | `NOT_PARTICIPANT`, `INVALID_STATE` |
 | `round:buzz` | `{ clientMsgId, battleId, roundNo }` | Reveal-and-buzz games. Active socket; round `REVEALING` or `FINAL_WINDOW`; sender not locked out; nobody holds the buzz. The first accepted buzz wins (server arrival order) | `BUZZ_TAKEN`, `LOCKED_OUT`, `ROUND_CLOSED`, `ROUND_NOT_CURRENT`, `WRONG_GAME_TYPE`, `NOT_ACTIVE_SOCKET`, `PARTICIPANT_FORFEITED` |
-| `round:answer` | `{ clientMsgId, battleId, roundNo, answer: Answer }` | Reveal-and-buzz games. Only the buzz holder, once per buzz, received ≤ `answerDeadlineAt + latencyGrace`. Correctness arrives as an event, not in the ack | `NOT_BUZZ_HOLDER`, `ANSWER_WINDOW_CLOSED`, `EMPTY_ANSWER` (blank after normalizing, or too long), `ROUND_CLOSED`, `NOT_ACTIVE_SOCKET` |
+| `round:answer` | `{ clientMsgId, battleId, roundNo, answer: Answer }` | Reveal-and-buzz games. Only the buzz holder, once per buzz, received ≤ `answerDeadlineAt + latencyGrace`. `{ number }` when the round's `answerKind` is `NUMBER`, `{ text }` otherwise (the other one gets `INVALID_PAYLOAD`). Correctness arrives as an event, not in the ack | `NOT_BUZZ_HOLDER`, `ANSWER_WINDOW_CLOSED`, `EMPTY_ANSWER` (blank after normalizing, or too long), `ROUND_CLOSED`, `NOT_ACTIVE_SOCKET` |
 | `grid:claim` | `{ clientMsgId, battleId, roundNo, cell: { row, col }, answer: { text } }` | `GRID`. Sender's turn, received ≤ `turnDeadlineAt + latencyGrace`; cell free; the text must not name a player already used on this board | `NOT_YOUR_TURN`, `CELL_TAKEN`, `PLAYER_ALREADY_USED`, `EMPTY_ANSWER`, `TURN_CLOSED`, `NOT_ACTIVE_SOCKET` |
 | `grid:skip` | `{ clientMsgId, battleId, roundNo }` | `GRID`. Sender's turn | `NOT_YOUR_TURN`, `TURN_CLOSED` |
 | `battle:resync` | `{ clientMsgId, battleId, lastSeq }` | Participant | `NOT_PARTICIPANT` (ack carries the snapshot) |
@@ -119,7 +119,7 @@ When the host starts the room, members receive `battle:found` with `mode: "ROOM"
 
 | Type | Data | When |
 |---|---|---|
-| `battle:found` | `{ battleId, gameType, mode: "MATCHMAKING" \| "ROOM", roomId?, players: BattlePlayer[], youParticipantId, config, readyDeadlineAt }` | Participants formed. `config` is the game type's public config (round count, timers, attempts). The client joins the battle channel automatically |
+| `battle:found` | `{ battleId, gameType, mode: "MATCHMAKING" \| "ROOM", roomId?, players: BattlePlayer[], youParticipantId, config, readyDeadlineAt }` | Participants formed. `config` is the game type's public config (round count, timers, attempts) and `answerMaxLength`, the longest text an answer may have. The client joins the battle channel automatically |
 | `battle:cancelled` | `{ reason: "READY_TIMEOUT" \| "PLAYER_LEFT" \| "SERVER" }` | Before start: fewer than 2 participants ready, or a player forfeited or did not come back before the start |
 | `battle:started` | `{ startedAt, players: BattlePlayer[] }` | Start. `players` excludes anyone dropped for not being ready |
 | `round:start` | Reveal and buzz: `{ roundNo, gameType, answerKind, stepCount, category? }`. Grid: `{ roundNo, gameType, rows: GridCriterion[3], cols: GridCriterion[3], firstTurnParticipantId }` | Each round. Never contains unrevealed steps or accepted answers |

@@ -164,10 +164,12 @@ model AnswerEntity {
   kind           AnswerKind
   /// {en, ar} display names.
   names          Json
-  /// Ranks suggestions; from the pipeline (Wikipedia sitelinks).
+  /// Breaks ties between grid answers; from the pipeline (Wikipedia sitelinks).
   popularity     Int        @default(0)
-  /// Normalized names and aliases (07 §5.7); what the app searches on the phone.
+  /// Normalized names and aliases (07 §5.7); what typed text is judged against (ADR-0021).
   searchForms    String[]   @map("search_forms")
+  /// [{form, sharedBy}]: single words of the names that may count alone as an answer (ADR-0021).
+  nameWords      Json       @default("[]") @map("name_words")
   /// The bundle version that last changed this entity.
   catalogVersion String     @map("catalog_version")
   /// ACTIVE, or HIDDEN when a newer catalog dropped it (kept because battle history points at it).
@@ -179,6 +181,8 @@ model AnswerEntity {
   battleActions BattleRoundAction[]
 
   @@index([kind])
+  /// Finds the entity a typed text names exactly (08 §5.3 step 3).
+  @@index([searchForms], type: Gin)
   @@map("answer_entities")
 }
 

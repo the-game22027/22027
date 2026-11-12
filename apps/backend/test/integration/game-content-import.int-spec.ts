@@ -41,7 +41,12 @@ describe('importing a bundle with an answer catalog and game content', () => {
     expect(summary.catalogSize).toBe(5);
     expect(summary.counts.inserted).toBe(2);
     const ronaldo = await entityByRef(e.ronaldo.externalRef);
-    expect(ronaldo).toMatchObject({ kind: 'PLAYER', status: 'ACTIVE', searchForms: e.ronaldo.search });
+    expect(ronaldo).toMatchObject({
+      kind: 'PLAYER',
+      status: 'ACTIVE',
+      searchForms: e.ronaldo.search,
+      nameWords: e.ronaldo.nameWords,
+    });
     expect(ronaldo.aliases.map((alias) => alias.alias)).toEqual(['Ronaldo-alias']);
 
     const careerRow = await prisma.question.findFirstOrThrow({

@@ -78,6 +78,8 @@ export class PrismaBattleRepository implements BattleRepository {
         kind: action.kind,
         entityId: answer && 'entityId' in answer ? answer.entityId : null,
         numberAnswer: answer && 'number' in answer ? answer.number : null,
+        answerText: answer && 'text' in answer ? answer.text : null,
+        answerMatch: answer && 'match' in answer ? answer.match : null,
         isCorrect: action.isCorrect ?? null,
         points: action.points,
         clientMsgId,

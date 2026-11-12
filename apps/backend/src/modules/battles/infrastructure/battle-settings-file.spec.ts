@@ -32,6 +32,16 @@ describe('the battle config file', () => {
     expect(() => loadBattleSettingsFile(path, false)).toThrow('engine.readyTimeoutMs');
   });
 
+  it('refuses typo tolerance steps that do not go up by letter count', () => {
+    const path = writeVariant((json) => {
+      (json.answers as Record<string, unknown>).typoTolerance = [
+        { fromLetters: 8, edits: 2 },
+        { fromLetters: 4, edits: 1 },
+      ];
+    });
+    expect(() => loadBattleSettingsFile(path, false)).toThrow('answers.typoTolerance');
+  });
+
   it('refuses unknown keys, so a typo cannot silently fall back to nothing', () => {
     const path = writeVariant((json) => {
       json.matchmakng = {};
