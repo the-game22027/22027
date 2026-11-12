@@ -169,6 +169,7 @@ Each feature lists user stories, the rules that apply (decided or open), and acc
 | Fairness | Every lock, window, timer, correctness check and score is decided by the server (Confirmed) |
 | Privacy | Predictions private by default; blocked users invisible; no personal data in logs; account deletion available in-app (store requirement) |
 | Language | Arabic (default, right-to-left) and English throughout, including questions and team/player names |
+| Visual style | Buttons and icons in the app follow Apple's Liquid Glass look (iOS 26): translucent glass that blurs what is behind it, with soft highlights. The same look on Android. Blur is heavy on low-end Android phones, so each glass surface needs a plain fallback (product owner, 2026-11-12; details in the mobile design) |
 | Real-time | Battles stay consistent through duplicate, late and lost messages and short disconnects (`api/WEBSOCKET.md`) |
 | Scale at launch | < 50k registered, < 2k concurrent, < 200 concurrent battles on one server (A-07); scaling path in `06-cross-cutting.md` |
 | Cost | No paid service needed during development; release costs are store accounts, a server, a domain, backups and possibly football data |
