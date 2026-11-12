@@ -157,11 +157,13 @@ Each mobile phase starts once the backend phase it consumes is merged. The API c
 ### M0 — Mobile foundation (after P0)
 - Decided in ADR-0014: Flutter latest stable pinned with `fvm`, Riverpod, go_router; the application id is deferred (DEC-52, placeholder until R2). Prompt: `docs/prompts/mobile-m0-foundation.md`. `flutter create` in `apps/mobile`; dev/prod flavors; Arabic + English with RTL; generated REST client from the backend `openapi.json`; secure token storage; error mapping from problem+json `code`; path-filtered CI (`flutter analyze`, tests).
 - **Exit:** app runs on an Android emulator against the local backend, `/health` call works, RTL layout verified. iOS: the project is scaffolded, but running it needs macOS (the owner develops on Linux), so the iOS check moves to the first time a Mac or a macOS CI runner is available, before R2.
+- **Done (2026-11-11):** PR #21. Flutter 3.38.5 pinned with `fvm`; Android exit verified, iOS check still pending (needs macOS).
 
 ### M1 — Sign-in and profile (after P1)
 - Google sign-in, refresh rotation, sessions list, profile and privacy settings, account deletion.
 - **Exit:** sign in → kill the app → reopen still signed in; refresh reuse forces sign-out.
 - **Design:** ADR-0017 (refresh rotation on the client, Google sign-in, re-authentication), agent prompt `docs/prompts/mobile-m1-sign-in.md`.
+- **Done (2026-11-11):** PRs #29 (design) and #30. Exit verified on an Android emulator against the local backend, including a refused refresh signing out. Not done yet: privacy settings (an M1 prompt non-goal), Google sign-in on a device (needs the owner's OAuth clients), iOS (needs macOS).
 
 ### M2 — Matches, predictions, leaderboards (after P3 + P4)
 - Fixtures by date and competition, prediction editor locked by server `predictable` + `serverTime`, own history with scores, the four leaderboard periods, my rank.
