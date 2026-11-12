@@ -117,3 +117,6 @@ New tracks are added when the first card needs one.
 | [testing/shared-test-vectors](testing/shared-test-vectors.md) | P6.6 | Two implementations, one table of inputs and outputs, run in both |
 | [architecture/append-only-ledger](architecture/append-only-ledger.md) | P6.5 | Add a row per award; totals and leaderboards are rebuildable sums |
 | [backend/snapshot-rules-at-start](backend/snapshot-rules-at-start.md) | P6.5 | A battle keeps the rule set it started with; new rules apply from the next one |
+| [backend/time-zone-period-boundaries](backend/time-zone-period-boundaries.md) | P6.5b | Store UTC; cut weeks and months at local midnight, across daylight saving |
+| [database/recompute-instead-of-increment](database/recompute-instead-of-increment.md) | P6.5b | Write the sum from the source rows under a lock, never `+=` |
+| [testing/library-state-shared-across-apps](testing/library-state-shared-across-apps.md) | P6.5b | Two Nest apps in one test process share static library state |

@@ -568,7 +568,7 @@ leaderboard_entries (
   PRIMARY KEY (period_id, user_id)
 )
   IX (period_id, points DESC, tiebreak_1 DESC, tiebreak_2 DESC, user_id)   -- ranking + keyset pagination
-leaderboard_snapshots (
+leaderboard_snapshots (                -- created with the prize work (DEC-28/47), not in P6.5b
   period_id uuid FK → leaderboard_periods, user_id uuid FK → users,
   rank int, points bigint, tiebreak_1 bigint, tiebreak_2 bigint, frozen_at timestamptz,
   PRIMARY KEY (period_id, user_id)
