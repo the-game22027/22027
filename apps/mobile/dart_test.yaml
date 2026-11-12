@@ -1,0 +1,3 @@
+# Tests tagged `live` call the local backend; they live in test_live/ and run only by hand.
+tags:
+  live:

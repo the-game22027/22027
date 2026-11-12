@@ -9,7 +9,7 @@
 - Offline: use the stored copy; an older catalog still lets the player answer.
 - Parse off the UI isolate (`Isolate.run`): 11 MB of JSON would freeze frames.
 
-**In our code:** [answer_catalog_data_sources.dart](../../apps/mobile/lib/features/answer_catalog/data/answer_catalog_data_sources.dart), [answer_catalog_repository.dart](../../apps/mobile/lib/features/answer_catalog/data/answer_catalog_repository.dart), API §6.6, `08-battle-games.md` §5.5.
+**In our code:** no longer. The app downloaded the answer catalog this way until ADR-0021 moved answer judging to the server. To read that code: `git show 7d1019b:apps/mobile/lib/features/battles/data/answer_catalog_data_sources.dart` (and `answer_catalog_repository.dart`). Use the same pattern for any large, rarely changing download.
 
 **Watch out:**
 - `304` is a success here: Dio treats it as an error unless `validateStatus` allows it.

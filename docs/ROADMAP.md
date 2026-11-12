@@ -167,7 +167,7 @@ Each mobile phase starts once the backend phase it consumes is merged. The API c
 - **Done (2026-11-11):** PRs #29 (design) and #30. Exit verified on an Android emulator against the local backend, including a refused refresh signing out. Not done yet: privacy settings (an M1 prompt non-goal), Google sign-in on a device (needs the owner's OAuth clients), iOS (needs macOS).
 
 ### M1.5 — Data layer before screens (ADR-0019)
-- No new UI. Data and application code for every backend feature already merged: profile fields, football, predictions, the answer catalog with on-device search, and the `/battles` socket (clock, commands, state reducer). M2 and M3 screens build on it.
+- No new UI. Data and application code for every backend feature already merged: profile fields, football, predictions, and the `/battles` socket (clock, commands with typed text answers, state reducer). M2 and M3 screens build on it.
 - **Exit:** each feature has tested repositories and use cases, and a run against the local backend reads matches, submits a prediction, downloads the catalog and plays a `BUZZER` battle against the bot without a screen.
 
 ### M2 — Matches, predictions, leaderboards (after P3 + P4)

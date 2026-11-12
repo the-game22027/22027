@@ -215,6 +215,23 @@
         ],
         "type": "object"
       },
+      "JoinMatchmakingDto": {
+        "properties": {
+          "gameType": {
+            "enum": [
+              "BUZZER",
+              "CAREER",
+              "WHO_IS_PLAYER",
+              "GRID"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "gameType"
+        ],
+        "type": "object"
+      },
       "LocalizedEntityNamesDto": {
         "properties": {
           "ar": {
@@ -393,6 +410,43 @@
         ],
         "type": "object"
       },
+      "MatchmakingTicketDto": {
+        "properties": {
+          "botFallbackAt": {
+            "nullable": true,
+            "type": "string"
+          },
+          "gameType": {
+            "enum": [
+              "BUZZER",
+              "CAREER",
+              "WHO_IS_PLAYER",
+              "GRID"
+            ],
+            "type": "string"
+          },
+          "queuedAt": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "QUEUED"
+            ],
+            "type": "string"
+          },
+          "ticketId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "ticketId",
+          "gameType",
+          "status",
+          "queuedAt",
+          "botFallbackAt"
+        ],
+        "type": "object"
+      },
       "MeDto": {
         "properties": {
           "avatarUrl": {
@@ -450,6 +504,59 @@
         "required": [
           "home",
           "away"
+        ],
+        "type": "object"
+      },
+      "PlayStateBattleDto": {
+        "properties": {
+          "battleId": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "battleId",
+          "status"
+        ],
+        "type": "object"
+      },
+      "PlayStateDto": {
+        "properties": {
+          "battle": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PlayStateBattleDto"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "queue": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/MatchmakingTicketDto"
+              }
+            ],
+            "nullable": true,
+            "type": "object"
+          },
+          "room": {
+            "additionalProperties": true,
+            "description": "Rooms come with P8: always null for now.",
+            "nullable": true,
+            "type": "object"
+          },
+          "serverTime": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "room",
+          "queue",
+          "battle",
+          "serverTime"
         ],
         "type": "object"
       },
@@ -1031,6 +1138,60 @@
         ]
       }
     },
+    "/v1/battles/matchmaking": {
+      "delete": {
+        "operationId": "BattlesController_leave_v1",
+        "parameters": [],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "battles"
+        ]
+      },
+      "post": {
+        "operationId": "BattlesController_join_v1",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JoinMatchmakingDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MatchmakingTicketDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Same as WS `matchmaking:join`; the match itself still arrives on the socket as `battle:found`.",
+        "tags": [
+          "battles"
+        ]
+      }
+    },
     "/v1/competitions": {
       "get": {
         "operationId": "FootballController_competitions_v1",
@@ -1365,6 +1526,32 @@
         ],
         "tags": [
           "me"
+        ]
+      }
+    },
+    "/v1/me/play-state": {
+      "get": {
+        "operationId": "BattlesController_playState_v1",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlayStateDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "battles"
         ]
       }
     }
