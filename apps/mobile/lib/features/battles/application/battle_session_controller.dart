@@ -7,6 +7,7 @@ import 'package:the_game/features/battles/application/battle_state.dart';
 import 'package:the_game/features/battles/application/server_clock.dart';
 import 'package:the_game/features/battles/data/battle_events.dart';
 import 'package:the_game/features/battles/data/battle_socket_connection.dart';
+import 'package:the_game/features/battles/data/play_state_repository.dart';
 import 'package:uuid/uuid.dart';
 
 /// Everything about live play for the signed-in player: the socket, matchmaking, the
@@ -60,6 +61,9 @@ class BattleSessionController extends Notifier<BattleSessionState> {
   static const _clockSampleCount = 5;
   final _uuid = const Uuid();
   bool _hasRetriedRefusedHandshake = false;
+
+  /// Set when a battle is resumed from play-state, to find the player's seat in it.
+  String? _viewerUserId;
 
   BattleSocketConnection get _connection =>
       ref.read(battleSocketConnectionProvider);
@@ -142,11 +146,46 @@ class BattleSessionController extends Notifier<BattleSessionState> {
       final current = state.battle;
       if (current != null && current.battleId == battle.battleId) {
         state = state.copyWith(
-          battle: () => applyBattleSnapshot(current, result.ack['snapshot']),
+          battle: () => applyBattleSnapshot(
+            current,
+            result.ack['snapshot'],
+            viewerUserId: _viewerUserId,
+          ),
         );
       }
     }
     return result;
+  }
+
+  /// After the app starts or comes back: restores the queue ticket or the running battle the
+  /// server says the player has (`GET /v1/me/play-state`). A battle is rebuilt from a
+  /// snapshot now, or on the next connect when the socket is not up yet.
+  Future<PlayState> resumePlayState() async {
+    final repository = ref.read(playStateRepositoryProvider);
+    final playState = await repository.fetchPlayState();
+    if (!ref.mounted) return playState;
+
+    final ticket = playState.queuedTicket;
+    state = state.copyWith(
+      queuedTicket: () => ticket == null
+          ? null
+          : MatchmakingQueued(
+              serverTime: playState.serverTime,
+              ticketId: ticket.ticketId,
+              gameType: ticket.gameType,
+              queuedAt: ticket.queuedAt,
+              botFallbackAt: ticket.botFallbackAt,
+            ),
+    );
+
+    final battleId = playState.battleId;
+    if (battleId != null && state.battle?.battleId != battleId) {
+      _viewerUserId = await repository.fetchSignedInUserId();
+      if (!ref.mounted) return playState;
+      state = state.copyWith(battle: () => createBattleStateToResume(battleId));
+      await resynchronizeBattle();
+    }
+    return playState;
   }
 
   /// Forgets a finished battle once the screen is done with its result.

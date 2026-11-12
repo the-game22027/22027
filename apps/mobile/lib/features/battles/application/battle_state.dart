@@ -347,20 +347,47 @@ BattleState _applyInOrder(BattleState state, BattleServerEvent event) {
   }
 }
 
+/// A battle known only by its id, for example after an app restart (`GET /v1/me/play-state`).
+/// Everything else comes from the first snapshot, so it starts out waiting for one.
+BattleState createBattleStateToResume(String battleId) => BattleState(
+  battleId: battleId,
+  gameType: GameType.unknown,
+  isRoomBattle: false,
+  players: const [],
+  youParticipantId: '',
+  publicConfig: const {},
+  phase: BattlePhase.inProgress,
+  lastSeq: 0,
+  needsResync: true,
+);
+
 /// Replaces the live part of [state] with a `battle:snapshot` (the `battle:resync` ack).
-/// Throws [FormatException] when the snapshot breaks the contract.
-BattleState applyBattleSnapshot(BattleState state, Object? snapshotJson) {
+/// A snapshot does not name the viewer's seat: for a resumed battle, [viewerUserId] finds
+/// it among the players. Throws [FormatException] when the snapshot breaks the contract.
+BattleState applyBattleSnapshot(
+  BattleState state,
+  Object? snapshotJson, {
+  String? viewerUserId,
+}) {
   final snapshot = JsonObjectReader(snapshotJson, 'battle:snapshot');
   final roundJson = snapshot.readOptionalObject('currentRound');
   final scores = readParticipantScores(snapshot.readObjectList('scores'));
   final status = snapshot.readString('status');
+  final players = readBattlePlayers(snapshot.readObjectList('players'));
+  final youParticipantId = state.youParticipantId.isNotEmpty
+      ? state.youParticipantId
+      : players
+                .where((player) => player.userId == viewerUserId)
+                .firstOrNull
+                ?.participantId ??
+            '';
 
   return BattleState(
     battleId: state.battleId,
-    gameType: state.gameType,
-    isRoomBattle: state.isRoomBattle,
-    players: readBattlePlayers(snapshot.readObjectList('players')),
-    youParticipantId: state.youParticipantId,
+    gameType: findGameTypeByCode(snapshot.readString('gameType')),
+    isRoomBattle: snapshot.readOptionalString('mode') == 'ROOM',
+    players: players,
+    youParticipantId: youParticipantId,
     publicConfig: state.publicConfig,
     phase: switch (status) {
       'WAITING_READY' => BattlePhase.waitingReady,

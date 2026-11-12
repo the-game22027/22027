@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'dart:convert';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -7,6 +9,7 @@ import 'package:the_game/features/battles/application/battle_session_controller.
 import 'package:the_game/features/battles/application/battle_state.dart';
 import 'package:the_game/features/battles/data/battle_events.dart';
 import 'package:the_game/features/battles/data/battle_socket_connection.dart';
+import 'package:the_game/features/battles/data/play_state_repository.dart';
 
 import '../../helpers/fake_http_adapter.dart';
 import '../../helpers/test_overrides.dart';
@@ -277,5 +280,105 @@ void main() {
     controller.dismissFinishedBattle();
 
     expect(container.read(battleSessionProvider).battle, isNull);
+  });
+
+  group('resuming after a restart (play-state)', () {
+    Map<String, Object?> playStateJson({Object? queue, Object? battle}) => {
+      'queue': queue,
+      'room': null,
+      'battle': battle,
+      'serverTime': serverTime,
+    };
+
+    test('a queued ticket is restored', () async {
+      adapter = FakeHttpAdapter(
+        (_) => jsonResponse(
+          playStateJson(
+            queue: {
+              'ticketId': 't-9',
+              'gameType': 'CAREER',
+              'status': 'QUEUED',
+              'queuedAt': serverTime,
+              'botFallbackAt': null,
+            },
+          ),
+        ),
+      );
+      final container = await createContainer();
+
+      final playState = await controllerOf(container).resumePlayState();
+
+      expect(playState.isIdle, isFalse);
+      final ticket = container.read(battleSessionProvider).queuedTicket;
+      expect(ticket?.ticketId, 't-9');
+      expect(ticket?.gameType, GameType.career);
+    });
+
+    test(
+      'a running battle is rebuilt from a snapshot, with the seat found',
+      () async {
+        adapter = FakeHttpAdapter(
+          (request) => request.path == '/v1/me/play-state'
+              ? jsonResponse(
+                  playStateJson(
+                    battle: {'battleId': battleId, 'status': 'IN_PROGRESS'},
+                  ),
+                )
+              : jsonResponse({...meJson, 'id': 'u-1'}),
+        );
+        socket.answerCommand = (event, payload) => const BattleCommandAccepted({
+          'accepted': true,
+          'snapshot': {
+            'status': 'IN_PROGRESS',
+            'gameType': 'BUZZER',
+            'mode': 'MATCHMAKING',
+            'players': [humanPlayerJson, botPlayerJson],
+            'rounds': <Object>[],
+            'scores': <Object>[],
+            'seq': 12,
+          },
+        });
+        final container = await createContainer();
+
+        await controllerOf(container).resumePlayState();
+
+        final (event, payload) = socket.sentCommands.single;
+        expect(event, 'battle:resync');
+        expect(payload['battleId'], battleId);
+        final battle = container.read(battleSessionProvider).battle!;
+        expect(battle.youParticipantId, 'p-human');
+        expect(battle.gameType, GameType.buzzer);
+        expect(battle.lastSeq, 12);
+        expect(battle.needsResync, isFalse);
+      },
+    );
+
+    test('REST matchmaking sends the game type and reads the ticket', () async {
+      adapter = FakeHttpAdapter(
+        (request) => request.method == 'POST'
+            ? jsonResponse({
+                'ticketId': 't-1',
+                'gameType': 'BUZZER',
+                'status': 'QUEUED',
+                'queuedAt': serverTime,
+                'botFallbackAt': '2026-11-12T10:00:05.000Z',
+              }, status: 201)
+            : jsonResponse(null, status: 204),
+      );
+      final container = await createContainer();
+      final repository = container.read(playStateRepositoryProvider);
+
+      final ticket = await repository.joinMatchmaking(GameType.buzzer);
+      await repository.leaveMatchmaking();
+
+      expect(jsonDecode(adapter.sentRequests.first.data as String), {
+        'gameType': 'BUZZER',
+      });
+      expect(ticket.botFallbackAt, DateTime.utc(2026, 11, 12, 10, 0, 5));
+      expect(adapter.sentRequests.map((r) => '${r.method} ${r.path}'), [
+        'POST /v1/battles/matchmaking',
+        'DELETE /v1/battles/matchmaking',
+      ]);
+    });
   });
 }
