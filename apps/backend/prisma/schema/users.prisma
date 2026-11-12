@@ -21,6 +21,7 @@ model User {
   authIdentities AuthIdentity[]
   sessions       Session[]
   predictions    Prediction[]
+  battleSeats    BattleParticipant[]
 
   @@map("users")
 }

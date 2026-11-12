@@ -1,36 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import 'package:the_game/core/errors/describe_error_for_user.dart';
+import 'package:the_game/core/routing/app_routes.dart';
 import 'package:the_game/core/widgets/app_bar_shortcuts.dart';
 import 'package:the_game/features/home/application/home_providers.dart';
 import 'package:the_game/l10n/generated/app_localizations.dart';
 
-class HomeScreen extends ConsumerStatefulWidget {
+class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
   @override
-  ConsumerState<HomeScreen> createState() => _HomeScreenState();
-}
-
-class _HomeScreenState extends ConsumerState<HomeScreen> {
-  bool _isSigningOut = false;
-
-  Future<void> _signOut() async {
-    setState(() => _isSigningOut = true);
-    // On success the router leaves this screen, so there is nothing to reset.
-    await signOutOfThisDevice(ref);
-  }
-
-  @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final l10n = AppLocalizations.of(context);
     final profile = ref.watch(currentPlayerProfileProvider);
 
     return Scaffold(
       appBar: AppBar(
         title: Text(l10n.homeTitle),
-        actions: buildAppBarShortcuts(context),
+        actions: [
+          IconButton(
+            key: const Key('open-account'),
+            tooltip: l10n.accountTitle,
+            icon: const Icon(Icons.account_circle_outlined),
+            onPressed: () => context.push(AppRoutes.account),
+          ),
+          ...buildAppBarShortcuts(context),
+        ],
       ),
       body: Center(
         child: Padding(
@@ -63,11 +60,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
                 _ => const CircularProgressIndicator(),
               },
-              const SizedBox(height: 32),
-              FilledButton.tonal(
-                onPressed: _isSigningOut ? null : _signOut,
-                child: Text(l10n.signOutButton),
-              ),
             ],
           ),
         ),

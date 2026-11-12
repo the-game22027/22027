@@ -105,6 +105,7 @@ A battle now has a **game type**. Multiple choice is not a game: players type th
 | DEC-25 | Identity broker | In-house verification · Firebase Auth · self-hosted broker | In-house (`04-auth.md` §3.5) | Auth adapters | Pending |
 | DEC-26 | Sign-in providers at launch | All four at once · phased · phone optional | **Decided (2026-11-08, ADR-0012): Google, Facebook and X in v1.0, built in that order. Phone number sign-in removed (no SMS cost).** Apple: DEC-48 | Auth config | Decided (2026-11-08) |
 | DEC-48 | Sign in with Apple (App Store guideline 4.8) | Add Sign in with Apple · release Android first, iOS later · no social sign-in on iOS | Add Sign in with Apple before the iOS release: free with the Apple Developer account the iOS release needs anyway, same `(provider, subject)` model (`04-auth.md` §3.4) | Auth adapters | Pending (decide before R2) |
+| DEC-63 | App language vs profile `locale` (`PATCH /v1/me`) | Independent (device setting only) · app language follows the profile · changing either updates both | Changing the app language while signed in also sends `PATCH /v1/me {locale}` (best effort); after signing in to an existing account, a device with no saved language adopts the profile `locale`; a new account (its `locale` is only the server default) gets the app language instead. One language per player across devices, and offline changes still work | Mobile `AppLanguageController` | Pending |
 
 ## Release
 

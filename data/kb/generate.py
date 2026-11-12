@@ -10,6 +10,8 @@ from kb.careers import Spell, merge_consecutive_spells_at_same_club
 from kb.normalize import matching_form_of_name
 
 MIN_CAREER_SPELLS = 3
+# Fewer clues than this makes "who is the player" a guess, not a game (07 §5.8).
+MIN_WHO_IS_PLAYER_CLUES = 4
 # Popularity (Wikipedia sitelinks) → first-guess difficulty; answer statistics recalibrate it later.
 DIFFICULTY_BY_MIN_SITELINKS = ((100, 1), (60, 2), (40, 3), (20, 4), (0, 5))
 LICENSES = ["CC0-1.0"]
@@ -26,6 +28,7 @@ class PlayerFacts:
     # Every spell of the player, dated or not, as stored in core.career_spell.
     spells: tuple[Spell, ...]
     country_refs: tuple[str, ...]
+    birth_year: int | None = None
 
 
 @dataclass(frozen=True)
@@ -189,6 +192,82 @@ def nationality_round(
         answers=countries,
         facts=[],
         names_of=names_of,
+        kb_version=kb_version,
+    )
+
+
+def who_is_player_round(
+    player: PlayerFacts,
+    club_names_of: Callable[[str], Names | None],
+    country_names_of: Callable[[str], Names | None],
+    kb_version: str,
+) -> dict | None:
+    """Clues about one player from the facts we have, hardest first (07 §5.8); None when too few."""
+    career = senior_career_in_order(player)
+    if not career:
+        return None
+    clues: list[dict] = []
+
+    def add(kind: str, en: str, ar: str) -> None:
+        clues.append({"kind": kind, "text": {"en": en, "ar": ar}})
+
+    if player.birth_year is not None:
+        add("BIRTH_YEAR", f"Born in {player.birth_year}", f"من مواليد {player.birth_year}")
+    club_count = len({spell.team_ref for spell in career})
+    add("CLUB_COUNT", f"Senior clubs: {club_count}", f"عدد أنديته: {club_count}")
+    first = career[0]
+    first_names = club_names_of(first.team_ref)
+    if first_names and not first.loan and not (len(career) > 1 and career[1].from_year == first.from_year):
+        add(
+            "FIRST_CLUB",
+            f"Started his senior career at {first_names['en']}",
+            f"بدأ مسيرته مع {first_names['ar']}",
+        )
+    loan = next((spell for spell in career if spell.loan and club_names_of(spell.team_ref)), None)
+    if loan:
+        loan_names = club_names_of(loan.team_ref)
+        add(
+            "LOAN",
+            f"Was loaned to {loan_names['en']} in {loan.from_year}",
+            f"انتقل معارًا إلى {loan_names['ar']} عام {loan.from_year}",
+        )
+    countries = [names for ref in sorted(player.country_refs) if (names := country_names_of(ref))]
+    if countries:
+        add(
+            "NATIONALITY",
+            "Nationality: " + " / ".join(names["en"] for names in countries),
+            "الجنسية: " + " / ".join(names["ar"] for names in countries),
+        )
+    closed = [spell for spell in career if spell.to_year is not None and club_names_of(spell.team_ref)]
+    if closed:
+        longest = max(closed, key=lambda spell: (spell.to_year - spell.from_year, -spell.from_year))
+        longest_names = club_names_of(longest.team_ref)
+        add(
+            "LONGEST_SPELL",
+            f"At {longest_names['en']} from {longest.from_year} to {longest.to_year}",
+            f"في {longest_names['ar']} من {longest.from_year} إلى {longest.to_year}",
+        )
+    last = career[-1]
+    last_names = club_names_of(last.team_ref)
+    if last_names:
+        if last.to_year is None:
+            add("LAST_CLUB", f"Current club: {last_names['en']}", f"ناديه الحالي: {last_names['ar']}")
+        else:
+            add("LAST_CLUB", f"Last club: {last_names['en']}", f"آخر أنديته: {last_names['ar']}")
+
+    if len(clues) < MIN_WHO_IS_PLAYER_CLUES:
+        return None
+    steps = {locale: [clue["text"][locale] for clue in clues] for locale in ("en", "ar")}
+    if gives_away_an_answer(steps, [player.names]):
+        return None
+    return _game_line(
+        key=f"who:{_qid(player.external_ref)}",
+        game_type="WHO_IS_PLAYER",
+        category="players",
+        player=player,
+        content={"player": player.external_ref, "clues": clues},
+        answers=[player.external_ref],
+        facts=[spell.statement_id for spell in career],
         kb_version=kb_version,
     )
 

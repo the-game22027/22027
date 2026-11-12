@@ -18,7 +18,7 @@ io("wss://<host>/battles", { auth: { token: "<accessToken>" }, transports: ["web
 - The token goes in the handshake `auth`, never in the query string. Outside production, namespace `/_dev/socket` (`whoami`) exercises this check until `/battles` exists.
 - Invalid/expired token → connection refused with `connect_error` `{ code: "UNAUTHENTICATED" }`.
 - On connect, the server reads the user's current activity (queue, room, battle) and joins the socket to the matching channels (`room:{roomId}`, `battle:{battleId}`). The client then sends `room:resync` / `battle:resync` to get a snapshot.
-- One user may have several sockets (devices). Events go to every socket of the user, but only one socket may send answers for a battle: the first that emitted `battle:ready` (the *active socket*).
+- One user may have several sockets (devices). Events go to every socket of the user, but only one socket may send answers for a battle: the *active socket*. It is the first that emitted `battle:ready`, and it moves to the socket that most recently sent `battle:resync` (a reconnecting device takes over).
 - Before the access token expires the server emits `auth:expiring`; the client sends `auth:refresh { token }` with a new access token. Revoked session → server emits `auth:revoked` and disconnects.
 
 ## 2. Envelopes
@@ -42,6 +42,14 @@ Server → client: every battle event carries a per-battle monotonically increas
 { "battleId": "0193...", "seq": 7, "serverTime": "2026-11-07T19:00:03.120Z", "type": "round:start", "data": { } }
 { "roomId": "0193...", "version": 4, "serverTime": "2026-11-07T19:00:03.120Z", "type": "room:updated", "data": { } }
 ```
+
+Matchmaking and session events (`matchmaking:*`, `error`) belong to no battle, so they carry no `seq`:
+
+```json
+{ "type": "matchmaking:queued", "serverTime": "2026-11-07T19:00:03.120Z", "data": { } }
+```
+
+Acks for malformed payloads use `INVALID_PAYLOAD`. A command for a battle that is not running (finished, or never existed) gets `NOT_PARTICIPANT`.
 
 Clients track `lastSeq` per battle and `version` per room. A gap (`seq > lastSeq + 1`), an older room version, or a reconnect → send the matching resync command.
 
@@ -81,7 +89,7 @@ interface GridCriterion { kind: 'CLUB' | 'NATIONALITY' | 'COMPETITION_WON'; enti
 | `grid:claim` | `{ clientMsgId, battleId, roundNo, cell: { row, col }, answer: { entityId } }` | `GRID`. Sender's turn, received ≤ `turnDeadlineAt + latencyGrace`; cell free; player not already used on this board | `NOT_YOUR_TURN`, `CELL_TAKEN`, `PLAYER_ALREADY_USED`, `UNKNOWN_ENTITY`, `TURN_CLOSED`, `NOT_ACTIVE_SOCKET` |
 | `grid:skip` | `{ clientMsgId, battleId, roundNo }` | `GRID`. Sender's turn | `NOT_YOUR_TURN`, `TURN_CLOSED` |
 | `battle:resync` | `{ clientMsgId, battleId, lastSeq }` | Participant | `NOT_PARTICIPANT` (ack carries the snapshot) |
-| `battle:forfeit` | `{ clientMsgId, battleId }` | Participant; battle not finished | `INVALID_STATE` |
+| `battle:forfeit` | `{ clientMsgId, battleId }` | Participant; battle not finished. The participant leaves for good: last placement (DEC-33) | `NOT_PARTICIPANT`, `INVALID_STATE` |
 | `auth:refresh` | `{ token }` | — | `UNAUTHENTICATED` |
 
 Duplicate `clientMsgId` for the same user + battle → the stored ack is returned again; no state change. Unknown events are ignored and counted in metrics.
@@ -112,7 +120,7 @@ When the host starts the room, members receive `battle:found` with `mode: "ROOM"
 | Type | Data | When |
 |---|---|---|
 | `battle:found` | `{ battleId, gameType, mode: "MATCHMAKING" \| "ROOM", roomId?, players: BattlePlayer[], youParticipantId, config, readyDeadlineAt }` | Participants formed. `config` is the game type's public config (round count, timers, attempts). The client joins the battle channel automatically |
-| `battle:cancelled` | `{ reason: "READY_TIMEOUT" \| "SERVER" }` | Before start: fewer than 2 participants ready |
+| `battle:cancelled` | `{ reason: "READY_TIMEOUT" \| "PLAYER_LEFT" \| "SERVER" }` | Before start: fewer than 2 participants ready, or a player forfeited or did not come back before the start |
 | `battle:started` | `{ startedAt, players: BattlePlayer[] }` | Start. `players` excludes anyone dropped for not being ready |
 | `round:start` | Reveal and buzz: `{ roundNo, gameType, answerKind, stepCount, category? }`. Grid: `{ roundNo, gameType, rows: GridCriterion[3], cols: GridCriterion[3], firstTurnParticipantId }` | Each round. Never contains unrevealed steps or accepted answers |
 | `round:clue` | `{ roundNo, index, clue: string, nextClueAt: string \| null }` | Reveal and buzz: step `index` (1-based) revealed, text in the viewer's locale. `nextClueAt` is null after the last step (final window) |
@@ -126,7 +134,7 @@ When the host starts the room, members receive `battle:found` with `mode: "ROOM"
 | `player:disconnected` | `{ participantId, graceUntil }` | A human's last socket dropped |
 | `player:reconnected` | `{ participantId }` | |
 | `player:forfeited` | `{ participantId, reason: "GRACE_EXPIRED" \| "FORFEIT" \| "NOT_READY" }` | Participant out of the battle |
-| `battle:completed` | `{ endReason, you: { placement, outcome: "WIN" \| "LOSS" \| "DRAW", score }, placements: [{ participantId, placement, score }], pointsPending: boolean }` | End. Ledger points arrive asynchronously; `pointsPending` is false when this mode earns none (DEC-41) |
+| `battle:completed` | `{ endReason: "COMPLETED" \| "FORFEIT" \| "ABANDONED", you?: { placement, outcome: "WIN" \| "LOSS" \| "DRAW", score }, placements: [{ participantId, placement, score }], pointsPending: boolean }` | End. Those who left are placed after everyone still in, as losses. `ABANDONED` (no human left) has no placements. Ledger points arrive asynchronously; `pointsPending` is false when this mode earns none (DEC-41) |
 | `battle:snapshot` | `{ status, gameType, mode, players, currentRound?: { roundNo, phase, revealedClues \| board, buzzHolder?, lockedOut[], deadlines }, rounds: [...results so far], scores, seq }` | Reply to resync and on reconnect. Contains only what was already revealed |
 
 ### 4.4 Session
@@ -134,7 +142,7 @@ When the host starts the room, members receive `battle:found` with `mode: "ROOM"
 | Type | Data | When |
 |---|---|---|
 | `auth:expiring` / `auth:revoked` | `{ expiresAt }` / `{}` | Session lifecycle |
-| `error` | `{ code, message }` | Protocol violations not tied to an ack |
+| `error` | `{ code, message }` | Protocol violations not tied to an ack. `NO_CONTENT`: the bank has no published content of that game type in the player's locale, so no battle could start; `SERVER_ERROR`: the battle could not be created |
 
 Clue text and entity names are localized per player, with the locale fixed at battle creation. All players get the same content in the same order, and in `BUZZER` every locale has the same number of reveal steps, so everyone sees the same share of the question at the same time (`08` §3.1).
 

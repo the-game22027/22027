@@ -6,6 +6,9 @@ abstract final class AppRoutes {
   /// Registered only in the dev flavor.
   static const devSignIn = '/dev-sign-in';
   static const home = '/home';
+  static const account = '/account';
+  static const accountProfile = '/account/profile';
+  static const accountSessions = '/account/sessions';
   static const serverStatus = '/server-status';
   static const settings = '/settings';
 }

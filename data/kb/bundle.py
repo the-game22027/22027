@@ -17,13 +17,17 @@ from kb.generate import (
     joined_in_year_rounds,
     nationality_round,
     pick_spread_over_difficulties,
+    who_is_player_round,
 )
+from kb.grids import grid_rounds
 
 GENERATOR_VERSION = "kb-generate-1"
 CATEGORIES = [
     {"slug": "careers", "names": {"en": "Careers", "ar": "المسيرة"}},
     {"slug": "transfers", "names": {"en": "Transfers", "ar": "الانتقالات"}},
     {"slug": "nationalities", "names": {"en": "Nationalities", "ar": "الجنسيات"}},
+    {"slug": "players", "names": {"en": "Players", "ar": "اللاعبون"}},
+    {"slug": "grids", "names": {"en": "Grids", "ar": "الشبكات"}},
 ]
 
 
@@ -43,6 +47,9 @@ def build_bundle(
     career_count: int,
     buzzer_count: int,
     catalog_min_player_sitelinks: int | None,
+    who_count: int = 0,
+    grid_count: int = 0,
+    grid_min_answers: int = 3,
 ) -> BundleSummary:
     catalog = {entry["externalRef"]: entry for entry in load_catalog_entries(connection)}
     kb_version = _kb_version(connection)
@@ -58,8 +65,25 @@ def build_bundle(
         if (line := career_round(player, lambda ref: club_names_of(ref) is not None, kb_version)) is not None
     ]
     buzzers = pick_buzzer_rounds(players, catalog, kb_version, buzzer_count)
+    country_names_of = _names_lookup(catalog, "COUNTRY")
+    whos = [
+        line
+        for player in players
+        if (line := who_is_player_round(player, club_names_of, country_names_of, kb_version)) is not None
+    ]
     lines = sorted(
-        pick_spread_over_difficulties(careers, career_count) + buzzers, key=lambda line: line["externalKey"]
+        pick_spread_over_difficulties(careers, career_count)
+        + buzzers
+        + pick_spread_over_difficulties(whos, who_count)
+        + grid_rounds(
+            players,
+            club_names_of,
+            country_names_of,
+            kb_version,
+            count=grid_count,
+            min_answers=grid_min_answers,
+        ),
+        key=lambda line: line["externalKey"],
     )
 
     entries = list(catalog.values())
@@ -89,7 +113,7 @@ def pick_buzzer_rounds(
 def load_player_facts(connection: psycopg.Connection) -> list[PlayerFacts]:
     """Every player with spells, most popular first (ties by Wikidata number, so the order is stable)."""
     players = connection.execute(
-        "SELECT external_ref, sitelinks FROM core.entity WHERE kind = 'PLAYER'"
+        "SELECT external_ref, sitelinks, birth_year FROM core.entity WHERE kind = 'PLAYER'"
     ).fetchall()
     labels: dict[str, dict[str, str]] = {}
     for external_ref, locale, name in connection.execute(
@@ -114,8 +138,9 @@ def load_player_facts(connection: psycopg.Connection) -> list[PlayerFacts]:
             names=labels.get(external_ref, {}),
             spells=tuple(sorted(spells[external_ref], key=lambda spell: spell.statement_id)),
             country_refs=tuple(sorted(countries.get(external_ref, []))),
+            birth_year=birth_year,
         )
-        for external_ref, sitelinks in players
+        for external_ref, sitelinks, birth_year in players
         if external_ref in spells
     ]
     return sorted(facts, key=lambda player: (-player.sitelinks, _qid_number(player.external_ref)))
@@ -151,6 +176,10 @@ def _references_of_line(line: dict) -> set[str]:
     if line["gameType"] == "CAREER":
         refs.add(content["player"])
         refs.update(spell["club"] for spell in content["spells"])
+    if line["gameType"] == "WHO_IS_PLAYER":
+        refs.add(content["player"])
+    if line["gameType"] == "GRID":
+        refs.update(criterion["entity"] for criterion in [*content["rows"], *content["cols"]])
     return refs
 
 

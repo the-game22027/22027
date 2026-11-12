@@ -18,39 +18,10 @@ import { QuestionBankCliModule } from '../../src/modules/question-bank/question-
 import { CoreModule } from '../../src/shared/infrastructure/core.module';
 import { PrismaService } from '../../src/shared/infrastructure/persistence';
 import { UuidV7Generator } from '../../src/shared/kernel';
-import { bundle, buzzerLine, careerLine, common, entitySet } from '../support/question-bundles';
+import { bundle, buzzerLine, careerLine, entitySet, gridFixture } from '../support/question-bundles';
 import { testConfig } from '../support/test-app';
 
 const newKey = () => `test:${randomUUID()}`;
-
-/** Three clubs × three countries; every cell has one player, the top-left cell two. */
-const gridSetup = () => {
-  const id = randomUUID().slice(0, 8);
-  const entity = (name: string, kind: string) => ({
-    externalRef: `test:grid-${name}-${id}`,
-    kind,
-    names: { en: `${name} ${id}`, ar: `${name} ${id}` },
-    aliases: { en: [], ar: [] },
-    popularity: 1,
-    search: [`${name} ${id}`],
-  });
-  const clubs = ['club-a', 'club-b', 'club-c'].map((name) => entity(name, 'CLUB'));
-  const countries = ['land-a', 'land-b', 'land-c'].map((name) => entity(name, 'COUNTRY'));
-  const players = Array.from({ length: 10 }, (_, index) => entity(`player-${String(index)}`, 'PLAYER'));
-  const line = (key: string) => ({
-    ...common(key),
-    gameType: 'GRID',
-    content: {
-      rows: clubs.map((club) => ({ kind: 'CLUB', entity: club.externalRef })),
-      cols: countries.map((country) => ({ kind: 'NATIONALITY', entity: country.externalRef })),
-    },
-    answers: Array.from({ length: 9 }, (_, slot) => ({
-      slot,
-      entities: slot === 0 ? [players[0], players[9]].map((p) => p?.externalRef) : [players[slot]?.externalRef],
-    })),
-  });
-  return { entities: [...clubs, ...countries, ...players], line };
-};
 
 describe('serving content to battles', () => {
   let moduleRef: TestingModule;
@@ -63,7 +34,7 @@ describe('serving content to battles', () => {
   const ids = new UuidV7Generator();
 
   const e = entitySet();
-  const grid = gridSetup();
+  const grid = gridFixture();
   const keys = {
     career: newKey(),
     hardCareer: newKey(),
@@ -148,6 +119,23 @@ describe('serving content to battles', () => {
       await expect(prisma.question.findFirstOrThrow({ where: { externalKey: draftKey } })).resolves.toMatchObject({
         status: 'PUBLISHED',
       });
+    });
+
+    it('publishes a later bundle completely, including rounds it carried over unchanged', async () => {
+      const first = `test-${randomUUID()}`;
+      const second = `test-${randomUUID()}`;
+      const carried = careerLine(newKey(), e);
+      const fresh = careerLine(newKey(), e);
+      const importer = moduleRef.get(ImportQuestionBundle);
+      await importer.importBundle(bundle(first, [carried]));
+      await importer.importBundle(bundle(second, [carried, fresh]));
+
+      await expect(questionBank.publishQuestionsOfBundle(second)).resolves.toMatchObject({ publishedCount: 2 });
+      const statuses = await prisma.question.findMany({
+        where: { externalKey: { in: [carried.externalKey, fresh.externalKey] } },
+        select: { status: true },
+      });
+      expect(statuses.map((row) => row.status)).toEqual(['PUBLISHED', 'PUBLISHED']);
     });
 
     it('refuses a bundle that was never imported', async () => {
@@ -283,6 +271,14 @@ describe('serving content to battles', () => {
         expect.objectContaining({ id, kind: 'NATIONAL_TEAM', names: e.spain.names }),
       ]);
       await expect(catalog.findEntitiesByIds([])).resolves.toEqual([]);
+    });
+
+    it('offers popular wrong answers of the same kind, never an accepted one', async () => {
+      const spain = await entityId(e.spain.externalRef);
+      const decoys = await catalog.findDecoyEntityIds('PLAYER', [await entityId(e.ronaldo.externalRef)], 50);
+      expect(decoys).toContain(await entityId(e.nani.externalRef));
+      expect(decoys).not.toContain(await entityId(e.ronaldo.externalRef));
+      expect(decoys).not.toContain(spain);
     });
   });
 });

@@ -265,7 +265,7 @@ prediction_revisions (
   UQ (prediction_id, revision)
 prediction_scores (
   prediction_id uuid FK → predictions,
-  rule_set_id uuid FK → scoring_rule_sets,
+  rule_set_id uuid NULL FK → scoring_rule_sets,   -- NULL until the points module exists (P6.5)
   match_result_version int,             -- which matches.result_version was scored
   points int, breakdown jsonb,          -- per pick_type explanation for the UI
   calculated_at timestamptz,
@@ -436,10 +436,10 @@ battles (
   id uuid PK, status battle_status,
   mode battle_mode,
   game_type battle_game_type,
-  room_id uuid NULL FK → battle_rooms,  -- set when mode = ROOM
+  room_id uuid NULL FK → battle_rooms,  -- set when mode = ROOM; the FK is added with rooms (P8)
   has_bot boolean DEFAULT false,
   config jsonb,                         -- snapshot of the game type's config (08 §6) + engine timers
-  rule_set_id uuid FK → scoring_rule_sets,
+  rule_set_id uuid NULL FK → scoring_rule_sets,   -- NULL until the points module exists (P6.5)
   created_at timestamptz, ready_deadline_at timestamptz,
   started_at timestamptz NULL, ended_at timestamptz NULL,
   end_reason text NULL,                 -- COMPLETED | FORFEIT | ABANDONED | CANCELLED
@@ -456,6 +456,7 @@ battle_participants (
   user_id uuid NULL FK → users,         -- humans only
   bot_profile text NULL,                -- key into bot config (DEC-43); bots only
   bot_display jsonb NULL,               -- snapshot of the bot's display name/avatar per locale
+  locale text,                          -- fixed at creation: clue text and entity names are sent in it
   seat smallint,
   ready_at timestamptz NULL, score int DEFAULT 0,
   placement smallint NULL,              -- 1 = best; ties share a placement (DEC-33)
@@ -531,7 +532,7 @@ point_entries (
   source_type text,                     -- PREDICTION | MOTM_VOTE | BATTLE_PARTICIPANT
   source_id uuid,                       -- prediction id, battle participant id...
   source_revision int DEFAULT 0,        -- e.g. matches.result_version used for the score
-  rule_set_id uuid FK → scoring_rule_sets,
+  rule_set_id uuid NULL FK → scoring_rule_sets,   -- NULL until the points module exists (P6.5)
   points int,
   occurred_at timestamptz,              -- business time: match end, battle end
   recorded_at timestamptz DEFAULT now(),

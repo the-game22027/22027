@@ -416,7 +416,7 @@ Wikidata ──(1) ingest──► football_kb ──(2) bundle──► dev-000
 
 ## 13. جرب بنفسك
 
-الأوامر دي من جوه `apps/backend`، و `dev-0002` محتاج PR #31 يتدمج:
+الأوامر دي من جوه `apps/backend`، والأوامر دي من جوه `apps/backend`:
 
 <div dir="ltr">
 
@@ -426,8 +426,8 @@ npm run start:worker:dev
 npm run start:api:dev
 npm run cli -- --help
 npm run cli -- mock:run-day --speed 6000x
-npm run cli -- questions:import ../../data/bundles/dev-0002
-npm run cli -- questions:publish dev-0002 --include-drafts
+npm run cli -- questions:import ../../data/bundles/dev-0004
+npm run cli -- questions:publish dev-0004 --include-drafts
 ```
 
 </div>

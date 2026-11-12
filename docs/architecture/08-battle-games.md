@@ -92,6 +92,11 @@ stateDiagram-v2
 - `CAREER`: the spells in order (`clubEntityId`, `fromYear`, `toYear`). Club names are rendered from the answer catalog in each player's locale, so no translation is needed. Loans are kept; consecutive spells at the same club are merged; youth teams are dropped (config in the pipeline).
 - `WHO_IS_PLAYER`: an ordered list of clues, each with a `kind` and localized text, hardest first.
 
+**How the engine turns content into steps** (P6.2): one step per spell or clue, in the player's locale.
+- `CAREER`: `Sporting CP (2002–2003)` / `سبورتينغ لشبونة (2002–2003)`. An open spell ends with `present` / `حتى الآن`, and a loan adds `, loan` / `، إعارة` inside the brackets. With `showYears` off, only the club and the loan mark are shown. Club names come from the answer catalog.
+- `WHO_IS_PLAYER`: the clue text as the pipeline wrote it (07 §5.8).
+- `BUZZER`: the steps as written.
+
 ### 3.2 Grid (`GRID`, football tic-tac-toe)
 
 Approved on condition that the data supports it. The 2026-11-10 check passed (`07` §4.1).
@@ -105,6 +110,13 @@ Approved on condition that the data supports it. The 2026-11-10 check passed (`0
 3. **End:** three cells in a line wins the round (`round:result` with the line). A full board, or `maxTurns` reached, is a draw. At the end everyone sees one valid answer per empty cell (`revealAnswersAtEnd`).
 4. **Points:** `points.roundWin`, `points.roundDraw`, plus optional `points.perCell`.
 5. **Players:** exactly 2 (DEC-61). A room can start a `GRID` battle only with 2 members.
+6. **Details (P6.4):**
+   - Who starts is drawn from the battle's seeded random source, so a replay starts the same way.
+   - A turn number counts every turn started. Starting turn `maxTurns + 1` ends the round as a draw (`MAX_TURNS`).
+   - A wrong answer keeps the turn while `attemptsLeft > 0`, with the same deadline; it never uses the player up.
+   - `skipsPerRound: null` means unlimited. With a number, the skip after the last allowed one gives the round to the opponent (`SKIP_LIMIT`).
+   - A participant who leaves mid-round gives it to the other (`FORFEIT`, no points).
+   - Every cell is a slot of `question_answers` (`row * 3 + col`), so `AnswerChecker` judges a claim like any typed answer.
 
 ### 3.3 Bots
 
@@ -113,7 +125,7 @@ Bots exist only in matchmaking (DEC-39), and their behaviour comes from a profil
 | Mechanic | At round start the bot strategy returns | The engine then |
 |---|---|---|
 | Reveal and buzz | `{ buzzAfterStep: k \| null, answersCorrectly, typingDelayMs }`, from `difficulty`, the profile's skill per difficulty, and `stepCount` | Schedules a buzz after step k is revealed (if nobody else holds the buzz), then the answer after `typingDelayMs`: the correct entity, or a wrong entity of the same kind from the catalog |
-| Grid | On each of its turns: `{ cell, answersCorrectly, thinkDelayMs }`, preferring cells that win or block (simple greedy, profile-weighted) | Sends `grid:claim` with a valid unused player, or a wrong one |
+| Grid | On each of its turns: `{ cell, answersCorrectly, thinkDelayMs }`. The cell: one that wins, else one that blocks the opponent's line, else the centre, else a random free cell. Correctness comes from the profile's `knowsAnswerByDifficulty`; the delay from `typingDelayMs` | Sends `grid:claim` with the most popular valid unused player, or a wrong player of the same kind |
 
 Bot commands go through `handleCommand` like human commands. Bots never earn ledger points (DEC-41).
 
@@ -187,6 +199,10 @@ The interface is in `01-modules.md` §2.6. All of it is server side; the game ru
 
 **Question reports** (`POST /v1/questions/{id}/reports`) move to P6. They may only accept content the caller was served in a battle, and that needs `battle_rounds`.
 
+### 2.4 Round runners (P6.4)
+
+The engine (`LiveBattle`) owns the battle; one **round runner** per mechanic owns a round. `RevealRoundRunner` serves `BUZZER`, `CAREER` and `WHO_IS_PLAYER`; `GridRoundRunner` serves `GRID`. A runner wraps its pure rules, renders its events per viewer, drives its bot and builds its part of the snapshot. It calls back into the battle to emit, schedule timers, record actions and end the round. Picking the runner from the content's game type is the registry of §2.2; nothing else in the engine looks at the game type.
+
 ## 6. Configuration (per game type)
 
 Stored in the battle config by game type, snapshotted on the battle row at creation (as today). Dev seeds use obviously fake `DEV_ONLY` values. Product values are picked at playtesting.
@@ -195,12 +211,15 @@ Stored in the battle config by game type, snapshotted on the battle row at creat
 |---|---|---|
 | `roundCount` | all | DEC-31 |
 | `revealIntervalMs`, `resumeDelayMs`, `answerWindowMs`, `finalWindowMs`, `attemptsPerPlayer` | reveal and buzz | DEC-54 |
-| `turnMs`, `attemptsPerTurn`, `skipsPerRound`, `maxTurns`, `minAnswersPerCell`, `revealAnswersAtEnd` | grid | DEC-54, DEC-61 |
+| `turnMs`, `attemptsPerTurn`, `skipsPerRound` (`null` = unlimited), `maxTurns`, `minAnswersPerCell`, `revealAnswersAtEnd`, `points.roundWin`, `points.roundDraw`, `points.perCell` | grid | DEC-54, DEC-61 |
 | `showWrongAnswers` | all | DEC-60 |
+| `showYears` | `CAREER` | DEC-54 |
 | `room.difficultyLevels` (`EASY`, `MEDIUM`, `HARD` → difficulty ranges) | rooms | DEC-64 |
 | `points.*` | all | DEC-33 |
-| `latencyGraceMs`, `readyTimeoutMs`, `reconnectGraceMs` | engine | DEC-32 |
-| `selection.*` (exposure window, difficulty mix) | all | DEC-44 |
+| `latencyGraceMs`, `readyTimeoutMs`, `reconnectGraceMs`, `betweenRoundsMs` (pause after `round:result`) | engine | DEC-32 |
+| `matchmaking.botFallbackAfterMs`, `tickMs`, `queueDisconnectGraceMs` | matchmaking | DEC-39 |
+| `bots.profiles.*` (`knowsAnswerByDifficulty`, `guessChance`, `buzzAtShareOfSteps`, `reactionDelayMs`, `typingDelayMs`) | bots | DEC-43 |
+| `selection.*` (`excludeLastBattles`, `difficulties`) | all | DEC-44 |
 
 ## 8. Question topics and difficulty in private rooms (ADR-0019, DEC-64)
 

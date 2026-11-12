@@ -269,7 +269,7 @@ A bundle is a directory `data/bundles/<bundleVersion>/` with two files:
    - same content hash → nothing changes, except that newly reviewed locales are recorded and a `DRAFT` whose locales are now all reviewed becomes `APPROVED` (a review never goes backwards);
    - different content hash and the question was **never published** (`published_at` is null) and is `DRAFT` or `APPROVED` → its content is replaced in place and its status is derived again from the review flags;
    - different content hash otherwise → the old version is `DISABLED` with reason `SUPERSEDED` (if it was not already disabled) and a new row with `key_version + 1` is inserted. A question that could have been served is never changed, so battle history stays true. "Could have been served" is judged by `published_at`, because answer statistics arrive only after a battle ends.
-5. `questions:publish <bundleVersion>`: the bundle's `APPROVED` questions → `PUBLISHED` (`08` §5.6).
+5. `questions:publish <bundleVersion>`: the bundle's `APPROVED` questions → `PUBLISHED` (`08` §5.6). A question belongs to the **last bundle that contained it** (`import_batch_id` moves on import even when nothing else changes), so publishing a new bundle covers the rounds it carried over unchanged.
 6. `questions:disable <questionId> --reason <text>` for reported or wrong questions; selection excludes them immediately.
 
 Regeneration = new bundle version. Rollback = disable a batch.
@@ -352,6 +352,28 @@ The first generated bundle. Its purpose: P6.1 needs published game content to pl
 | `nationality` | Which country / does {player} / represent / by citizenship? | Every citizenship of the player (`COUNTRY`) | No citizenship in the catalog |
 
 The giveaway check of §5.5 runs here too: a round whose steps contain the answer's name is dropped.
+
+**`WHO_IS_PLAYER` rounds (P6.2):** built only from facts the knowledge base has (no positions or trophies yet). The clues go from hardest to easiest; a player needs at least 4 of them:
+
+| Clue `kind` | EN | AR | Skipped when |
+|---|---|---|---|
+| `BIRTH_YEAR` | Born in 1985 | من مواليد 1985 | Unknown birth year |
+| `CLUB_COUNT` | Senior clubs: 6 | عدد أنديته: 6 | — |
+| `FIRST_CLUB` | Started his senior career at Sporting CP | بدأ مسيرته مع سبورتينغ لشبونة | Two spells start the same first year |
+| `LOAN` | Was loaned to Preston North End in 1994 | انتقل معارًا إلى بريستون نورث إيند عام 1994 | No loan |
+| `NATIONALITY` | Nationality: Portugal | الجنسية: البرتغال | No citizenship in the catalog |
+| `LONGEST_SPELL` | At Real Madrid from 2009 to 2018 | في ريال مدريد من 2009 إلى 2018 | — |
+| `LAST_CLUB` | Current club: Al-Nassr / Last club: … | ناديه الحالي: النصر / آخر أنديته: … | — |
+
+The same career rules as `CAREER` apply (dated spells, at most one open spell). Clue counts per round are content; how many a game reveals is the round itself. The giveaway check drops a round whose clues contain the player's name.
+
+**`GRID` rounds (P6.4):** rows are 3 clubs, columns 3 nationalities (criteria `CLUB` and `NATIONALITY`).
+- **Valid players of a cell:** every catalog player with any spell at the club (dated or not) and that citizenship. Answers list them most popular first, so a bot's "correct" pick is the famous one.
+- **Candidates:** the most popular clubs and countries (by how many players they have in the knowledge base). Every combination is tried, and a board is kept only if each cell has at least `--grid-min-answers` players (default 3).
+- **Variety:** a club or a country appears in at most a few boards of one bundle.
+- **Difficulty:** from the emptiest cell: many answers is easy, few is hard.
+- **Key:** `grid:<club qids>:<country qids>` in board order.
+- **Later:** club × club boards ("played for both"), and `COMPETITION_WON` once trophies are ingested.
 
 **Difficulty:** a first guess from popularity (Wikipedia sitelinks). Answer statistics recalibrate it later (`calibrated_difficulty`).
 

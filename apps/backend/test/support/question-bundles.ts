@@ -63,6 +63,20 @@ export const buzzerLine = (
   answers: [{ slot: 0, entities: [e.spain.externalRef] }],
 });
 
+export const whoLine = (key: string, e: Entities) => ({
+  ...common(key),
+  gameType: 'WHO_IS_PLAYER',
+  content: {
+    player: e.ronaldo.externalRef,
+    clues: [
+      { kind: 'BIRTH_YEAR', text: { en: 'Born in 1985', ar: 'من مواليد 1985' } },
+      { kind: 'CLUB_COUNT', text: { en: 'Senior clubs: 6', ar: 'عدد أنديته: 6' } },
+      { kind: 'FIRST_CLUB', text: { en: 'Started his senior career at Sporting', ar: 'بدأ مسيرته مع سبورتنج' } },
+    ],
+  },
+  answers: [{ slot: 0, entities: [e.ronaldo.externalRef] }],
+});
+
 export const bundle = (bundleVersion: string, lines: object[], catalog?: object[]) => {
   const questionsJsonl = Buffer.from(lines.map((value) => JSON.stringify(value)).join('\n') + '\n');
   const catalogJsonl = catalog
@@ -78,4 +92,33 @@ export const bundle = (bundleVersion: string, lines: object[], catalog?: object[
     categories: [{ slug: 'players', names: { en: 'Players', ar: 'لاعبون' } }],
   };
   return { manifestJson: JSON.stringify(manifest), questionsJsonl, catalogJsonl };
+};
+
+/** Three clubs × three countries; every cell has one player, the top-left cell two. */
+export const gridFixture = () => {
+  const id = randomUUID().slice(0, 8);
+  const entity = (name: string, kind: string) => ({
+    externalRef: `test:grid-${name}-${id}`,
+    kind,
+    names: { en: `${name} ${id}`, ar: `${name} ${id}` },
+    aliases: { en: [], ar: [] },
+    popularity: 1,
+    search: [`${name} ${id}`],
+  });
+  const clubs = ['club-a', 'club-b', 'club-c'].map((name) => entity(name, 'CLUB'));
+  const countries = ['land-a', 'land-b', 'land-c'].map((name) => entity(name, 'COUNTRY'));
+  const players = Array.from({ length: 10 }, (_, index) => entity(`player-${String(index)}`, 'PLAYER'));
+  const line = (key: string) => ({
+    ...common(key),
+    gameType: 'GRID',
+    content: {
+      rows: clubs.map((club) => ({ kind: 'CLUB', entity: club.externalRef })),
+      cols: countries.map((country) => ({ kind: 'NATIONALITY', entity: country.externalRef })),
+    },
+    answers: Array.from({ length: 9 }, (_, slot) => ({
+      slot,
+      entities: slot === 0 ? [players[0], players[9]].map((p) => p?.externalRef) : [players[slot]?.externalRef],
+    })),
+  });
+  return { entities: [...clubs, ...countries, ...players], line, players };
 };

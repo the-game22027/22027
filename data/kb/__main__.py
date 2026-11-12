@@ -32,6 +32,9 @@ def main(argv: list[str] | None = None) -> int:
     bundle.add_argument("--out", type=Path, required=True)
     bundle.add_argument("--careers", type=int, default=60)
     bundle.add_argument("--buzzers", type=int, default=60)
+    bundle.add_argument("--who", type=int, default=60, help="who-is-the-player rounds")
+    bundle.add_argument("--grids", type=int, default=30, help="grid (tic-tac-toe) boards")
+    bundle.add_argument("--grid-min-answers", type=int, default=3, help="fewest valid players per grid cell")
     bundle.add_argument(
         "--catalog-min-player-sitelinks",
         type=int,
@@ -67,6 +70,9 @@ def main(argv: list[str] | None = None) -> int:
                 args.careers,
                 args.buzzers,
                 args.catalog_min_player_sitelinks,
+                who_count=args.who,
+                grid_count=args.grids,
+                grid_min_answers=args.grid_min_answers,
             )
             print(
                 f"{args.version}: {summary.question_count} rounds {summary.by_game_type}, "

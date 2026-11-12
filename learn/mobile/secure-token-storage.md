@@ -16,4 +16,4 @@
 - The client does not decide that a token is expired: its clock can be wrong. It sends the token and lets a `401` decide (the server is authoritative).
 
 **Check yourself:** why keep `accessTokenExpiresAt` at all if the server decides?
-<details><summary>Answer</summary>For M1 refresh: the app can refresh shortly before expiry to avoid a failed request, while still treating the server's `401` as the final word.</details>
+<details><summary>Answer</summary>Today it is not used: since M1 the app refreshes only after a `401` (ADR-0017), because the device clock can be wrong. It is kept because the API returns it and a future "refresh a little early" hint could use it, with the `401` still the final word.</details>

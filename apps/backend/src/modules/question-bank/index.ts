@@ -9,4 +9,4 @@ export { AnswerCatalogQuery } from './application/answer-catalog.query';
 export type { CatalogEntityView, ContentSelectionCriteria } from './application/ports/question-read-repository';
 export type { EngineContent, EngineGameBody } from './domain/engine-content';
 export type { TypedAnswerVerdict } from './domain/typed-answer';
-export type { GameType } from './domain/question-content';
+export { GAME_TYPES, type AnswerKind, type EntityKind, type GameType } from './domain/question-content';

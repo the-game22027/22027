@@ -1,0 +1,53 @@
+/**
+ * The contract between the battle engine and a game's rules (08 §2.2): the rules are pure, they get the
+ * round state and an input, and return the new state plus effects that the engine carries out.
+ */
+
+export type ParticipantId = string;
+
+/** What a round's rules ask the engine to do. The engine adds `seq` and `serverTime` to emitted events. */
+export type Effect<Event> =
+  | { type: 'EMIT'; event: Event }
+  | { type: 'SCHEDULE'; timer: string; at: Date }
+  | { type: 'CANCEL'; timer: string }
+  | { type: 'RECORD_ACTION'; action: RoundAction }
+  | { type: 'END_ROUND'; result: RoundResult };
+
+export interface RulesStep<State, Event> {
+  state: State;
+  effects: Effect<Event>[];
+}
+
+/** A command the rules refused; `code` becomes the ack's error code (WEBSOCKET.md §3). */
+export interface Rejection {
+  rejected: true;
+  code: string;
+}
+
+export const reject = (code: string): Rejection => ({ rejected: true, code });
+
+export const isRejection = (value: unknown): value is Rejection =>
+  typeof value === 'object' && value !== null && (value as Rejection).rejected === true;
+
+/** One accepted player action or timeout, persisted to battle_round_actions in this order. */
+export interface RoundAction {
+  participantId: ParticipantId;
+  kind: 'BUZZ' | 'ANSWER' | 'ANSWER_TIMEOUT' | 'GRID_CLAIM' | 'GRID_SKIP' | 'TURN_TIMEOUT';
+  answer?: TypedAnswer;
+  /** Grid only: row * 3 + col. */
+  cell?: number;
+  isCorrect?: boolean;
+  points: number;
+  at: Date;
+}
+
+export type TypedAnswer = { entityId: string } | { number: number };
+
+export interface RoundResult {
+  winnerParticipantId: ParticipantId | null;
+  endReason:
+    'CORRECT' | 'NO_WINNER' | 'ALL_LOCKED_OUT' | 'GRID_LINE' | 'GRID_FULL' | 'MAX_TURNS' | 'SKIP_LIMIT' | 'FORFEIT';
+  /** Points earned in this round, by participant; missing means 0. */
+  points: Record<ParticipantId, number>;
+  stepsRevealed: number;
+}

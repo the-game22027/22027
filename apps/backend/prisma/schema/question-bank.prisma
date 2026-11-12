@@ -95,6 +95,7 @@ model Question {
   translations QuestionTranslation[]
   options      QuestionOption[]
   answers      QuestionAnswer[]
+  battleRounds BattleRound[]
 
   @@unique([externalKey, keyVersion])
   @@index([status, difficulty, categoryId])
@@ -173,8 +174,9 @@ model AnswerEntity {
   status         String     @default("ACTIVE")
   updatedAt      DateTime   @map("updated_at") @db.Timestamptz(3)
 
-  aliases AnswerEntityAlias[]
-  answers QuestionAnswer[]
+  aliases       AnswerEntityAlias[]
+  answers       QuestionAnswer[]
+  battleActions BattleRoundAction[]
 
   @@index([kind])
   @@map("answer_entities")

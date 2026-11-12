@@ -207,6 +207,14 @@ export class PrismaQuestionImportRepository implements QuestionImportRepository 
     await this.insertChildren(questions);
   }
 
+  async moveQuestionsToBatch(questionIds: readonly string[], batchId: string): Promise<void> {
+    if (questionIds.length === 0) return;
+    await this.txHost.tx.question.updateMany({
+      where: { id: { in: [...questionIds] } },
+      data: { importBatchId: batchId },
+    });
+  }
+
   async recordReviews(updates: readonly ReviewUpdate[], at: Date): Promise<void> {
     const { tx } = this.txHost;
     for (const { questionId, newlyReviewedLocales, approve } of updates) {
