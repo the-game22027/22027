@@ -5,6 +5,7 @@ import { FootballModule } from '@modules/football';
 import { LeaderboardsModule } from '@modules/leaderboards';
 import { PredictionsModule } from '@modules/predictions';
 import { QuestionBankModule } from '@modules/question-bank';
+import { SocialModule } from '@modules/social';
 import type { AppConfig } from '@shared/infrastructure/config';
 import { CoreModule } from '@shared/infrastructure/core.module';
 import { DevModule } from '@shared/infrastructure/dev/dev.module';
@@ -26,6 +27,7 @@ export class ApiModule {
         QuestionBankModule,
         BattlesModule.register(config),
         LeaderboardsModule,
+        SocialModule,
         ...(config.devToolsEnabled ? [DevModule] : []),
       ],
     };
