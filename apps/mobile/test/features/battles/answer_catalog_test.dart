@@ -8,6 +8,7 @@ import 'package:the_game/core/errors/app_error.dart';
 import 'package:the_game/features/battles/application/answer_catalog_controller.dart';
 import 'package:the_game/features/battles/data/answer_catalog.dart';
 import 'package:the_game/features/battles/data/answer_catalog_data_sources.dart';
+import 'package:the_game/features/battles/data/answer_catalog_repository.dart';
 
 import '../../helpers/fake_http_adapter.dart';
 import '../../helpers/test_overrides.dart';
@@ -154,6 +155,27 @@ void main() {
         expect((await controller.revalidateBeforePlaying()).version, 'v1');
       },
     );
+
+    test('two loads at once share one download and one write', () async {
+      adapter = FakeHttpAdapter((_) => catalogResponse('"v1"'));
+      final container = await createSignedInTestContainer(
+        adapter,
+        extraOverrides: [
+          answerCatalogFileStoreProvider.overrideWithValue(
+            AnswerCatalogFileStore(() async => directory),
+          ),
+        ],
+      );
+      final repository = container.read(answerCatalogRepositoryProvider);
+
+      final catalogs = await Future.wait([
+        repository.loadLatestAnswerCatalog(),
+        repository.loadLatestAnswerCatalog(),
+      ]);
+
+      expect(adapter.sentRequests, hasLength(1));
+      expect(catalogs.first, same(catalogs.last));
+    });
 
     test('a body that breaks the contract is not stored', () async {
       adapter = FakeHttpAdapter(

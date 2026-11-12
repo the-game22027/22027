@@ -19,11 +19,17 @@ class AnswerCatalogRepository {
 
   StoredAnswerCatalog? _storedCatalog;
   AnswerCatalog? _parsedCatalog;
+  Future<AnswerCatalog>? _loadInProgress;
 
   /// Asks the server whether the phone's copy is current (a `304` costs a few bytes) and
   /// returns the latest catalog. Offline, the stored copy is used: an older catalog still
   /// lets the player answer. Without any copy, the network error is thrown.
-  Future<AnswerCatalog> loadLatestAnswerCatalog() async {
+  ///
+  /// Calls made while a load runs share it: two downloads would write the same files.
+  Future<AnswerCatalog> loadLatestAnswerCatalog() => _loadInProgress ??=
+      _loadLatestAnswerCatalog().whenComplete(() => _loadInProgress = null);
+
+  Future<AnswerCatalog> _loadLatestAnswerCatalog() async {
     _storedCatalog ??= await _fileStore.readStoredCatalog();
     final AnswerCatalogDownload download;
     try {
