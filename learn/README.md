@@ -169,3 +169,5 @@ About 35 minutes in total. Cards marked *later* explain tools we have not needed
 | [database/trigram-search](database/trigram-search.md) | P7 | `pg_trgm` makes `ILIKE '%text%'` indexable; escape `%` and `_` |
 | [redis/peek-then-take](redis/peek-then-take.md) | P7 | Read, decide with outside data, then take atomically only if unchanged |
 | [backend/graceful-shutdown](backend/graceful-shutdown.md) | P7 | Refuse new work, finish queued work, then close the database |
+| [database/raw-landing-zone](database/raw-landing-zone.md) | D.3a | Keep outside files exactly as they arrived, with a checksum; clean in a later step |
+| [database/copy-for-bulk-loads](database/copy-for-bulk-loads.md) | D.3a | `COPY … FROM STDIN` streams millions of rows; build names with `sql.Identifier` |
