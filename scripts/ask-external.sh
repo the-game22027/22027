@@ -4,7 +4,7 @@
 #
 #   scripts/ask-external.sh --model <model> --prompt "<task>"
 #   scripts/ask-external.sh --model <model> --prompt-file task.txt
-#   echo "<task>" | scripts/ask-external.sh --model <model>
+#   scripts/ask-external.sh --model <model> <<'TASK' ... TASK
 #   scripts/ask-external.sh --list-models
 #
 # Exit codes: 0 ok, 2 bad usage, 3 Cursor not logged in, 4 cursor-agent missing, 124 timeout, other = cursor-agent's.
@@ -17,18 +17,36 @@ model=""
 prompt=""
 list_models=false
 
-usage() { sed -n '2,11p' "$0" | sed 's/^# \{0,1\}//' >&2; exit 2; }
+usage() {
+  [[ $# -gt 0 ]] && echo "$1" >&2
+  sed -n '2,11p' "$0" | sed 's/^# \{0,1\}//' >&2
+  exit 2
+}
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --model) model="${2:-}"; shift 2 ;;
-    --prompt) prompt="${2:-}"; shift 2 ;;
-    --prompt-file) prompt="$(cat "${2:?--prompt-file needs a path}")"; shift 2 ;;
+    --model)
+      [[ $# -ge 2 ]] || usage "--model needs a value"
+      model="$2"; shift 2 ;;
+    --prompt)
+      [[ $# -ge 2 ]] || usage "--prompt needs a value"
+      prompt="$2"; shift 2 ;;
+    --prompt-file)
+      [[ $# -ge 2 && -r "$2" ]] || usage "--prompt-file needs a readable file"
+      prompt="$(cat -- "$2")"; shift 2 ;;
     --list-models) list_models=true; shift ;;
     -h|--help) usage ;;
-    *) echo "unknown argument: $1" >&2; usage ;;
+    *) usage "unknown argument: $1" ;;
   esac
 done
+
+if ! $list_models; then
+  [[ -n "$model" ]] || usage "--model is required"
+  if [[ -z "$prompt" && ! -t 0 ]]; then
+    prompt="$(cat)"
+  fi
+  [[ -n "$prompt" ]] || usage "a prompt is required (--prompt, --prompt-file or stdin)"
+fi
 
 if ! command -v cursor-agent >/dev/null 2>&1; then
   echo "cursor-agent is not installed (https://cursor.com/cli)" >&2
@@ -43,19 +61,15 @@ if $list_models; then
   exec cursor-agent --list-models
 fi
 
-[[ -n "$model" ]] || { echo "--model is required" >&2; usage; }
-if [[ -z "$prompt" && ! -t 0 ]]; then
-  prompt="$(cat)"
-fi
-[[ -n "$prompt" ]] || { echo "a prompt is required (--prompt, --prompt-file or stdin)" >&2; usage; }
-
-# --mode ask is Cursor's read-only mode: the external model can read the repo but not edit files or run
-# commands. Its answer comes back as text; Claude applies any change, and the reviewer checks it first.
+# Read-only twice over: --mode ask is Cursor's no-edit mode, and the sandbox blocks writes if a tool slips through.
+# Never add --force/--yolo here. Claude applies any suggested change, after the reviewer has checked it.
+# `--` ends the options, so a task that starts with "-" (a Markdown bullet) is still read as the prompt.
 exec timeout "${ASK_EXTERNAL_TIMEOUT:-600}" cursor-agent \
   --print \
   --output-format text \
   --mode ask \
+  --sandbox enabled \
   --trust \
   --workspace "$repo_root" \
   --model "$model" \
-  "$prompt"
+  -- "$prompt"

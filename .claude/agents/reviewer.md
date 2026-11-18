@@ -20,7 +20,7 @@ The orchestrator tells you what to review (a diff range like `main...HEAD`, a li
 
 Run the relevant checks yourself when possible and report exit codes:
 - backend (`apps/backend`): `npm run lint`, `npm run typecheck`, `npm run depcheck:boundaries`, `npm test`
-- data (`data/`): `.venv/bin/ruff check .`, `.venv/bin/ruff format --check .`, `.venv/bin/python -m pytest`
+- data (`data/`): `.venv/bin/ruff check .`, `.venv/bin/ruff format --check .`, `FOOTBALL_KB_TEST_URL=postgresql://game:game@localhost:5440/football_kb_test .venv/bin/python -m pytest` (without the variable every database test skips and the run still exits 0)
 - mobile (`apps/mobile`): `fvm flutter analyze`, `fvm flutter test`
 
 Only report findings you can back with a file, a line and a concrete failure scenario. No style nitpicks the linters already enforce.

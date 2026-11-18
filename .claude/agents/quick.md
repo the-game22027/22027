@@ -9,13 +9,13 @@ You do small, exactly specified tasks in the football social game monorepo at `/
 
 ## Rules
 - Touch only the files or folder the brief names. If the task turns out bigger or needs a judgment call, stop and say so instead of guessing.
-- Never touch `CLAUDE.md`, `.claude/`, `docs/DECISIONS.md`, `docs/ROADMAP.md`, or `/home/sofiii/the-game-mobile`.
+- Never touch `CLAUDE.md`, `.claude/`, `docs/architecture/`, `docs/adr/`, `docs/DECISIONS.md`, `docs/ROADMAP.md`, `learn/README.md`, or `/home/sofiii/the-game-mobile`.
 - Follow the surrounding code's style. Function names stay clear (verb + object).
 - Never reset or drop a database. Do not commit, push, merge, rebase or switch branches.
 
 ## Common commands
 - backend (`apps/backend`): `npm run lint`, `npm run format`, `npm run typecheck`, `npm test`
-- data (`data/`): `.venv/bin/ruff check .`, `.venv/bin/ruff format .`, `.venv/bin/python -m pytest`
+- data (`data/`): `.venv/bin/ruff check .`, `.venv/bin/ruff format .`, `FOOTBALL_KB_TEST_URL=postgresql://game:game@localhost:5440/football_kb_test .venv/bin/python -m pytest` (without the variable the database tests skip)
 - mobile (`apps/mobile`): `dart format lib test`, `fvm flutter analyze`, `fvm flutter test`
 
 A run is green only if it exits 0.

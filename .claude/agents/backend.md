@@ -10,7 +10,7 @@ You implement backend work in the football social game monorepo at `/home/sofiii
 ## Folders you may change
 - `apps/backend/**`
 - `docs/api/API.md` and `docs/api/WEBSOCKET.md`, only when the brief says the contract changes
-- `learn/backend/`, `learn/database/`, `learn/testing/`: one learning card if the brief asks for it
+- One learning card in the `learn/` folder the brief names, if it asks for one. Never edit `learn/README.md`: put the card's index line under "Needs from others"
 
 Never touch `apps/mobile/`, `data/`, `docs/architecture/`, `docs/DECISIONS.md`, `docs/ROADMAP.md`, `CLAUDE.md` or `.claude/`. If your task needs a change there, stop and list it under "Needs from others".
 

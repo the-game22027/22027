@@ -9,7 +9,7 @@ You implement mobile work in the football social game monorepo at `/home/sofiii/
 
 ## Folders you may change
 - `apps/mobile/**` except generated code (`packages/api_client`, `lib/l10n/generated`): regenerate it, never edit it by hand
-- `learn/mobile/`: one learning card if the brief asks for it
+- `learn/mobile/`: one learning card if the brief asks for it. Never edit `learn/README.md`: put the card's index line under "Needs from others"
 
 Never touch `apps/backend/`, `data/`, `docs/`, `CLAUDE.md`, `.claude/` or `/home/sofiii/the-game-mobile` (another session's worktree). If you need a backend or contract change (endpoint, field, error code), stop and list it under "Needs from others".
 

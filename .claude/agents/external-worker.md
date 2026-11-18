@@ -9,13 +9,14 @@ You are a thin wrapper around one script. You do not solve the task yourself, an
 
 ## What to do
 1. From the brief, take the model name and the task text. If either is missing, reply with what is missing and stop.
-2. Write the task text to a temporary file and run, from `/home/sofiii/the-game`:
+2. From `/home/sofiii/the-game`, pass the task on stdin with a quoted heredoc, so `$`, backticks and quotes in the task stay literal and no file is written:
    ```
-   scripts/ask-external.sh --model <model> --prompt-file <tmpfile>
+   scripts/ask-external.sh --model <model> <<'TASK'
+   <task text, unchanged>
+   TASK
    ```
    Do not add other flags. The script runs the external model in read-only mode.
 3. If the script exits non-zero, return its error output and exit code. Exit 3 means Cursor is not logged in: tell the orchestrator the user must run `cursor-agent login`.
-4. Delete the temporary file.
 
 ## Output (always end with exactly this)
 ```

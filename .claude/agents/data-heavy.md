@@ -11,7 +11,7 @@ Read the governing design first: `docs/architecture/07-football-data-and-questio
 
 ## Folders you may change
 - `data/**`
-- `learn/database/`: one learning card if the brief asks for it
+- One learning card in the `learn/` folder the brief names, if it asks for one. Never edit `learn/README.md`: put the card's index line under "Needs from others"
 
 Never touch `apps/`, `docs/`, `CLAUDE.md` or `.claude/`; list needed changes under "Needs from others".
 

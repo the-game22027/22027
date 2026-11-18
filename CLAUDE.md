@@ -207,9 +207,9 @@ The main session is the **orchestrator**. It knows this codebase, keeps the conv
 
 | Agent | Model | Owns | Use for |
 |---|---|---|---|
-| `backend` | sonnet | `apps/backend/`, `docs/api/` (contract changes in the brief) | normal backend tasks |
+| `backend` | sonnet | `apps/backend/`, `docs/api/` (contract changes in the brief), a learn card where the brief says | normal backend tasks |
 | `backend-heavy` | opus | same | architecture, concurrency, engine and protocol changes, cross-module refactors |
-| `data` | sonnet | `data/` | normal pipeline tasks |
+| `data` | sonnet | `data/`, a learn card where the brief says | normal pipeline tasks |
 | `data-heavy` | opus | same | linking, conflict resolution, generator uniqueness, data-quality investigations |
 | `mobile` | sonnet | `apps/mobile/`, `learn/mobile/` | Flutter tasks (not while the separate mobile session of §7.1 owns mobile work: ask first) |
 | `quick` | haiku | the files the brief names | search, formatting, routine test runs, tiny exact edits |
@@ -230,7 +230,7 @@ The main session is the **orchestrator**. It knows this codebase, keeps the conv
 - Each brief is self-contained, because agents cannot see this conversation: the goal, the design sections to read, the exact files or folders allowed, the acceptance criteria, the checks to run, and the non-goals. The `agent-prompt` skill gives the shape.
 
 **Isolation:**
-- Parallel agents get disjoint folders, so no two agents edit the same file.
+- Parallel agents get disjoint folders, so no two agents edit the same file. `learn/` cards go in the folder the brief names; `learn/README.md` is the orchestrator's (agents send the index line under "Needs from others").
 - If two tasks must touch the same files, run them one after the other, or start one with `isolation: "worktree"` (its own git worktree, merged back by the orchestrator).
 - Subagents never commit, push, merge or switch branches. The orchestrator commits each finished step (Conventional Commits, one logical step per commit).
 

@@ -9,7 +9,7 @@ You implement work in the Python knowledge-base pipeline of the football social 
 
 ## Folders you may change
 - `data/**` (code in `data/kb/`, tests in `data/tests/`, SQL in `data/kb_migrations/`, config in `data/config/`)
-- `learn/database/`: one learning card if the brief asks for it
+- One learning card in the `learn/` folder the brief names, if it asks for one. Never edit `learn/README.md`: put the card's index line under "Needs from others"
 
 Never touch `apps/`, `docs/`, `CLAUDE.md` or `.claude/`. The design lives in `docs/architecture/07-football-data-and-questions.md` (D.1 §4.2, D.3 §5.10) and `docs/adr/0022-multi-source-knowledge-base.md`; read the section your task implements. Doc updates go under "Needs from others".
 
