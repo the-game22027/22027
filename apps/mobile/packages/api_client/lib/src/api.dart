@@ -11,9 +11,12 @@ import 'package:api_client/src/api/auth_api.dart';
 import 'package:api_client/src/api/battles_api.dart';
 import 'package:api_client/src/api/dev_api.dart';
 import 'package:api_client/src/api/football_api.dart';
+import 'package:api_client/src/api/leaderboards_api.dart';
 import 'package:api_client/src/api/me_api.dart';
 import 'package:api_client/src/api/ops_api.dart';
 import 'package:api_client/src/api/predictions_api.dart';
+import 'package:api_client/src/api/questions_api.dart';
+import 'package:api_client/src/api/social_api.dart';
 
 class ApiClient {
   static const String basePath = r'http://localhost';
@@ -162,6 +165,12 @@ class ApiClient {
     return FootballApi(dio);
   }
 
+  /// Get LeaderboardsApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  LeaderboardsApi getLeaderboardsApi() {
+    return LeaderboardsApi(dio);
+  }
+
   /// Get MeApi instance, base route and serializer can be overridden by a given but be careful,
   /// by doing that all interceptors will not be executed
   MeApi getMeApi() {
@@ -178,5 +187,17 @@ class ApiClient {
   /// by doing that all interceptors will not be executed
   PredictionsApi getPredictionsApi() {
     return PredictionsApi(dio);
+  }
+
+  /// Get QuestionsApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  QuestionsApi getQuestionsApi() {
+    return QuestionsApi(dio);
+  }
+
+  /// Get SocialApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  SocialApi getSocialApi() {
+    return SocialApi(dio);
   }
 }

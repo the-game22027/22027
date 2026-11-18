@@ -81,6 +81,9 @@ Class | Method | HTTP request | Description
 [*FootballApi*](doc/FootballApi.md) | [**footballControllerMatchV1**](doc/FootballApi.md#footballcontrollermatchv1) | **GET** /v1/matches/{matchId} | 
 [*FootballApi*](doc/FootballApi.md) | [**footballControllerMatchesV1**](doc/FootballApi.md#footballcontrollermatchesv1) | **GET** /v1/matches | 
 [*FootballApi*](doc/FootballApi.md) | [**footballControllerSquadsV1**](doc/FootballApi.md#footballcontrollersquadsv1) | **GET** /v1/matches/{matchId}/squads | 
+[*LeaderboardsApi*](doc/LeaderboardsApi.md) | [**leaderboardsControllerMyRankV1**](doc/LeaderboardsApi.md#leaderboardscontrollermyrankv1) | **GET** /v1/leaderboards/{kind}/{periodKey}/me | 
+[*LeaderboardsApi*](doc/LeaderboardsApi.md) | [**leaderboardsControllerPageV1**](doc/LeaderboardsApi.md#leaderboardscontrollerpagev1) | **GET** /v1/leaderboards/{kind}/{periodKey} | 
+[*LeaderboardsApi*](doc/LeaderboardsApi.md) | [**leaderboardsControllerPeriodsV1**](doc/LeaderboardsApi.md#leaderboardscontrollerperiodsv1) | **GET** /v1/leaderboards/periods | 
 [*MeApi*](doc/MeApi.md) | [**meControllerDeleteMeV1**](doc/MeApi.md#mecontrollerdeletemev1) | **DELETE** /v1/me | 
 [*MeApi*](doc/MeApi.md) | [**meControllerGetMeV1**](doc/MeApi.md#mecontrollergetmev1) | **GET** /v1/me | 
 [*MeApi*](doc/MeApi.md) | [**meControllerUpdateMeV1**](doc/MeApi.md#mecontrollerupdatemev1) | **PATCH** /v1/me | 
@@ -88,6 +91,21 @@ Class | Method | HTTP request | Description
 [*OpsApi*](doc/OpsApi.md) | [**healthControllerReady**](doc/OpsApi.md#healthcontrollerready) | **GET** /health/ready | 
 [*PredictionsApi*](doc/PredictionsApi.md) | [**predictionsControllerGetOwnV1**](doc/PredictionsApi.md#predictionscontrollergetownv1) | **GET** /v1/matches/{matchId}/prediction | 
 [*PredictionsApi*](doc/PredictionsApi.md) | [**predictionsControllerSubmitV1**](doc/PredictionsApi.md#predictionscontrollersubmitv1) | **PUT** /v1/matches/{matchId}/prediction | 
+[*PredictionsApi*](doc/PredictionsApi.md) | [**visiblePredictionsControllerFriendsForMatchV1**](doc/PredictionsApi.md#visiblepredictionscontrollerfriendsformatchv1) | **GET** /v1/matches/{matchId}/predictions/friends | 
+[*PredictionsApi*](doc/PredictionsApi.md) | [**visiblePredictionsControllerOfUserV1**](doc/PredictionsApi.md#visiblepredictionscontrollerofuserv1) | **GET** /v1/users/{userId}/predictions | A page can hold fewer than &#x60;limit&#x60;: predictions before kickoff are skipped, the cursor stays exact.
+[*QuestionsApi*](doc/QuestionsApi.md) | [**questionReportsControllerReportV1**](doc/QuestionsApi.md#questionreportscontrollerreportv1) | **POST** /v1/questions/{questionId}/reports | 204 also for a repeat: the player&#39;s first report stays (08 §5.7).
+[*SocialApi*](doc/SocialApi.md) | [**friendRequestsControllerAcceptV1**](doc/SocialApi.md#friendrequestscontrolleracceptv1) | **POST** /v1/friend-requests/{requestId}/accept | 
+[*SocialApi*](doc/SocialApi.md) | [**friendRequestsControllerCancelV1**](doc/SocialApi.md#friendrequestscontrollercancelv1) | **DELETE** /v1/friend-requests/{requestId} | 
+[*SocialApi*](doc/SocialApi.md) | [**friendRequestsControllerDeclineV1**](doc/SocialApi.md#friendrequestscontrollerdeclinev1) | **POST** /v1/friend-requests/{requestId}/decline | 
+[*SocialApi*](doc/SocialApi.md) | [**friendRequestsControllerListV1**](doc/SocialApi.md#friendrequestscontrollerlistv1) | **GET** /v1/friend-requests | 
+[*SocialApi*](doc/SocialApi.md) | [**friendRequestsControllerSendV1**](doc/SocialApi.md#friendrequestscontrollersendv1) | **POST** /v1/friend-requests | 201 for a new request; 200 with the same request when it was already pending (03 §7.1).
+[*SocialApi*](doc/SocialApi.md) | [**myConnectionsControllerBlockV1**](doc/SocialApi.md#myconnectionscontrollerblockv1) | **PUT** /v1/me/blocks/{userId} | 
+[*SocialApi*](doc/SocialApi.md) | [**myConnectionsControllerBlocksV1**](doc/SocialApi.md#myconnectionscontrollerblocksv1) | **GET** /v1/me/blocks | 
+[*SocialApi*](doc/SocialApi.md) | [**myConnectionsControllerFriendsV1**](doc/SocialApi.md#myconnectionscontrollerfriendsv1) | **GET** /v1/me/friends | 
+[*SocialApi*](doc/SocialApi.md) | [**myConnectionsControllerUnblockV1**](doc/SocialApi.md#myconnectionscontrollerunblockv1) | **DELETE** /v1/me/blocks/{userId} | 
+[*SocialApi*](doc/SocialApi.md) | [**myConnectionsControllerUnfriendV1**](doc/SocialApi.md#myconnectionscontrollerunfriendv1) | **DELETE** /v1/me/friends/{userId} | 
+[*SocialApi*](doc/SocialApi.md) | [**userDirectoryControllerProfileV1**](doc/SocialApi.md#userdirectorycontrollerprofilev1) | **GET** /v1/users/{userId} | 
+[*SocialApi*](doc/SocialApi.md) | [**userDirectoryControllerSearchV1**](doc/SocialApi.md#userdirectorycontrollersearchv1) | **GET** /v1/users | 
 
 
 ## Documentation For Models
@@ -95,25 +113,40 @@ Class | Method | HTTP request | Description
  - [AuthTokensDto](doc/AuthTokensDto.md)
  - [CompetitionDto](doc/CompetitionDto.md)
  - [CompetitionListDto](doc/CompetitionListDto.md)
+ - [ConnectedUserDto](doc/ConnectedUserDto.md)
+ - [ConnectedUserPageDto](doc/ConnectedUserPageDto.md)
  - [DevSignInDto](doc/DevSignInDto.md)
  - [DeviceDto](doc/DeviceDto.md)
+ - [FriendPredictionDto](doc/FriendPredictionDto.md)
+ - [FriendPredictionPageDto](doc/FriendPredictionPageDto.md)
+ - [FriendRequestDto](doc/FriendRequestDto.md)
+ - [FriendRequestPageDto](doc/FriendRequestPageDto.md)
  - [GoogleSignInDto](doc/GoogleSignInDto.md)
  - [IdentityDto](doc/IdentityDto.md)
  - [JoinMatchmakingDto](doc/JoinMatchmakingDto.md)
+ - [LeaderboardPageDto](doc/LeaderboardPageDto.md)
+ - [LeaderboardPeriodDto](doc/LeaderboardPeriodDto.md)
+ - [LeaderboardPeriodListDto](doc/LeaderboardPeriodListDto.md)
+ - [LeaderboardRowDto](doc/LeaderboardRowDto.md)
  - [MatchCompetitionDto](doc/MatchCompetitionDto.md)
  - [MatchDetailDto](doc/MatchDetailDto.md)
  - [MatchPageDto](doc/MatchPageDto.md)
  - [MatchSummaryDto](doc/MatchSummaryDto.md)
  - [MatchmakingTicketDto](doc/MatchmakingTicketDto.md)
  - [MeDto](doc/MeDto.md)
+ - [MyRankDto](doc/MyRankDto.md)
  - [PenaltiesDto](doc/PenaltiesDto.md)
  - [PlayStateBattleDto](doc/PlayStateBattleDto.md)
  - [PlayStateDto](doc/PlayStateDto.md)
  - [PredictionDto](doc/PredictionDto.md)
  - [PredictionPickDto](doc/PredictionPickDto.md)
+ - [PredictionScoreDto](doc/PredictionScoreDto.md)
  - [PrivacyDto](doc/PrivacyDto.md)
+ - [PublicUserDto](doc/PublicUserDto.md)
  - [RefreshDto](doc/RefreshDto.md)
+ - [ReportQuestionDto](doc/ReportQuestionDto.md)
  - [ScoreDto](doc/ScoreDto.md)
+ - [SendFriendRequestDto](doc/SendFriendRequestDto.md)
  - [SessionInfoDto](doc/SessionInfoDto.md)
  - [SquadListDto](doc/SquadListDto.md)
  - [SquadPlayerDto](doc/SquadPlayerDto.md)
@@ -121,6 +154,10 @@ Class | Method | HTTP request | Description
  - [SubmittedPickDto](doc/SubmittedPickDto.md)
  - [TeamDto](doc/TeamDto.md)
  - [UpdateMeDto](doc/UpdateMeDto.md)
+ - [UserProfileDto](doc/UserProfileDto.md)
+ - [UserSearchPageDto](doc/UserSearchPageDto.md)
+ - [VisiblePredictionDto](doc/VisiblePredictionDto.md)
+ - [VisiblePredictionPageDto](doc/VisiblePredictionPageDto.md)
 
 
 ## Documentation For Authorization
