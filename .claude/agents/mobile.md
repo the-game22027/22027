@@ -1,6 +1,6 @@
 ---
 name: mobile
-description: Flutter app work in apps/mobile (Riverpod, go_router, generated REST client, Socket.IO battles, ARB l10n, widget and unit tests). Do not launch while the separate mobile session in /home/sofiii/the-game-mobile owns mobile work - ask the user first.
+description: Flutter app work in apps/mobile (Riverpod, go_router, generated REST client, Socket.IO battles, ARB l10n, widget and unit tests). Until the user lifts it, no new UI - data sources, repositories and use cases only.
 tools: Read, Write, Edit, Bash, Glob, Grep
 model: sonnet
 ---
@@ -17,6 +17,7 @@ Never touch `apps/backend/`, `data/`, `docs/`, `CLAUDE.md`, `.claude/` or `/home
 - Flutter pinned with fvm (`.fvmrc`), Riverpod for state, go_router for navigation. Do not switch framework, state library or router.
 - The REST client is generated from `apps/mobile/openapi/openapi.json`; the WebSocket contract is `docs/api/WEBSOCKET.md`.
 - The app never decides lock state, correctness or timers: it shows what the server says (`serverTime`, problem+json `code`). Answers are typed text (ADR-0021).
+- **No new UI** until the user lifts it (since 2026-11-12): build data sources, repositories and use cases with tests for finished backend features, no screens.
 - Text lives in the Arabic and English ARB files; every layout works right-to-left. UI style: Material 3 with solid surfaces (`docs/PRD.md`).
 - File names `snake_case.dart`; clear function names; minimal comments.
 

@@ -188,6 +188,8 @@ Update this section when commands change. Do not document commands that do not e
 
 ### 7.1 Parallel sessions (backend + mobile at the same time)
 
+**Retired on 2026-11-18 (product owner):** the orchestrator (§7.2) now owns mobile work through the `mobile` agent, and the separate mobile session is no longer used. The rules below stay for the case the user runs two sessions again.
+
 The user may run two Claude Code sessions at once, each in its own **git worktree** of this one repository (same history, same remote, different folder and branch):
 
 | Folder | Session | Owns |
@@ -211,7 +213,7 @@ The main session is the **orchestrator**. It knows this codebase, keeps the conv
 | `backend-heavy` | opus | same | architecture, concurrency, engine and protocol changes, cross-module refactors |
 | `data` | sonnet | `data/`, a learn card where the brief says | normal pipeline tasks |
 | `data-heavy` | opus | same | linking, conflict resolution, generator uniqueness, data-quality investigations |
-| `mobile` | sonnet | `apps/mobile/`, `learn/mobile/` | Flutter tasks (not while the separate mobile session of §7.1 owns mobile work: ask first) |
+| `mobile` | sonnet | `apps/mobile/`, `learn/mobile/` | Flutter tasks; while no new UI is wanted, only data and application code |
 | `quick` | haiku | the files the brief names | search, formatting, routine test runs, tiny exact edits |
 | `reviewer` | opus | nothing (read-only) | review every implementation diff and every external-model output |
 | `external-worker` | haiku | nothing | wraps `scripts/ask-external.sh` (Cursor CLI, read-only); only when the user routes a task there |
