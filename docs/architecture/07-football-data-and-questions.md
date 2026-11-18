@@ -301,7 +301,7 @@ Test vectors (both implementations must pass them):
 | `مُحَمَّد صَلاح` | `محمد صلاح` |
 | `٢٠١٠` | `2010` |
 
-### 5.9 Topics (ADR-0019, D.3)
+### 5.9 Topics (ADR-0020, D.3)
 
 - **What:** each bundle line gets `topics: string[]`, and the manifest lists every topic once: `{ slug, names: { en, ar } }`. A line may only use listed topics (checked on import, like categories).
 - **Tagging rule (DEC-64, recommended):** a round gets every topic it touches.

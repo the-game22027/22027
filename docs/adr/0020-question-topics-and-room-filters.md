@@ -1,4 +1,4 @@
-# ADR-0019: Question topics, and topic and difficulty filters in private rooms
+# ADR-0020: Question topics, and topic and difficulty filters in private rooms
 
 - **Status:** Accepted
 - **Date:** 2026-11-11

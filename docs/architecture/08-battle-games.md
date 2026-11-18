@@ -264,7 +264,7 @@ The in-game `score` (`points.*` above) decides placements inside one battle. **L
 - **Answer lookups:** a cheater could search the web during the answer window. The window is short by design (`answerWindowMs`). Not solvable on the client; accepted.
 - **Monetization hook:** starting play still goes through the two entry use cases only (ADR-0016).
 
-## 8. Question topics and difficulty in private rooms (ADR-0019, DEC-64)
+## 8. Question topics and difficulty in private rooms (ADR-0020, DEC-64)
 
 - **Topics:** every round carries `topics` (07 §5.9), separate from its `category`. "General" plays everything.
 - **Room setup:** in `LOBBY` the host sets `topics` (empty = General) and `difficultyLevel` (`MIXED`, `EASY`, `MEDIUM`, `HARD`; ranges in `room.difficultyLevels`). Members see them in `room:updated`. The battle snapshots them into `battles.config.selection`.
