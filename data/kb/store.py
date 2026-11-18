@@ -22,7 +22,8 @@ def replace_knowledge_base_contents(connection: psycopg.Connection, snapshot: Sn
         )
         with connection.cursor() as cursor:
             cursor.executemany(
-                "INSERT INTO core.entity (external_ref, kind, sitelinks, birth_year) VALUES (%s, %s, %s, %s)",
+                """INSERT INTO core.entity (external_ref, kind, sitelinks, birth_year, origin)
+                   VALUES (%s, %s, %s, %s, 'SCOPE')""",
                 [
                     (ref, entity["kind"], entity["sitelinks"], entity["birth_year"])
                     for ref, entity in snapshot.entities.items()

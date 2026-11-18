@@ -19,11 +19,15 @@ _PARENTHESES = re.compile(r"\([^)]*\)")
 
 
 def load_catalog_entries(connection: psycopg.Connection) -> list[dict]:
-    """Every entity with both an English and an Arabic label, ready to write as catalog lines."""
+    """Every D.1 scope entity with both an English and an Arabic label, ready to write as catalog lines.
+
+    Entities added by linking (origin LINKED) stay out for now: they would raise `sharedBy` and change which
+    typed answers are accepted (DEC-55, ADR-0021).
+    """
     rows = connection.execute(
         """SELECT e.external_ref, e.kind, e.sitelinks, n.locale, n.name, n.name_kind
            FROM core.entity e JOIN core.entity_name n USING (external_ref)
-           WHERE e.kind = ANY(%s)
+           WHERE e.kind = ANY(%s) AND e.origin = 'SCOPE'
            ORDER BY e.external_ref, n.locale, n.name_kind DESC, n.name""",
         (list(CATALOG_KINDS),),
     ).fetchall()
@@ -97,13 +101,13 @@ def write_catalog_file(entries: list[dict], out_dir: Path) -> str:
 
 
 def write_entities_missing_a_name(connection: psycopg.Connection, locale: str, out_file: Path) -> int:
-    """List catalog-kind entities without a label in `locale`, most popular first, for human review."""
+    """List catalog-kind scope entities without a label in `locale`, most popular first, for human review."""
     rows = connection.execute(
         """SELECT e.external_ref, e.kind, e.sitelinks,
                   (SELECT name FROM core.entity_name en
                    WHERE en.external_ref = e.external_ref AND en.locale = 'en' AND en.name_kind = 'LABEL') AS english
            FROM core.entity e
-           WHERE e.kind = ANY(%s)
+           WHERE e.kind = ANY(%s) AND e.origin = 'SCOPE'
              AND NOT EXISTS (SELECT 1 FROM core.entity_name n
                              WHERE n.external_ref = e.external_ref AND n.locale = %s AND n.name_kind = 'LABEL')
            ORDER BY e.sitelinks DESC, e.external_ref""",
