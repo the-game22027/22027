@@ -6,6 +6,8 @@
 level = 1
 # Champions League, the top 5 leagues, World Cup, Euro, AFCON, Copa América
 transfermarkt = ["CL", "GB1", "ES1", "IT1", "L1", "FR1", "FIWC", "EURO", "AFCN", "COPA"]
+# Men's World Cups from 2000 (raw.fjelstul__tournaments); the women's World Cup is out of scope
+fjelstul = ["WC-2002", "WC-2006", "WC-2010", "WC-2014", "WC-2018", "WC-2022"]
 
 [[tiers]]
 level = 2

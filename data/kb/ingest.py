@@ -115,7 +115,7 @@ def _players_of_club_query(club_qid: str) -> str:
 
 
 def _fetch_raw_spells(client: WikidataClient, player_qids: list[str]) -> Iterable[Spell]:
-    for batch in in_batches(player_qids):
+    for batch in split_into_batches(player_qids):
         query = f"""SELECT ?player ?statement ?team ?start ?end ?acquisition WHERE {{
           {values_block("player", batch)}
           ?player p:P54 ?statement . ?statement ps:P54 ?team .
@@ -164,7 +164,7 @@ def fetch_team_facts(client: WikidataClient, team_qids: list[str]) -> dict[str, 
     labels: dict[str, str] = {}
     classes: dict[str, set[str]] = defaultdict(set)
     sitelinks: dict[str, int] = {}
-    for batch in in_batches(team_qids):
+    for batch in split_into_batches(team_qids):
         query = f"""SELECT ?team ?label ?class ?sitelinks WHERE {{
           {values_block("team", batch)}
           OPTIONAL {{ ?team rdfs:label ?label FILTER(lang(?label) = "en") }}
@@ -189,7 +189,7 @@ def fetch_team_facts(client: WikidataClient, team_qids: list[str]) -> dict[str, 
 def add_player_birth_year_and_countries(
     client: WikidataClient, player_qids: list[str], snapshot: Snapshot
 ) -> None:
-    for batch in in_batches(player_qids):
+    for batch in split_into_batches(player_qids):
         query = f"""SELECT ?player ?birth ?sportCountry ?citizenship WHERE {{
           {values_block("player", batch)}
           OPTIONAL {{ ?player wdt:P569 ?birth }}
@@ -217,7 +217,7 @@ def add_player_birth_year_and_countries(
 
 
 def fetch_entity_names(client: WikidataClient, qids: list[str]) -> Iterable[tuple[str, str, str, str]]:
-    for batch in in_batches(qids):
+    for batch in split_into_batches(qids):
         query = f"""SELECT ?item ?name ?kind WHERE {{
           {values_block("item", batch)}
           {{ ?item rdfs:label ?name BIND("LABEL" AS ?kind) }}
@@ -233,6 +233,6 @@ def fetch_entity_names(client: WikidataClient, qids: list[str]) -> Iterable[tupl
             )
 
 
-def in_batches(items: list[str], size: int = BATCH_SIZE) -> Iterable[list[str]]:
+def split_into_batches(items: list[str], size: int = BATCH_SIZE) -> Iterable[list[str]]:
     for start in range(0, len(items), size):
         yield items[start : start + size]

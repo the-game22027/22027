@@ -8,11 +8,15 @@ from kb.bundle import build_bundle
 from kb.catalog import load_catalog_entries, write_catalog_file, write_entities_missing_a_name
 from kb.config import load_scope
 from kb.db import apply_pending_migrations, connect_to_knowledge_base
+from kb.fjelstul_links import link_fjelstul
 from kb.ingest import collect_snapshot
 from kb.linking import link_transfermarkt
 from kb.sources import download_source_file, load_file_into_raw, load_source_registry
 from kb.store import replace_knowledge_base_contents
 from kb.wikidata import WikidataClient
+
+# Source id → its linker, in the order a plain `kb link` runs them.
+LINKERS = {"transfermarkt": link_transfermarkt, "fjelstul": link_fjelstul}
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -49,7 +53,13 @@ def main(argv: list[str] | None = None) -> int:
     fetch.add_argument("--source", action="append", help="only this source id (repeatable)")
     fetch.add_argument("--refresh", action="store_true", help="download again even if a local copy exists")
     link = commands.add_parser(
-        "link", help="map Transfermarkt ids to Wikidata entities in core.entity_xref (07 §5.10, D.3b)"
+        "link", help="map source ids to Wikidata entities in core.entity_xref (07 §5.10, D.3b)"
+    )
+    link.add_argument(
+        "--source",
+        action="append",
+        choices=list(LINKERS),
+        help="only this source (repeatable; default: every source)",
     )
     link.add_argument("--refresh", action="store_true", help="ignore the SPARQL cache and fetch again")
     args = parser.parse_args(argv)
@@ -98,8 +108,13 @@ def main(argv: list[str] | None = None) -> int:
                 f"catalog {summary.catalog_size} entities → {args.out}"
             )
         elif args.command == "link":
-            report = link_transfermarkt(connection, WikidataClient(connection, refresh=args.refresh))
-            print("\n".join(report.lines()))
+            client = WikidataClient(connection, refresh=args.refresh)
+            # Registry order whatever the command line says: Transfermarkt first, so a person it knows as a
+            # player is a PLAYER entity before a Fjelstul coach link reaches them.
+            for source in [source for source in LINKERS if not args.source or source in args.source]:
+                print(f"== {source}")
+                report = LINKERS[source](connection, client)
+                print("\n".join(report.lines()))
         elif args.command == "sources:fetch":
             for source_file in selected:
                 downloaded = download_source_file(source_file, refresh=args.refresh)
