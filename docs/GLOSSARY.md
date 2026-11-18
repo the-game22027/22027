@@ -49,6 +49,10 @@
 | **Session family** | Chain of rotated refresh tokens; reuse of an old one revokes the whole family |
 | **Knowledge base (KB)** | `football_kb` database of verified football facts with provenance, owned by the Python pipeline |
 | **Fact** | A resolved, provenance-tracked assertion in the KB with status and confidence |
+| **Claim** | One source's version of an atomic fact, with its source row, snapshot and licence. Claims are never overwritten; resolution turns them into facts with a status: `VERIFIED`, `SINGLE_SOURCE` or `CONFLICT` (ADR-0022) |
+| **Coverage window** | The competitions and dates a source covers. Outside its window a source is silent: missing data is not evidence (ADR-0022) |
+| **Tier** | A competition's priority for questions, 1 (Champions League, top 5 leagues, World Cup, Euro, AFCON, Copa América) to 3 (other leagues), in `tiers.toml` (DEC-67) |
+| **Entity xref** | `core.entity_xref`: maps every source's own id (a Transfermarkt id, a Fjelstul id, a name in martj42) to one Wikidata entity |
 | **Bundle** | Versioned JSONL file of validated questions: the only interface from the KB pipeline to the app |
 | **Template** | Human-written bilingual question pattern + SQL over facts + distractor strategy |
 | **Distractor** | A wrong answer option, chosen from the DB and proven wrong for the question |
