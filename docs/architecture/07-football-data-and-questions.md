@@ -340,11 +340,32 @@ Not used: StatsBomb open data (non-commercial), FBref and SofaScore (scraping fo
 
 **D.3b: linking, one id per thing (the critical path).**
 - `core.entity_xref`: `entity_ref` (Wikidata), `source`, `source_id`, `method` (`WIKIDATA_ID` | `WIKIPEDIA_LINK` | `NAME_REVIEWED`), `reviewed_by`.
-- Exact links first: Wikidata stores Transfermarkt player and club ids (the property ids are checked during implementation); a Fjelstul player's Wikipedia link resolves to the Wikidata item that owns the article.
+- Exact links first: Wikidata stores Transfermarkt ids (`P2446` players, `P7223` clubs and national teams, `P2447` coaches); a Fjelstul player's Wikipedia link resolves to the Wikidata item that owns the article. An outside id held by two Wikidata items is ambiguous: left unlinked and counted.
+- Which Transfermarkt ids are linked: every player (lineups, scorers, substitutes, assists), club and national team in a competition listed in `data/config/tiers.toml`. A team that plays in a national-team competition is a `NATIONAL_TEAM`.
+- Linked items the D.1 scope did not include become entities, with their en/ar names, birth year and countries. `kb ingest` rebuilds `core.entity` and therefore clears the links; `kb link` runs after it and rebuilds them from the SPARQL cache.
 - Name matching only for sources without ids (martj42, openfootball): normalized name (§5.7) plus team and a date inside the player's career. Uncertain candidates go to `.out/link-review.csv`; reviewed rows go to `data/kb_overrides/links.csv`.
 - `core.entity.kind` gains `NATIONAL_TEAM`, `COACH` and `COMPETITION` (the app's `AnswerKind` already has them). National-team matches point at `NATIONAL_TEAM` entities, not at countries.
 - Fix found on 2026-11-17: some cities are stored as `CLUB` entities; they are removed in this step.
-- Target: 95% of tier-1 scorers and lineup players linked. Exact names alone reach 24–80% today, depending on the tournament.
+- Fjelstul: men's World Cups 2002–2022 only (tier list in `tiers.toml` plus a check in code). The linked item's type must match (human for players and coaches, men's national team for teams), so a link now pointing at a disambiguation page is refused. A `COACH` link may point at an existing `PLAYER` entity (the same person, e.g. Didier Deschamps); any other kind mismatch is a clash and is skipped. Unlinked ids go to `.out/link-review-fjelstul.csv` with a reason.
+- `kb link` always runs Transfermarkt first, then Fjelstul (whatever the `--source` order), so a person who played and coached becomes a `PLAYER` entity, not a `COACH` one. Every unlinked id goes to `.out/link-review-<source>.csv` with a reason (`NOT_ON_WIKIDATA`, `AMBIGUOUS`, `WRONG_TYPE`, `BIRTH_YEAR_MISMATCH`, `KIND_CLASH`, `INVALID_ID`). `LINKED` entities that no source links to any more are removed.
+- Target: 95% of tier-1 scorers and lineup players linked. Exact names alone reached 24–80%, depending on the tournament.
+
+**Measured on 2026-11-18 (dev `football_kb`):**
+
+| Source and kind | Tier 1 | Tier 2 |
+|---|---|---|
+| Transfermarkt players | 94.7% (16,623 / 17,561) | 52.3% (23,092 / 44,111) |
+| Transfermarkt clubs | 99.1% (233 / 235) | 42.4% (527 / 1,243) |
+| Transfermarkt national teams | 100% (94) | 100% (15) |
+| Fjelstul players, World Cups 2002–2022 | 95.1% (3,275 / 3,445) | |
+| Fjelstul national teams / coaches | 96.8% (60 / 62) / 99.3% (144 / 145) | |
+
+- 29,732 `LINKED` entities (29,501 players, 109 national teams, 76 coaches, 26 clubs, 20 countries); review: Transfermarkt 22,675 ids (22,622 not on Wikidata, 47 birth-year mismatches, 6 ambiguous), Fjelstul 173 (137 not on Wikidata, 26 wrong type, 10 birth-year mismatches); 0 kind clashes. A rerun from cache takes 9 s and gives identical links. Tier 2 is low because domestic cups bring lower-division players and clubs that have no Transfermarkt id on Wikidata; name matching (with review) covers them later.
+- The 137 Fjelstul articles not on Wikidata were renamed since (redirects, which the MediaWiki API can follow exactly); the 26 of the wrong type now point at disambiguation pages (reviewed overrides).
+- **Plausibility check:** a link whose two birth years (source and Wikidata) differ by more than one year is refused and goes to `.out/link-review-<source>.csv` with reason `BIRTH_YEAR_MISMATCH`. Review found 47 such Transfermarkt ids, wrong P2446 values on Wikidata (for example a Saudi player's id on another player's item).
+- **Catalog:** entities added by linking get `core.entity.origin = 'LINKED'` and stay out of the answer catalog and its `sharedBy` counts until DEC-69 is decided; D.1 entities are `SCOPE`.
+- **Follow-ups (not in D.3b yet):** remove cities stored as `CLUB`; link Transfermarkt coaches (names only in games; `P2447`); have `kb link` re-apply reviewed overrides (links and names); follow renamed Wikipedia articles through the MediaWiki redirect API.
+- **Gap found:** Wikidata now stores many names once under the language code `mul` instead of `en`, and the name query reads only `en`/`ar`. 459 entities (287 players, 171 clubs, 1 coach) have no English name and drop out of the catalog. Fix: read `mul` as the English fallback.
 
 **D.3c: claims, coverage and resolution (ADR-0022).**
 - `core.claim`: source, source row id, snapshot, fact type, fact key, value (`jsonb`), licence. Every source row becomes claims; nothing is overwritten.

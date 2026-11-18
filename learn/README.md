@@ -172,3 +172,4 @@ About 35 minutes in total. Cards marked *later* explain tools we have not needed
 | [mobile/api-error-codes-as-typed-failures](mobile/api-error-codes-as-typed-failures.md) | M1.5 | Map problem+json codes to a feature enum so screens switch on typed reasons |
 | [database/raw-landing-zone](database/raw-landing-zone.md) | D.3a | Keep outside files exactly as they arrived, with a checksum; clean in a later step |
 | [database/copy-for-bulk-loads](database/copy-for-bulk-loads.md) | D.3a | `COPY … FROM STDIN` streams millions of rows; build names with `sql.Identifier` |
+| [database/id-crosswalk](database/id-crosswalk.md) | D.3b | Map every outside id to our one id; exact ids first, names only with review |

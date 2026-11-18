@@ -212,7 +212,9 @@ def _write_bundle(
 
 
 def _kb_version(connection: psycopg.Connection) -> str:
-    last_ingest = connection.execute("SELECT max(updated_at)::date FROM core.entity").fetchone()[0]
+    last_ingest = connection.execute(
+        "SELECT max(updated_at)::date FROM core.entity WHERE origin = 'SCOPE'"
+    ).fetchone()[0]
     return f"wikidata-{last_ingest.isoformat() if last_ingest else 'empty'}"
 
 

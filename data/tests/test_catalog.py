@@ -99,3 +99,41 @@ def test_only_entities_with_both_names_reach_the_catalog() -> None:
         replace_knowledge_base_contents(connection, snapshot)
         refs = {item["externalRef"] for item in load_catalog_entries(connection)}
     assert refs == {"wikidata:Q11571", "wikidata:Q8682"}
+
+
+@pytest.mark.db
+def test_a_linked_entity_changes_neither_the_catalog_nor_shared_by() -> None:
+    url = os.environ.get("FOOTBALL_KB_TEST_URL")
+    if not url:
+        pytest.skip("FOOTBALL_KB_TEST_URL not set")
+    from kb.db import apply_pending_migrations, connect_to_knowledge_base
+    from kb.linking import store_links
+    from kb.store import replace_knowledge_base_contents
+
+    scope = Snapshot(
+        entities={"wikidata:Q1354960": {"kind": "PLAYER", "sitelinks": 90, "birth_year": 1992}},
+        names=[
+            ("wikidata:Q1354960", "en", "Mohamed Salah", "LABEL"),
+            ("wikidata:Q1354960", "ar", "محمد صلاح", "LABEL"),
+        ],
+    )
+    # A player only Transfermarkt knows, sharing both words of Salah's Arabic name.
+    linked = Snapshot(
+        entities={"wikidata:Q7": {"kind": "PLAYER", "sitelinks": 5, "birth_year": 1995}},
+        names=[
+            ("wikidata:Q7", "en", "Mohamed Salah Junior", "LABEL"),
+            ("wikidata:Q7", "ar", "محمد صلاح", "LABEL"),
+        ],
+    )
+    with connect_to_knowledge_base(url) as connection:
+        apply_pending_migrations(connection)
+        replace_knowledge_base_contents(connection, scope)
+        before = load_catalog_entries(connection)
+        store_links(connection, "transfermarkt", [("PLAYER", "7", "wikidata:Q7")], linked, "WIKIDATA_ID")
+        after = load_catalog_entries(connection)
+        assert connection.execute(
+            "SELECT origin FROM core.entity WHERE external_ref = 'wikidata:Q7'"
+        ).fetchone() == ("LINKED",)
+    assert after == before
+    assert [entry["externalRef"] for entry in after] == ["wikidata:Q1354960"]
+    assert {"form": "صلاح", "sharedBy": 1} in after[0]["nameWords"]

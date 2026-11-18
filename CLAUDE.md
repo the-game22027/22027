@@ -168,6 +168,7 @@ python3 -m venv .venv && .venv/bin/pip install 'psycopg[binary]>=3.2' pytest ruf
 .venv/bin/python -m kb ingest --scope config/scope.dev.toml       # 4 clubs, ~6 min first time; cached afterwards
 .venv/bin/python -m kb ingest --scope config/scope.toml           # 9 leagues; --refresh refetches from Wikidata
 .venv/bin/python -m kb sources:fetch                             # D.3a: download config/sources.toml files into raw_downloads/ and load raw.*; --source <id>, --refresh
+.venv/bin/python -m kb link                                      # D.3b: source ids → Wikidata entities (core.entity_xref); --source transfermarkt|fjelstul; run again after every ingest; unlinked ids → .out/link-review-<source>.csv
 .venv/bin/python -m kb names:missing --locale ar                  # entities without an Arabic name → .out/names-missing-ar.csv
 .venv/bin/python -m kb catalog --out .out/catalog                 # write catalog.jsonl
 .venv/bin/python -m kb bundle --version dev-0006 --out bundles/dev-0006 --careers 60 --buzzers 60 --who 60 --grids 30 --catalog-min-player-sitelinks 40   # generated bundle (07 §5.8)

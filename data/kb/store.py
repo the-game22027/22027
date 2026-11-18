@@ -16,10 +16,14 @@ def replace_knowledge_base_contents(connection: psycopg.Connection, snapshot: Sn
     Rebuilding instead of diffing keeps the code simple, and readers never see a half-written state.
     """
     with connection.transaction():
-        connection.execute("TRUNCATE core.player_country, core.career_spell, core.entity_name, core.entity")
+        # Links point at entities, so they go too; `python -m kb link` rebuilds them from cache in seconds.
+        connection.execute(
+            "TRUNCATE core.entity_xref, core.player_country, core.career_spell, core.entity_name, core.entity"
+        )
         with connection.cursor() as cursor:
             cursor.executemany(
-                "INSERT INTO core.entity (external_ref, kind, sitelinks, birth_year) VALUES (%s, %s, %s, %s)",
+                """INSERT INTO core.entity (external_ref, kind, sitelinks, birth_year, origin)
+                   VALUES (%s, %s, %s, %s, 'SCOPE')""",
                 [
                     (ref, entity["kind"], entity["sitelinks"], entity["birth_year"])
                     for ref, entity in snapshot.entities.items()

@@ -44,7 +44,7 @@ def collect_snapshot(client: WikidataClient, scope: Scope, log: Callable[[str], 
     )
 
     raw_spells = list(_fetch_raw_spells(client, kept_players))
-    team_facts = _fetch_team_facts(client, sorted({spell.team_ref for spell in raw_spells}))
+    team_facts = fetch_team_facts(client, sorted({spell.team_ref for spell in raw_spells}))
     senior_clubs = {qid: facts for qid, facts in team_facts.items() if is_senior_club(facts, scope)}
     log(f"teams on careers: {len(team_facts)}, senior clubs kept: {len(senior_clubs)}")
 
@@ -74,10 +74,10 @@ def collect_snapshot(client: WikidataClient, scope: Scope, log: Callable[[str], 
         if spell.team_ref in senior_clubs
     ]
 
-    _add_player_facts(client, kept_players, snapshot)
+    add_player_birth_year_and_countries(client, kept_players, snapshot)
     _drop_childhood_spells_and_unused_clubs(snapshot, scope.min_senior_age)
     named_qids = [ref.removeprefix("wikidata:") for ref in snapshot.entities]
-    snapshot.names = list(_fetch_names(client, named_qids))
+    snapshot.names = list(fetch_entity_names(client, named_qids))
     log(f"names: {len(snapshot.names)} labels and aliases for {len(named_qids)} entities")
     return snapshot
 
@@ -115,7 +115,7 @@ def _players_of_club_query(club_qid: str) -> str:
 
 
 def _fetch_raw_spells(client: WikidataClient, player_qids: list[str]) -> Iterable[Spell]:
-    for batch in _batches(player_qids):
+    for batch in split_into_batches(player_qids):
         query = f"""SELECT ?player ?statement ?team ?start ?end ?acquisition WHERE {{
           {values_block("player", batch)}
           ?player p:P54 ?statement . ?statement ps:P54 ?team .
@@ -160,11 +160,11 @@ def year_of_wikidata_date(value: str | None) -> int | None:
     return int(value[:4])
 
 
-def _fetch_team_facts(client: WikidataClient, team_qids: list[str]) -> dict[str, TeamFacts]:
+def fetch_team_facts(client: WikidataClient, team_qids: list[str]) -> dict[str, TeamFacts]:
     labels: dict[str, str] = {}
     classes: dict[str, set[str]] = defaultdict(set)
     sitelinks: dict[str, int] = {}
-    for batch in _batches(team_qids):
+    for batch in split_into_batches(team_qids):
         query = f"""SELECT ?team ?label ?class ?sitelinks WHERE {{
           {values_block("team", batch)}
           OPTIONAL {{ ?team rdfs:label ?label FILTER(lang(?label) = "en") }}
@@ -186,8 +186,10 @@ def _fetch_team_facts(client: WikidataClient, team_qids: list[str]) -> dict[str,
     }
 
 
-def _add_player_facts(client: WikidataClient, player_qids: list[str], snapshot: Snapshot) -> None:
-    for batch in _batches(player_qids):
+def add_player_birth_year_and_countries(
+    client: WikidataClient, player_qids: list[str], snapshot: Snapshot
+) -> None:
+    for batch in split_into_batches(player_qids):
         query = f"""SELECT ?player ?birth ?sportCountry ?citizenship WHERE {{
           {values_block("player", batch)}
           OPTIONAL {{ ?player wdt:P569 ?birth }}
@@ -214,8 +216,8 @@ def _add_player_facts(client: WikidataClient, player_qids: list[str], snapshot: 
                 snapshot.player_countries.add((external_ref_from_qid(qid), country_ref))
 
 
-def _fetch_names(client: WikidataClient, qids: list[str]) -> Iterable[tuple[str, str, str, str]]:
-    for batch in _batches(qids):
+def fetch_entity_names(client: WikidataClient, qids: list[str]) -> Iterable[tuple[str, str, str, str]]:
+    for batch in split_into_batches(qids):
         query = f"""SELECT ?item ?name ?kind WHERE {{
           {values_block("item", batch)}
           {{ ?item rdfs:label ?name BIND("LABEL" AS ?kind) }}
@@ -231,6 +233,6 @@ def _fetch_names(client: WikidataClient, qids: list[str]) -> Iterable[tuple[str,
             )
 
 
-def _batches(items: list[str], size: int = BATCH_SIZE) -> Iterable[list[str]]:
+def split_into_batches(items: list[str], size: int = BATCH_SIZE) -> Iterable[list[str]]:
     for start in range(0, len(items), size):
         yield items[start : start + size]
