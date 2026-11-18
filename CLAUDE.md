@@ -61,7 +61,9 @@ the-game/
 ├── data/                     # Python: football knowledge DB ingestion + question generation
 │   ├── ingest/  generate/  kb_migrations/  bundles/
 ├── docker-compose.yml        # postgres, redis, (optional) ollama, prometheus, grafana
-└── .claude/skills/           # project skills: new-module, adr, agent-prompt
+├── .claude/skills/           # project skills: new-module, adr, agent-prompt
+├── .claude/agents/           # subagents for the orchestrator (§7.2)
+└── scripts/ask-external.sh   # send a task to a non-Claude model through the Cursor CLI (§7.2)
 ```
 
 ## 5. Coding conventions
@@ -186,6 +188,8 @@ Update this section when commands change. Do not document commands that do not e
 
 ### 7.1 Parallel sessions (backend + mobile at the same time)
 
+**Retired on 2026-11-18 (product owner):** the orchestrator (§7.2) now owns mobile work through the `mobile` agent, and the separate mobile session is no longer used. The rules below stay for the case the user runs two sessions again.
+
 The user may run two Claude Code sessions at once, each in its own **git worktree** of this one repository (same history, same remote, different folder and branch):
 
 | Folder | Session | Owns |
@@ -198,6 +202,49 @@ The user may run two Claude Code sessions at once, each in its own **git worktre
 - One backend process serves both: the API runs from the backend folder (`npm run start:api:dev`, port 3000). The mobile session reads the contract from `http://localhost:3000/docs-json` and does not start its own backend.
 - Docker services (Postgres, Redis) are shared. Never reset or drop the dev database from the mobile session.
 - Each session commits and pushes only its own branch, and merges only after the user says "merge".
+
+### 7.2 Orchestrator and subagents
+
+The main session is the **orchestrator**. It knows this codebase, keeps the conversation with the user, and delegates to the subagents in `.claude/agents/`. Subagents cannot start other subagents: the hierarchy is one level deep.
+
+| Agent | Model | Owns | Use for |
+|---|---|---|---|
+| `backend` | sonnet | `apps/backend/`, `docs/api/` (contract changes in the brief), a learn card where the brief says | normal backend tasks |
+| `backend-heavy` | opus | same | architecture, concurrency, engine and protocol changes, cross-module refactors |
+| `data` | sonnet | `data/`, a learn card where the brief says | normal pipeline tasks |
+| `data-heavy` | opus | same | linking, conflict resolution, generator uniqueness, data-quality investigations |
+| `mobile` | sonnet | `apps/mobile/`, `learn/mobile/` | Flutter tasks; while no new UI is wanted, only data and application code |
+| `quick` | haiku | the files the brief names | search, formatting, routine test runs, tiny exact edits |
+| `reviewer` | opus | nothing (read-only) | review every implementation diff and every external-model output |
+| `external-worker` | haiku | nothing | wraps `scripts/ask-external.sh` (Cursor CLI, read-only); only when the user routes a task there |
+
+**When to delegate:**
+- Delegate work that is independent and substantial: the backend and mobile halves of a feature, a data step, a review. Do small or tightly coupled edits yourself.
+- Docs owned by the orchestrator: `docs/architecture/`, `docs/DECISIONS.md`, `docs/ROADMAP.md`, ADRs, `CLAUDE.md`, `.claude/`. Agents report needed doc changes under "Needs from others".
+- Pick the agent by difficulty: opus variants for hard tasks, sonnet for normal implementation, `quick` (haiku) for small ones.
+
+**Contract first:**
+- The shared contracts already exist: `docs/api/API.md` and `docs/api/WEBSOCKET.md`, the OpenAPI snapshot `apps/mobile/openapi/openapi.json` with its generated client, and the bundle format in `07` §5.4.
+- When a feature spans backend and mobile, settle the contract change in those files first, then brief both agents against it. No new contract files.
+
+**Briefs and parallel launch:**
+- Launch independent agents **in parallel, in one message**.
+- Each brief is self-contained, because agents cannot see this conversation: the goal, the design sections to read, the exact files or folders allowed, the acceptance criteria, the checks to run, and the non-goals. The `agent-prompt` skill gives the shape.
+
+**Isolation:**
+- Parallel agents get disjoint folders, so no two agents edit the same file. `learn/` cards go in the folder the brief names; `learn/README.md` is the orchestrator's (agents send the index line under "Needs from others").
+- If two tasks must touch the same files, run them one after the other, or start one with `isolation: "worktree"` (its own git worktree, merged back by the orchestrator).
+- Subagents never commit, push, merge or switch branches. The orchestrator commits each finished step (Conventional Commits, one logical step per commit).
+
+**Review loop:**
+1. When the implementation agents finish, run `reviewer` on the diff (for example `git diff main...HEAD`, or the listed files) with the brief's acceptance criteria.
+2. For each finding: fix it yourself if it is small, re-delegate if it is not, and say so when it is not worth fixing.
+3. Re-run the checks. Report to the user only what passed, with exit codes.
+
+**External models:**
+- Only for tasks the user explicitly routes there.
+- `external-worker` returns the raw answer. `reviewer` checks it before anything is applied, and the orchestrator applies it.
+- Cursor must be logged in (`cursor-agent login`); `scripts/ask-external.sh --list-models` lists the models.
 
 ## 8. Where things are documented
 
