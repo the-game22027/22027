@@ -393,7 +393,7 @@ Not used: StatsBomb open data (non-commercial), FBref and SofaScore (scraping fo
 
 These are estimates before linking, resolution and dedupe; D.3 replaces them with measured counts.
 
-**Planned commands** (they do not exist yet): `kb sources:fetch`, `kb ingest:matches`, `kb links:review`, `kb report`. CLAUDE.md §6 gets them when they work.
+**Commands:** `python -m kb sources:fetch [--source <id>] [--refresh]` (D.3a, done: 26 files, 4.9 M rows, about 24 s from local copies; `football_kb` grows to about 0.8 GB). Planned: `kb ingest:matches`, `kb links:review`, `kb report`. CLAUDE.md §6 gets them when they work.
 
 ### 5.8 D.2a: first generators (`CAREER`, `BUZZER`) and the `dev-0002` bundle
 

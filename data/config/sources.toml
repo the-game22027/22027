@@ -1,0 +1,52 @@
+# D.3 source registry (07 §5.10, ADR-0022). `python -m kb sources:fetch` downloads every file listed here
+# into data/raw_downloads/ and loads it, exactly as downloaded, into raw.<source>__<file>.
+# Licences are recorded, not decided: DEC-66.
+
+[[sources]]
+id = "transfermarkt"
+name = "Transfermarkt datasets (dcaribou/transfermarkt-datasets)"
+license = "CC0-1.0"
+license_note = "Scraped from transfermarkt.com, whose terms forbid scraping. Pending in DEC-66"
+base_url = "https://pub-e682421888d945d684bcae8890b0ec20.r2.dev/data/"
+files = [
+  "competitions.csv.gz",
+  "clubs.csv.gz",
+  "national_teams.csv.gz",
+  "players.csv.gz",
+  "games.csv.gz",
+  "game_events.csv.gz",
+  "game_lineups.csv.gz",
+  "transfers.csv.gz",
+]
+
+[[sources]]
+id = "fjelstul"
+name = "Fjelstul World Cup Database (jfjelstul/worldcup)"
+license = "CC-BY-SA-4.0"
+license_note = "Share-alike and attribution. Pending in DEC-66"
+base_url = "https://raw.githubusercontent.com/jfjelstul/worldcup/master/data-csv/"
+files = [
+  "tournaments.csv",
+  "teams.csv",
+  "team_appearances.csv",
+  "stadiums.csv",
+  "matches.csv",
+  "players.csv",
+  "squads.csv",
+  "player_appearances.csv",
+  "goals.csv",
+  "penalty_kicks.csv",
+  "bookings.csv",
+  "substitutions.csv",
+  "managers.csv",
+  "manager_appearances.csv",
+  "award_winners.csv",
+]
+
+[[sources]]
+id = "martj42"
+name = "International football results (martj42/international_results)"
+license = "CC0-1.0"
+license_note = "To confirm from the repository's licence file. Pending in DEC-66"
+base_url = "https://raw.githubusercontent.com/martj42/international_results/master/"
+files = ["results.csv", "goalscorers.csv", "shootouts.csv"]

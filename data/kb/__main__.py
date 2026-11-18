@@ -9,6 +9,7 @@ from kb.catalog import load_catalog_entries, write_catalog_file, write_entities_
 from kb.config import load_scope
 from kb.db import apply_pending_migrations, connect_to_knowledge_base
 from kb.ingest import collect_snapshot
+from kb.sources import download_source_file, load_file_into_raw, load_source_registry
 from kb.store import replace_knowledge_base_contents
 from kb.wikidata import WikidataClient
 
@@ -41,7 +42,19 @@ def main(argv: list[str] | None = None) -> int:
         default=None,
         help="development only: a smaller catalog of popular players and what they point at",
     )
+    fetch = commands.add_parser(
+        "sources:fetch", help="download the files in config/sources.toml and load them into raw.* (07 §5.10)"
+    )
+    fetch.add_argument("--source", action="append", help="only this source id (repeatable)")
+    fetch.add_argument("--refresh", action="store_true", help="download again even if a local copy exists")
     args = parser.parse_args(argv)
+
+    if args.command == "sources:fetch":
+        source_files = load_source_registry()
+        unknown = set(args.source or []) - {f.source_id for f in source_files}
+        if unknown:
+            parser.error(f"unknown source id: {', '.join(sorted(unknown))}")
+        selected = [f for f in source_files if not args.source or f.source_id in args.source]
 
     with connect_to_knowledge_base() as connection:
         if args.command == "migrate":
@@ -78,6 +91,12 @@ def main(argv: list[str] | None = None) -> int:
                 f"{args.version}: {summary.question_count} rounds {summary.by_game_type}, "
                 f"catalog {summary.catalog_size} entities → {args.out}"
             )
+        elif args.command == "sources:fetch":
+            for source_file in selected:
+                downloaded = download_source_file(source_file, refresh=args.refresh)
+                result = load_file_into_raw(connection, downloaded)
+                state = "unchanged" if result.already_loaded else "loaded"
+                print(f"{result.raw_table}: {result.row_count:,} rows ({state})")
     return 0
 
 
