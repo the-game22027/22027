@@ -1,0 +1,19 @@
+# Competition tiers for questions (DEC-67, product owner 2026-11-17). Ids are each source's own competition ids.
+# Matches before 2000, qualifiers, friendlies and play-offs never become questions, whatever their tier.
+# Tier 3 is "everything else" and needs no list. Other sources get their lists with their linkers.
+
+[[tiers]]
+level = 1
+# Champions League, the top 5 leagues, World Cup, Euro, AFCON, Copa América
+transfermarkt = ["CL", "GB1", "ES1", "IT1", "L1", "FR1", "FIWC", "EURO", "AFCN", "COPA"]
+
+[[tiers]]
+level = 2
+# Europa League, Conference League, UEFA Super Cup, domestic cups and super cups, Portugal, Netherlands,
+# Saudi Pro League, Asian Cup. The Arab Cup is not in the Transfermarkt data.
+transfermarkt = [
+  "EL", "UCOL", "USC",
+  "FAC", "GBCS", "CDR", "SUC", "CIT", "SCI", "DFB", "DFL", "FRCH",
+  "PO1", "POSU", "NL1", "NLP", "NLSC", "SA1",
+  "AFAC",
+]
