@@ -20,6 +20,7 @@ class ApiProblem {
     this.title,
     this.detail,
     this.traceId,
+    this.requestId,
     this.errors = const [],
   });
 
@@ -49,6 +50,7 @@ class ApiProblem {
       title: _readString(json, 'title'),
       detail: _readString(json, 'detail'),
       traceId: _readString(json, 'traceId'),
+      requestId: _readString(json, 'requestId'),
       errors: errors,
     );
   }
@@ -62,6 +64,9 @@ class ApiProblem {
   /// English, for developers. Never shown to players.
   final String? detail;
   final String? traceId;
+
+  /// Only on `FRIEND_REQUEST_EXISTS`: the request that already exists.
+  final String? requestId;
   final List<ApiFieldError> errors;
 
   @override

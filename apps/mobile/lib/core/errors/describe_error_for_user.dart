@@ -1,5 +1,6 @@
 import 'package:the_game/core/errors/api_problem.dart';
 import 'package:the_game/core/errors/app_error.dart';
+import 'package:the_game/core/errors/known_problem_error.dart';
 import 'package:the_game/l10n/generated/app_localizations.dart';
 
 /// A localized, player-facing message for any error. The server's `detail` is never shown:
@@ -7,6 +8,7 @@ import 'package:the_game/l10n/generated/app_localizations.dart';
 String describeErrorForUser(Object error, AppLocalizations l10n) {
   return switch (error) {
     ApiProblemError(:final problem) => _describeApiProblem(problem, l10n),
+    KnownProblemError(:final problem) => _describeApiProblem(problem, l10n),
     ServerUnreachableError() => l10n.errorServerUnreachable,
     RequestTimedOutError() => l10n.errorRequestTimedOut,
     UnexpectedResponseError() => l10n.errorUnexpected,
