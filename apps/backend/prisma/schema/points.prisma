@@ -1,0 +1,63 @@
+// Owned by the points module (docs/architecture/02-database.md §4.9).
+
+/// Which game a rule set scores, and the category of a ledger entry.
+enum GameType {
+  PREDICTION
+  MOTM
+  BATTLE
+
+  @@map("game_type")
+}
+
+enum RuleSetStatus {
+  DRAFT
+  ACTIVE
+  RETIRED
+
+  @@map("rule_set_status")
+}
+
+/// Versioned scoring config per game type. At most one ACTIVE per game type (partial unique index in the migration).
+model ScoringRuleSet {
+  id            String        @id @db.Uuid
+  gameType      GameType      @map("game_type")
+  version       Int
+  name          String
+  /// Validated by the game module that owns the rules (08 §6.1); the points module stores it as is.
+  config        Json
+  status        RuleSetStatus @default(DRAFT)
+  effectiveFrom DateTime?     @map("effective_from") @db.Timestamptz(3)
+  createdAt     DateTime      @map("created_at") @db.Timestamptz(3)
+  createdBy     String        @map("created_by")
+
+  pointEntries PointEntry[]
+  battles      Battle[]
+
+  @@unique([gameType, version])
+  @@map("scoring_rule_sets")
+}
+
+/// Append-only ledger: every point any game awarded. Leaderboards are projections of it.
+model PointEntry {
+  id             String    @id @db.Uuid
+  userId         String    @map("user_id") @db.Uuid
+  category       GameType
+  /// PREDICTION | MOTM_VOTE | BATTLE_PARTICIPANT
+  sourceType     String    @map("source_type")
+  sourceId       String    @map("source_id") @db.Uuid
+  sourceRevision Int       @default(0) @map("source_revision")
+  ruleSetId      String    @map("rule_set_id") @db.Uuid
+  points         Int
+  /// Business time (battle end, match end): decides which leaderboard periods the points belong to.
+  occurredAt     DateTime  @map("occurred_at") @db.Timestamptz(3)
+  recordedAt     DateTime  @default(now()) @map("recorded_at") @db.Timestamptz(3)
+  supersededAt   DateTime? @map("superseded_at") @db.Timestamptz(3)
+  supersededBy   String?   @map("superseded_by") @db.Uuid
+  context        Json      @default("{}")
+
+  user    User           @relation(fields: [userId], references: [id])
+  ruleSet ScoringRuleSet @relation(fields: [ruleSetId], references: [id])
+
+  @@unique([sourceType, sourceId, ruleSetId, sourceRevision])
+  @@map("point_entries")
+}

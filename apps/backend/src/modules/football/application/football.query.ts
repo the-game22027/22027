@@ -57,6 +57,14 @@ export class FootballQuery {
     };
   }
 
+  /**
+   * The matches whose kickoff has passed by the database clock, the same clock that locks predictions, so a
+   * prediction becomes visible to friends exactly when it can no longer change (DEC-21).
+   */
+  findMatchIdsPastKickoff(matchIds: readonly string[]): Promise<string[]> {
+    return this.football.findMatchIdsPastKickoff(matchIds);
+  }
+
   async getMatch(matchId: string): Promise<MatchView & { serverTime: Date }> {
     const match = await this.football.findMatch(matchId);
     if (!match) throw new MatchNotFoundError();

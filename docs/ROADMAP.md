@@ -124,10 +124,11 @@ Changes vs the original proposed order, and why:
 | P6.2 `CAREER`, `WHO_IS_PLAYER` | Content kinds for the same rules: steps rendered per locale from spells (club names from the catalog, `showYears`) and clues; both game types in the battle config; the `WHO_IS_PLAYER` generator (the D.2b part that P6.2 needs) and the `dev-0003` bundle | `GRID` generator (with P6.4) |
 | P6.3 Matchmaking and resilience | Redis queue per game type and matcher loop (human vs human, content in both players' locales), bot fallback from the queue, ghost tickets; `battle:resync` and snapshots (the resyncing socket becomes active); disconnect grace, forfeit (`battle:forfeit` and grace expiry), `ABANDONED` when no human is left; `GET /v1/me/play-state`, REST join and leave | Stale battle sweeper (needs several API instances, 05 §1); blocked pairs (P7) |
 | P6.4 `GRID` | `GridRules` (turns, claims, line, draw, skips, timeouts), the grid bot, round runners per mechanic (08 §2.4), `grid:claim` / `grid:skip`, the `GRID` generator (clubs × nationalities, 07 §5.8) and the `dev-0004` bundle | Club × club boards, `COMPETITION_WON` |
-| P6.5 Points | `points` ledger and `BATTLES` leaderboards, `BattleCompleted` handlers (ledger, question stats), question reports | |
+| P6.5 Points | Three PRs. **P6.5a ledger:** `scoring_rule_sets` + `point_entries`, the `BATTLE` rule set (`08` §6.1) and `battles:activate-rule-set`, ledger points at battle completion, the `BattleCompleted` → `point_entries` handler (the first outbox subscriber). **P6.5b leaderboards:** periods in `Africa/Cairo` (DEC-15/16) from a calendar config, the `PointsRecorded` projection, the three `GET /v1/leaderboards` endpoints (03 §5.6; closing jobs wait for the prize work). **P6.5c questions:** the `BattleCompleted` → `question_stats` handler, `POST /v1/questions/{id}/reports`. P6.5a **Done (2026-11-12)**, PR #46; P6.5b **Done (2026-11-12)**, PR #47; P6.5c **Done (2026-11-12)** | `PREDICTIONS` board entries (need P3.2 scoring), snapshots and prizes (DEC-28/47), friends board (P7), automatic disabling by report count (a product rule), difficulty calibration from the stats |
+| P6.6 Typed text answers | ADR-0021: `{ text }` answers, `AnswerChecker.judgeTypedText` (normalizer in TypeScript with the `07` §5.7 vectors, edit distance, distinctive words, exact-match guard), `answers.*` config, `name_words` + GIN index, `answer_text` / `answer_match` on actions, pipeline `nameWords`; remove `GET /v1/answer-catalog`. Before M3, so the app is built against text answers. **Done (2026-11-12)**, with the `dev-0005` bundle | Tuning the tolerance numbers from logged `answer_match` values (playtesting) |
 
 ### P7 — Friends + blocks + prediction visibility
-- Friend requests, friendships, blocks, user search; `PredictionVisibilityPolicy`; friends' predictions endpoints; blocked pairs skipped by the matchmaker.
+- Friend requests, friendships, blocks, user search; `PredictionVisibilityPolicy`; friends' predictions endpoints; blocked pairs skipped by the matchmaker. Two PRs: **P7a** friends, blocks, search and per-user rate limits (#52); **P7b** prediction visibility and the matcher (03 §7.1). **Done (2026-11-13).**
 - **Exit:** visibility matrix tests (owner, friend before/after kickoff, non-friend, blocked) for every read path.
 
 ### P8 — Private battle rooms
@@ -157,11 +158,17 @@ Each mobile phase starts once the backend phase it consumes is merged. The API c
 ### M0 — Mobile foundation (after P0)
 - Decided in ADR-0014: Flutter latest stable pinned with `fvm`, Riverpod, go_router; the application id is deferred (DEC-52, placeholder until R2). Prompt: `docs/prompts/mobile-m0-foundation.md`. `flutter create` in `apps/mobile`; dev/prod flavors; Arabic + English with RTL; generated REST client from the backend `openapi.json`; secure token storage; error mapping from problem+json `code`; path-filtered CI (`flutter analyze`, tests).
 - **Exit:** app runs on an Android emulator against the local backend, `/health` call works, RTL layout verified. iOS: the project is scaffolded, but running it needs macOS (the owner develops on Linux), so the iOS check moves to the first time a Mac or a macOS CI runner is available, before R2.
+- **Done (2026-11-11):** PR #21. Flutter 3.38.5 pinned with `fvm`; Android exit verified, iOS check still pending (needs macOS).
 
 ### M1 — Sign-in and profile (after P1)
 - Google sign-in, refresh rotation, sessions list, profile and privacy settings, account deletion.
 - **Exit:** sign in → kill the app → reopen still signed in; refresh reuse forces sign-out.
 - **Design:** ADR-0017 (refresh rotation on the client, Google sign-in, re-authentication), agent prompt `docs/prompts/mobile-m1-sign-in.md`.
+- **Done (2026-11-11):** PRs #29 (design) and #30. Exit verified on an Android emulator against the local backend, including a refused refresh signing out. Not done yet: privacy settings (an M1 prompt non-goal), Google sign-in on a device (needs the owner's OAuth clients), iOS (needs macOS).
+
+### M1.5 — Data layer before screens (ADR-0019)
+- No new UI. Data and application code for every backend feature already merged: profile fields, football, predictions, and the `/battles` socket (clock, commands with typed text answers, state reducer). M2 and M3 screens build on it.
+- **Exit:** each feature has tested repositories and use cases, and a run against the local backend reads matches, submits a prediction, downloads the catalog and plays a `BUZZER` battle against the bot without a screen.
 
 ### M2 — Matches, predictions, leaderboards (after P3 + P4)
 - Fixtures by date and competition, prediction editor locked by server `predictable` + `serverTime`, own history with scores, the four leaderboard periods, my rank.

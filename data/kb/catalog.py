@@ -3,6 +3,8 @@
 import csv
 import hashlib
 import json
+import re
+from collections import Counter
 from pathlib import Path
 
 import psycopg
@@ -10,6 +12,10 @@ import psycopg
 from kb.normalize import matching_form_of_name
 
 CATALOG_KINDS = ("PLAYER", "CLUB", "COUNTRY")
+# Shorter words never count alone as an answer (ADR-0021).
+NAME_WORD_MIN_LETTERS = 3
+# Wikidata labels can carry a disambiguation such as "(لاعب كرة قدم)", which nobody types.
+_PARENTHESES = re.compile(r"\([^)]*\)")
 
 
 def load_catalog_entries(connection: psycopg.Connection) -> list[dict]:
@@ -40,6 +46,7 @@ def load_catalog_entries(connection: psycopg.Connection) -> list[dict]:
     complete = [entry for entry in entries.values() if {"en", "ar"} <= entry["names"].keys()]
     for entry in complete:
         entry["search"] = search_forms_of_entry(entry)
+    add_name_words(complete)
     return complete
 
 
@@ -48,10 +55,33 @@ def search_forms_of_entry(entry: dict) -> list[str]:
     names = [*entry["names"].values(), *entry["aliases"]["en"], *entry["aliases"]["ar"]]
     forms = []
     for name in names:
-        form = matching_form_of_name(name)
+        form = matching_form_of_name(_without_parentheses(name))
         if form and form not in forms:
             forms.append(form)
     return forms
+
+
+def name_words_of_entry(entry: dict) -> list[str]:
+    """Distinct single words of the entity's names (not aliases), in matching form, long enough to count."""
+    words = []
+    for name in entry["names"].values():
+        for word in matching_form_of_name(_without_parentheses(name)).split(" "):
+            if len(word) >= NAME_WORD_MIN_LETTERS and word not in words:
+                words.append(word)
+    return words
+
+
+def add_name_words(entries: list[dict]) -> None:
+    """Set `nameWords` on every entry: each word with how many entities of the same kind have it (ADR-0021).
+
+    Counted over the whole catalog before a development bundle trims it, so `محمد` stays common.
+    """
+    words_by_entry = [name_words_of_entry(entry) for entry in entries]
+    shared_by = Counter(
+        (entry["kind"], word) for entry, words in zip(entries, words_by_entry, strict=True) for word in words
+    )
+    for entry, words in zip(entries, words_by_entry, strict=True):
+        entry["nameWords"] = [{"form": word, "sharedBy": shared_by[(entry["kind"], word)]} for word in words]
 
 
 def write_catalog_file(entries: list[dict], out_dir: Path) -> str:
@@ -86,6 +116,10 @@ def write_entities_missing_a_name(connection: psycopg.Connection, locale: str, o
         for external_ref, kind, sitelinks, english in rows:
             writer.writerow([external_ref, kind, sitelinks, english or "", ""])
     return len(rows)
+
+
+def _without_parentheses(name: str) -> str:
+    return _PARENTHESES.sub(" ", name)
 
 
 def _entry_sort_key(entry: dict) -> tuple[str, int]:

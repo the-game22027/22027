@@ -79,6 +79,9 @@ Content-Type: application/problem+json
 | `USERNAME_TAKEN` | 409 | Username belongs to someone else (case-insensitive) |
 | `TEAM_NOT_FOUND` | 422 | Favourite team does not exist |
 | `INVALID_CURSOR` | 400 | Pagination cursor was altered or is not ours |
+| `QUESTION_NOT_FOUND` | 404 | Unknown question, or one the caller was never served in a battle (indistinguishable on purpose) |
+| `INVALID_REPORT_REASON` | 400 | Report reason is blank or longer than 500 characters (the DTO usually answers `VALIDATION_FAILED` first) |
+| `PERIOD_NOT_FOUND` | 404 | Leaderboard period key is malformed, or names a season the calendar does not have |
 | `IDEMPOTENCY_KEY_REUSED` | 422 | Same key, different request |
 | `PRECONDITION_FAILED` | 412 | `If-Match` mismatch |
 | `ACCOUNT_EXISTS_FOR_EMAIL` | 409 | Verified email belongs to another account (`linkWith` hint) |
@@ -99,7 +102,11 @@ Content-Type: application/problem+json
 | `ROOM_NOT_ENOUGH_PLAYERS` | 409 | Start with fewer than 2 members |
 | `GAME_TYPE_UNAVAILABLE` | 409 | The game type is switched off in config (matchmaking join, room create or update) |
 | `GAME_TYPE_PLAYER_COUNT` | 409 | The room's member count does not fit the game type (`GRID` needs exactly 2, DEC-61) |
-| `FRIEND_REQUEST_EXISTS` / `ALREADY_FRIENDS` | 409 | Social |
+| `FRIEND_REQUEST_EXISTS` / `ALREADY_FRIENDS` | 409 | Social; `FRIEND_REQUEST_EXISTS` carries the existing `requestId` (03 §7.1) |
+| `FRIEND_REQUEST_NOT_FOUND` | 404 | Unknown request, or not yours to answer or cancel |
+| `FRIEND_REQUEST_NOT_PENDING` | 409 | Already accepted, declined or cancelled |
+| `USER_NOT_FOUND` | 404 | Unknown or deleted user, or a block in either direction (indistinguishable on purpose) |
+| `CANNOT_TARGET_YOURSELF` | 422 | Befriending or blocking yourself |
 | `LEAGUE_FULL` | 409 | Membership limit (DEC-22) |
 | `LEAGUE_INVITE_INVALID` | 404 | Unknown/expired/revoked code |
 | `LEAGUE_ALREADY_MEMBER` | 409 | |
@@ -182,7 +189,9 @@ interface PlayState { queue?: MatchmakingTicket | null; room?: BattleRoom | null
 interface LeaderboardRow { rank: number; user: PublicUser; points: number; isMe: boolean }
 interface LeaderboardPage { period: { kind: 'WEEKLY'|'MONTHLY'|'SEASONAL'|'ALL_TIME'; key: string; startsAt: string;
   endsAt?: string | null; status: string }; category: string; items: LeaderboardRow[]; nextCursor: string | null }
-interface MyRank { rank: number | null; points: number; around: LeaderboardRow[] }
+interface MyRank { rank: number | null; points: number; around: LeaderboardRow[] }   // rank null: no points in this period yet
+interface LeaderboardPeriod { kind: 'WEEKLY'|'MONTHLY'|'SEASONAL'|'ALL_TIME'; key: string; startsAt: string;
+  endsAt: string | null; status: 'OPEN' | 'CLOSED' }   // LeaderboardPage.period has this shape
 
 // ---- Leagues ----
 interface League { id: string; name: string; description?: string | null; owner: PublicUser; memberCount: number;
@@ -220,8 +229,8 @@ Legend: **Auth** P = public, U = authenticated user. **MVP** ✅ / Future 🔜.
 | ✅ | PATCH | `/v1/me` | U | displayName, username (`null` clears), avatarUrl (`https`, `null` clears), locale, favouriteTeamId (`null` clears) → `Me` |
 | 🔜 | PATCH | `/v1/me/privacy` | U | Future privacy settings. Prediction visibility is fixed in v1.0 (DEC-21: friends after kickoff) |
 | ✅ | DELETE | `/v1/me` | U (recent sign-in) | Request deletion → `202`; signs out every device; signing in during the grace period cancels it. `403 RECENT_SIGN_IN_REQUIRED` when the sign-in is too old |
-| ✅ | GET | `/v1/users/{userId}` | U | `PublicUser` (+ friendship status) |
-| ✅ | GET | `/v1/users?query=&cursor=` | U | Search by display name/username; rate limited; excludes blocked |
+| ✅ | GET | `/v1/users/{userId}` | U | `PublicUser` + `relationship` (`SELF`, `NONE`, `FRIENDS`, `REQUEST_SENT`, `REQUEST_RECEIVED`, + `requestId`); a block → `404` (03 §7.1) |
+| ✅ | GET | `/v1/users?query=&cursor=` | U | Search: username prefix or display name containing `query` (2..50 chars); 30/min per user; excludes you and blocks both ways |
 
 ### 6.3 Football (read-only)
 
@@ -255,8 +264,8 @@ Legend: **Auth** P = public, U = authenticated user. **MVP** ✅ / Future 🔜.
 
 | | Method | Path | Auth | Purpose / notes |
 |---|---|---|---|---|
-| ✅ | POST | `/v1/questions/{questionId}/reports` | U | Report a wrong question `{reason}` (only questions the caller was served in a battle); feeds moderation. Moved to P6: it needs `battle_rounds` |
-| ✅ | GET | `/v1/answer-catalog` | U | `AnswerCatalog`: every entity a typed answer can be, for on-device search (DEC-55, `08-battle-games.md` §5.2). Large and rarely changing: `ETag: "<version>"` + `If-None-Match` (`304`), gzip, `Cache-Control: private, no-cache` (`08` §5.5). The app keeps its copy and revalidates it before playing |
+| ✅ | POST | `/v1/questions/{questionId}/reports` | U | Report a wrong question `{ reason }` (1..500 characters) → `204`. Only questions the caller was served in a battle, otherwise `404 QUESTION_NOT_FOUND`; a repeat is a no-op `204` (`08` §5.7) |
+| ❌ | GET | `/v1/answer-catalog` | U | Removed (P6.6): the app shows no suggestions, so it no longer downloads the catalog (ADR-0021, DEC-55) |
 
 The Daily Quiz endpoints were removed (ADR-0010). Round content is served only inside battles over WebSocket, step by step.
 
@@ -285,9 +294,9 @@ Matchmaking can also be joined over WS (`matchmaking:join`). Room lifecycle is R
 
 | | Method | Path | Auth | Purpose / notes |
 |---|---|---|---|---|
-| ✅ | GET | `/v1/leaderboards/periods?kind=` | U | Current and recent periods |
-| ✅ | GET | `/v1/leaderboards/{kind}/{periodKey}?category=&cursor=` | U | `LeaderboardPage`; `periodKey=current` allowed |
-| ✅ | GET | `/v1/leaderboards/{kind}/{periodKey}/me?category=` | U | `MyRank` with neighbours |
+| ✅ | GET | `/v1/leaderboards/periods?kind=` | U | `{ items: LeaderboardPeriod[] }`: the current period and up to 11 before it, newest first (03 §5.6) |
+| ✅ | GET | `/v1/leaderboards/{kind}/{periodKey}?category=&limit=&cursor=` | U | `LeaderboardPage`; `periodKey=current` allowed; `category` required (`BATTLES` \| `PREDICTIONS`); equal points share a rank |
+| ✅ | GET | `/v1/leaderboards/{kind}/{periodKey}/me?category=` | U | `MyRank` with two neighbours on each side |
 | 🔜 | GET | `/v1/leaderboards/{kind}/{periodKey}/friends` | U | Friends-only ranking |
 
 ### 6.9 Private leagues
@@ -321,6 +330,7 @@ Matchmaking can also be joined over WS (`matchmaking:join`). Room lifecycle is R
 | ✅ | DELETE | `/v1/me/friends/{userId}` | U | Unfriend |
 | ✅ | PUT | `/v1/me/blocks/{userId}` | U | Block (removes friendship and pending requests) |
 | ✅ | DELETE | `/v1/me/blocks/{userId}` | U | Unblock |
+| ✅ | GET | `/v1/me/blocks?cursor=` | U | Players you blocked, so the app can offer unblock |
 | 🔜 | GET | `/v1/me/feed` | U | Activity feed (DEC-34) |
 
 ### 6.11 Operations

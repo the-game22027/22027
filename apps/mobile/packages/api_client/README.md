@@ -71,6 +71,9 @@ Class | Method | HTTP request | Description
 [*AuthApi*](doc/AuthApi.md) | [**sessionsControllerListV1**](doc/AuthApi.md#sessionscontrollerlistv1) | **GET** /v1/auth/sessions | 
 [*AuthApi*](doc/AuthApi.md) | [**sessionsControllerLogoutV1**](doc/AuthApi.md#sessionscontrollerlogoutv1) | **POST** /v1/auth/logout | 
 [*AuthApi*](doc/AuthApi.md) | [**sessionsControllerRevokeV1**](doc/AuthApi.md#sessionscontrollerrevokev1) | **DELETE** /v1/auth/sessions/{sessionId} | 
+[*BattlesApi*](doc/BattlesApi.md) | [**battlesControllerJoinV1**](doc/BattlesApi.md#battlescontrollerjoinv1) | **POST** /v1/battles/matchmaking | Same as WS &#x60;matchmaking:join&#x60;; the match itself still arrives on the socket as &#x60;battle:found&#x60;.
+[*BattlesApi*](doc/BattlesApi.md) | [**battlesControllerLeaveV1**](doc/BattlesApi.md#battlescontrollerleavev1) | **DELETE** /v1/battles/matchmaking | 
+[*BattlesApi*](doc/BattlesApi.md) | [**battlesControllerPlayStateV1**](doc/BattlesApi.md#battlescontrollerplaystatev1) | **GET** /v1/me/play-state | 
 [*DevApi*](doc/DevApi.md) | [**devAuthControllerDevSignInV1**](doc/DevApi.md#devauthcontrollerdevsigninv1) | **POST** /v1/_dev/auth/sign-in | 
 [*DevApi*](doc/DevApi.md) | [**devControllerEchoV1**](doc/DevApi.md#devcontrollerechov1) | **POST** /v1/_dev/echo | 
 [*DevApi*](doc/DevApi.md) | [**devControllerSampleConflictV1**](doc/DevApi.md#devcontrollersampleconflictv1) | **GET** /v1/_dev/sample-conflict | 
@@ -96,12 +99,16 @@ Class | Method | HTTP request | Description
  - [DeviceDto](doc/DeviceDto.md)
  - [GoogleSignInDto](doc/GoogleSignInDto.md)
  - [IdentityDto](doc/IdentityDto.md)
+ - [JoinMatchmakingDto](doc/JoinMatchmakingDto.md)
  - [MatchCompetitionDto](doc/MatchCompetitionDto.md)
  - [MatchDetailDto](doc/MatchDetailDto.md)
  - [MatchPageDto](doc/MatchPageDto.md)
  - [MatchSummaryDto](doc/MatchSummaryDto.md)
+ - [MatchmakingTicketDto](doc/MatchmakingTicketDto.md)
  - [MeDto](doc/MeDto.md)
  - [PenaltiesDto](doc/PenaltiesDto.md)
+ - [PlayStateBattleDto](doc/PlayStateBattleDto.md)
+ - [PlayStateDto](doc/PlayStateDto.md)
  - [PredictionDto](doc/PredictionDto.md)
  - [PredictionPickDto](doc/PredictionPickDto.md)
  - [PrivacyDto](doc/PrivacyDto.md)

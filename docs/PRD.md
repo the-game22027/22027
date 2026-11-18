@@ -107,7 +107,7 @@ Each feature lists user stories, the rules that apply (decided or open), and acc
 - Random matchmaking is 1v1, first come first served (DEC-37). After a wait, a **bot** fills in (DEC-39). Bots are **always labeled** (DEC-40).
 - Private rooms are multiplayer: joined with a code, 2 or more players in the same battle, up to the room size limit; the host starts once at least 2 members are present; rooms stay open for rematches until idle (DEC-38, DEC-42). Blocked users cannot join each other's rooms.
 - Everyone in a battle gets the same content in the same order, in their own language. The server decides correctness, timing and scores.
-- **A battle is one of several game types (ADR-0015, DEC-53). Nothing is multiple choice: players type the answer and pick it from suggestions, so spelling never decides a round (DEC-55).**
+- **A battle is one of several game types (ADR-0015, DEC-53). Nothing is multiple choice and nothing is suggested: players type the answer and send it. Small spelling mistakes still count, and a distinctive first or last name alone is enough (DEC-55, ADR-0021).**
   - **Buzzer:** the question appears word by word. The first player to buzz answers. Right: they win the round. Wrong: they are out for that question and it continues for the others (DEC-54).
   - **Career:** a player's clubs appear one by one; buzz and name the player.
   - **Who is the player?:** clues about a player appear one by one; buzz and name the player.
@@ -169,6 +169,7 @@ Each feature lists user stories, the rules that apply (decided or open), and acc
 | Fairness | Every lock, window, timer, correctness check and score is decided by the server (Confirmed) |
 | Privacy | Predictions private by default; blocked users invisible; no personal data in logs; account deletion available in-app (store requirement) |
 | Language | Arabic (default, right-to-left) and English throughout, including questions and team/player names |
+| Visual style | Buttons and icons in the app follow Apple's Liquid Glass look (iOS 26): translucent glass that blurs what is behind it, with soft highlights. The same look on Android. Blur is heavy on low-end Android phones, so each glass surface needs a plain fallback (product owner, 2026-11-12; details in the mobile design) |
 | Real-time | Battles stay consistent through duplicate, late and lost messages and short disconnects (`api/WEBSOCKET.md`) |
 | Scale at launch | < 50k registered, < 2k concurrent, < 200 concurrent battles on one server (A-07); scaling path in `06-cross-cutting.md` |
 | Cost | No paid service needed during development; release costs are store accounts, a server, a domain, backups and possibly football data |

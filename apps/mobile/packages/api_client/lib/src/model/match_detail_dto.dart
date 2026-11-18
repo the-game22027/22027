@@ -124,18 +124,18 @@ class MatchDetailDto {
 }
 
 enum MatchDetailDtoStatusEnum {
-  @JsonValue(r'SCHEDULED')
-  SCHEDULED(r'SCHEDULED'),
-  @JsonValue(r'LIVE')
-  LIVE(r'LIVE'),
-  @JsonValue(r'FINISHED')
-  FINISHED(r'FINISHED'),
-  @JsonValue(r'POSTPONED')
-  POSTPONED(r'POSTPONED'),
   @JsonValue(r'CANCELLED')
   CANCELLED(r'CANCELLED'),
+  @JsonValue(r'SCHEDULED')
+  SCHEDULED(r'SCHEDULED'),
+  @JsonValue(r'FINISHED')
+  FINISHED(r'FINISHED'),
   @JsonValue(r'ABANDONED')
   ABANDONED(r'ABANDONED'),
+  @JsonValue(r'LIVE')
+  LIVE(r'LIVE'),
+  @JsonValue(r'POSTPONED')
+  POSTPONED(r'POSTPONED'),
   @JsonValue(r'unknown_default_open_api')
   unknownDefaultOpenApi(r'unknown_default_open_api');
 

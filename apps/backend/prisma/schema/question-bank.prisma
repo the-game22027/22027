@@ -96,6 +96,8 @@ model Question {
   options      QuestionOption[]
   answers      QuestionAnswer[]
   battleRounds BattleRound[]
+  stats        QuestionStats?
+  reports      QuestionReport[]
 
   @@unique([externalKey, keyVersion])
   @@index([status, difficulty, categoryId])
@@ -164,10 +166,12 @@ model AnswerEntity {
   kind           AnswerKind
   /// {en, ar} display names.
   names          Json
-  /// Ranks suggestions; from the pipeline (Wikipedia sitelinks).
+  /// Breaks ties between grid answers; from the pipeline (Wikipedia sitelinks).
   popularity     Int        @default(0)
-  /// Normalized names and aliases (07 §5.7); what the app searches on the phone.
+  /// Normalized names and aliases (07 §5.7); what typed text is judged against (ADR-0021).
   searchForms    String[]   @map("search_forms")
+  /// [{form, sharedBy}]: single words of the names that may count alone as an answer (ADR-0021).
+  nameWords      Json       @default("[]") @map("name_words")
   /// The bundle version that last changed this entity.
   catalogVersion String     @map("catalog_version")
   /// ACTIVE, or HIDDEN when a newer catalog dropped it (kept because battle history points at it).
@@ -179,6 +183,8 @@ model AnswerEntity {
   battleActions BattleRoundAction[]
 
   @@index([kind])
+  /// Finds the entity a typed text names exactly (08 §5.3 step 3).
+  @@index([searchForms], type: Gin)
   @@map("answer_entities")
 }
 
@@ -191,4 +197,44 @@ model AnswerEntityAlias {
 
   @@id([entityId, locale, alias])
   @@map("answer_entity_aliases")
+}
+
+/// Human play data per question, for difficulty calibration later (08 §5.7). Bots are not counted.
+model QuestionStats {
+  questionId      String   @id @map("question_id") @db.Uuid
+  timesServed     Int      @default(0) @map("times_served")
+  timesSolved     Int      @default(0) @map("times_solved")
+  /// Wrong typed answers and grid claims across battles.
+  wrongAnswers    Int      @default(0) @map("wrong_answers")
+  /// Reveal games: with times_solved, the average step at which the question was solved.
+  stepsToSolveSum Int      @default(0) @map("steps_to_solve_sum")
+  updatedAt       DateTime @map("updated_at") @db.Timestamptz(3)
+
+  question Question @relation(fields: [questionId], references: [id])
+
+  @@map("question_stats")
+}
+
+/// BattleCompleted events already folded into question_stats (at-least-once dedup).
+model QuestionStatsApplied {
+  battleId  String   @id @map("battle_id") @db.Uuid
+  appliedAt DateTime @map("applied_at") @db.Timestamptz(3)
+
+  @@map("question_stats_applied")
+}
+
+/// A player says a question they were served is wrong (08 §5.7).
+model QuestionReport {
+  id         String   @id @db.Uuid
+  questionId String   @map("question_id") @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  reason     String
+  createdAt  DateTime @map("created_at") @db.Timestamptz(3)
+
+  question Question @relation(fields: [questionId], references: [id])
+  user     User     @relation(fields: [userId], references: [id])
+
+  /// One report per player per question; a repeat changes nothing.
+  @@unique([questionId, userId])
+  @@map("question_reports")
 }

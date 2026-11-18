@@ -1,11 +1,12 @@
 import type { EngineContent } from '@modules/question-bank';
 import { chooseGridCell } from '../../domain/bots/grid-bot';
 import { type Effect, isRejection, type ParticipantId } from '../../domain/games/game-rules';
-import { type GridEvent, GridRules, type GridRoundState } from '../../domain/games/grid-rules';
+import { type GridClaimAnswer, type GridEvent, GridRules, type GridRoundState } from '../../domain/games/grid-rules';
 import { randomIntegerBetween } from '../../domain/random-source';
 import type { GridGameSettings } from '../battle-settings';
 import type { LiveParticipant } from '../live-participant';
 import {
+  type BotAnswer,
   type EntityNames,
   entityRef,
   loadEntityNames,
@@ -57,11 +58,36 @@ export class GridRoundRunner implements RoundRunner {
     if (command.type === 'GRID_SKIP') return this.applyCommand(from, { type: 'GRID_SKIP' });
     if (command.type !== 'GRID_CLAIM') return 'WRONG_GAME_TYPE';
     if (!this.state) return 'INVALID_STATE';
-    const rejection = this.rules.findClaimRejection(this.state, from, command.cell, command.entityId, this.host.now());
+    const rejection = this.rules.findClaimRejection(this.state, from, command.cell, null, this.host.now());
     if (rejection) return rejection.code;
-    const verdict = await this.host.checker.checkTypedAnswer(this.content.contentId, command.cell, command.entityId);
-    if (verdict === 'UNKNOWN_ENTITY') return 'UNKNOWN_ENTITY';
-    return this.applyCommand(from, { type: 'GRID_CLAIM', cell: command.cell, entityId: command.entityId, verdict });
+    const judged = await this.judgeClaim(command.cell, command.answer, this.state.usedPlayers);
+    if (typeof judged === 'string') return judged;
+    return this.applyCommand(from, { type: 'GRID_CLAIM', cell: command.cell, ...judged });
+  }
+
+  /** The judged player and verdict, or the ack's error code. Used players lose ties to unused ones (08 §5.3). */
+  private async judgeClaim(
+    cell: number,
+    answer: { text: string } | BotAnswer,
+    usedPlayers: readonly string[],
+  ): Promise<{ answer: GridClaimAnswer; verdict: 'CORRECT' | 'WRONG' } | string> {
+    if ('entityId' in answer) {
+      const valid = this.validPlayersByCell.get(cell) ?? [];
+      return { answer, verdict: valid.includes(answer.entityId) ? 'CORRECT' : 'WRONG' };
+    }
+    const { contentId } = this.content;
+    const judgement = await this.host.checker.judgeTypedText(
+      contentId,
+      cell,
+      answer.text,
+      this.host.answerRules,
+      usedPlayers,
+    );
+    if (judgement.verdict === 'EMPTY') return 'EMPTY_ANSWER';
+    return {
+      answer: { entityId: judgement.entityId, text: answer.text, match: judgement.match },
+      verdict: judgement.verdict,
+    };
   }
 
   async participantLeft(who: ParticipantId): Promise<void> {
@@ -231,7 +257,7 @@ export class GridRoundRunner implements RoundRunner {
         await this.applyCommand(participantId, { type: 'GRID_SKIP' });
         return;
       }
-      await this.handleCommand(participantId, { type: 'GRID_CLAIM', cell, entityId });
+      await this.handleCommand(participantId, { type: 'GRID_CLAIM', cell, answer: { entityId } });
     });
   }
 

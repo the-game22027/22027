@@ -4,6 +4,8 @@ import { randomUUID } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
 import { io, type Socket } from 'socket.io-client';
 import request from 'supertest';
+import { readFileSync } from 'node:fs';
+import { ActivateBattleRuleSet, BattlesCliModule } from '../../src/modules/battles';
 import { ImportQuestionBundle } from '../../src/modules/question-bank/application/import-question-bundle';
 import { QuestionBankFacade } from '../../src/modules/question-bank/application/question-bank.facade';
 import { QuestionBankCliModule } from '../../src/modules/question-bank/question-bank-cli.module';
@@ -68,9 +70,11 @@ describe('battles over WebSocket (e2e)', () => {
   /** Two published Buzzer rounds in both languages, both answered by Spain. */
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
-      imports: [CoreModule.register(testConfig()), QuestionBankCliModule],
+      imports: [CoreModule.register(testConfig()), QuestionBankCliModule, BattlesCliModule],
     }).compile();
     await moduleRef.init();
+    const ruleSetFile = JSON.parse(readFileSync('config/scoring/battle.dev.json', 'utf8')) as { config: unknown };
+    await moduleRef.get(ActivateBattleRuleSet).activateBattleRuleSet('e2e', ruleSetFile.config, 'test');
     const version = `battle-e2e-${randomUUID()}`;
     const reviewed = { en: true, ar: true };
     await moduleRef
@@ -149,6 +153,16 @@ describe('battles over WebSocket (e2e)', () => {
             .set('Authorization', `Bearer ${session.accessToken}`)
             .expect(200)
         ).body as { queue: { ticketId: string } | null; battle: { battleId: string } | null };
+      const reportQuestion = (questionId: string, body: object) =>
+        request(app.getHttpServer())
+          .post(`/v1/questions/${questionId}/reports`)
+          .set('Authorization', `Bearer ${session.accessToken}`)
+          .send(body);
+      const block = (userId: string) =>
+        request(app.getHttpServer())
+          .put(`/v1/me/blocks/${userId}`)
+          .set('Authorization', `Bearer ${session.accessToken}`)
+          .expect(204);
       /** A second socket for the same user, as after a reconnect. */
       const reconnect = async () => {
         const again = io(`${url}/battles`, {
@@ -161,7 +175,18 @@ describe('battles over WebSocket (e2e)', () => {
         await new Promise<void>((resolve) => again.once('connect', resolve));
         return again;
       };
-      return { session, socket, events, send, waitFor, playState, reconnect, prisma: () => app.get(PrismaService) };
+      return {
+        session,
+        socket,
+        events,
+        send,
+        waitFor,
+        playState,
+        reportQuestion,
+        block,
+        reconnect,
+        prisma: () => app.get(PrismaService),
+      };
     };
     return { connectPlayer };
   }
@@ -193,7 +218,9 @@ describe('battles over WebSocket (e2e)', () => {
 
         expect(await player.send('round:buzz', { battleId, roundNo })).toMatchObject({ accepted: true });
         await player.waitFor('round:buzzed', (event) => event.data['roundNo'] === roundNo);
-        expect(await player.send('round:answer', { battleId, roundNo, answer: { entityId: spainId } })).toMatchObject({
+        // Typed in another case than the catalog's name: normalizing makes it an exact match (ADR-0021).
+        const typed = roundNo === 1 ? e.spain.names.en.toUpperCase() : e.spain.names.en;
+        expect(await player.send('round:answer', { battleId, roundNo, answer: { text: typed } })).toMatchObject({
           accepted: true,
         });
         const result = await player.waitFor('round:result', (event) => event.data['roundNo'] === roundNo);
@@ -202,7 +229,12 @@ describe('battles over WebSocket (e2e)', () => {
       }
 
       const completed = await player.waitFor('battle:completed');
-      expect(completed.data).toMatchObject({ endReason: 'COMPLETED', you: { placement: 1, outcome: 'WIN' } });
+      // A win against a bot earns no leaderboard points (DEC-41).
+      expect(completed.data).toMatchObject({
+        endReason: 'COMPLETED',
+        you: { placement: 1, outcome: 'WIN', points: 0 },
+        pointsPending: false,
+      });
 
       const seqs = player.events.filter((event) => event.battleId === battleId).map((event) => event.seq as number);
       expect(seqs).toEqual([...seqs].sort((a, b) => a - b));
@@ -214,12 +246,46 @@ describe('battles over WebSocket (e2e)', () => {
         include: { participants: true, rounds: { include: { actions: true } } },
       });
       expect(battle).toMatchObject({ status: 'COMPLETED', endReason: 'COMPLETED', hasBot: true, gameType: 'BUZZER' });
+      expect(battle.ruleSetId).toEqual(expect.any(String));
       expect(battle.rounds.map((round) => round.endReason)).toEqual(['CORRECT', 'CORRECT']);
       expect(battle.rounds[0]?.actions.map((action) => action.kind)).toEqual(['BUZZ', 'ANSWER']);
+      expect(battle.rounds[0]?.actions[1]).toMatchObject({
+        entityId: spainId,
+        answerText: e.spain.names.en.toUpperCase(),
+        answerMatch: 'EXACT',
+        isCorrect: true,
+      });
       const event = await prisma.outboxEvent.findFirstOrThrow({
         where: { aggregateId: battleId, type: 'BattleCompleted' },
       });
-      expect(event.payload).toMatchObject({ battleId, hasBot: true });
+      expect(event.payload).toMatchObject({
+        battleId,
+        hasBot: true,
+        ruleSetId: battle.ruleSetId,
+        endReason: 'COMPLETED',
+      });
+      expect((event.payload as { participants: { points: number }[] }).participants.map((p) => p.points)).toEqual([
+        0, 0,
+      ]);
+      // The player answered both rounds: each question was served and solved by a human (08 §5.7).
+      expect((event.payload as { questionResults: unknown[] }).questionResults).toEqual([
+        expect.objectContaining({ roundNo: 1, endReason: 'CORRECT', served: true, solved: true, wrongAnswers: 0 }),
+        expect.objectContaining({ roundNo: 2, endReason: 'CORRECT', served: true, solved: true, wrongAnswers: 0 }),
+      ]);
+
+      // A served question can be reported once; a repeat is a no-op, anything else is QUESTION_NOT_FOUND (08 §5.7).
+      const servedId = battle.rounds[0]?.questionId ?? '';
+      const firstResult = player.events.find((ev) => ev.type === 'round:result' && ev.battleId === battleId);
+      expect(firstResult?.data['questionId']).toBe(servedId);
+      await player.reportQuestion(servedId, { reason: '  the answer is wrong  ' }).expect(204);
+      await player.reportQuestion(servedId, { reason: 'second try' }).expect(204);
+      await expect(
+        prisma.questionReport.findMany({ where: { questionId: servedId, userId: player.session.userId } }),
+      ).resolves.toEqual([expect.objectContaining({ reason: 'the answer is wrong' })]);
+      const notServed = await player.reportQuestion(randomUUID(), { reason: 'wrong' }).expect(404);
+      expect((notServed.body as { code: string }).code).toBe('QUESTION_NOT_FOUND');
+      const blank = await player.reportQuestion(servedId, { reason: '   ' }).expect(400);
+      expect((blank.body as { code: string }).code).toBe('VALIDATION_FAILED');
     });
 
     it.each([
@@ -239,9 +305,9 @@ describe('battles over WebSocket (e2e)', () => {
         expect((await player.waitFor('round:clue')).data).toMatchObject({ index: 1, clue: steps[0] });
         await player.send('round:buzz', { battleId, roundNo: 1 });
         await player.waitFor('round:buzzed');
-        expect(
-          await player.send('round:answer', { battleId, roundNo: 1, answer: { entityId: ronaldoId } }),
-        ).toMatchObject({
+        // One letter too many: within the typo tolerance of the name (08 §5.3).
+        const typo = e.ronaldo.names.en.replace('Ronaldo', 'Ronalldo');
+        expect(await player.send('round:answer', { battleId, roundNo: 1, answer: { text: typo } })).toMatchObject({
           accepted: true,
         });
         const result = await player.waitFor('round:result');
@@ -269,14 +335,15 @@ describe('battles over WebSocket (e2e)', () => {
       const myTurn = () =>
         player.waitFor('grid:turn', (event) => event.data['participantId'] === me && !handled.has(event.seq ?? 0));
       const handled = new Set<number>();
-      const claim = async (row: number, col: number, entityId: string) => {
+      const nameOf = (index: number) => grid.players[index]?.names.en ?? '';
+      const claim = async (row: number, col: number, text: string) => {
         const turn = await myTurn();
         handled.add(turn.seq ?? 0);
-        return player.send('grid:claim', { battleId, roundNo: 1, cell: { row, col }, answer: { entityId } });
+        return player.send('grid:claim', { battleId, roundNo: 1, cell: { row, col }, answer: { text } });
       };
 
       // The silent bot always answers wrong, so the top row stays free for us.
-      expect(await claim(0, 0, gridPlayerIds[0])).toMatchObject({ accepted: true });
+      expect(await claim(0, 0, nameOf(0))).toMatchObject({ accepted: true });
       const claimed = await player.waitFor('grid:claimed', (event) => event.data['participantId'] === me);
       expect(claimed.data).toMatchObject({ cell: { row: 0, col: 0 }, player: { entityId: gridPlayerIds[0] } });
 
@@ -287,7 +354,7 @@ describe('battles over WebSocket (e2e)', () => {
           battleId,
           roundNo: 1,
           cell: { row: 0, col: 0 },
-          answer: { entityId: gridPlayerIds[1] },
+          answer: { text: nameOf(1) },
         }),
       ).toMatchObject({ accepted: false, code: 'CELL_TAKEN' });
       expect(
@@ -295,7 +362,7 @@ describe('battles over WebSocket (e2e)', () => {
           battleId,
           roundNo: 1,
           cell: { row: 0, col: 1 },
-          answer: { entityId: gridPlayerIds[0] },
+          answer: { text: nameOf(0) },
         }),
       ).toMatchObject({ accepted: false, code: 'PLAYER_ALREADY_USED' });
       expect(
@@ -303,11 +370,11 @@ describe('battles over WebSocket (e2e)', () => {
           battleId,
           roundNo: 1,
           cell: { row: 0, col: 1 },
-          answer: { entityId: gridPlayerIds[1] },
+          answer: { text: nameOf(1) },
         }),
       ).toMatchObject({ accepted: true });
 
-      expect(await claim(0, 2, gridPlayerIds[2])).toMatchObject({ accepted: true });
+      expect(await claim(0, 2, nameOf(2))).toMatchObject({ accepted: true });
       const result = await player.waitFor('round:result');
       expect(result.data['winnerParticipantIds']).toEqual([me]);
       expect((result.data['reveal'] as { line: unknown[] }).line).toEqual([
@@ -334,14 +401,15 @@ describe('battles over WebSocket (e2e)', () => {
       }
     });
 
-    it('rejects a wrong-kind answer, a non-holder, and replays the ack of a duplicate message', async () => {
+    it('rejects a non-holder, a number for a name and a blank answer, replays a duplicate ack, and shows a wrong name', async () => {
       const player = await connectPlayer();
-      await player.send('matchmaking:join', { gameType: 'BUZZER' });
+      // A career round: its answer is a player, so another player's exact name is shown as the wrong answer.
+      await player.send('matchmaking:join', { gameType: 'CAREER' });
       const battleId = (await player.waitFor('battle:found')).battleId as string;
       await player.send('battle:ready', { battleId });
       await player.waitFor('round:clue');
 
-      expect(await player.send('round:answer', { battleId, roundNo: 1, answer: { entityId: spainId } })).toMatchObject({
+      expect(await player.send('round:answer', { battleId, roundNo: 1, answer: { text: 'ronaldo' } })).toMatchObject({
         accepted: false,
         code: 'NOT_BUZZ_HOLDER',
       });
@@ -349,10 +417,21 @@ describe('battles over WebSocket (e2e)', () => {
       const buzz = () => player.socket.emitWithAck('round:buzz', { clientMsgId: buzzId, battleId, roundNo: 1 });
       expect(await buzz()).toEqual({ clientMsgId: buzzId, accepted: true });
       expect(await buzz()).toEqual({ clientMsgId: buzzId, accepted: true });
-      expect(await player.send('round:answer', { battleId, roundNo: 1, answer: { entityId: naniId } })).toMatchObject({
+      expect(await player.send('round:answer', { battleId, roundNo: 1, answer: { number: 2010 } })).toMatchObject({
         accepted: false,
-        code: 'UNKNOWN_ENTITY',
+        code: 'INVALID_PAYLOAD',
       });
+      expect(await player.send('round:answer', { battleId, roundNo: 1, answer: { text: ' ـ ' } })).toMatchObject({
+        accepted: false,
+        code: 'EMPTY_ANSWER',
+      });
+      // Exactly another player's name: wrong, and shown as that player, never as the typed text (DEC-60).
+      expect(
+        await player.send('round:answer', { battleId, roundNo: 1, answer: { text: e.nani.names.en } }),
+      ).toMatchObject({ accepted: true });
+      const wrong = await player.waitFor('round:wrong');
+      expect(wrong.data['answer']).toEqual({ entityId: naniId, name: e.nani.names.ar });
+      expect(JSON.stringify(wrong.data)).not.toContain(e.nani.names.en);
       expect(await player.send('round:buzz', { battleId, roundNo: 2 })).toMatchObject({
         accepted: false,
         code: 'ROUND_NOT_CURRENT',
@@ -417,16 +496,27 @@ describe('battles over WebSocket (e2e)', () => {
 
       expect(await second.send('battle:forfeit', { battleId })).toMatchObject({ accepted: true });
       expect((await first.waitFor('player:forfeited')).data).toMatchObject({ reason: 'FORFEIT' });
+      // The dev rule set gives a win against a human 30 points, also by forfeit.
       expect((await first.waitFor('battle:completed')).data).toMatchObject({
         endReason: 'FORFEIT',
-        you: { placement: 1, outcome: 'WIN' },
+        you: { placement: 1, outcome: 'WIN', points: 30 },
+        pointsPending: true,
       });
-      expect((await second.waitFor('battle:completed')).data).toMatchObject({ you: { placement: 2, outcome: 'LOSS' } });
+      expect((await second.waitFor('battle:completed')).data).toMatchObject({
+        you: { placement: 2, outcome: 'LOSS', points: 0 },
+        pointsPending: false,
+      });
       await expect(first.prisma().battle.findUniqueOrThrow({ where: { id: battleId } })).resolves.toMatchObject({
         status: 'COMPLETED',
         endReason: 'FORFEIT',
         hasBot: false,
       });
+      const event = await first.prisma().outboxEvent.findFirstOrThrow({
+        where: { aggregateId: battleId, type: 'BattleCompleted' },
+      });
+      expect((event.payload as { participants: { participantId: string; points: number }[] }).participants).toEqual(
+        expect.arrayContaining([expect.objectContaining({ participantId: ids.first, points: 30 })]),
+      );
       expect(ids.first).toBeTruthy();
       expect(await first.send('matchmaking:join', { gameType: 'BUZZER' })).toMatchObject({ accepted: true });
       await first.send('matchmaking:leave', {});
@@ -482,6 +572,28 @@ describe('battles over WebSocket (e2e)', () => {
         await new Promise((resolve) => setTimeout(resolve, 50));
       }
       expect((await player.playState()).queue).toBeNull();
+    });
+  });
+
+  describe('two humans who blocked each other', () => {
+    // A short bot wait: blocked players must each end up with a bot, never with each other (03 §7.1).
+    const { connectPlayer } = startApp({ knows: 0, guess: 0 }, 1500);
+
+    it('never pairs them, and each gets a bot', async () => {
+      const [first, second] = [await connectPlayer(), await connectPlayer()];
+      await second.block(first.session.userId);
+
+      await first.send('matchmaking:join', { gameType: 'BUZZER' });
+      await second.send('matchmaking:join', { gameType: 'BUZZER' });
+      const [firstFound, secondFound] = [await first.waitFor('battle:found'), await second.waitFor('battle:found')];
+
+      expect(firstFound.battleId).not.toBe(secondFound.battleId);
+      for (const found of [firstFound, secondFound]) {
+        expect((found.data['players'] as { kind: string }[]).map((player) => player.kind).sort()).toEqual([
+          'BOT',
+          'HUMAN',
+        ]);
+      }
     });
   });
 });

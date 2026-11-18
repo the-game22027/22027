@@ -21,6 +21,14 @@ class InvalidPicksError extends DomainError {
   }
 }
 
+class RequestExistsError extends DomainError {
+  readonly code = 'FRIEND_REQUEST_EXISTS';
+  readonly kind = 'CONFLICT';
+  constructor() {
+    super('They already asked you.', { requestId: 'request-1', code: 'IGNORED' });
+  }
+}
+
 interface Captured {
   status?: number;
   contentType?: string;
@@ -73,6 +81,11 @@ describe('ProblemDetailsFilter', () => {
       instance: '/v1/matches/123/prediction',
       traceId: 'trace-abc',
     });
+  });
+
+  it("adds a domain error's details as extension members, never over the standard ones", () => {
+    const { body } = render(new RequestExistsError());
+    expect(body).toMatchObject({ code: 'FRIEND_REQUEST_EXISTS', status: 409, requestId: 'request-1' });
   });
 
   it('maps UNPROCESSABLE domain errors to 422', () => {

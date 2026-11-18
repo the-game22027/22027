@@ -1,0 +1,11 @@
+{
+  "devOnly": true,
+  "name": "Battle leaderboard points, DEV_ONLY placeholder values (DEC-33); vs bot and room earn none (DEC-41)",
+  "config": {
+    "modes": {
+      "matchmakingVsHuman": { "pointsByOutcome": { "WIN": 30, "DRAW": 10, "LOSS": 0 }, "forfeitWinEarnsPoints": true },
+      "matchmakingVsBot": { "pointsByOutcome": { "WIN": 0, "DRAW": 0, "LOSS": 0 }, "forfeitWinEarnsPoints": false },
+      "room": { "pointsByOutcome": { "WIN": 0, "DRAW": 0, "LOSS": 0 }, "forfeitWinEarnsPoints": false }
+    }
+  }
+}

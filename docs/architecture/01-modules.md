@@ -86,10 +86,9 @@ Format per module: **Purpose · Responsibilities · Owned tables · Public inter
 - **Public interface** (details in `08-battle-games.md` §5.4):
   - `ContentSelector.pickContentIds(criteria) → contentIds`.
   - `RoundContentQuery.getContentForEngine(id, locales)`: full content for the server-side engine only, never sent to clients as is.
-  - `AnswerChecker.checkTypedAnswer(contentId, slot, entityId) → CORRECT | WRONG | UNKNOWN_ENTITY`.
+  - `AnswerChecker.judgeTypedText(contentId, slot, text, rules) → { verdict: CORRECT | WRONG, entityId, match }` (`08` §5.3). Bots skip it: the round runner checks their entity ids against the accepted answers it already holds.
   - `AnswerCatalogQuery.findEntitiesByIds(ids)` (names for events).
-  - `QuestionBankFacade.disableQuestion(id, reason)`.
-  - `GET /v1/answer-catalog` is served by this module's own controller.
+  - `QuestionBankFacade.disableQuestion(id, reason)`, `QuestionReports.reportQuestion(id, userId, reason)` (called by `battles`, which checks the question was served to the caller, 08 §5.7).
 - **Depends on:** nothing.
 - **Publishes:** `QuestionsPublished`, `QuestionDisabled`.
 - **Consumes:** `BattleCompleted` (its `questionResults` summary updates `question_stats`; deduplicated by battle id in `question_stats_applied`).
@@ -110,7 +109,7 @@ Removed with the Daily Quiz (ADR-0010, 2026-11-07). The section number is kept s
 - **Owned tables:** `battle_rooms`, `battle_room_members`, `battles`, `battle_participants`, `battle_rounds`, `battle_round_actions`. Redis keys: `mm:*` (queue, tickets) and `act:*` (current activity per user).
 - **Public interface:** WS namespace `/battles` (`api/WEBSOCKET.md`). REST through `MatchmakingFacade.join()/leave()`, `RoomsFacade.create()/join(code)/leave()/remove()/start()/close()`, `BattleQuery.get(id, viewer)`, `BattleQuery.listForUser(userId, cursor)`, `PlayStateQuery.get(userId)` (current queue, room or battle, used for app resume).
 - **Depends on:** `question-bank` (selector + answer key + playable payloads), `points` (active BATTLE rule set), `users` (public profiles), `social` (`isBlocked` checks when joining rooms).
-- **Publishes:** `BattleCompleted {battleId, gameType, mode, hasBot, roomId?, participants[{participantId, kind, userId?, score, placement, outcome, points}], questionResults[{questionId, endReason, stepsRevealed?, wrongAnswers, solved}], endedAt}` (`questionResults` has one item per round, so the payload stays small; it feeds difficulty calibration).
+- **Publishes:** `BattleCompleted {battleId, gameType, mode, hasBot, roomId?, endReason, ruleSetId, participants[{participantId, kind, userId?, score, placement, outcome, points}], questionResults[{questionId, roundNo, endReason, served, solved, wrongAnswers, stepsRevealed}], endedAt}` (stats count humans only, 08 §5.7) (`questionResults` has one item per round, so the payload stays small; it feeds difficulty calibration).
 - **Consumes:** `UserDeleted` (remove from queue and rooms, anonymize participants).
 - **Must not:** let the client advance rounds, decide correctness, or report scores; send a client any step or answer before it is revealed; compare answer text instead of entity ids; branch on `gameType` outside the game rules registry; create bots as `users` rows; give bots ledger points; hard-code round count, timers, room size, bot wait or per-mode points (DEC-31..33, 38..44).
 
@@ -118,16 +117,16 @@ Removed with the Daily Quiz (ADR-0010, 2026-11-07). The section number is kept s
 - **Purpose:** Append-only ledger of every point awarded, plus the versioned scoring rule sets.
 - **Responsibilities:** Store `scoring_rule_sets` (config JSON per game type, versioned, activation dates); record ledger entries idempotently from game events; supersede entries when scores are recalculated; expose sums by user/category/time window.
 - **Owned tables:** `scoring_rule_sets`, `point_entries`.
-- **Public interface:** `ScoringRuleSetQuery.getActive(gameType, at)`, `PointsQuery.sum(userIds, category, from, to)`, `PointsQuery.listEntries(userId, cursor)`.
+- **Public interface:** `PointsQuery.sumPointsOfUsers(userIds, category, from, to)` (leaderboard projection), `ScoringRuleSets.findActiveRuleSet(gameType)` and `activateRuleSet(gameType, name, config, createdBy)` (the game module validates `config` first, 08 §6.1), `PointsQuery.sum(userIds, category, from, to)`, `PointsQuery.listEntries(userId, cursor)`.
 - **Depends on:** `predictions` (`PredictionScoreQuery`, pulled by handler), otherwise event payloads.
 - **Publishes:** `PointsRecorded {userIds, categories, occurredAtMin, occurredAtMax}`, `PointsSuperseded {...}`, `ScoringRuleSetActivated`.
 - **Consumes:** `PredictionsScored`, `PredictionsVoided`, `MotmResultFinalized` (if votes earn points), `BattleCompleted` (human participants only; points per mode from the rule set, DEC-41).
-- **Must not:** contain game rules (each game module calculates, including per-mode battle points; the ledger only records).
+- **Must not:** contain game rules (each game module calculates and validates its own rule set config, including per-mode battle points; the ledger only records).
 
 ### 2.10 `leaderboards`
 - **Purpose:** Fast, paginated rankings per period and category.
-- **Responsibilities:** Generate periods (weekly/monthly/seasonal/all-time) from a timezone + season calendar config; maintain `leaderboard_entries` incrementally from `PointsRecorded`; rebuild a period from the ledger; compute ranks with configured tie-breaks; freeze snapshots at period close (prize); expose global and user-set (league) rankings.
-- **Owned tables:** `leaderboard_periods`, `leaderboard_entries`, `leaderboard_snapshots`, `season_calendar`.
+- **Responsibilities:** Generate periods (weekly/monthly/seasonal/all-time) from a timezone + seasons config; maintain `leaderboard_entries` incrementally from `PointsRecorded`; rebuild a period from the ledger; compute ranks with configured tie-breaks; freeze snapshots at period close (prize); expose global and user-set (league) rankings.
+- **Owned tables:** `leaderboard_periods`, `leaderboard_entries`, `leaderboard_snapshots` (seasons come from config, 03 §5.6).
 - **Public interface:** `LeaderboardQuery.page(periodKey, category, cursor)`, `aroundUser(...)`, `forUserSet(userIds, window, category, cursor)`.
 - **Depends on:** `points` (ledger reads for rebuild and user-set rankings), `users` (display data).
 - **Publishes:** `LeaderboardPeriodClosed`, `LeaderboardSnapshotFinalized` (prize workflow, future).
@@ -148,7 +147,7 @@ Removed with the Daily Quiz (ADR-0010, 2026-11-07). The section number is kept s
 - **Purpose:** Relationships between users.
 - **Responsibilities:** Friend requests (send, accept, decline, cancel), friendships (mutual), unfriend, blocking (Recommended for abuse prevention), friendship queries.
 - **Owned tables:** `friend_requests`, `friendships`, `user_blocks`.
-- **Public interface:** `SocialQuery.areFriends(a, b)`, `listFriendIds(userId)`, `isBlocked(a, b)`.
+- **Public interface:** `SocialQuery.areFriends(a, b)`, `listFriendIds(userId)`, `isBlocked(a, b)`, `findBlockedPairs(userIds)` (the matcher). Also serves `GET /v1/users` and `/v1/users/{id}`, because they must hide blocks and `users` cannot depend on `social` (03 §7.1).
 - **Depends on:** `users`.
 - **Publishes:** `FriendshipCreated`, `FriendshipRemoved`, `UserBlocked`.
 - **Consumes:** `UserDeleted`.

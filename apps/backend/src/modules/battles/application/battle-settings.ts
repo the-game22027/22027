@@ -1,3 +1,5 @@
+import type { TypedAnswerRules } from '@modules/question-bank';
+import type { LeaderboardPointsRule } from '../domain/leaderboard-points';
 import type { BotProfile } from '../domain/bots/reveal-and-buzz-bot';
 import type { GridConfig } from '../domain/games/grid-rules';
 import type { RevealAndBuzzConfig } from '../domain/games/reveal-and-buzz-rules';
@@ -36,6 +38,8 @@ export interface BattleSettings {
   /** How often the matcher pairs tickets, and how long a disconnected player keeps their ticket (03 §3.3). */
   matchmaking: { botFallbackAfterMs: number; tickMs: number; queueDisconnectGraceMs: number };
   bots: { profiles: Record<string, BotProfile> };
+  /** How typed text is judged, for every game type (08 §5.3, DEC-55). */
+  answers: TypedAnswerRules;
   gameTypes: Partial<Record<RevealGameType, RevealGameSettings>> & { GRID?: GridGameSettings };
 }
 
@@ -50,7 +54,10 @@ export function findGameSettings(settings: BattleSettings, gameType: string): Ga
 export interface BattleConfigSnapshot {
   game: GameSettings;
   engine: BattleSettings['engine'];
+  answers: TypedAnswerRules;
   botProfile: string | null;
   /** Seeds the bot's random source, so a bot battle replays identically. */
   seed: number;
+  /** This battle's mode section of the BATTLE rule set active at creation; null when none was (08 §6.1). */
+  leaderboardPoints: { ruleSetId: string; rule: LeaderboardPointsRule } | null;
 }

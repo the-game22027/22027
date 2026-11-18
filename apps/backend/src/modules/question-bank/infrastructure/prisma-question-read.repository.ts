@@ -2,20 +2,17 @@ import { Injectable } from '@nestjs/common';
 import { TransactionHost } from '@nestjs-cls/transactional';
 import { Prisma } from '@generated/prisma/client';
 import type { PrismaService, TransactionalAdapterPrisma } from '@shared/infrastructure/persistence';
+import type { NameWord } from '../domain/answer-catalog';
 import type { AnswerKind, EntityKind, GameBody } from '../domain/question-content';
 import type {
   CatalogEntityView,
-  CatalogSnapshot,
   ContentSelectionCriteria,
   QuestionReadRepository,
+  SlotAnswers,
   StoredGameContent,
-  TypedAnswerLookup,
 } from '../application/ports/question-read-repository';
 
-// Reading 20-30k entities takes well under a second; the default 5 s leaves too little room on a slow machine.
-const CATALOG_SNAPSHOT_TIMEOUT_MS = 30_000;
-
-const CATALOG_ENTITY_COLUMNS = { id: true, kind: true, names: true, searchForms: true, popularity: true } as const;
+const CATALOG_ENTITY_COLUMNS = { id: true, kind: true, names: true, popularity: true } as const;
 
 type CatalogEntityRow = Prisma.AnswerEntityGetPayload<{ select: typeof CATALOG_ENTITY_COLUMNS }>;
 
@@ -23,7 +20,6 @@ const catalogEntityOf = (row: CatalogEntityRow): CatalogEntityView => ({
   id: row.id,
   kind: row.kind as EntityKind,
   names: row.names as unknown as CatalogEntityView['names'],
-  search: row.searchForms,
   popularity: row.popularity,
 });
 
@@ -89,19 +85,44 @@ export class PrismaQuestionReadRepository implements QuestionReadRepository {
     return new Map(rows.map((row) => [row.externalRef, row.id]));
   }
 
-  async lookUpTypedAnswer(contentId: string, slot: number, entityId: string): Promise<TypedAnswerLookup | null> {
-    const rows = await this.txHost.tx.$queryRaw<
-      { answer_kind: AnswerKind | null; entity_kind: EntityKind | null; is_accepted: boolean }[]
-    >`
-      SELECT q.answer_kind::text AS answer_kind, e.kind::text AS entity_kind,
-             EXISTS (SELECT 1 FROM question_answers a
-                     WHERE a.question_id = q.id AND a.slot = ${slot} AND a.entity_id = e.id) AS is_accepted
-      FROM questions q
-      LEFT JOIN answer_entities e ON e.id = ${entityId}::uuid
-      WHERE q.id = ${contentId}::uuid`;
-    const row = rows[0];
-    if (!row?.answer_kind) return null;
-    return { roundAnswerKind: row.answer_kind, entityKind: row.entity_kind, isAcceptedForSlot: row.is_accepted };
+  async findSlotAnswers(contentId: string, slot: number): Promise<SlotAnswers | null> {
+    const question = await this.txHost.tx.question.findUnique({
+      where: { id: contentId },
+      select: {
+        answerKind: true,
+        answers: {
+          where: { slot },
+          select: { entity: { select: { id: true, popularity: true, searchForms: true, nameWords: true } } },
+        },
+      },
+    });
+    if (!question?.answerKind) return null;
+    return {
+      roundAnswerKind: question.answerKind,
+      candidates: question.answers.map(({ entity }) => ({
+        entityId: entity.id,
+        popularity: entity.popularity,
+        searchForms: entity.searchForms,
+        nameWords: entity.nameWords as unknown as NameWord[],
+      })),
+    };
+  }
+
+  async findEntityIdNamedExactly(
+    kind: AnswerKind,
+    form: string,
+    excludeIds: readonly string[],
+  ): Promise<string | null> {
+    // `@>` lets Postgres use the GIN index on search_forms.
+    const rows = await this.txHost.tx.$queryRaw<{ id: string }[]>`
+      SELECT id::text FROM answer_entities
+      WHERE search_forms @> ARRAY[${form}]::text[]
+        AND kind = ${kind}::answer_kind
+        AND status = 'ACTIVE'
+        AND NOT (id = ANY(${[...excludeIds]}::uuid[]))
+      ORDER BY popularity DESC, id
+      LIMIT 1`;
+    return rows[0]?.id ?? null;
   }
 
   async findEntitiesByIds(entityIds: readonly string[]): Promise<CatalogEntityView[]> {
@@ -120,31 +141,5 @@ export class PrismaQuestionReadRepository implements QuestionReadRepository {
       select: { id: true },
     });
     return rows.map((row) => row.id);
-  }
-
-  async findCurrentCatalogVersion(): Promise<string | null> {
-    const batch = await this.txHost.tx.questionImportBatch.findFirst({
-      where: { catalogChecksum: { not: null } },
-      orderBy: [{ importedAt: 'desc' }, { id: 'desc' }],
-      select: { catalogChecksum: true },
-    });
-    return batch?.catalogChecksum ?? null;
-  }
-
-  readCatalogSnapshot(): Promise<CatalogSnapshot | null> {
-    // REPEATABLE READ: an import committing between the two reads must not pair one version with another's entities.
-    return this.txHost.withTransaction(
-      { isolationLevel: Prisma.TransactionIsolationLevel.RepeatableRead, timeout: CATALOG_SNAPSHOT_TIMEOUT_MS },
-      async () => {
-        const version = await this.findCurrentCatalogVersion();
-        if (version === null) return null;
-        const rows = await this.txHost.tx.answerEntity.findMany({
-          where: { status: 'ACTIVE' },
-          orderBy: [{ popularity: 'desc' }, { id: 'asc' }],
-          select: CATALOG_ENTITY_COLUMNS,
-        });
-        return { version, entities: rows.map(catalogEntityOf) };
-      },
-    );
   }
 }

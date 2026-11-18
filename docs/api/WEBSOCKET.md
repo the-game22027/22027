@@ -5,7 +5,7 @@ Transport: **Socket.IO** (via `@nestjs/websockets` + `@nestjs/platform-socket.io
 Design rules:
 - The server is authoritative. WebSocket delivery is treated as **unordered, at-least-once, lossy**; durability lives in PostgreSQL.
 - Battles have **2..N participants**. A participant is a `HUMAN` or a `BOT` (ADR-0010). Random matchmaking is always 1v1; private rooms can be larger (DEC-38).
-- Every battle plays one **game type** (`gameType`: `BUZZER`, `CAREER`, `WHO_IS_PLAYER`, `GRID`; ADR-0015). Game mechanics: `architecture/08-battle-games.md`. Answers are typed and sent as **entity ids** picked from the answer catalog, never as free text (DEC-55).
+- Every battle plays one **game type** (`gameType`: `BUZZER`, `CAREER`, `WHO_IS_PLAYER`, `GRID`; ADR-0015). Game mechanics: `architecture/08-battle-games.md`. Answers are **typed text**, judged on the server against the round's accepted answers with typo tolerance; no suggestions (DEC-55, ADR-0021).
 - Rule values (round count, timers, scoring, room size, bot wait) come from config and stay TBD (DEC-31..33, 38..44, 54, 60, 61).
 - **Room lifecycle commands are REST** (`API.md` §6.7: create, join by code, leave, remove, start, close). This namespace **pushes** lobby changes and carries all battle traffic.
 
@@ -70,7 +70,7 @@ interface BattleRoomSnapshot {      // same shape as REST BattleRoom (API.md §5
 }
 type GameType = 'BUZZER' | 'CAREER' | 'WHO_IS_PLAYER' | 'GRID';          // clients must tolerate unknown values
 type AnswerKind = 'PLAYER' | 'CLUB' | 'NATIONAL_TEAM' | 'COUNTRY' | 'COMPETITION' | 'COACH' | 'NUMBER';
-type Answer = { entityId: string } | { number: number };                 // never free text (DEC-55)
+type Answer = { text: string } | { number: number };                     // text: at most answers.maxLength characters (DEC-55, ADR-0021)
 interface EntityRef { entityId: string; name: string }                   // name in the viewer's locale
 interface GridCriterion { kind: 'CLUB' | 'NATIONALITY' | 'COMPETITION_WON'; entity: EntityRef }
 ```
@@ -85,8 +85,8 @@ interface GridCriterion { kind: 'CLUB' | 'NATIONALITY' | 'COMPETITION_WON'; enti
 | `room:resync` | `{ clientMsgId, roomId }` | Caller is a member | `ROOM_NOT_FOUND` (ack carries `BattleRoomSnapshot`) |
 | `battle:ready` | `{ clientMsgId, battleId }` | Participant; battle `WAITING_READY`; sets the active socket | `NOT_PARTICIPANT`, `INVALID_STATE` |
 | `round:buzz` | `{ clientMsgId, battleId, roundNo }` | Reveal-and-buzz games. Active socket; round `REVEALING` or `FINAL_WINDOW`; sender not locked out; nobody holds the buzz. The first accepted buzz wins (server arrival order) | `BUZZ_TAKEN`, `LOCKED_OUT`, `ROUND_CLOSED`, `ROUND_NOT_CURRENT`, `WRONG_GAME_TYPE`, `NOT_ACTIVE_SOCKET`, `PARTICIPANT_FORFEITED` |
-| `round:answer` | `{ clientMsgId, battleId, roundNo, answer: Answer }` | Reveal-and-buzz games. Only the buzz holder, once per buzz, received ≤ `answerDeadlineAt + latencyGrace`. Correctness arrives as an event, not in the ack | `NOT_BUZZ_HOLDER`, `ANSWER_WINDOW_CLOSED`, `UNKNOWN_ENTITY` (wrong id or wrong `answerKind`), `ROUND_CLOSED`, `NOT_ACTIVE_SOCKET` |
-| `grid:claim` | `{ clientMsgId, battleId, roundNo, cell: { row, col }, answer: { entityId } }` | `GRID`. Sender's turn, received ≤ `turnDeadlineAt + latencyGrace`; cell free; player not already used on this board | `NOT_YOUR_TURN`, `CELL_TAKEN`, `PLAYER_ALREADY_USED`, `UNKNOWN_ENTITY`, `TURN_CLOSED`, `NOT_ACTIVE_SOCKET` |
+| `round:answer` | `{ clientMsgId, battleId, roundNo, answer: Answer }` | Reveal-and-buzz games. Only the buzz holder, once per buzz, received ≤ `answerDeadlineAt + latencyGrace`. `{ number }` when the round's `answerKind` is `NUMBER`, `{ text }` otherwise (the other one gets `INVALID_PAYLOAD`). Correctness arrives as an event, not in the ack | `NOT_BUZZ_HOLDER`, `ANSWER_WINDOW_CLOSED`, `EMPTY_ANSWER` (blank after normalizing, or too long), `ROUND_CLOSED`, `NOT_ACTIVE_SOCKET` |
+| `grid:claim` | `{ clientMsgId, battleId, roundNo, cell: { row, col }, answer: { text } }` | `GRID`. Sender's turn, received ≤ `turnDeadlineAt + latencyGrace`; cell free; the text must not name a player already used on this board | `NOT_YOUR_TURN`, `CELL_TAKEN`, `PLAYER_ALREADY_USED`, `EMPTY_ANSWER`, `TURN_CLOSED`, `NOT_ACTIVE_SOCKET` |
 | `grid:skip` | `{ clientMsgId, battleId, roundNo }` | `GRID`. Sender's turn | `NOT_YOUR_TURN`, `TURN_CLOSED` |
 | `battle:resync` | `{ clientMsgId, battleId, lastSeq }` | Participant | `NOT_PARTICIPANT` (ack carries the snapshot) |
 | `battle:forfeit` | `{ clientMsgId, battleId }` | Participant; battle not finished. The participant leaves for good: last placement (DEC-33) | `NOT_PARTICIPANT`, `INVALID_STATE` |
@@ -119,7 +119,7 @@ When the host starts the room, members receive `battle:found` with `mode: "ROOM"
 
 | Type | Data | When |
 |---|---|---|
-| `battle:found` | `{ battleId, gameType, mode: "MATCHMAKING" \| "ROOM", roomId?, players: BattlePlayer[], youParticipantId, config, readyDeadlineAt }` | Participants formed. `config` is the game type's public config (round count, timers, attempts). The client joins the battle channel automatically |
+| `battle:found` | `{ battleId, gameType, mode: "MATCHMAKING" \| "ROOM", roomId?, players: BattlePlayer[], youParticipantId, config, readyDeadlineAt }` | Participants formed. `config` is the game type's public config (round count, timers, attempts) and `answerMaxLength`, the longest text an answer may have. The client joins the battle channel automatically |
 | `battle:cancelled` | `{ reason: "READY_TIMEOUT" \| "PLAYER_LEFT" \| "SERVER" }` | Before start: fewer than 2 participants ready, or a player forfeited or did not come back before the start |
 | `battle:started` | `{ startedAt, players: BattlePlayer[] }` | Start. `players` excludes anyone dropped for not being ready |
 | `round:start` | Reveal and buzz: `{ roundNo, gameType, answerKind, stepCount, category? }`. Grid: `{ roundNo, gameType, rows: GridCriterion[3], cols: GridCriterion[3], firstTurnParticipantId }` | Each round. Never contains unrevealed steps or accepted answers |
@@ -130,11 +130,11 @@ When the host starts the room, members receive `battle:found` with `mode: "ROOM"
 | `grid:turn` | `{ roundNo, participantId, turnDeadlineAt, attemptsLeft }` | Grid: whose turn it is |
 | `grid:claimed` | `{ roundNo, cell, participantId, player: EntityRef }` | Grid: a correct answer took the cell |
 | `grid:missed` | `{ roundNo, cell, participantId, answer?: EntityRef, timedOut: boolean, skipped: boolean }` | Grid: a wrong answer, a timeout or a skip. `answer` only when `showWrongAnswers` is on |
-| `round:result` | `{ roundNo, winnerParticipantIds: string[], reveal, points: [{ participantId, points }], scores: [{ participantId, score }] }` | Round closed. `winnerParticipantIds` holds the round winner (the correct answerer, or the grid line owner); it is empty when nobody won or the grid was a draw. `reveal`: reveal and buzz: `{ steps: string[], answer: EntityRef \| { number }, explanation? }`; grid: `{ line?: cell[3], sampleAnswers: [{ cell, player: EntityRef }] }` |
+| `round:result` | `{ roundNo, questionId, winnerParticipantIds: string[], reveal, points: [{ participantId, points }], scores: [{ participantId, score }] }` | Round closed. `questionId` is what a player sends to `POST /v1/questions/{questionId}/reports` (`08` §5.7); it is never sent before the round ends. `winnerParticipantIds` holds the round winner (the correct answerer, or the grid line owner); it is empty when nobody won or the grid was a draw. `reveal`: reveal and buzz: `{ steps: string[], answer: EntityRef \| { number }, explanation? }`; grid: `{ line?: cell[3], sampleAnswers: [{ cell, player: EntityRef }] }` |
 | `player:disconnected` | `{ participantId, graceUntil }` | A human's last socket dropped |
 | `player:reconnected` | `{ participantId }` | |
 | `player:forfeited` | `{ participantId, reason: "GRACE_EXPIRED" \| "FORFEIT" \| "NOT_READY" }` | Participant out of the battle |
-| `battle:completed` | `{ endReason: "COMPLETED" \| "FORFEIT" \| "ABANDONED", you?: { placement, outcome: "WIN" \| "LOSS" \| "DRAW", score }, placements: [{ participantId, placement, score }], pointsPending: boolean }` | End. Those who left are placed after everyone still in, as losses. `ABANDONED` (no human left) has no placements. Ledger points arrive asynchronously; `pointsPending` is false when this mode earns none (DEC-41) |
+| `battle:completed` | `{ endReason: "COMPLETED" \| "FORFEIT" \| "ABANDONED", you?: { placement, outcome: "WIN" \| "LOSS" \| "DRAW", score, points }, placements: [{ participantId, placement, score }], pointsPending: boolean }` | End. Those who left are placed after everyone still in, as losses. `ABANDONED` (no human left) has no placements. `you.points` is what this battle adds to your `BATTLES` leaderboards (`08` §6.1); it reaches them asynchronously, so `pointsPending` is true when it is above 0 (always false vs a bot or in a room, DEC-41) |
 | `battle:snapshot` | `{ status, gameType, mode, players, currentRound?: { roundNo, phase, revealedClues \| board, buzzHolder?, lockedOut[], deadlines }, rounds: [...results so far], scores, seq }` | Reply to resync and on reconnect. Contains only what was already revealed |
 
 ### 4.4 Session
@@ -189,8 +189,8 @@ S→C round:resumed {roundNo:1, nextClueAt}                       seq 8
 S→C round:clue {roundNo:1, index:3, clue:"ريال مدريد (2009–2018)", nextClueAt}    seq 9
 C→S round:buzz {clientMsgId:a3, battleId:B, roundNo:1}         ack {accepted:true}
 S→C round:buzzed {roundNo:1, participantId:P1, answerDeadlineAt}  seq 10
-    (the app searches the downloaded answer catalog as the player types "رونا", the player picks a suggestion)
-C→S round:answer {clientMsgId:a4, battleId:B, roundNo:1, answer:{entityId:"…"}}  ack {accepted:true}
+    (the player types "رونالدوو" and sends it: one edit from the alias "رونالدو", so it is correct)
+C→S round:answer {clientMsgId:a4, battleId:B, roundNo:1, answer:{text:"رونالدوو"}}  ack {accepted:true}
 S→C round:result {roundNo:1, winnerParticipantIds:[P1], reveal:{steps:[…6 clubs], answer:{entityId, name:"كريستيانو رونالدو"}}, points, scores}  seq 11
 ...  (rounds per config)
 S→C battle:completed {endReason:"COMPLETED", you:{placement:1, outcome:"WIN"}, placements, pointsPending:false}  seq N
@@ -201,7 +201,7 @@ S→C battle:completed {endReason:"COMPLETED", you:{placement:1, outcome:"WIN"},
 ```
 S→C round:start {roundNo:1, gameType:"GRID", rows:[Real Madrid, Barcelona, Juventus], cols:[Brazil, France, Argentina], firstTurnParticipantId:P1}
 S→C grid:turn {roundNo:1, participantId:P1, turnDeadlineAt, attemptsLeft:1}
-C→S grid:claim {clientMsgId:c1, battleId:B, roundNo:1, cell:{row:0,col:1}, answer:{entityId:<Zidane>}}   ack {accepted:true}
+C→S grid:claim {clientMsgId:c1, battleId:B, roundNo:1, cell:{row:0,col:1}, answer:{text:"زيدان"}}   ack {accepted:true}
 S→C grid:claimed {roundNo:1, cell:{row:0,col:1}, participantId:P1, player:{entityId, name:"Zinedine Zidane"}}
 S→C grid:turn {roundNo:1, participantId:P2, turnDeadlineAt, attemptsLeft:1}
     ... until a line or a full board ...

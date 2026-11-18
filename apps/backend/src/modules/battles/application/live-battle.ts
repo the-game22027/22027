@@ -1,7 +1,8 @@
 import type { Logger } from '@nestjs/common';
 import type { AnswerCatalogQuery, AnswerChecker, GameType, RoundContentQuery } from '@modules/question-bank';
 import type { Clock } from '@shared/kernel';
-import type { ParticipantId, RoundAction, RoundResult, TypedAnswer } from '../domain/games/game-rules';
+import type { ParticipantId, RoundAction, RoundResult } from '../domain/games/game-rules';
+import { calculateLeaderboardPoints } from '../domain/leaderboard-points';
 import { placeParticipantsByScore } from '../domain/placements';
 import type { RandomSource } from '../domain/random-source';
 import type { BattleConfigSnapshot, GridGameSettings, RevealGameSettings } from './battle-settings';
@@ -11,7 +12,7 @@ import type { BattleRepository } from './ports/battle-repository';
 import type { ScheduledTimer, TimerScheduler } from './ports/timer-scheduler';
 import { GridRoundRunner } from './rounds/grid-round-runner';
 import { RevealRoundRunner } from './rounds/reveal-round-runner';
-import type { PlayerCommand, RoundHost, RoundRunner, ViewerData } from './rounds/round-runner';
+import type { PlayerAnswer, PlayerCommand, RoundHost, RoundRunner, ViewerData } from './rounds/round-runner';
 
 export type { LiveParticipant } from './live-participant';
 
@@ -47,6 +48,8 @@ export interface LiveBattleDependencies {
 export class LiveBattle {
   status: 'WAITING_READY' | 'IN_PROGRESS' | 'FINISHED' = 'WAITING_READY';
   private seq = 0;
+  /** Set at shutdown: no new timers. */
+  private stopped = false;
   private queue: Promise<unknown> = Promise.resolve();
   private readonly timers = new Map<string, ScheduledTimer>();
   private readonly acks = new Map<string, Ack>();
@@ -124,7 +127,7 @@ export class LiveBattle {
     return this.roundCommand(userId, socketId, roundNo, { type: 'BUZZ' }, clientMsgId);
   }
 
-  answer(userId: string, socketId: string, roundNo: number, answer: TypedAnswer, clientMsgId: string): Promise<Ack> {
+  answer(userId: string, socketId: string, roundNo: number, answer: PlayerAnswer, clientMsgId: string): Promise<Ack> {
     return this.roundCommand(userId, socketId, roundNo, { type: 'ANSWER', answer }, clientMsgId);
   }
 
@@ -184,6 +187,20 @@ export class LiveBattle {
     this.timers.clear();
   }
 
+  /**
+   * Stops the timers, then waits for the work already queued (a timer that fired, a command being handled), so
+   * nothing writes to the database after it has closed.
+   */
+  async stopAndFinishQueuedWork(): Promise<void> {
+    this.stopped = true;
+    this.stopTimers();
+    let queued: Promise<unknown>;
+    do {
+      queued = this.queue;
+      await queued;
+    } while (queued !== this.queue);
+  }
+
   // ---- command plumbing ----
 
   private runInQueue<T>(task: () => Promise<T>): Promise<T> {
@@ -228,6 +245,8 @@ export class LiveBattle {
   }
 
   private schedule(key: string, at: Date, task: () => Promise<void>): void {
+    // Work still finishing during shutdown must not start new timers.
+    if (this.stopped) return;
     this.cancel(key);
     this.timers.set(
       key,
@@ -327,6 +346,7 @@ export class LiveBattle {
       random: this.deps.random,
       checker: this.deps.checker,
       catalog: this.deps.catalog,
+      answerRules: this.config.answers,
       now: () => this.deps.clock.now(),
       participants: () => this.participants,
       activeParticipantIds: () => this.activeParticipants.map((participant) => participant.id),
@@ -366,6 +386,8 @@ export class LiveBattle {
     });
     await this.emit('round:result', (viewer) => ({
       roundNo: runner.roundNo,
+      // Sent only once the round is over, for POST /v1/questions/{id}/reports (08 §5.7).
+      questionId: this.questionIds[runner.roundNo - 1],
       winnerParticipantIds: result.winnerParticipantId ? [result.winnerParticipantId] : [],
       reveal: revealFor(viewer),
       points: this.participants.map((participant) => ({
@@ -402,20 +424,31 @@ export class LiveBattle {
         outcome: 'LOSS' as const,
       }));
     const placements = [...stillIn, ...left];
+    const rule = this.config.leaderboardPoints?.rule ?? null;
+    const leaderboardPoints = Object.fromEntries(
+      placements.map(({ participantId, outcome }) => [
+        participantId,
+        this.participants.find((participant) => participant.id === participantId)?.kind === 'HUMAN'
+          ? calculateLeaderboardPoints(rule, outcome, endReason)
+          : 0,
+      ]),
+    );
     await this.deps.repository.completeBattle({
       battleId: this.id,
       endedAt: this.deps.clock.now(),
       endReason,
       placements,
+      leaderboardPoints,
     });
     await this.emit('battle:completed', (viewer) => {
       const mine = placements.find((placement) => placement.participantId === viewer.id);
+      const points = leaderboardPoints[viewer.id] ?? 0;
       return {
         endReason,
-        you: { placement: mine?.placement, outcome: mine?.outcome, score: mine?.score },
+        you: { placement: mine?.placement, outcome: mine?.outcome, score: mine?.score, points },
         placements: placements.map(({ participantId, placement, score }) => ({ participantId, placement, score })),
-        // Bot battles earn no ledger points (DEC-41).
-        pointsPending: false,
+        // The ledger and leaderboards update asynchronously (08 §6.1).
+        pointsPending: points > 0,
       };
     });
     await this.finish();
@@ -477,6 +510,11 @@ export class LiveBattle {
   private publicConfig(): Record<string, unknown> {
     const hidden = new Set(['enabled', 'points', 'selection']);
     const rules = Object.fromEntries(Object.entries(this.config.game).filter(([key]) => !hidden.has(key)));
-    return { ...rules, roundCount: this.questionIds.length, betweenRoundsMs: this.config.engine.betweenRoundsMs };
+    return {
+      ...rules,
+      roundCount: this.questionIds.length,
+      betweenRoundsMs: this.config.engine.betweenRoundsMs,
+      answerMaxLength: this.config.answers.maxLength,
+    };
   }
 }

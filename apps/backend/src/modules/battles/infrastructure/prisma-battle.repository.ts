@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { TransactionHost } from '@nestjs-cls/transactional';
 import type { Prisma } from '@generated/prisma/client';
 import { OutboxWriter } from '@shared/infrastructure/outbox';
+import { summarizeRoundForQuestionStats } from '../domain/question-results';
 import type { PrismaService, TransactionalAdapterPrisma } from '@shared/infrastructure/persistence';
 import type { RoundAction, RoundResult } from '../domain/games/game-rules';
 import type { BattleCompletion, BattleRepository, NewBattle } from '../application/ports/battle-repository';
@@ -26,6 +27,7 @@ export class PrismaBattleRepository implements BattleRepository {
           gameType: battle.gameType,
           hasBot: battle.hasBot,
           config: battle.config as unknown as Prisma.InputJsonValue,
+          ruleSetId: battle.ruleSetId,
           createdAt: battle.createdAt,
           readyDeadlineAt: battle.readyDeadlineAt,
         },
@@ -78,6 +80,8 @@ export class PrismaBattleRepository implements BattleRepository {
         kind: action.kind,
         entityId: answer && 'entityId' in answer ? answer.entityId : null,
         numberAnswer: answer && 'number' in answer ? answer.number : null,
+        answerText: answer && 'text' in answer ? answer.text : null,
+        answerMatch: answer && 'match' in answer ? answer.match : null,
         isCorrect: action.isCorrect ?? null,
         points: action.points,
         clientMsgId,
@@ -98,7 +102,13 @@ export class PrismaBattleRepository implements BattleRepository {
     });
   }
 
-  async completeBattle({ battleId, endedAt, endReason, placements }: BattleCompletion): Promise<void> {
+  async completeBattle({
+    battleId,
+    endedAt,
+    endReason,
+    placements,
+    leaderboardPoints,
+  }: BattleCompletion): Promise<void> {
     await this.txHost.withTransaction(async () => {
       const tx = this.txHost.tx;
       for (const { participantId, score, placement, outcome } of placements) {
@@ -107,8 +117,11 @@ export class PrismaBattleRepository implements BattleRepository {
       const battle = await tx.battle.update({
         where: { id: battleId },
         data: { status: 'COMPLETED', endedAt, endReason, version: { increment: 1 } },
-        include: { participants: true, rounds: { orderBy: { roundNo: 'asc' } } },
+        include: { participants: true, rounds: { orderBy: { roundNo: 'asc' }, include: { actions: true } } },
       });
+      const humanIds = new Set(
+        battle.participants.filter((participant) => participant.kind === 'HUMAN').map((participant) => participant.id),
+      );
       await this.outbox.write({
         type: 'BattleCompleted',
         version: 1,
@@ -122,6 +135,8 @@ export class PrismaBattleRepository implements BattleRepository {
           hasBot: battle.hasBot,
           roomId: battle.roomId,
           endedAt: endedAt.toISOString(),
+          endReason,
+          ruleSetId: battle.ruleSetId,
           participants: battle.participants.map((participant) => ({
             participantId: participant.id,
             kind: participant.kind,
@@ -129,15 +144,9 @@ export class PrismaBattleRepository implements BattleRepository {
             score: participant.score,
             placement: participant.placement,
             outcome: participant.outcome,
-            // Ledger points come from the BATTLE rule set (P6.5); bot battles earn none (DEC-41).
-            points: 0,
+            points: leaderboardPoints[participant.id] ?? 0,
           })),
-          questionResults: battle.rounds.map((round) => ({
-            roundNo: round.roundNo,
-            questionId: round.questionId,
-            answeredCorrectly: round.endReason === 'CORRECT',
-            stepsRevealed: round.stepsRevealed,
-          })),
+          questionResults: battle.rounds.map((round) => summarizeRoundForQuestionStats(round, humanIds)),
         },
       });
     });
@@ -192,5 +201,15 @@ export class PrismaBattleRepository implements BattleRepository {
             WHERE user_id = ${userId}::uuid ORDER BY battle_id DESC LIMIT ${battleCount}) recent
       JOIN battle_rounds r ON r.battle_id = recent.battle_id`;
     return rows.map((row) => row.question_id);
+  }
+
+  async wasQuestionServedToUser(questionId: string, userId: string): Promise<boolean> {
+    const [row] = await this.txHost.tx.$queryRaw<{ served: boolean }[]>`
+      SELECT EXISTS (
+        SELECT 1 FROM battle_rounds r
+        JOIN battle_participants p ON p.battle_id = r.battle_id
+        WHERE r.question_id = ${questionId}::uuid AND p.user_id = ${userId}::uuid AND r.started_at IS NOT NULL
+      ) AS served`;
+    return row?.served ?? false;
   }
 }

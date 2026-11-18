@@ -169,7 +169,7 @@ A user is in at most one of: the matchmaking queue, a room, a battle. The guard 
 ### 3.3 Random matchmaking with bot fallback
 
 1. **Join:** `POST /v1/battles/matchmaking { gameType }` or WS `matchmaking:join { gameType }`. Acquire the activity guard; add a ticket to the Redis sorted set `mm:queue:{gameType}` (score = server enqueue time) with details in `mm:ticket:{ticketId}` (`userId`, `gameType`, `locale`, `enqueuedAt`). Reply `matchmaking:queued { queuedAt, botFallbackAt }`. A game type that is switched off in config answers `GAME_TYPE_UNAVAILABLE`.
-2. **Matcher loop** (API process, every `matchmaking.tickMs`, once per game type queue): a Lua script atomically removes the two oldest compatible tickets of that queue (compatibility rules: DEC-37; MVP = any). The matcher then checks `SocialQuery.isBlocked(a, b)`; a blocked pair goes back to the queue with original scores and is skipped for that pair (from P7, when blocks exist). The two players' content must be available in both their locales. **Single API instance until a measured need (ADR-0001):** the matcher runs in the one API process, which also owns the battles it creates; several instances need battle ownership and the Socket.IO Redis adapter first.
+2. **Matcher loop** (API process, every `matchmaking.tickMs`, once per game type queue): it reads the oldest tickets, pairs them oldest first while skipping players who blocked each other (from P7), and takes each pair in one Lua script only if both are still queued (03 §7.1; compatibility rules: DEC-37; MVP = any). The two players' content must be available in both their locales. **Single API instance until a measured need (ADR-0001):** the matcher runs in the one API process, which also owns the battles it creates; several instances need battle ownership and the Socket.IO Redis adapter first.
 3. **Bot fallback:** a ticket waiting `≥ botFallbackAfterMs` is removed atomically and gets a battle with a bot (§3.5).
 4. **Bots disabled** (DEC-39 option): after `queueTimeoutMs`, emit `matchmaking:timeout` and release the guard.
 5. **Leave:** `DELETE /v1/battles/matchmaking` or `matchmaking:leave` removes the ticket. If the Lua removal returns 0, the ticket was already matched and the client receives `battle:found` instead (leave and match race; the atomic removal decides).
@@ -267,7 +267,7 @@ In a 1v1, "≥ 2 ready" means both, so a missing player cancels the battle. A bo
 4. **Player commands:** `round:buzz`, `round:answer`, `grid:claim`, `grid:skip` from humans; the same commands from bot timers. The engine first checks what every game shares: the battle is `IN_PROGRESS`, `roundNo` is the current round, the sender is an active participant (active socket for humans), the `clientMsgId` is new. Then the game rules decide the rest and return effects or a rejection code. **One battle's commands and timer firings are processed one at a time, in arrival order**, which is what makes "first buzz wins" exact. Accepted actions are persisted to `battle_round_actions` in that order (`action_no`), and the sender gets the ack `{ clientMsgId, accepted, code? }`. Typed answers are checked by entity id on the server (`AnswerChecker`, `08` §5.3).
 5. **Round close:** when the game rules end the round (correct answer, no winner, grid line, draw). The engine persists `closed_at`, `winner_participant_id`, `end_reason` and emits `round:result` with the full reveal and the running scores. Every server event carries a per-battle monotonically increasing `seq`.
 6. **Scoring:** each round's points come from the game rules (per game type config, DEC-33); `BattleScorer` totals them and `PlacementCalculator(scores, tieBreakConfig)` gives placements (ties share a placement; DEC-33). `outcome` is derived from placement.
-7. **Completion:** in one transaction, write participants' `score`, `placement`, `outcome`; compute each human's **ledger points** from the rule set's per-mode section (DEC-41: matchmaking vs human, vs bot, room); set battle `COMPLETED`; write outbox `BattleCompleted` (participants with `score` and `points`, plus `questionResults` for stats). Then emit `battle:completed`, release guards (or return the room to `LOBBY`). `score` is the in-game number players see; `points` is what reaches the ledger (0 for rooms and bot battles: Decided, DEC-41).
+7. **Completion:** in one transaction, write participants' `score`, `placement`, `outcome`; compute each human's **ledger points** from the rule set's per-mode section snapshotted at creation (DEC-41: matchmaking vs human, vs bot, room; `08` §6.1); set battle `COMPLETED`; write outbox `BattleCompleted` (participants with `score` and `points`, plus `questionResults` for stats). Then emit `battle:completed`, release guards (or return the room to `LOBBY`). `score` is the in-game number players see; `points` is what reaches the ledger (0 for rooms and bot battles: Decided, DEC-41).
 8. **Disconnects:** on a human's last socket disconnect, set `disconnected_at`, start the reconnect grace timer (DEC-32), and emit `player:disconnected { participantId, graceUntil }`. The battle keeps running: the player just does not buzz, a held buzz runs out, a grid turn times out. When grace expires, the player forfeits (`forfeited_at`, last placement) and `player:forfeited` is emitted. With one active participant left the battle completes (`end_reason = FORFEIT`); with no active human left it is `ABANDONED`. Forfeit points policy: DEC-33.
 9. **Reconnection:** the client reconnects with a valid token and emits `battle:resync { battleId, lastSeq }`. The engine replies with a full snapshot (current round, deadline, players, scores, own answers). Missed events are not replayed one by one; the snapshot is the source of truth.
 10. **Duplicate, late, out-of-order messages:** a duplicate gets the same ack as the first (looked up by `clientMsgId`); a late command (after the round closed) gets `accepted: false, code: ROUND_CLOSED`; a late answer inside an open round gets `ANSWER_WINDOW_CLOSED` / `TURN_CLOSED`; a command for a future round is rejected (`ROUND_NOT_CURRENT`); a buzz while someone else holds it gets `BUZZ_TAKEN`.
@@ -288,7 +288,7 @@ In a 1v1, "≥ 2 ready" means both, so a missing player cancels the battle. A bo
 |---|---|---|
 | WEEKLY | ISO week `2026-W45` | Week start day + timezone from config (recommended: Monday 00:00 platform timezone) |
 | MONTHLY | `2026-11` | Calendar month in the platform timezone |
-| SEASONAL | `2026-27` | From `season_calendar` (recommended: football season, roughly Aug–May; confirm) |
+| SEASONAL | `2026-27` | From the `seasons` list of the leaderboard config (DEC-17 pending, `DEV_ONLY` dates) |
 | ALL_TIME | `all` | Never closes |
 
 The period calculator is a pure domain function `(occurredAt, kind, tz, seasonCalendar) → periodKey`, heavily unit-tested around DST and year boundaries.
@@ -335,6 +335,16 @@ Supersession sends a negative delta (old) and a positive delta (new). Idempotenc
 
 New categories (e.g., MOTM accuracy) = new enum value + contribution mapping. League boards reuse the same ledger query with a user set.
 
+### 5.6 What P6.5b builds
+
+- **Calendar config** (`config/leaderboards.dev.json`, path in `LEADERBOARD_CONFIG_PATH`): `timezone` (`Africa/Cairo`, DEC-15/16), `weekStartsOn` (`MONDAY`), `seasons: [{ key, startsOn, endsBefore }]` (local dates, DEC-17). The file carries `devOnly` while the season dates are placeholders, and production refuses it. Seasons live in config instead of a `season_calendar` table: they are a tuning value, not data. Changing the timezone or week start later means rebuilding the boards.
+- **Period keys:** `WEEKLY` is the ISO week of the week's first local day (`2026-W46`; with a Monday start it is the plain ISO week), `MONTHLY` is `2026-11`, `SEASONAL` is the season's `key`, `ALL_TIME` is `all`. A time outside every season belongs to no seasonal board. The period calculator is a pure domain function, using the built-in `Intl` time zone data, tested across Cairo's daylight saving changes.
+- **Boards per ledger category:** `BATTLE` → `BATTLES`, `PREDICTION` → `PREDICTIONS`, `MOTM` → none (DEC-08).
+- **Projection:** `PointsRecorded` → queue `leaderboards` → for each board and kind, every period from the one containing `occurredAtMin` to the one containing `occurredAtMax`: upsert the period row, then recompute each user's absolute sum from the ledger (`PointsQuery.sumPointsOfUsers`) and upsert it (delete the row when the sum is 0). One transaction holds an advisory lock per (board, user), taken in user id order, so two handlers for one player run one after the other and the last one reads every committed entry.
+- **Ranking:** rows are ordered by `points DESC, tiebreak_1 DESC, tiebreak_2 DESC, user_id`, the index order. The tie-break columns stay 0 until DEC-23 picks their meaning (`TODO(DEC-23)`). The rank shown is standard competition ranking on points only: equal points share a rank (1, 1, 3), the recommended display default.
+- **Status:** `OPEN` until `endsAt`, then `CLOSED`, derived from the server clock on read. Closing jobs, `FINALIZED`, snapshots and prizes come with the prize work (DEC-28/47); until then `leaderboard_periods.status` stays `OPEN`.
+- **Endpoints** (`docs/api/API.md` §6.8): `category` is required (`BATTLES` or `PREDICTIONS`); the `PREDICTIONS` board stays empty until prediction scoring (P3.2). `periods` is computed from the calendar (the current period and up to 11 before it), so it needs no database. A malformed key or an unknown season is `404 PERIOD_NOT_FOUND`; a well-formed key with no points yet is an empty page. `/me` returns the player's rank and two rows on each side.
+
 ---
 
 ## 6. Private league workflow
@@ -362,3 +372,30 @@ canView(viewer, owner, match, ownerSettings, platformDefault):
 ```
 
 Decided (DEC-21): friends see predictions only after kickoff, with no per-user setting in v1.0, because seeing friends' picks before kickoff enables copying in leagues (risk K-03). Every read path (`friends' predictions for a match`, `a user's prediction history`, future feed and share cards) must go through this policy and has its own integration test.
+
+### 7.1 What P7 builds
+
+**A block is invisible.** Every path answers a blocked user (either direction) exactly like an unknown one: `404 USER_NOT_FOUND`. Blocks are checked in both directions everywhere.
+
+**P7a: friends, blocks, search** (module `social`; users search lives here too, because `users` cannot depend on `social`):
+
+- **Send** `POST /v1/friend-requests { userId }` → `201` with the request.
+  - The same request again (same direction, still pending) → `200` with that request: naturally idempotent. A generic `Idempotency-Key` store is not built yet.
+  - The other player already asked you → `409 FRIEND_REQUEST_EXISTS`, with `requestId` in the problem details so the app can offer "accept".
+  - Already friends → `409 ALREADY_FRIENDS`. Yourself → `422 CANNOT_TARGET_YOURSELF`. Unknown, deleted or blocked either way → `404 USER_NOT_FOUND`.
+  - Two players asking each other at the same moment: the partial unique index lets one insert win; the other gets `409 FRIEND_REQUEST_EXISTS`.
+- **Accept / decline** (addressee only) and **cancel** `DELETE` (requester only): someone else's or unknown → `404 FRIEND_REQUEST_NOT_FOUND`; no longer pending → `409 FRIEND_REQUEST_NOT_PENDING`. Each is a conditional update `WHERE status = 'PENDING'`, so accept and cancel racing cannot both win. Accept inserts the friendship in the same transaction and writes `FriendshipCreated`.
+- **Lists:** `GET /v1/friend-requests?direction=incoming|outgoing`, `GET /v1/me/friends` (`{ user, since }`, newest first) and `GET /v1/me/blocks`, all keyset pages.
+- **Unfriend** `DELETE /v1/me/friends/{userId}` → `204`, also when not friends; writes `FriendshipRemoved` when a row was removed.
+- **Block** `PUT /v1/me/blocks/{userId}` → `204`, idempotent. In one transaction: the block row, the friendship removed, every pending request between the two cancelled, `UserBlocked` (and `FriendshipRemoved` if they were friends). **Unblock** `DELETE` → `204`, restores nothing.
+- **A profile** `GET /v1/users/{userId}` → `PublicUser` + `relationship`: `SELF | NONE | FRIENDS | REQUEST_SENT | REQUEST_RECEIVED` (+ `requestId` for the last two).
+- **Search** `GET /v1/users?query=` (2 to 50 characters, trimmed): username starting with the query, or display name containing it, both case-insensitive; active users only; never yourself or a block either way; ordered by display name, then id; keyset pages. A trigram index (`pg_trgm`) serves the display-name match.
+- **Rate limits per user** (API §7): search 30 per minute, friend requests 30 per hour, from config (`RATE_LIMIT_USER_SEARCH_PER_MINUTE`, `RATE_LIMIT_FRIEND_REQUESTS_PER_HOUR`); `429 RATE_LIMITED` with `Retry-After`.
+- **Events** (no consumers yet): `FriendshipCreated { userA, userB }`, `FriendshipRemoved { userA, userB, reason: UNFRIENDED | BLOCKED }`, `UserBlocked { blockerId, blockedId }`.
+
+**P7b: prediction visibility and matchmaking:**
+
+- `GET /v1/matches/{matchId}/predictions/friends` → friends' predictions for that match, only once kickoff has passed (before it: an empty page). `GET /v1/users/{userId}/predictions` → yourself: everything; a friend: only matches past kickoff; anyone else, or a block → `404 USER_NOT_FOUND`. Both read kickoff against the **database clock** in the query. `score` stays `null` until prediction scoring (P3.2).
+- **The matcher skips blocked pairs:** it reads up to 50 of the oldest tickets without removing them, pairs them oldest first while skipping blocked pairs (`SocialQuery.findBlockedPairs`), then takes each pair in one script only if both tickets are still queued. Unpaired tickets never leave the queue, so a leave or the bot fallback always finds them (`learn/redis/peek-then-take.md`). A blocked pair that stays alone falls back to bots as usual.
+
+**Not in P7:** cleanup on `UserDeleted` (nothing publishes it yet), the friends leaderboard, the activity feed (DEC-34), Arabic letter normalization in search.

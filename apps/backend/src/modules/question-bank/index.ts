@@ -1,12 +1,14 @@
 export { QuestionBankModule } from './question-bank.module';
 export { QuestionBankCliModule } from './question-bank-cli.module';
+export { QuestionBankJobsModule } from './question-bank-jobs.module';
 export { ImportQuestionBundle, type ImportSummary } from './application/import-question-bundle';
 export { QuestionBankFacade, type PublishSummary } from './application/question-bank.facade';
+export { QuestionReports } from './application/question-reports';
 export { ContentSelector } from './application/content-selector';
 export { RoundContentQuery } from './application/round-content.query';
 export { AnswerChecker } from './application/answer-checker';
 export { AnswerCatalogQuery } from './application/answer-catalog.query';
 export type { CatalogEntityView, ContentSelectionCriteria } from './application/ports/question-read-repository';
 export type { EngineContent, EngineGameBody } from './domain/engine-content';
-export type { TypedAnswerVerdict } from './domain/typed-answer';
+export type { TextMatch, TypedAnswerRules, TypedTextJudgement } from './domain/typed-text-judgement';
 export { GAME_TYPES, type AnswerKind, type EntityKind, type GameType } from './domain/question-content';

@@ -1,5 +1,6 @@
 import {
   type Effect,
+  type JudgedAnswer,
   type ParticipantId,
   type Rejection,
   reject,
@@ -66,8 +67,11 @@ export type GridEvent =
       skipped: boolean;
     };
 
+/** A claim's answer names a player, or nobody when the text matched none (08 §5.3). */
+export type GridClaimAnswer = Exclude<JudgedAnswer, { number: number }>;
+
 export type GridCommand =
-  { type: 'GRID_CLAIM'; cell: number; entityId: string; verdict: 'CORRECT' | 'WRONG' } | { type: 'GRID_SKIP' };
+  { type: 'GRID_CLAIM'; cell: number; answer: GridClaimAnswer; verdict: 'CORRECT' | 'WRONG' } | { type: 'GRID_SKIP' };
 
 export const TURN_TIMER = 'turn';
 
@@ -97,29 +101,33 @@ export class GridRules {
     return { state: turn.state, effects: [started, ...turn.effects] };
   }
 
-  /** Checks a claim without changing anything, before the engine spends a lookup on judging it. */
+  /**
+   * Checks a claim without changing anything. The engine calls it with no player before judging the text, and the
+   * rules call it again with the judged player, who must not be on the board yet.
+   */
   findClaimRejection(
     state: GridRoundState,
     from: ParticipantId,
     cell: number,
-    entityId: string,
+    entityId: string | null,
     receivedAt: Date,
   ): Rejection | null {
     const turnProblem = this.findTurnRejection(state, from, receivedAt);
     if (turnProblem) return turnProblem;
     if (!Number.isInteger(cell) || cell < 0 || cell >= GRID_CELLS) return reject('INVALID_PAYLOAD');
     if (state.board[cell] !== null) return reject('CELL_TAKEN');
-    if (state.usedPlayers.includes(entityId)) return reject('PLAYER_ALREADY_USED');
+    if (entityId !== null && state.usedPlayers.includes(entityId)) return reject('PLAYER_ALREADY_USED');
     return null;
   }
 
   handleCommand(state: GridRoundState, from: ParticipantId, command: GridCommand, now: Date): Step | Rejection {
     if (command.type === 'GRID_SKIP') return this.findTurnRejection(state, from, now) ?? this.skip(state, from, now);
-    const rejection = this.findClaimRejection(state, from, command.cell, command.entityId, now);
+    const { cell, answer } = command;
+    const rejection = this.findClaimRejection(state, from, cell, answer.entityId, now);
     if (rejection) return rejection;
-    return command.verdict === 'CORRECT'
-      ? this.claim(state, from, command.cell, command.entityId, now)
-      : this.miss(state, from, command.cell, command.entityId, now);
+    return command.verdict === 'CORRECT' && answer.entityId !== null
+      ? this.claim(state, from, cell, { ...answer, entityId: answer.entityId }, now)
+      : this.miss(state, from, cell, answer, now);
   }
 
   handleTimer(state: GridRoundState, timer: string, now: Date): Step {
@@ -149,7 +157,14 @@ export class GridRules {
     return null;
   }
 
-  private claim(state: GridRoundState, from: ParticipantId, cell: number, entityId: string, now: Date): Step {
+  private claim(
+    state: GridRoundState,
+    from: ParticipantId,
+    cell: number,
+    answer: GridClaimAnswer & { entityId: string },
+    now: Date,
+  ): Step {
+    const { entityId } = answer;
     const board = [...state.board];
     board[cell] = from;
     const points = addPoints(state.points, from, this.config.points.perCell);
@@ -157,7 +172,7 @@ export class GridRules {
     const action: RoundAction = {
       participantId: from,
       kind: 'GRID_CLAIM',
-      answer: { entityId },
+      answer,
       cell,
       isCorrect: true,
       points: this.config.points.perCell,
@@ -186,11 +201,11 @@ export class GridRules {
     return { state: next.state, effects: [...effects, ...next.effects] };
   }
 
-  private miss(state: GridRoundState, from: ParticipantId, cell: number, entityId: string, now: Date): Step {
+  private miss(state: GridRoundState, from: ParticipantId, cell: number, answer: GridClaimAnswer, now: Date): Step {
     const action: RoundAction = {
       participantId: from,
       kind: 'GRID_CLAIM',
-      answer: { entityId },
+      answer,
       cell,
       isCorrect: false,
       points: 0,
@@ -198,7 +213,7 @@ export class GridRules {
     };
     const effects: Effect<GridEvent>[] = [
       { type: 'RECORD_ACTION', action },
-      this.missedEvent(state, from, cell, entityId, { timedOut: false, skipped: false }),
+      this.missedEvent(state, from, cell, answer.entityId, { timedOut: false, skipped: false }),
     ];
     const attemptsLeft = state.attemptsLeft - 1;
     if (attemptsLeft > 0) {

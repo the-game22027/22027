@@ -12,13 +12,13 @@ A football-focused **social gaming platform** (not a CRUD app, not a simple quiz
 
 - Match predictions (top-5 European leagues + national teams), private by default, editable until kickoff.
 - Man of the Match (MOTM) community voting, open for 1 hour after the authoritative match end.
-- **Core:** football trivia **battles** against other players, any time, **real-time only** over WebSockets: random 1v1 matchmaking with a bot fallback, and multiplayer private rooms (2 or more players) joined with a code. No Daily Quiz, no solo mode, no async play (ADR-0010). A battle plays one of several **game types** on one shared engine (Buzzer, Career, Who is the player?, Tiki Taka Toe; Imposter in rooms). Answers are **typed and matched by entity id**, never multiple choice (ADR-0015). No monetization at launch (ADR-0016).
+- **Core:** football trivia **battles** against other players, any time, **real-time only** over WebSockets: random 1v1 matchmaking with a bot fallback, and multiplayer private rooms (2 or more players) joined with a code. No Daily Quiz, no solo mode, no async play (ADR-0010). A battle plays one of several **game types** on one shared engine (Buzzer, Career, Who is the player?, Tiki Taka Toe; Imposter in rooms). Answers are **typed text, judged on the server against the round's accepted answers with typo tolerance**; never multiple choice, no suggestions (ADR-0015, ADR-0021). No monetization at launch (ADR-0016).
 - Private leagues (prediction and battle competitions).
 - Leaderboards: weekly, monthly, seasonal, all-time. Monthly leader gets a prize.
 - Friends (mutual), privacy-aware prediction visibility.
 - A fact-first football knowledge database that feeds an offline question generator.
 
-Current phase: **Phases 0-2 and P3.1 (prediction submit) implemented; P5.1 (question import) merged; G0 game types design done; next: D.1 Wikidata careers + answer catalog, then P5.2 and P6 (prediction scoring P3.2+ postponed, see `docs/ROADMAP.md`)**. See `docs/ROADMAP.md`.
+Current phase: **Phases 0-2, P3.1 (prediction submit), P5, D.1-D.2, P6.1-P6.4, P6.5 (battle points ledger, leaderboards, question stats and reports), P6.6 (typed text answers) and P7 (friends, blocks, prediction visibility) implemented; mobile M0-M1 done; next: P8 private rooms (DEC-58 Imposter rules first) and mobile M3 battles (prediction scoring P3.2+ postponed, see `docs/ROADMAP.md`)**. See `docs/ROADMAP.md`.
 
 ## 2. Hard constraints (do not violate)
 
@@ -144,11 +144,18 @@ Question bank (from `apps/backend`; available in every environment, not only dev
 
 ```bash
 npm run cli -- questions:import ../../data/bundles/dev-0001   # validate + import a bundle; re-import is a no-op
-npm run cli -- questions:import ../../data/bundles/dev-0004   # generated game content + its catalog (07 §5.8)
-npm run cli -- questions:publish dev-0004                     # APPROVED questions of that bundle → PUBLISHED (battles pick only these)
-npm run cli -- questions:publish dev-0004 --include-drafts    # development: also the unreviewed rounds (refused in production)
+npm run cli -- questions:import ../../data/bundles/dev-0005   # generated game content + its catalog (07 §5.8)
+npm run cli -- questions:publish dev-0005                     # APPROVED questions of that bundle → PUBLISHED (battles pick only these)
+npm run cli -- questions:publish dev-0005 --include-drafts    # development: also the unreviewed rounds (refused in production)
 npm run cli -- questions:disable <questionId> --reason "…"     # battles stop picking it at once
+npm run cli -- questions:reports [--limit 20]                  # most reported questions with their latest reasons (08 §5.7)
 python3 -I ../../data/generate/dev_bundle.py                  # rebuild the hand-written dev bundle (bump its version first)
+```
+
+Scoring rule sets (from `apps/backend`; a battle keeps the rule set active when it was created, `08` §6.1):
+
+```bash
+npm run cli -- battles:activate-rule-set config/scoring/battle.dev.json   # BATTLE leaderboard points; same config again = no-op; devOnly refused in production
 ```
 
 Knowledge base pipeline (from `data/`; Python 3.12+, writes to the `football_kb` database, `FOOTBALL_KB_URL` overrides the default local URL):
@@ -160,7 +167,7 @@ python3 -m venv .venv && .venv/bin/pip install 'psycopg[binary]>=3.2' pytest ruf
 .venv/bin/python -m kb ingest --scope config/scope.toml           # 9 leagues; --refresh refetches from Wikidata
 .venv/bin/python -m kb names:missing --locale ar                  # entities without an Arabic name → .out/names-missing-ar.csv
 .venv/bin/python -m kb catalog --out .out/catalog                 # write catalog.jsonl
-.venv/bin/python -m kb bundle --version dev-0005 --out bundles/dev-0005 --careers 60 --buzzers 60 --who 60 --grids 30 --catalog-min-player-sitelinks 40   # generated bundle (07 §5.8)
+.venv/bin/python -m kb bundle --version dev-0006 --out bundles/dev-0006 --careers 60 --buzzers 60 --who 60 --grids 30 --catalog-min-player-sitelinks 40   # generated bundle (07 §5.8)
 FOOTBALL_KB_TEST_URL=postgresql://game:game@localhost:5440/football_kb_test .venv/bin/python -m pytest   # needs CREATE DATABASE football_kb_test once
 .venv/bin/ruff check . && .venv/bin/ruff format --check .
 ```

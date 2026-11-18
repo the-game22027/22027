@@ -7,7 +7,7 @@ import { CLOCK, type Clock, ID_GENERATOR, type IdGenerator } from '@shared/kerne
 import { chosenDisplayName, displayNameFrom } from '../domain/display-name';
 import { assertValidUsername } from '../domain/username';
 import { USER_REPOSITORY, type UserRepository } from './ports/user-repository';
-import type { ProfilePatch, UserAccount } from './user-account';
+import type { ProfilePatch, PublicUser, UserAccount, UserSearch } from './user-account';
 
 export interface IdentityHints {
   readonly displayName?: string;
@@ -37,6 +37,16 @@ export class UsersFacade {
 
   getAccount(userId: string): Promise<UserAccount | null> {
     return this.users.findAccount(userId);
+  }
+
+  /** Users without a profile are left out. */
+  findPublicUsers(userIds: readonly string[]): Promise<PublicUser[]> {
+    return this.users.findPublicUsers(userIds);
+  }
+
+  /** Active users only; `excludedUserIds` never appear (blocks, the caller). */
+  searchActiveUsers(search: UserSearch): Promise<PublicUser[]> {
+    return this.users.searchActiveUsers(search);
   }
 
   async updateProfile(userId: string, patch: ProfilePatch): Promise<void> {

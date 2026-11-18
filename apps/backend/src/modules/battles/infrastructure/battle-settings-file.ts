@@ -51,6 +51,18 @@ const gridGame = z.strictObject({
   }),
 });
 
+const answers = z.strictObject({
+  maxLength: z.number().int().positive(),
+  typoTolerance: z
+    .array(z.strictObject({ fromLetters: z.number().int().nonnegative(), edits: z.number().int().nonnegative() }))
+    .min(1)
+    .refine(
+      (steps) => steps.every((step, index) => index === 0 || step.fromLetters > steps[index - 1].fromLetters),
+      'steps must go up by fromLetters',
+    ),
+  singleWordMaxSharedBy: z.number().int().positive(),
+});
+
 const settingsSchema = z.strictObject({
   devOnly: z.boolean(),
   engine: z.strictObject({
@@ -67,6 +79,7 @@ const settingsSchema = z.strictObject({
   bots: z.strictObject({
     profiles: z.record(z.string(), botProfile).refine((p) => Object.keys(p).length > 0, 'at least one'),
   }),
+  answers,
   gameTypes: z.strictObject({
     BUZZER: revealGame.optional(),
     CAREER: revealGame.extend({ showYears: z.boolean() }).optional(),

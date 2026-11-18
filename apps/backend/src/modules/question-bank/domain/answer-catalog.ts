@@ -7,8 +7,15 @@ export interface CatalogEntity {
   names: { en: string; ar: string };
   aliases: { en: string[]; ar: string[] };
   popularity: number;
-  /** Normalized names and aliases, computed by the pipeline (07 §5.7); what the app searches. */
+  /** Normalized names and aliases, computed by the pipeline (07 §5.7); what typed text is judged against. */
   searchForms: string[];
+  /** Single words of the names, with how many entities of the same kind have them (ADR-0021). */
+  nameWords: NameWord[];
+}
+
+export interface NameWord {
+  form: string;
+  sharedBy: number;
 }
 
 /** What content checks need to know about an entity the content points at. */

@@ -6,7 +6,7 @@ import {
   type RoundAction,
   type RoundResult,
   type RulesStep,
-  type TypedAnswer,
+  type JudgedAnswer,
 } from './game-rules';
 
 /** Reveal-and-buzz values of one game type (08 §6). Every number is configuration (DEC-54, DEC-60, DEC-33). */
@@ -49,7 +49,7 @@ export type RevealEvent =
       type: 'WRONG_ANSWER';
       roundNo: number;
       participantId: ParticipantId;
-      answer: TypedAnswer | null;
+      answer: JudgedAnswer | null;
       timedOut: boolean;
     }
   | { type: 'RESUMED'; roundNo: number; nextClueAt: Date | null };
@@ -57,7 +57,7 @@ export type RevealEvent =
 /** The server's judgment of a typed answer, made before the rules see it (AnswerChecker, 08 §5.3). */
 export type AnswerVerdict = 'CORRECT' | 'WRONG';
 
-export type RevealCommand = { type: 'BUZZ' } | { type: 'ANSWER'; answer: TypedAnswer; verdict: AnswerVerdict };
+export type RevealCommand = { type: 'BUZZ' } | { type: 'ANSWER'; answer: JudgedAnswer; verdict: AnswerVerdict };
 
 export const REVEAL_TIMER = 'reveal';
 export const ANSWER_TIMER = 'answer';
@@ -234,7 +234,7 @@ export class RevealAndBuzzRules {
   private lockOutAndContinue(
     state: RevealRoundState,
     holder: ParticipantId,
-    { answer, timedOut }: { answer: TypedAnswer | null; timedOut: boolean },
+    { answer, timedOut }: { answer: JudgedAnswer | null; timedOut: boolean },
     now: Date,
   ): Step {
     // TODO(DEC-33): whether running out of time costs the same as a wrong answer; for now only a wrong answer does.

@@ -1,6 +1,9 @@
 import { createPrivateKey, createPublicKey } from 'node:crypto';
 import { z } from 'zod';
 
+/** Endpoints limited per signed-in user, each with its own window (API.md §7). */
+export type PerUserRateLimitName = 'userSearch' | 'friendRequests';
+
 // .env files hold the PEM on one line with literal \n.
 const list = z.string().transform((value) =>
   value
@@ -79,8 +82,11 @@ const configSchema = z
     FOOTBALL_SYNC_FUTURE_DAYS: z.coerce.number().int().min(0).default(60),
     MOCK_FOOTBALL_SEED_DIR: z.string().min(1).default('prisma/seed/football'),
     BATTLE_CONFIG_PATH: z.string().min(1).default('config/battles.dev.json'),
+    LEADERBOARD_CONFIG_PATH: z.string().min(1).default('config/leaderboards.dev.json'),
 
     RATE_LIMIT_AUTH_PER_MINUTE: z.coerce.number().int().min(1).default(20),
+    RATE_LIMIT_USER_SEARCH_PER_MINUTE: z.coerce.number().int().min(1).default(30),
+    RATE_LIMIT_FRIEND_REQUESTS_PER_HOUR: z.coerce.number().int().min(1).default(30),
     TRUST_PROXY_HOPS: z.coerce.number().int().min(0).default(0),
 
     USERNAME_PATTERN: regex.default('^[A-Za-z0-9_]{3,20}$'),
@@ -145,13 +151,18 @@ export class AppConfig {
     readonly futureDays: number;
     readonly mockSeedDir: string;
   };
-  readonly rateLimit: { readonly authPerMinute: number };
+  readonly rateLimit: {
+    readonly authPerMinute: number;
+    /** Per signed-in user (API.md §7). */
+    readonly perUser: Readonly<Record<PerUserRateLimitName, { readonly limit: number; readonly windowMs: number }>>;
+  };
   readonly trustProxyHops: number;
   readonly profile: { readonly usernamePattern: RegExp };
   readonly accountDeletion: { readonly recentSignInSeconds: number };
   readonly predictions: { readonly maxGoals: number };
   /** The battle config file (ADR-0018); its contents are validated by the battles module. */
   readonly battleConfigPath: string;
+  readonly leaderboardConfigPath: string;
 
   constructor(env: ConfigEnv) {
     this.nodeEnv = env.NODE_ENV;
@@ -187,12 +198,19 @@ export class AppConfig {
       futureDays: env.FOOTBALL_SYNC_FUTURE_DAYS,
       mockSeedDir: env.MOCK_FOOTBALL_SEED_DIR,
     };
-    this.rateLimit = { authPerMinute: env.RATE_LIMIT_AUTH_PER_MINUTE };
+    this.rateLimit = {
+      authPerMinute: env.RATE_LIMIT_AUTH_PER_MINUTE,
+      perUser: {
+        userSearch: { limit: env.RATE_LIMIT_USER_SEARCH_PER_MINUTE, windowMs: 60_000 },
+        friendRequests: { limit: env.RATE_LIMIT_FRIEND_REQUESTS_PER_HOUR, windowMs: 60 * 60_000 },
+      },
+    };
     this.trustProxyHops = env.TRUST_PROXY_HOPS;
     this.profile = { usernamePattern: new RegExp(env.USERNAME_PATTERN) };
     this.accountDeletion = { recentSignInSeconds: env.ACCOUNT_DELETION_RECENT_SIGN_IN_SECONDS };
     this.predictions = { maxGoals: env.PREDICTION_MAX_GOALS };
     this.battleConfigPath = env.BATTLE_CONFIG_PATH;
+    this.leaderboardConfigPath = env.LEADERBOARD_CONFIG_PATH;
     this.refreshToken = { slidingDays: env.REFRESH_TOKEN_SLIDING_DAYS, absoluteDays: env.REFRESH_TOKEN_ABSOLUTE_DAYS };
   }
 

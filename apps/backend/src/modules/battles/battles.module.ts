@@ -1,11 +1,14 @@
 import { type DynamicModule, Module } from '@nestjs/common';
 import { AuthModule } from '@modules/auth';
+import { PointsModule } from '@modules/points';
+import { SocialModule } from '@modules/social';
 import { QuestionBankModule } from '@modules/question-bank';
 import { UsersModule } from '@modules/users';
 import { AppConfig } from '@shared/infrastructure/config';
 import { BattleEngine } from './application/battle-engine';
 import { BATTLE_SETTINGS } from './application/battle-settings';
 import { MatchmakingService } from './application/matchmaking.service';
+import { ReportServedQuestion } from './application/report-served-question';
 import { ACTIVITY_GUARD } from './application/ports/activity-guard';
 import { BATTLE_NOTIFIER } from './application/ports/battle-notifier';
 import { BATTLE_REPOSITORY } from './application/ports/battle-repository';
@@ -18,6 +21,7 @@ import { RedisMatchmakingQueue } from './infrastructure/redis-matchmaking-queue'
 import { SystemTimerScheduler } from './infrastructure/system-timer-scheduler';
 import { BattlesController } from './presentation/battles.controller';
 import { BattlesGateway } from './presentation/battles.gateway';
+import { QuestionReportsController } from './presentation/question-reports.controller';
 import { SocketBattleNotifier } from './presentation/socket-battle-notifier';
 
 /** Real-time battles (01 §2.8). API process only: the engine keeps live battles in memory. */
@@ -26,11 +30,12 @@ export class BattlesModule {
   static register(config: AppConfig): DynamicModule {
     return {
       module: BattlesModule,
-      imports: [AuthModule.register(config), QuestionBankModule, UsersModule],
-      controllers: [BattlesController],
+      imports: [AuthModule.register(config), PointsModule, QuestionBankModule, SocialModule, UsersModule],
+      controllers: [BattlesController, QuestionReportsController],
       providers: [
         BattleEngine,
         MatchmakingService,
+        ReportServedQuestion,
         BattlesGateway,
         SocketBattleNotifier,
         {

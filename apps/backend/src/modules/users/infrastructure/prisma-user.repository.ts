@@ -4,7 +4,7 @@ import type { PrismaService, TransactionalAdapterPrisma } from '@shared/infrastr
 import { DEFAULT_LOCALE, isSupportedLocale } from '@shared/kernel';
 import { Prisma } from '@generated/prisma/client';
 import type { UserRepository } from '../application/ports/user-repository';
-import type { NewUser, ProfilePatch, UserAccount } from '../application/user-account';
+import type { NewUser, ProfilePatch, PublicUser, UserAccount, UserSearch } from '../application/user-account';
 import { UnknownTeamError, UsernameTakenError } from '../domain/user-errors';
 
 @Injectable()
@@ -37,6 +37,31 @@ export class PrismaUserRepository implements UserRepository {
       favouriteTeamId: user.profile.favouriteTeamId,
       predictionVisibility: user.privacySettings?.predictionVisibility ?? null,
     };
+  }
+
+  async findPublicUsers(userIds: readonly string[]): Promise<PublicUser[]> {
+    if (userIds.length === 0) return [];
+    const profiles = await this.txHost.tx.userProfile.findMany({
+      where: { userId: { in: [...userIds] } },
+      select: { userId: true, displayName: true, username: true, avatarUrl: true },
+    });
+    return profiles.map(({ userId, ...profile }) => ({ id: userId, ...profile }));
+  }
+
+  /** Username starting with the text, or display name containing it; trigram indexes serve both (03 §7.1). */
+  async searchActiveUsers({ text, excludedUserIds, after, limit }: UserSearch): Promise<PublicUser[]> {
+    const literal = text.replace(/[\\%_]/g, (character) => `\\${character}`);
+    return this.txHost.tx.$queryRaw<PublicUser[]>`
+      SELECT p.user_id::text AS id, p.display_name AS "displayName", p.username::text AS username,
+             p.avatar_url AS "avatarUrl"
+      FROM user_profiles p
+      JOIN users u ON u.id = p.user_id
+      WHERE u.status = 'ACTIVE'
+        AND (p.username::text ILIKE ${`${literal}%`} OR p.display_name ILIKE ${`%${literal}%`})
+        AND NOT (p.user_id = ANY(${[...excludedUserIds]}::uuid[]))
+        ${after ? Prisma.sql`AND (p.display_name, p.user_id) > (${after.displayName}, ${after.id}::uuid)` : Prisma.empty}
+      ORDER BY p.display_name, p.user_id
+      LIMIT ${limit}`;
   }
 
   async updateProfile(userId: string, patch: ProfilePatch): Promise<void> {

@@ -8,6 +8,7 @@ import 'package:api_client/src/auth/basic_auth.dart';
 import 'package:api_client/src/auth/bearer_auth.dart';
 import 'package:api_client/src/auth/oauth.dart';
 import 'package:api_client/src/api/auth_api.dart';
+import 'package:api_client/src/api/battles_api.dart';
 import 'package:api_client/src/api/dev_api.dart';
 import 'package:api_client/src/api/football_api.dart';
 import 'package:api_client/src/api/me_api.dart';
@@ -141,6 +142,12 @@ class ApiClient {
   /// by doing that all interceptors will not be executed
   AuthApi getAuthApi() {
     return AuthApi(dio);
+  }
+
+  /// Get BattlesApi instance, base route and serializer can be overridden by a given but be careful,
+  /// by doing that all interceptors will not be executed
+  BattlesApi getBattlesApi() {
+    return BattlesApi(dio);
   }
 
   /// Get DevApi instance, base route and serializer can be overridden by a given but be careful,

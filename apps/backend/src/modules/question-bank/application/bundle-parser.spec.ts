@@ -89,7 +89,7 @@ describe('parseBundle', () => {
 });
 
 describe('parseBundle with game content and a catalog', () => {
-  const catalogLine = (externalRef: string, kind = 'PLAYER') =>
+  const catalogLine = (externalRef: string, kind = 'PLAYER', extra: Record<string, unknown> = {}) =>
     JSON.stringify({
       externalRef,
       kind,
@@ -97,6 +97,7 @@ describe('parseBundle with game content and a catalog', () => {
       aliases: { en: ['CR7'], ar: [] },
       popularity: 400,
       search: ['cristiano ronaldo', 'cr7'],
+      ...extra,
     });
   const careerLine = (content: Record<string, unknown> = {}) =>
     JSON.stringify({
@@ -131,6 +132,17 @@ describe('parseBundle with game content and a catalog', () => {
     expect(catalog).toEqual([
       expect.objectContaining({ externalRef: 'wikidata:Q11571', searchForms: ['cristiano ronaldo', 'cr7'] }),
     ]);
+  });
+
+  it('reads name words, and gives none to a catalog made before them (ADR-0021)', () => {
+    const nameWords = [{ form: 'cristiano', sharedBy: 1 }];
+    const { catalog } = parseBundle(
+      withCatalog(
+        [careerLine()],
+        [catalogLine('wikidata:Q11571', 'PLAYER', { nameWords }), catalogLine('wikidata:Q1', 'PLAYER')],
+      ),
+    );
+    expect(catalog.map((entity) => entity.nameWords)).toEqual([nameWords, []]);
   });
 
   it('reports problems inside the game content with their path', () => {

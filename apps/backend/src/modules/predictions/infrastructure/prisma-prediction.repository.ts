@@ -1,7 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { TransactionHost } from '@nestjs-cls/transactional';
 import type { PrismaService, TransactionalAdapterPrisma } from '@shared/infrastructure/persistence';
+import { Prisma } from '@generated/prisma/client';
 import type {
+  OwnedPrediction,
   PredictionKey,
   PredictionRepository,
   PredictionRevisionWrite,
@@ -23,6 +25,21 @@ const toPrediction = ({ home, away, ...prediction }: PredictionRow): StoredPredi
   ...prediction,
   score: { home, away },
 });
+
+interface OwnedPredictionRow extends PredictionRow {
+  userId: string;
+  createdAt: Date;
+}
+
+const toOwnedPrediction = ({ userId, createdAt, ...row }: OwnedPredictionRow): OwnedPrediction => ({
+  ...toPrediction(row),
+  userId,
+  createdAt,
+});
+
+const OWNED_PREDICTION_COLUMNS = Prisma.sql`
+  p.id::text, p.user_id::text AS "userId", p.match_id::text AS "matchId", p.status::text, p.revision,
+  p.created_at AS "createdAt", p.updated_at AS "updatedAt", pick.home_score AS home, pick.away_score AS away`;
 
 @Injectable()
 export class PrismaPredictionRepository implements PredictionRepository {
@@ -78,5 +95,39 @@ export class PrismaPredictionRepository implements PredictionRepository {
       JOIN prediction_picks pick ON pick.prediction_id = p.id AND pick.pick_type = 'EXACT_SCORE'
       WHERE p.user_id = ${userId}::uuid AND p.match_id = ${matchId}::uuid`;
     return rows.length === 1 ? toPrediction(rows[0]) : null;
+  }
+
+  async listPredictionsOfUsersForMatch(
+    matchId: string,
+    userIds: readonly string[],
+    afterUserId: string | null,
+    limit: number,
+  ): Promise<OwnedPrediction[]> {
+    if (userIds.length === 0) return [];
+    const rows = await this.txHost.tx.$queryRaw<OwnedPredictionRow[]>`
+      SELECT ${OWNED_PREDICTION_COLUMNS}
+      FROM predictions p
+      JOIN prediction_picks pick ON pick.prediction_id = p.id AND pick.pick_type = 'EXACT_SCORE'
+      WHERE p.match_id = ${matchId}::uuid AND p.user_id = ANY(${[...userIds]}::uuid[])
+        ${afterUserId ? Prisma.sql`AND p.user_id > ${afterUserId}::uuid` : Prisma.empty}
+      ORDER BY p.user_id
+      LIMIT ${limit}`;
+    return rows.map(toOwnedPrediction);
+  }
+
+  async listPredictionsOfUser(
+    userId: string,
+    after: { createdAt: Date; id: string } | null,
+    limit: number,
+  ): Promise<OwnedPrediction[]> {
+    const rows = await this.txHost.tx.$queryRaw<OwnedPredictionRow[]>`
+      SELECT ${OWNED_PREDICTION_COLUMNS}
+      FROM predictions p
+      JOIN prediction_picks pick ON pick.prediction_id = p.id AND pick.pick_type = 'EXACT_SCORE'
+      WHERE p.user_id = ${userId}::uuid
+        ${after ? Prisma.sql`AND (p.created_at, p.id) < (${after.createdAt}, ${after.id}::uuid)` : Prisma.empty}
+      ORDER BY p.created_at DESC, p.id DESC
+      LIMIT ${limit}`;
+    return rows.map(toOwnedPrediction);
   }
 }

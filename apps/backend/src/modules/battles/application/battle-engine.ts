@@ -1,4 +1,10 @@
-import { Inject, Injectable, Logger, type OnApplicationBootstrap, type OnApplicationShutdown } from '@nestjs/common';
+import {
+  type BeforeApplicationShutdown,
+  Inject,
+  Injectable,
+  Logger,
+  type OnApplicationBootstrap,
+} from '@nestjs/common';
 import { randomInt } from 'node:crypto';
 import {
   AnswerCatalogQuery,
@@ -7,16 +13,19 @@ import {
   type GameType,
   RoundContentQuery,
 } from '@modules/question-bank';
+import { ScoringRuleSets } from '@modules/points';
 import { UsersFacade } from '@modules/users';
 import { CLOCK, type Clock, ID_GENERATOR, type IdGenerator, type Locale } from '@shared/kernel';
-import type { TypedAnswer } from '../domain/games/game-rules';
+import { type BattlePointsRuleSet, selectRuleForBattleMode } from '../domain/leaderboard-points';
 import { SeededRandom } from '../domain/random-source';
+import { parseBattlePointsRuleSet } from './battle-points-rule-set';
 import { BATTLE_SETTINGS, type BattleConfigSnapshot, type BattleSettings, findGameSettings } from './battle-settings';
 import { type Ack, LiveBattle, type LiveParticipant } from './live-battle';
 import { ACTIVITY_GUARD, type Activity, type ActivityGuard } from './ports/activity-guard';
 import { BATTLE_NOTIFIER, type BattleNotifier } from './ports/battle-notifier';
 import { BATTLE_REPOSITORY, type BattleRepository } from './ports/battle-repository';
 import { TIMER_SCHEDULER, type TimerScheduler } from './ports/timer-scheduler';
+import type { PlayerAnswer } from './rounds/round-runner';
 
 export class NoPlayableContentError extends Error {
   constructor(gameType: GameType, locales: Locale[]) {
@@ -31,11 +40,14 @@ const battleActivity = (battleId: string): Activity => `BATTLE:${battleId}`;
  * and frees players when they end. Single instance for now; several instances need battle ownership (P6.3+).
  */
 @Injectable()
-export class BattleEngine implements OnApplicationBootstrap, OnApplicationShutdown {
+export class BattleEngine implements OnApplicationBootstrap, BeforeApplicationShutdown {
   private readonly logger = new Logger(BattleEngine.name);
   private readonly live = new Map<string, LiveBattle>();
   /** Which live battle each human is in, for disconnects and reconnects. */
   private readonly battleOfUser = new Map<string, string>();
+  private shuttingDown = false;
+  /** Parsed BATTLE rule sets by id: a rule set never changes once stored. */
+  private readonly pointsRuleSets = new Map<string, BattlePointsRuleSet>();
 
   constructor(
     @Inject(BATTLE_REPOSITORY) private readonly battles: BattleRepository,
@@ -50,6 +62,7 @@ export class BattleEngine implements OnApplicationBootstrap, OnApplicationShutdo
     private readonly checker: AnswerChecker,
     private readonly catalog: AnswerCatalogQuery,
     private readonly users: UsersFacade,
+    private readonly scoringRuleSets: ScoringRuleSets,
   ) {}
 
   /**
@@ -77,8 +90,14 @@ export class BattleEngine implements OnApplicationBootstrap, OnApplicationShutdo
       this.logger.warn(`Abandoned ${String(battleIds.length)} battles left by a previous process`);
   }
 
-  onApplicationShutdown(): void {
-    for (const battle of this.live.values()) battle.stopTimers();
+  /** Before, not on, shutdown: the database connection closes in the later hook, after this work is done. */
+  async beforeApplicationShutdown(): Promise<void> {
+    // From here on, sockets dropping and late commands find no battle, so nothing new reaches the database.
+    this.shuttingDown = true;
+    const battles = [...this.live.values()];
+    this.live.clear();
+    this.battleOfUser.clear();
+    await Promise.all(battles.map((battle) => battle.stopAndFinishQueuedWork()));
   }
 
   /**
@@ -91,6 +110,7 @@ export class BattleEngine implements OnApplicationBootstrap, OnApplicationShutdo
     players: { userId: string; queueActivity: Activity }[],
     withBot: boolean,
   ): Promise<string> {
+    if (this.shuttingDown) throw new Error('The API is shutting down');
     const game = findGameSettings(this.settings, gameType);
     if (!game) throw new Error(`${gameType} has no battle config`);
     const accounts = await Promise.all(
@@ -114,7 +134,14 @@ export class BattleEngine implements OnApplicationBootstrap, OnApplicationShutdo
     const now = this.clock.now();
     const battleId = this.ids.next();
     const readyDeadlineAt = new Date(now.getTime() + this.settings.engine.readyTimeoutMs);
-    const config: BattleConfigSnapshot = { game, engine: this.settings.engine, botProfile: botProfileKey, seed };
+    const config: BattleConfigSnapshot = {
+      game,
+      engine: this.settings.engine,
+      answers: this.settings.answers,
+      botProfile: botProfileKey,
+      seed,
+      leaderboardPoints: await this.findLeaderboardPointsOfMatchmakingBattle(botProfileKey !== null),
+    };
 
     const participants: LiveParticipant[] = accounts.map((account, seat) => ({
       id: this.ids.next(),
@@ -156,6 +183,7 @@ export class BattleEngine implements OnApplicationBootstrap, OnApplicationShutdo
       gameType,
       hasBot: botProfileKey !== null,
       config,
+      ruleSetId: config.leaderboardPoints?.ruleSetId ?? null,
       createdAt: now,
       readyDeadlineAt,
       questionIds,
@@ -199,6 +227,23 @@ export class BattleEngine implements OnApplicationBootstrap, OnApplicationShutdo
     return battleId;
   }
 
+  /** The active BATTLE rule set's section for this mode (08 §6.1); null when none is active. */
+  private async findLeaderboardPointsOfMatchmakingBattle(
+    hasBot: boolean,
+  ): Promise<BattleConfigSnapshot['leaderboardPoints']> {
+    const active = await this.scoringRuleSets.findActiveRuleSet('BATTLE');
+    if (!active) {
+      this.logger.warn('No active BATTLE rule set: this battle earns no leaderboard points (08 §6.1)');
+      return null;
+    }
+    let ruleSet = this.pointsRuleSets.get(active.id);
+    if (!ruleSet) {
+      ruleSet = parseBattlePointsRuleSet(active.config);
+      this.pointsRuleSets.set(active.id, ruleSet);
+    }
+    return { ruleSetId: active.id, rule: selectRuleForBattleMode(ruleSet, 'MATCHMAKING', hasBot) };
+  }
+
   ready(battleId: string, userId: string, socketId: string, clientMsgId: string): Promise<Ack> {
     return this.withBattle(battleId, clientMsgId, (battle) => battle.ready(userId, socketId, clientMsgId));
   }
@@ -212,7 +257,7 @@ export class BattleEngine implements OnApplicationBootstrap, OnApplicationShutdo
     userId: string,
     socketId: string,
     roundNo: number,
-    answer: TypedAnswer,
+    answer: PlayerAnswer,
     clientMsgId: string,
   ): Promise<Ack> {
     return this.withBattle(battleId, clientMsgId, (battle) =>
@@ -225,11 +270,17 @@ export class BattleEngine implements OnApplicationBootstrap, OnApplicationShutdo
     userId: string,
     socketId: string,
     roundNo: number,
-    claim: { cell: number; entityId: string },
+    claim: { cell: number; text: string },
     clientMsgId: string,
   ): Promise<Ack> {
     return this.withBattle(battleId, clientMsgId, (battle) =>
-      battle.roundCommand(userId, socketId, roundNo, { type: 'GRID_CLAIM', ...claim }, clientMsgId),
+      battle.roundCommand(
+        userId,
+        socketId,
+        roundNo,
+        { type: 'GRID_CLAIM', cell: claim.cell, answer: { text: claim.text } },
+        clientMsgId,
+      ),
     );
   }
 

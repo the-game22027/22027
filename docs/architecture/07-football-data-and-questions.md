@@ -235,7 +235,8 @@ A bundle is a directory `data/bundles/<bundleVersion>/` with two files:
 
 ```json
 { "externalRef": "wikidata:Q11571", "kind": "PLAYER", "names": { "en": "Cristiano Ronaldo", "ar": "كريستيانو رونالدو" },
-  "aliases": { "en": ["CR7", "Ronaldo"], "ar": ["رونالدو", "كريستيانو"] }, "popularity": 412 }
+  "aliases": { "en": ["CR7", "Ronaldo"], "ar": ["رونالدو", "كريستيانو"] }, "popularity": 412,
+  "nameWords": [{ "form": "كريستيانو", "sharedBy": 1 }, { "form": "رونالدو", "sharedBy": 2 }, { "form": "cristiano", "sharedBy": 1 }, { "form": "ronaldo", "sharedBy": 2 }] }
 ```
 
   The pipeline adds the `normalized` form of every name and alias (§5.7) in a derived field, so the app never re-implements normalization for stored names.
@@ -282,7 +283,7 @@ Battles are the only quiz mode and can be played without limit (ADR-0010), so qu
 
 ### 5.7 Name normalization (shared by the pipeline and the app)
 
-Typed answers are matched by picking a suggestion (DEC-55); normalization only decides which suggestions appear. Rules, applied in order:
+The server normalizes typed text and the pipeline normalizes names with the same rules, so a typed answer can be compared with the catalog forms (ADR-0021, DEC-55). `nameWords` holds each word of an entity's names (at least 3 letters, normalized) with the number of entities of the same kind that have it (`sharedBy`); the server decides from config which words are distinctive enough to count alone. Rules, applied in order:
 
 1. Unicode NFKC; trim; collapse spaces; lower case.
 2. Latin: remove accents (`é → e`, `ü → u`, `ñ → n`); `ß → ss`.

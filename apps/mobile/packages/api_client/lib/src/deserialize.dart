@@ -5,12 +5,16 @@ import 'package:api_client/src/model/dev_sign_in_dto.dart';
 import 'package:api_client/src/model/device_dto.dart';
 import 'package:api_client/src/model/google_sign_in_dto.dart';
 import 'package:api_client/src/model/identity_dto.dart';
+import 'package:api_client/src/model/join_matchmaking_dto.dart';
 import 'package:api_client/src/model/match_competition_dto.dart';
 import 'package:api_client/src/model/match_detail_dto.dart';
 import 'package:api_client/src/model/match_page_dto.dart';
 import 'package:api_client/src/model/match_summary_dto.dart';
+import 'package:api_client/src/model/matchmaking_ticket_dto.dart';
 import 'package:api_client/src/model/me_dto.dart';
 import 'package:api_client/src/model/penalties_dto.dart';
+import 'package:api_client/src/model/play_state_battle_dto.dart';
+import 'package:api_client/src/model/play_state_dto.dart';
 import 'package:api_client/src/model/prediction_dto.dart';
 import 'package:api_client/src/model/prediction_pick_dto.dart';
 import 'package:api_client/src/model/privacy_dto.dart';
@@ -64,6 +68,9 @@ ReturnType deserialize<ReturnType, BaseType>(
           as ReturnType;
     case 'IdentityDto':
       return IdentityDto.fromJson(value as Map<String, dynamic>) as ReturnType;
+    case 'JoinMatchmakingDto':
+      return JoinMatchmakingDto.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
     case 'MatchCompetitionDto':
       return MatchCompetitionDto.fromJson(value as Map<String, dynamic>)
           as ReturnType;
@@ -75,10 +82,18 @@ ReturnType deserialize<ReturnType, BaseType>(
     case 'MatchSummaryDto':
       return MatchSummaryDto.fromJson(value as Map<String, dynamic>)
           as ReturnType;
+    case 'MatchmakingTicketDto':
+      return MatchmakingTicketDto.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
     case 'MeDto':
       return MeDto.fromJson(value as Map<String, dynamic>) as ReturnType;
     case 'PenaltiesDto':
       return PenaltiesDto.fromJson(value as Map<String, dynamic>) as ReturnType;
+    case 'PlayStateBattleDto':
+      return PlayStateBattleDto.fromJson(value as Map<String, dynamic>)
+          as ReturnType;
+    case 'PlayStateDto':
+      return PlayStateDto.fromJson(value as Map<String, dynamic>) as ReturnType;
     case 'PredictionDto':
       return PredictionDto.fromJson(value as Map<String, dynamic>)
           as ReturnType;

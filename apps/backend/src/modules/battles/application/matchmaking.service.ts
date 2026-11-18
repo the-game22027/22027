@@ -6,8 +6,10 @@ import {
   type OnApplicationBootstrap,
 } from '@nestjs/common';
 import type { GameType } from '@modules/question-bank';
+import { SocialQuery } from '@modules/social';
 import { UsersFacade } from '@modules/users';
 import { CLOCK, type Clock, ID_GENERATOR, type IdGenerator } from '@shared/kernel';
+import { pairTicketsAvoidingBlockedPlayers } from '../domain/ticket-pairing';
 import { BattleEngine, NoPlayableContentError } from './battle-engine';
 import { BATTLE_SETTINGS, type BattleSettings, findGameSettings } from './battle-settings';
 import { ACTIVITY_GUARD, type Activity, type ActivityGuard } from './ports/activity-guard';
@@ -16,10 +18,13 @@ import { MATCHMAKING_QUEUE, type MatchmakingQueue, type QueueTicket } from './po
 import { type ScheduledTimer, TIMER_SCHEDULER, type TimerScheduler } from './ports/timer-scheduler';
 
 const queueActivity = (ticketId: string): Activity => `QUEUE:${ticketId}`;
+// How many of the oldest tickets one matcher pass looks at to find unblocked pairs.
+const PAIRING_WINDOW = 50;
 
 /**
- * Random 1v1 matchmaking (03 §3.3): one Redis queue per game type, a matcher that pairs the two oldest
- * tickets every `tickMs`, and a bot for anyone who waited `botFallbackAfterMs` (DEC-39).
+ * Random 1v1 matchmaking (03 §3.3): one Redis queue per game type, a matcher that pairs the oldest tickets
+ * every `tickMs` (never two players who blocked each other, 03 §7.1), and a bot for anyone who waited
+ * `botFallbackAfterMs` (DEC-39).
  *
  * `join` is the one entry point where a play-access check will go when membership exists (ADR-0016).
  */
@@ -34,6 +39,7 @@ export class MatchmakingService implements OnApplicationBootstrap, BeforeApplica
   constructor(
     private readonly engine: BattleEngine,
     private readonly users: UsersFacade,
+    private readonly social: SocialQuery,
     @Inject(MATCHMAKING_QUEUE) private readonly queue: MatchmakingQueue,
     @Inject(ACTIVITY_GUARD) private readonly activities: ActivityGuard,
     @Inject(BATTLE_NOTIFIER) private readonly notifier: BattleNotifier,
@@ -157,10 +163,19 @@ export class MatchmakingService implements OnApplicationBootstrap, BeforeApplica
       (gameType) => findGameSettings(this.settings, gameType)?.enabled,
     );
     for (const gameType of gameTypes) {
+      // Unpaired tickets never leave the queue, so a player can always leave or wait for a bot meanwhile.
       for (;;) {
-        const pair = await this.queue.takeOldestPair(gameType);
-        if (pair.length < 2) break;
-        await this.startBattle(gameType, pair, false);
+        const waiting = await this.queue.peekOldestTickets(gameType, PAIRING_WINDOW);
+        if (waiting.length < 2) break;
+        const blockedPairs = await this.social.findBlockedPairs(waiting.map((ticket) => ticket.userId));
+        let started = 0;
+        for (const [first, second] of pairTicketsAvoidingBlockedPlayers(waiting, blockedPairs).pairs) {
+          const taken = await this.queue.takeTicketPair(gameType, [first.ticketId, second.ticketId]);
+          if (taken.length < 2) continue;
+          await this.startBattle(gameType, taken, false);
+          started++;
+        }
+        if (started === 0 || waiting.length < PAIRING_WINDOW) break;
       }
       const cutoff = new Date(this.clock.now().getTime() - this.settings.matchmaking.botFallbackAfterMs);
       for (const ticket of await this.queue.takeTicketsQueuedBefore(gameType, cutoff)) {

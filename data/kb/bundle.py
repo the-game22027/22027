@@ -21,7 +21,7 @@ from kb.generate import (
 )
 from kb.grids import grid_rounds
 
-GENERATOR_VERSION = "kb-generate-1"
+GENERATOR_VERSION = "kb-generate-2"  # 2: catalog lines carry nameWords (ADR-0021)
 CATEGORIES = [
     {"slug": "careers", "names": {"en": "Careers", "ar": "المسيرة"}},
     {"slug": "transfers", "names": {"en": "Transfers", "ar": "الانتقالات"}},

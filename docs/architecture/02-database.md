@@ -369,13 +369,15 @@ answer_entities (                       -- the answer catalog (08 §5)
   external_ref text UQ,                 -- e.g. wikidata:Q11571; upsert key on import
   kind answer_kind,                     -- CHECK kind <> 'NUMBER'
   names jsonb,                          -- {en, ar}; display names
-  popularity int DEFAULT 0,             -- ranks suggestions; from the pipeline (Wikipedia sitelinks)
-  search_forms text[],                  -- normalized names + aliases (07 §5.7); what the app matches against
+  popularity int DEFAULT 0,             -- breaks ties between valid grid players; from the pipeline (Wikipedia sitelinks)
+  search_forms text[],                  -- normalized names + aliases (07 §5.7); what typed text is judged against
+  name_words jsonb,                     -- [{form, sharedBy}]: single words that may count alone (ADR-0021)
   catalog_version text,                 -- bundle version that last imported it
   status text DEFAULT 'ACTIVE',         -- ACTIVE | HIDDEN (dropped by a newer catalog; kept for history)
   updated_at timestamptz
 )
   IX (kind)
+  IX GIN (search_forms)                 -- exact match of another entity (08 §5.3 step 3)
 answer_entity_aliases (                 -- alternative names per locale, shown as "also known as"
   entity_id uuid FK → answer_entities ON DELETE CASCADE,
   locale text, alias text,
@@ -385,7 +387,7 @@ answer_entity_aliases (                 -- alternative names per locale, shown a
 -- question_import_batches also gets: catalog_checksum text NULL
 ```
 
-The app searches the catalog on the phone (`08` §5.2), so the server needs no search index; `GET /v1/answer-catalog` streams the active catalog as one versioned, cached document.
+The server judges typed text against the round's accepted answers (`08` §5.3, ADR-0021); the GIN index finds an exact match of another entity in one lookup. The catalog is not sent to phones.
 
 ```sql
 question_stats (
@@ -397,6 +399,12 @@ question_stats (
 question_stats_applied (
   battle_id uuid PK,                    -- BattleCompleted already folded into question_stats (at-least-once dedup)
   applied_at timestamptz
+)
+question_reports (                      -- a player says a question they were served is wrong (08 §5.7)
+  id uuid PK, question_id uuid FK → questions, user_id uuid FK → users,
+  reason text,                          -- 1..500 characters
+  created_at timestamptz,
+  UNIQUE (question_id, user_id)         -- one report per player per question; a repeat changes nothing
 )
 ```
 
@@ -439,7 +447,7 @@ battles (
   room_id uuid NULL FK → battle_rooms,  -- set when mode = ROOM; the FK is added with rooms (P8)
   has_bot boolean DEFAULT false,
   config jsonb,                         -- snapshot of the game type's config (08 §6) + engine timers
-  rule_set_id uuid NULL FK → scoring_rule_sets,   -- NULL until the points module exists (P6.5)
+  rule_set_id uuid NULL FK → scoring_rule_sets,   -- BATTLE rule set active at creation; NULL when none was (08 §6.1)
   created_at timestamptz, ready_deadline_at timestamptz,
   started_at timestamptz NULL, ended_at timestamptz NULL,
   end_reason text NULL,                 -- COMPLETED | FORFEIT | ABANDONED | CANCELLED
@@ -482,7 +490,9 @@ battle_round_actions (                  -- everything players did in a round, in
   action_no smallint,                   -- 1, 2, 3... per round: the engine's acceptance order
   participant_id uuid FK → battle_participants,
   kind text,                            -- BUZZ | ANSWER | ANSWER_TIMEOUT | GRID_CLAIM | GRID_SKIP | TURN_TIMEOUT
-  entity_id uuid NULL FK → answer_entities,   -- ANSWER / GRID_CLAIM with an entity
+  entity_id uuid NULL FK → answer_entities,   -- ANSWER / GRID_CLAIM: the entity the text matched
+  answer_text text NULL,                -- what the player typed (humans); never shown to others
+  answer_match text NULL,               -- EXACT | TYPO | OTHER_ENTITY | NONE: for tuning the tolerance
   number_answer numeric NULL,           -- ANSWER when answer_kind = NUMBER
   cell smallint NULL,                   -- GRID_* : row * 3 + col
   is_correct boolean NULL, points int DEFAULT 0,
@@ -521,7 +531,7 @@ scoring_rule_sets (
   config jsonb,                         -- ALL weights/points live here; values TBD (DEC-01..)
   status rule_set_status DEFAULT 'DRAFT',
   effective_from timestamptz NULL,
-  created_at timestamptz, created_by text
+  created_at timestamptz, created_by text  -- created_by: 'cli' for now
 )
   UQ (game_type, version)
   UQ (game_type) WHERE status = 'ACTIVE'
@@ -532,7 +542,7 @@ point_entries (
   source_type text,                     -- PREDICTION | MOTM_VOTE | BATTLE_PARTICIPANT
   source_id uuid,                       -- prediction id, battle participant id...
   source_revision int DEFAULT 0,        -- e.g. matches.result_version used for the score
-  rule_set_id uuid NULL FK → scoring_rule_sets,   -- NULL until the points module exists (P6.5)
+  rule_set_id uuid FK → scoring_rule_sets,        -- every entry was computed with a rule set
   points int,
   occurred_at timestamptz,              -- business time: match end, battle end
   recorded_at timestamptz DEFAULT now(),
@@ -548,13 +558,12 @@ Battle points are recorded per human participant (`source_id` = participant id, 
 ### 4.10 `leaderboards`
 
 ```sql
-season_calendar ( id uuid PK, label text UQ, starts_at timestamptz, ends_at timestamptz )   -- DEC-17
 leaderboard_periods (
   id uuid PK, kind leaderboard_kind, category leaderboard_category,
   period_key text,                      -- '2026-W45' | '2026-11' | '2026-27' | 'all'
   starts_at timestamptz, ends_at timestamptz NULL,   -- NULL for ALL_TIME
   timezone text,                        -- IANA name used to compute boundaries (DEC-15/16)
-  status period_status DEFAULT 'OPEN',
+  status period_status DEFAULT 'OPEN',  -- stays OPEN until the prize work (03 §5.6); the API derives OPEN/CLOSED from the clock
   closed_at timestamptz NULL, finalized_at timestamptz NULL
 )
   UQ (kind, category, period_key)
@@ -567,7 +576,7 @@ leaderboard_entries (
   PRIMARY KEY (period_id, user_id)
 )
   IX (period_id, points DESC, tiebreak_1 DESC, tiebreak_2 DESC, user_id)   -- ranking + keyset pagination
-leaderboard_snapshots (
+leaderboard_snapshots (                -- created with the prize work (DEC-28/47), not in P6.5b
   period_id uuid FK → leaderboard_periods, user_id uuid FK → users,
   rank int, points bigint, tiebreak_1 bigint, tiebreak_2 bigint, frozen_at timestamptz,
   PRIMARY KEY (period_id, user_id)

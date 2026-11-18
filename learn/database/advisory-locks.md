@@ -9,7 +9,7 @@
 - `_xact_` means it is released automatically when the transaction ends: no unlock call to forget.
 - Rows need no `FOR UPDATE`, because there may be no rows yet to lock (new keys).
 
-**In our code:** `waitForOtherImports` in [prisma-question-import.repository.ts](../../apps/backend/src/modules/question-bank/infrastructure/prisma-question-import.repository.ts).
+**In our code:** `waitForOtherImports` in [prisma-question-import.repository.ts](../../apps/backend/src/modules/question-bank/infrastructure/prisma-question-import.repository.ts); `waitForOtherChangesOfPair` (one lock per pair of players) in [prisma-social.repository.ts](../../apps/backend/src/modules/social/infrastructure/prisma-social.repository.ts).
 
 **Watch out:** it only protects code that takes the same lock. Anything that writes questions without it is not serialized.
 

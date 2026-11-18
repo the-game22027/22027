@@ -8,13 +8,12 @@ import type { MatchmakingQueue, QueueTicket } from '../application/ports/matchma
 const queueKey = (gameType: GameType): string => `mm:queue:${gameType}`;
 const ticketKey = (ticketId: string): string => `mm:ticket:${ticketId}`;
 
-// Read and remove in one script, so two matcher ticks (or a leave racing a match) can never take the same ticket.
-const TAKE_OLDEST_PAIR = `
-local ids = redis.call('ZRANGE', KEYS[1], 0, 1)
-if #ids < 2 then return {} end
-redis.call('ZREM', KEYS[1], ids[1], ids[2])
+// Check and remove in one script, so a leave racing the match, or two matcher ticks, can never share a ticket.
+const TAKE_PAIR_IF_BOTH_QUEUED = `
+if not redis.call('ZSCORE', KEYS[1], ARGV[2]) or not redis.call('ZSCORE', KEYS[1], ARGV[3]) then return {} end
+redis.call('ZREM', KEYS[1], ARGV[2], ARGV[3])
 local out = {}
-for _, id in ipairs(ids) do
+for _, id in ipairs({ ARGV[2], ARGV[3] }) do
   local key = ARGV[1] .. id
   table.insert(out, redis.call('GET', key))
   redis.call('DEL', key)
@@ -69,8 +68,22 @@ export class RedisMatchmakingQueue implements MatchmakingQueue {
     return (await this.redis.eval(REMOVE_TICKET, 2, queueKey(gameType), ticketKey(ticketId), ticketId)) === 1;
   }
 
-  async takeOldestPair(gameType: GameType): Promise<QueueTicket[]> {
-    const rows = (await this.redis.eval(TAKE_OLDEST_PAIR, 1, queueKey(gameType), ticketKey(''))) as (string | null)[];
+  async peekOldestTickets(gameType: GameType, max: number): Promise<QueueTicket[]> {
+    const ticketIds = await this.redis.zrange(queueKey(gameType), '0', String(max - 1));
+    if (ticketIds.length === 0) return [];
+    const rows = await this.redis.mget(...ticketIds.map(ticketKey));
+    return rows.flatMap((row) => ticketOf(row) ?? []);
+  }
+
+  async takeTicketPair(gameType: GameType, [first, second]: readonly [string, string]): Promise<QueueTicket[]> {
+    const rows = (await this.redis.eval(
+      TAKE_PAIR_IF_BOTH_QUEUED,
+      1,
+      queueKey(gameType),
+      ticketKey(''),
+      first,
+      second,
+    )) as (string | null)[];
     return rows.flatMap((row) => ticketOf(row) ?? []);
   }
 

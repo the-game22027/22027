@@ -23,6 +23,10 @@ String _describeApiProblem(ApiProblem problem, AppLocalizations l10n) {
     'NOT_FOUND' => l10n.errorNotFound,
     'ACCOUNT_DISABLED' => l10n.errorAccountDisabled,
     'RECENT_SIGN_IN_REQUIRED' => l10n.errorRecentSignInRequired,
+    'PREDICTION_LOCKED' => l10n.errorPredictionLocked,
+    'MATCH_NOT_PREDICTABLE' => l10n.errorMatchNotPredictable,
+    'PREDICTION_INVALID_PICKS' => l10n.errorPredictionInvalidPicks,
+    'TEAM_NOT_FOUND' => l10n.errorTeamNotFound,
     'INTERNAL' => l10n.errorServerProblem,
     _ => _describeHttpStatus(problem.status, l10n),
   };

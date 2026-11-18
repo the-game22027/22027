@@ -56,6 +56,10 @@ interface Rejection { code: string }                                     // beco
 
 Readiness and `WAITING_READY`; round sequencing and `roundCount`; timers (one scheduler per battle, keyed by `TimerKey`; all cancelled at battle end); `seq` and `serverTime` on every event; persistence of rounds and actions; disconnect grace and forfeit; `battle:resync` snapshots (built from the rules' state through a `snapshotFor(participant)` method, so a client only ever sees what was revealed); bot scheduling (bots send commands through the same `handleCommand` path, with no `clientMsgId`); scoring hand-off (`BattleScorer` totals the rounds' points; placements as before); completion and `BattleCompleted`.
 
+### 2.4 Round runners (P6.4)
+
+The engine (`LiveBattle`) owns the battle; one **round runner** per mechanic owns a round. `RevealRoundRunner` serves `BUZZER`, `CAREER` and `WHO_IS_PLAYER`; `GridRoundRunner` serves `GRID`. A runner wraps its pure rules, renders its events per viewer, drives its bot and builds its part of the snapshot. It calls back into the battle to emit, schedule timers, record actions and end the round. Picking the runner from the content's game type is the registry of §2.2; nothing else in the engine looks at the game type.
+
 ## 3. Mechanics
 
 ### 3.1 Reveal and buzz (`BUZZER`, `CAREER`, `WHO_IS_PLAYER`)
@@ -80,7 +84,7 @@ stateDiagram-v2
 1. **Start:** the engine loads the round content (server side only). The rules emit `round:start` (game type, `answerKind`, `stepCount`, no clue text) and reveal step 1 with `round:clue`. They schedule the next reveal at `now + revealIntervalMs`.
 2. **Reveal:** each reveal timer emits `round:clue { index, clue }`, localized per player. A client never receives a step before it is revealed.
 3. **Buzz:** `round:buzz` is accepted when the round is `REVEALING` or `FINAL_WINDOW`, the sender is active and not locked out, and nobody else holds the buzz. The first accepted buzz wins because the engine processes a battle's commands in arrival order. Later buzzes get `BUZZ_TAKEN`. On acceptance: cancel the reveal timer and remember how much of the interval was left; emit `round:buzzed { participantId, answerDeadlineAt }`; schedule the answer timer at `now + answerWindowMs + latencyGraceMs`.
-4. **Answer:** only the buzz holder may send `round:answer`, once per buzz. The answer is an entity id of the round's `answerKind`, or a number when `answerKind = NUMBER`. Correctness is checked on the server (`AnswerChecker`, §5.3).
+4. **Answer:** only the buzz holder may send `round:answer`, once per buzz. The answer is the typed text, or a number when `answerKind = NUMBER`. The server judges it (`AnswerChecker`, §5.3).
    - **Correct:** record it, `END_ROUND` with the winner. `round:result` reveals every step and the answer to everyone.
    - **Wrong or timed out:** record it; the player is locked out for this round (`attemptsPerPlayer`, default 1). Emit `round:wrong { participantId, answer? }`. Whether the wrong answer is shown is `showWrongAnswers` (DEC-60). Then resume: the next reveal fires after the remaining part of the interval, or after `resumeDelayMs` when that is larger. Emit `round:resumed { nextClueAt }`.
 5. **End without a winner:** after the last step, the round stays open for `finalWindowMs` (`FINAL_WINDOW`). If nobody answers correctly by then, or every active participant is locked out, the round closes with no winner and `round:result` shows the answer.
@@ -102,8 +106,8 @@ stateDiagram-v2
 Approved on condition that the data supports it. The 2026-11-10 check passed (`07` §4.1).
 
 1. **Board:** 3 row criteria and 3 column criteria. A criterion is `{ kind: CLUB | NATIONALITY | COMPETITION_WON, entityId }`. Every cell has at least `minAnswersPerCell` valid players, guaranteed by the pipeline. The whole board is sent in `round:start`.
-2. **Turns:** players alternate; who starts is random per round (seeded). The player on turn has `turnMs` to send `grid:claim { cell, answer: { entityId } }`.
-   - Valid when: it is their turn, the cell is free, and the player was not already used on this board.
+2. **Turns:** players alternate; who starts is random per round (seeded). The player on turn has `turnMs` to send `grid:claim { cell, answer: { text } }`.
+   - Valid when: it is their turn and the cell is free. The text is judged against the cell's valid players (§5.3); naming a player already used on this board is rejected (`PLAYER_ALREADY_USED`).
    - **Correct** (the player fits both criteria): the cell is theirs. `grid:claimed`.
    - **Wrong:** the cell stays free. `grid:missed { cell, participantId, answer? }` (DEC-60). After `attemptsPerTurn` wrong tries (default 1) the turn passes.
    - **Timeout or `grid:skip`:** the turn passes. `skipsPerRound` limits skips; a skip beyond it gives the round to the opponent (as in KickBrain; config, default off).
@@ -116,7 +120,7 @@ Approved on condition that the data supports it. The 2026-11-10 check passed (`0
    - A wrong answer keeps the turn while `attemptsLeft > 0`, with the same deadline; it never uses the player up.
    - `skipsPerRound: null` means unlimited. With a number, the skip after the last allowed one gives the round to the opponent (`SKIP_LIMIT`).
    - A participant who leaves mid-round gives it to the other (`FORFEIT`, no points).
-   - Every cell is a slot of `question_answers` (`row * 3 + col`), so `AnswerChecker` judges a claim like any typed answer.
+   - Every cell is a slot of `question_answers` (`row * 3 + col`), so `AnswerChecker` judges a claim like any typed answer, with the cell's valid players as the accepted answers.
 
 ### 3.3 Bots
 
@@ -145,23 +149,26 @@ Round content lives in `question-bank` (`02-database.md` §4.6) and comes from b
 ## 5. Answer catalog and typed answers (DEC-55)
 
 ### 5.1 What it is
-A list of football entities a typed answer can be, with names in both languages: `answer_entities` (id, external ref such as `wikidata:Q11571`, kind, `names {en, ar}`, `popularity`) and `answer_entity_aliases` (alternative names per locale: "CR7", "رونالدو", "كريستيانو"). It is imported from the bundle with the content (`07` §5.4). The pipeline guarantees that every accepted answer is in the catalog.
+A list of football entities a typed answer can be, with names in both languages: `answer_entities` (id, external ref such as `wikidata:Q11571`, kind, `names {en, ar}`, `popularity`, normalized `search_forms`, distinctive `name_words`) and `answer_entity_aliases` (alternative names per locale: "CR7", "رونالدو", "كريستيانو"). It is imported from the bundle with the content (`07` §5.4) and **stays on the server** (ADR-0021): it judges typed text and gives names to events. The pipeline guarantees that every accepted answer is in the catalog.
 
-### 5.2 Search happens on the phone
-**Decision (technical):** the app downloads the catalog and searches it locally, instead of calling a search endpoint on every keystroke.
-- **Fairness:** in a speed game, a slow network would otherwise mean slow suggestions. Local search makes typing speed the same for everyone.
-- **Load:** no server call per keystroke.
-- **Size:** about 20-30k entities with names and aliases, roughly 1-2 MB compressed. Downloaded once, then refreshed only when the version changes (`GET /v1/answer-catalog`, `ETag`).
-- **Normalization:** the pipeline stores a normalized form of every name and alias (lower case, Latin accents removed; Arabic: alef forms أ إ آ → ا, ة → ه, ى → ي, tatweel and diacritics removed, leading "ال" ignored for matching). The app normalizes only what the user types, with the same rules. One rule list with shared test vectors lives in `07` §5.7, so the Dart and Python implementations cannot drift.
-- Suggestions are ranked by prefix match, then `popularity`. Nothing about the current round is used for ranking, so suggestions never hint at the answer.
+### 5.2 What the player does
+The player types the answer and sends it. **No suggestions are shown** (ADR-0021, DEC-55). The app sends `{ text }` (at most `answers.maxLength` characters) or `{ number }`. The app never receives the accepted answers or the catalog.
 
-### 5.3 Checking an answer
-The client sends `{ entityId }` (or `{ number }`). The server asks `AnswerChecker.checkTypedAnswer(contentId, slot, entityId)`. One indexed query returns one of three verdicts:
-- `UNKNOWN_ENTITY`: the entity does not exist, or is not of the round's `answerKind`.
-- `CORRECT`: the entity is in `question_answers` for that slot.
-- `WRONG`: otherwise.
+### 5.3 Judging an answer
+`AnswerChecker.judgeTypedText(contentId, slot, text, rules)` compares the text **only with the accepted answers of that slot**:
 
-Text is never compared. A `NUMBER` answer is compared by the game rules with `answerNumber` from the round content.
+1. **Normalize** the text (`07` §5.7). Empty: rejected with `EMPTY_ANSWER`, no attempt used.
+2. **Exact match** with a form of an accepted answer: `CORRECT`.
+3. **Exact match** with a full name or alias of **another** entity of the round's `answerKind`: `WRONG`, and that entity is the shown wrong answer (`تشابي` is Xabi Alonso, not a typo of `تشافي`).
+4. **Within the typo tolerance** of a form of an accepted answer: `CORRECT`.
+5. Otherwise `WRONG`, with nothing to show.
+
+- **Forms of an entity:** its full names (`ar`, `en`), its aliases, and each distinctive single word of its names: at least 3 letters, shared by at most `answers.singleWordMaxSharedBy` entities of the same kind (default 15; `name_words`, computed by the pipeline over the whole knowledge base). `ليونيل` counts alone for Messi; `محمد` does not count alone for Mohamed Salah.
+- **Typo tolerance:** edit distance in letters (one letter added, missing, changed, or two neighbours swapped is one edit), by the form's letter count without spaces: `answers.typoTolerance`, default up to 3 letters exact, 4-7 letters 1 edit, 8+ letters 2 edits. `ميسب`, `مبسي` and `ميسيي` are one edit from `ميسي`.
+- **`GRID`:** the accepted answers are the cell's valid players. When the text fits several: the closest first, then one not used on this board, then the most popular. Only used players fit: `PLAYER_ALREADY_USED`.
+- **Result:** `{ verdict: CORRECT | WRONG, entityId | null, match: EXACT | TYPO | OTHER_ENTITY | NONE }`. The engine records the text, the entity and `match` on the action (for tuning the tolerance), and never shows the raw text to other players (DEC-60 shows only an `OTHER_ENTITY` match).
+- **Bots** answer with an entity id inside the server; they skip text judging.
+- A `NUMBER` answer is compared by the game rules with `answerNumber` from the round content.
 
 ### 5.4 What `question-bank` gives the engine (P5.2b)
 The interface is in `01-modules.md` §2.6. All of it is server side; the game rules decide what each event shows.
@@ -179,11 +186,8 @@ The interface is in `01-modules.md` §2.6. All of it is server side; the game ru
 - **`AnswerCatalogQuery.findEntitiesByIds(ids)`** returns names in both locales, because one battle can have players of both languages.
 - **`QuestionBankFacade.disableQuestion(id, reason)`** is used by the CLI now and by moderation later. Selection skips the content at once.
 
-### 5.5 `GET /v1/answer-catalog`
-- **Body:** `AnswerCatalog` (API.md §2) with every `ACTIVE` entity, most popular first.
-- **`version`:** the checksum of the last imported `catalog.jsonl`. The active set is exactly that file's entities (`07` §5.5), so the same checksum always means the same body. Before any catalog import it is `none` and the list is empty.
-- **Caching:** `ETag: "<version>"`. A matching `If-None-Match` gets `304` with no body. `Cache-Control: private, no-cache`: the phone keeps its copy and asks again before playing; a `304` costs a few bytes.
-- **Compression:** the API process builds the JSON and its gzip once per version and keeps both in memory (about 11 MB and 2 MB for 22k entities). A request with `Accept-Encoding: gzip` gets the gzip bytes. A new catalog import changes the version, and the next request builds again.
+### 5.5 `GET /v1/answer-catalog` (removed)
+Built in P5.2 for on-device search. With no suggestions (ADR-0021) the app does not need the catalog, so P6.6 removed the endpoint and its in-memory gzip cache.
 
 ### 5.6 Publishing and disabling (CLI)
 - **`questions:publish <bundleVersion>`:**
@@ -197,11 +201,24 @@ The interface is in `01-modules.md` §2.6. All of it is server side; the game ru
   - A question that is already disabled stays as it is, with no event.
   - An unknown id is an error.
 
-**Question reports** (`POST /v1/questions/{id}/reports`) move to P6. They may only accept content the caller was served in a battle, and that needs `battle_rounds`.
+### 5.7 Question stats and reports (P6.5c)
 
-### 2.4 Round runners (P6.4)
+**Stats** feed difficulty calibration later (`calibrated_difficulty`, a future job). They count **humans only**: a bot's answers come from its profile, not from knowing football.
 
-The engine (`LiveBattle`) owns the battle; one **round runner** per mechanic owns a round. `RevealRoundRunner` serves `BUZZER`, `CAREER` and `WHO_IS_PLAYER`; `GridRoundRunner` serves `GRID`. A runner wraps its pure rules, renders its events per viewer, drives its bot and builds its part of the snapshot. It calls back into the battle to emit, schedule timers, record actions and end the round. Picking the runner from the content's game type is the registry of §2.2; nothing else in the engine looks at the game type.
+- `BattleCompleted.questionResults` has one item per round: `{ questionId, roundNo, endReason, served, solved, wrongAnswers, stepsRevealed }`.
+  - `served`: the round started (a battle ended by forfeit has rounds that never did).
+  - `solved`: a human won the round. In reveal games that is the correct answer; in `GRID` it is the round's winner.
+  - `wrongAnswers`: wrong `ANSWER` and `GRID_CLAIM` actions by humans.
+  - `stepsRevealed`: how far the reveal got (reveal games).
+- The `question-bank` handler (queue `question-bank`, subscriber `question-bank.update-question-stats`) inserts the battle id into `question_stats_applied` and, only when that insert is new, adds each served round to `question_stats` in the same transaction. Here an increment is safe: the dedup row and the increments commit or roll back together.
+- `ABANDONED` and `CANCELLED` battles write no `BattleCompleted`, so they add no stats.
+
+**Reports:** `POST /v1/questions/{questionId}/reports { reason }`, for a player who thinks a question is wrong.
+
+- **Only content the caller was served:** a round of a battle they took part in, with `started_at` set. Anything else, including an unknown id, is `404 QUESTION_NOT_FOUND`, so the endpoint cannot be used to probe question ids.
+- **One report per player per question:** a repeat changes nothing and answers `204` again (idempotent). `reason` is free text, 1 to 500 characters.
+- **Where it lives:** the controller is in `battles`, the only module that knows what was served (`question-bank` cannot call `battles`: that would be a cycle). It checks the served rule, then calls `QuestionReports.reportQuestion`, which writes `question_reports`, owned by `question-bank`.
+- **Moderation:** `npm run cli -- questions:reports` lists the most reported questions with their latest reasons; an operator then uses `questions:disable`. There is no automatic disabling: a threshold would be a product rule nobody has decided.
 
 ## 6. Configuration (per game type)
 
@@ -213,6 +230,7 @@ Stored in the battle config by game type, snapshotted on the battle row at creat
 | `revealIntervalMs`, `resumeDelayMs`, `answerWindowMs`, `finalWindowMs`, `attemptsPerPlayer` | reveal and buzz | DEC-54 |
 | `turnMs`, `attemptsPerTurn`, `skipsPerRound` (`null` = unlimited), `maxTurns`, `minAnswersPerCell`, `revealAnswersAtEnd`, `points.roundWin`, `points.roundDraw`, `points.perCell` | grid | DEC-54, DEC-61 |
 | `showWrongAnswers` | all | DEC-60 |
+| `answers.maxLength`, `answers.typoTolerance` (letters → edits), `answers.singleWordMaxSharedBy` | all typed answers | DEC-55 |
 | `showYears` | `CAREER` | DEC-54 |
 | `room.difficultyLevels` (`EASY`, `MEDIUM`, `HARD` → difficulty ranges) | rooms | DEC-64 |
 | `points.*` | all | DEC-33 |
@@ -220,6 +238,24 @@ Stored in the battle config by game type, snapshotted on the battle row at creat
 | `matchmaking.botFallbackAfterMs`, `tickMs`, `queueDisconnectGraceMs` | matchmaking | DEC-39 |
 | `bots.profiles.*` (`knowsAnswerByDifficulty`, `guessChance`, `buzzAtShareOfSteps`, `reactionDelayMs`, `typingDelayMs`) | bots | DEC-43 |
 | `selection.*` (`excludeLastBattles`, `difficulties`) | all | DEC-44 |
+
+### 6.1 Leaderboard points (the `BATTLE` rule set, P6.5)
+
+The in-game `score` (`points.*` above) decides placements inside one battle. **Ledger points** are what a battle adds to the `BATTLES` leaderboards. They come from the active `BATTLE` scoring rule set (`scoring_rule_sets`, stored by `points`), not from the battle config file, because every ledger entry records the rule set that produced it.
+
+```json
+{ "modes": {
+    "matchmakingVsHuman": { "pointsByOutcome": { "WIN": 30, "DRAW": 10, "LOSS": 0 }, "forfeitWinEarnsPoints": true },
+    "matchmakingVsBot":   { "pointsByOutcome": { "WIN": 0, "DRAW": 0, "LOSS": 0 }, "forfeitWinEarnsPoints": false },
+    "room":               { "pointsByOutcome": { "WIN": 0, "DRAW": 0, "LOSS": 0 }, "forfeitWinEarnsPoints": false } } }
+```
+
+- **Values:** `DEV_ONLY` placeholders (DEC-33), except vs bot and room, which earn nothing (DEC-41). Points are whole numbers ≥ 0: a lost battle never removes leaderboard points (negative values would need a decision).
+- **Who computes:** `battles` (the ledger only records, 01 §2.9). At creation the engine reads the active rule set, keeps the section for the battle's mode in the config snapshot and stores `battles.rule_set_id`. A rule set activated during a battle applies from the next battle; past battles keep their points.
+- **At completion:** each human gets `pointsByOutcome[outcome]`, and 0 for a win by forfeit when `forfeitWinEarnsPoints` is false. Bots never get points. `CANCELLED` and `ABANDONED` battles have no placements and no points.
+- **No active rule set:** the battle plays normally, `rule_set_id` stays NULL, every human gets 0 and the API logs a warning. Production activates one before launch.
+- **Activation:** `npm run cli -- battles:activate-rule-set <file>`. `battles` validates the shape; `points` stores it as the next version and retires the previous `ACTIVE` one in the same transaction, and writes `ScoringRuleSetActivated`. Activating a config equal to the active one changes nothing. Dev file: `apps/backend/config/scoring/battle.dev.json`.
+- **To the ledger:** `BattleCompleted` carries `ruleSetId`, `endReason` and each participant's `points`. The `points` handler writes one `point_entries` row per human with points > 0, then `PointsRecorded`. `battle:completed` tells each player `you.points`; `pointsPending` is true when they are above 0.
 
 ## 7. Fairness and abuse
 

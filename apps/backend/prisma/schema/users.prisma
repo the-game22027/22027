@@ -18,10 +18,19 @@ model User {
   privacySettings UserPrivacySettings?
 
   // Prisma needs these for the FKs from auth tables; the users module never reads them.
-  authIdentities AuthIdentity[]
-  sessions       Session[]
-  predictions    Prediction[]
-  battleSeats    BattleParticipant[]
+  authIdentities         AuthIdentity[]
+  sessions               Session[]
+  predictions            Prediction[]
+  battleSeats            BattleParticipant[]
+  pointEntries           PointEntry[]
+  leaderboardRows        LeaderboardEntry[]
+  questionReports        QuestionReport[]
+  sentFriendRequests     FriendRequest[]     @relation("SentFriendRequests")
+  receivedFriendRequests FriendRequest[]     @relation("ReceivedFriendRequests")
+  friendshipsAsLow       Friendship[]        @relation("FriendshipsAsLow")
+  friendshipsAsHigh      Friendship[]        @relation("FriendshipsAsHigh")
+  blocksMade             UserBlock[]         @relation("BlocksMade")
+  blocksReceived         UserBlock[]         @relation("BlocksReceived")
 
   @@map("users")
 }

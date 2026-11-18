@@ -2,6 +2,7 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import request from 'supertest';
 import { createApiTestApp, testConfig } from '../support/test-app';
 import { writeBattleConfigFile } from '../support/battle-config';
+import { writeLeaderboardConfigFile } from '../support/leaderboard-config';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 
@@ -84,17 +85,29 @@ describe('HTTP cross-cutting behaviour (development mode)', () => {
     const metrics = await request(app.getHttpServer()).get('/metrics').expect(200);
     expect(metrics.text).toContain('http_request_duration_seconds');
   });
+
+  it('builds the OpenAPI document from every DTO', async () => {
+    const res = await request(app.getHttpServer()).get('/docs-json').expect(200);
+    expect(res.body.paths).toHaveProperty(['/v1/me/play-state']);
+    expect(res.body.components.schemas.PlayStateDto.properties).toHaveProperty('room');
+  });
 });
 
 describe('production mode', () => {
   let app: NestExpressApplication;
 
   beforeAll(async () => {
-    // Production refuses placeholder battle values (ADR-0018), so this boot gets a file marked as reviewed.
-    const battleConfig = writeBattleConfigFile((config) => {
+    // Production refuses placeholder values (ADR-0018, DEC-17), so this boot gets files marked as reviewed.
+    const reviewed = (config: Record<string, unknown>) => {
       config['devOnly'] = false;
-    });
-    app = await createApiTestApp(testConfig({ NODE_ENV: 'production', BATTLE_CONFIG_PATH: battleConfig }));
+    };
+    app = await createApiTestApp(
+      testConfig({
+        NODE_ENV: 'production',
+        BATTLE_CONFIG_PATH: writeBattleConfigFile(reviewed),
+        LEADERBOARD_CONFIG_PATH: writeLeaderboardConfigFile(reviewed),
+      }),
+    );
   });
 
   afterAll(async () => {

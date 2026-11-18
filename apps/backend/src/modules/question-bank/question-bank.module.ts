@@ -3,22 +3,23 @@ import { AnswerCatalogQuery } from './application/answer-catalog.query';
 import { AnswerChecker } from './application/answer-checker';
 import { ContentSelector } from './application/content-selector';
 import { QUESTION_READ_REPOSITORY } from './application/ports/question-read-repository';
+import { QUESTION_REPORT_REPOSITORY } from './application/ports/question-report-repository';
+import { QuestionReports } from './application/question-reports';
 import { RoundContentQuery } from './application/round-content.query';
 import { PrismaQuestionReadRepository } from './infrastructure/prisma-question-read.repository';
-import { AnswerCatalogDocumentCache } from './presentation/answer-catalog-document.cache';
-import { AnswerCatalogController } from './presentation/answer-catalog.controller';
+import { PrismaQuestionReportRepository } from './infrastructure/prisma-question-report.repository';
 
-/** What the API process serves: the catalog endpoint, and content reads for the battle engine (08 §5.4). */
+/** What the API process serves: content reads and answer judging for the battle engine (08 §5.4), and reports (08 §5.7). */
 @Module({
-  controllers: [AnswerCatalogController],
   providers: [
     AnswerCatalogQuery,
     AnswerChecker,
     ContentSelector,
     RoundContentQuery,
-    AnswerCatalogDocumentCache,
+    QuestionReports,
     { provide: QUESTION_READ_REPOSITORY, useClass: PrismaQuestionReadRepository },
+    { provide: QUESTION_REPORT_REPOSITORY, useClass: PrismaQuestionReportRepository },
   ],
-  exports: [AnswerCatalogQuery, AnswerChecker, ContentSelector, RoundContentQuery],
+  exports: [AnswerCatalogQuery, AnswerChecker, ContentSelector, RoundContentQuery, QuestionReports],
 })
 export class QuestionBankModule {}

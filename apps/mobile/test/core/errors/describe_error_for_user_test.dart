@@ -22,6 +22,10 @@ void main() {
       'NOT_FOUND': english.errorNotFound,
       'ACCOUNT_DISABLED': english.errorAccountDisabled,
       'INTERNAL': english.errorServerProblem,
+      'PREDICTION_LOCKED': english.errorPredictionLocked,
+      'MATCH_NOT_PREDICTABLE': english.errorMatchNotPredictable,
+      'PREDICTION_INVALID_PICKS': english.errorPredictionInvalidPicks,
+      'TEAM_NOT_FOUND': english.errorTeamNotFound,
     };
 
     for (final MapEntry(key: code, value: message)
