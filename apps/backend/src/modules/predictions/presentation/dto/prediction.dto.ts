@@ -53,6 +53,11 @@ export class PredictionPageQueryDto {
   cursor?: string;
 }
 
+// A named class, not an inline `{ points }` type: only then does the Swagger plugin mark `score` nullable.
+export class PredictionScoreDto {
+  points!: number;
+}
+
 /** Another player's prediction, shown only when the visibility policy allows it (DEC-21). */
 export class VisiblePredictionDto {
   matchId!: string;
@@ -60,7 +65,7 @@ export class VisiblePredictionDto {
   status!: 'ACTIVE' | 'VOID';
   updatedAt!: string;
   /** null until prediction scoring exists (P3.2). */
-  score!: { points: number } | null;
+  score!: PredictionScoreDto | null;
 }
 
 export class VisiblePredictionPageDto {
@@ -73,7 +78,7 @@ export class FriendPredictionDto {
   picks!: PredictionPickDto[];
   status!: 'ACTIVE' | 'VOID';
   /** null until prediction scoring exists (P3.2). */
-  score!: { points: number } | null;
+  score!: PredictionScoreDto | null;
 }
 
 export class FriendPredictionPageDto {
