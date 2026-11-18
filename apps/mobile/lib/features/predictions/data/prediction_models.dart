@@ -1,6 +1,8 @@
 /// The player's own prediction for a match (API §5, "Predictions").
 library;
 
+import 'package:the_game/features/social/data/social_models.dart';
+
 enum MatchOutcome { home, draw, away, unknown }
 
 enum PredictionStatus {
@@ -59,6 +61,47 @@ class Prediction {
 
   /// Kickoff reached (decided by the server): the prediction can no longer change.
   final bool isLocked;
+
+  ExactScorePick? get exactScore =>
+      picks.whereType<ExactScorePick>().firstOrNull;
+}
+
+/// A prediction of another player that the server chose to show (DEC-21: friends, after
+/// kickoff). The app never decides visibility: what is missing was not sent.
+class FriendPrediction {
+  const FriendPrediction({
+    required this.user,
+    required this.picks,
+    required this.status,
+    this.points,
+  });
+
+  final PublicUser user;
+  final List<PredictionPick> picks;
+  final PredictionStatus status;
+
+  /// `null` until the match is scored.
+  final int? points;
+
+  ExactScorePick? get exactScore =>
+      picks.whereType<ExactScorePick>().firstOrNull;
+}
+
+/// One entry of another player's visible predictions (`GET /v1/users/{userId}/predictions`).
+class VisiblePrediction {
+  const VisiblePrediction({
+    required this.matchId,
+    required this.picks,
+    required this.status,
+    required this.updatedAt,
+    this.points,
+  });
+
+  final String matchId;
+  final List<PredictionPick> picks;
+  final PredictionStatus status;
+  final DateTime updatedAt;
+  final int? points;
 
   ExactScorePick? get exactScore =>
       picks.whereType<ExactScorePick>().firstOrNull;

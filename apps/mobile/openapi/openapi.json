@@ -74,6 +74,40 @@
         ],
         "type": "object"
       },
+      "ConnectedUserDto": {
+        "properties": {
+          "since": {
+            "type": "string"
+          },
+          "user": {
+            "$ref": "#/components/schemas/PublicUserDto"
+          }
+        },
+        "required": [
+          "user",
+          "since"
+        ],
+        "type": "object"
+      },
+      "ConnectedUserPageDto": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ConnectedUserDto"
+            },
+            "type": "array"
+          },
+          "nextCursor": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "type": "object"
+      },
       "DevSignInDto": {
         "properties": {
           "device": {
@@ -115,6 +149,114 @@
       },
       "EchoRequestDto": {
         "properties": {},
+        "type": "object"
+      },
+      "FriendPredictionDto": {
+        "properties": {
+          "picks": {
+            "items": {
+              "$ref": "#/components/schemas/PredictionPickDto"
+            },
+            "type": "array"
+          },
+          "score": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PredictionScoreDto"
+              }
+            ],
+            "description": "null until prediction scoring exists (P3.2).",
+            "nullable": true,
+            "type": "object"
+          },
+          "status": {
+            "enum": [
+              "ACTIVE",
+              "VOID"
+            ],
+            "type": "string"
+          },
+          "user": {
+            "$ref": "#/components/schemas/PublicUserDto"
+          }
+        },
+        "required": [
+          "user",
+          "picks",
+          "status",
+          "score"
+        ],
+        "type": "object"
+      },
+      "FriendPredictionPageDto": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/FriendPredictionDto"
+            },
+            "type": "array"
+          },
+          "nextCursor": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "type": "object"
+      },
+      "FriendRequestDto": {
+        "properties": {
+          "createdAt": {
+            "type": "string"
+          },
+          "from": {
+            "$ref": "#/components/schemas/PublicUserDto"
+          },
+          "id": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "PENDING",
+              "ACCEPTED",
+              "DECLINED",
+              "CANCELLED"
+            ],
+            "type": "string"
+          },
+          "to": {
+            "$ref": "#/components/schemas/PublicUserDto"
+          }
+        },
+        "required": [
+          "id",
+          "from",
+          "to",
+          "status",
+          "createdAt"
+        ],
+        "type": "object"
+      },
+      "FriendRequestPageDto": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/FriendRequestDto"
+            },
+            "type": "array"
+          },
+          "nextCursor": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
         "type": "object"
       },
       "GoogleSignInDto": {
@@ -171,6 +313,112 @@
         },
         "required": [
           "gameType"
+        ],
+        "type": "object"
+      },
+      "LeaderboardPageDto": {
+        "properties": {
+          "category": {
+            "enum": [
+              "BATTLES",
+              "PREDICTIONS"
+            ],
+            "type": "string"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/LeaderboardRowDto"
+            },
+            "type": "array"
+          },
+          "nextCursor": {
+            "nullable": true,
+            "type": "string"
+          },
+          "period": {
+            "$ref": "#/components/schemas/LeaderboardPeriodDto"
+          }
+        },
+        "required": [
+          "period",
+          "category",
+          "items",
+          "nextCursor"
+        ],
+        "type": "object"
+      },
+      "LeaderboardPeriodDto": {
+        "properties": {
+          "endsAt": {
+            "nullable": true,
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          },
+          "kind": {
+            "enum": [
+              "WEEKLY",
+              "MONTHLY",
+              "SEASONAL",
+              "ALL_TIME"
+            ],
+            "type": "string"
+          },
+          "startsAt": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "CLOSED",
+              "OPEN"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind",
+          "key",
+          "startsAt",
+          "endsAt",
+          "status"
+        ],
+        "type": "object"
+      },
+      "LeaderboardPeriodListDto": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/LeaderboardPeriodDto"
+            },
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "type": "object"
+      },
+      "LeaderboardRowDto": {
+        "properties": {
+          "isMe": {
+            "type": "boolean"
+          },
+          "points": {
+            "type": "number"
+          },
+          "rank": {
+            "type": "number"
+          },
+          "user": {
+            "$ref": "#/components/schemas/PublicUserDto"
+          }
+        },
+        "required": [
+          "rank",
+          "user",
+          "points",
+          "isMe"
         ],
         "type": "object"
       },
@@ -419,6 +667,30 @@
         ],
         "type": "object"
       },
+      "MyRankDto": {
+        "properties": {
+          "around": {
+            "items": {
+              "$ref": "#/components/schemas/LeaderboardRowDto"
+            },
+            "type": "array"
+          },
+          "points": {
+            "type": "number"
+          },
+          "rank": {
+            "description": "null: no points in this period yet.",
+            "nullable": true,
+            "type": "number"
+          }
+        },
+        "required": [
+          "rank",
+          "points",
+          "around"
+        ],
+        "type": "object"
+      },
       "PenaltiesDto": {
         "properties": {
           "away": {
@@ -558,6 +830,17 @@
         ],
         "type": "object"
       },
+      "PredictionScoreDto": {
+        "properties": {
+          "points": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "points"
+        ],
+        "type": "object"
+      },
       "PrivacyDto": {
         "properties": {
           "predictionVisibility": {
@@ -567,6 +850,31 @@
         },
         "required": [
           "predictionVisibility"
+        ],
+        "type": "object"
+      },
+      "PublicUserDto": {
+        "properties": {
+          "avatarUrl": {
+            "nullable": true,
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "username": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "displayName",
+          "username",
+          "avatarUrl"
         ],
         "type": "object"
       },
@@ -580,6 +888,20 @@
         },
         "required": [
           "refreshToken"
+        ],
+        "type": "object"
+      },
+      "ReportQuestionDto": {
+        "properties": {
+          "reason": {
+            "description": "What is wrong with the question, in the player's words.",
+            "maxLength": 500,
+            "pattern": "\\S",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
         ],
         "type": "object"
       },
@@ -601,6 +923,18 @@
         "required": [
           "home",
           "away"
+        ],
+        "type": "object"
+      },
+      "SendFriendRequestDto": {
+        "properties": {
+          "userId": {
+            "format": "uuid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "userId"
         ],
         "type": "object"
       },
@@ -765,6 +1099,127 @@
             "type": "string"
           }
         },
+        "type": "object"
+      },
+      "UserProfileDto": {
+        "properties": {
+          "avatarUrl": {
+            "nullable": true,
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "relationship": {
+            "enum": [
+              "SELF",
+              "NONE",
+              "FRIENDS",
+              "REQUEST_SENT",
+              "REQUEST_RECEIVED"
+            ],
+            "type": "string"
+          },
+          "requestId": {
+            "description": "Set for REQUEST_SENT and REQUEST_RECEIVED, so the app can cancel or accept.",
+            "nullable": true,
+            "type": "string"
+          },
+          "username": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "displayName",
+          "username",
+          "avatarUrl",
+          "relationship",
+          "requestId"
+        ],
+        "type": "object"
+      },
+      "UserSearchPageDto": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PublicUserDto"
+            },
+            "type": "array"
+          },
+          "nextCursor": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
+        "type": "object"
+      },
+      "VisiblePredictionDto": {
+        "properties": {
+          "matchId": {
+            "type": "string"
+          },
+          "picks": {
+            "items": {
+              "$ref": "#/components/schemas/PredictionPickDto"
+            },
+            "type": "array"
+          },
+          "score": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PredictionScoreDto"
+              }
+            ],
+            "description": "null until prediction scoring exists (P3.2).",
+            "nullable": true,
+            "type": "object"
+          },
+          "status": {
+            "enum": [
+              "ACTIVE",
+              "VOID"
+            ],
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "matchId",
+          "picks",
+          "status",
+          "updatedAt",
+          "score"
+        ],
+        "type": "object"
+      },
+      "VisiblePredictionPageDto": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/VisiblePredictionDto"
+            },
+            "type": "array"
+          },
+          "nextCursor": {
+            "nullable": true,
+            "type": "string"
+          }
+        },
+        "required": [
+          "items",
+          "nextCursor"
+        ],
         "type": "object"
       }
     },
@@ -1115,6 +1570,381 @@
         ]
       }
     },
+    "/v1/friend-requests": {
+      "get": {
+        "operationId": "FriendRequestsController_list_v1",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "direction",
+            "required": true,
+            "schema": {
+              "enum": [
+                "incoming",
+                "outgoing"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "minimum": 1,
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "maxLength": 512,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FriendRequestPageDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "social"
+        ]
+      },
+      "post": {
+        "operationId": "FriendRequestsController_send_v1",
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SendFriendRequestDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FriendRequestDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "201 for a new request; 200 with the same request when it was already pending (03 §7.1).",
+        "tags": [
+          "social"
+        ]
+      }
+    },
+    "/v1/friend-requests/{requestId}": {
+      "delete": {
+        "operationId": "FriendRequestsController_cancel_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "requestId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "social"
+        ]
+      }
+    },
+    "/v1/friend-requests/{requestId}/accept": {
+      "post": {
+        "operationId": "FriendRequestsController_accept_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "requestId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FriendRequestDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "social"
+        ]
+      }
+    },
+    "/v1/friend-requests/{requestId}/decline": {
+      "post": {
+        "operationId": "FriendRequestsController_decline_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "requestId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FriendRequestDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "social"
+        ]
+      }
+    },
+    "/v1/leaderboards/periods": {
+      "get": {
+        "operationId": "LeaderboardsController_periods_v1",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "enum": [
+                "WEEKLY",
+                "MONTHLY",
+                "SEASONAL",
+                "ALL_TIME"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LeaderboardPeriodListDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "leaderboards"
+        ]
+      }
+    },
+    "/v1/leaderboards/{kind}/{periodKey}": {
+      "get": {
+        "operationId": "LeaderboardsController_page_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "enum": [
+                "WEEKLY",
+                "MONTHLY",
+                "SEASONAL",
+                "ALL_TIME"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "`current`, or a key such as 2026-W46, 2026-11, 2026-27, all.",
+            "in": "path",
+            "name": "periodKey",
+            "required": true,
+            "schema": {
+              "pattern": "^[A-Za-z0-9-]{1,20}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "minimum": 1,
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "maxLength": 512,
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "category",
+            "required": true,
+            "schema": {
+              "enum": [
+                "BATTLES",
+                "PREDICTIONS"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LeaderboardPageDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "leaderboards"
+        ]
+      }
+    },
+    "/v1/leaderboards/{kind}/{periodKey}/me": {
+      "get": {
+        "operationId": "LeaderboardsController_myRank_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "kind",
+            "required": true,
+            "schema": {
+              "enum": [
+                "WEEKLY",
+                "MONTHLY",
+                "SEASONAL",
+                "ALL_TIME"
+              ],
+              "type": "string"
+            }
+          },
+          {
+            "description": "`current`, or a key such as 2026-W46, 2026-11, 2026-27, all.",
+            "in": "path",
+            "name": "periodKey",
+            "required": true,
+            "schema": {
+              "pattern": "^[A-Za-z0-9-]{1,20}$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "category",
+            "required": true,
+            "schema": {
+              "enum": [
+                "BATTLES",
+                "PREDICTIONS"
+              ],
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MyRankDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "leaderboards"
+        ]
+      }
+    },
     "/v1/matches": {
       "get": {
         "operationId": "FootballController_matches_v1",
@@ -1314,6 +2144,59 @@
         ]
       }
     },
+    "/v1/matches/{matchId}/predictions/friends": {
+      "get": {
+        "operationId": "VisiblePredictionsController_friendsForMatch_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "matchId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "minimum": 1,
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "maxLength": 512,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FriendPredictionPageDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "predictions"
+        ]
+      }
+    },
     "/v1/matches/{matchId}/squads": {
       "get": {
         "operationId": "FootballController_squads_v1",
@@ -1426,6 +2309,178 @@
         ]
       }
     },
+    "/v1/me/blocks": {
+      "get": {
+        "operationId": "MyConnectionsController_blocks_v1",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "minimum": 1,
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "maxLength": 512,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectedUserPageDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "social"
+        ]
+      }
+    },
+    "/v1/me/blocks/{userId}": {
+      "delete": {
+        "operationId": "MyConnectionsController_unblock_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "userId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "social"
+        ]
+      },
+      "put": {
+        "operationId": "MyConnectionsController_block_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "userId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "social"
+        ]
+      }
+    },
+    "/v1/me/friends": {
+      "get": {
+        "operationId": "MyConnectionsController_friends_v1",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "minimum": 1,
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "maxLength": 512,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConnectedUserPageDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "social"
+        ]
+      }
+    },
+    "/v1/me/friends/{userId}": {
+      "delete": {
+        "operationId": "MyConnectionsController_unfriend_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "userId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "social"
+        ]
+      }
+    },
     "/v1/me/play-state": {
       "get": {
         "operationId": "BattlesController_playState_v1",
@@ -1449,6 +2504,190 @@
         ],
         "tags": [
           "battles"
+        ]
+      }
+    },
+    "/v1/questions/{questionId}/reports": {
+      "post": {
+        "operationId": "QuestionReportsController_report_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "questionId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportQuestionDto"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "204 also for a repeat: the player's first report stays (08 §5.7).",
+        "tags": [
+          "questions"
+        ]
+      }
+    },
+    "/v1/users": {
+      "get": {
+        "operationId": "UserDirectoryController_search_v1",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "minimum": 1,
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "maxLength": 512,
+              "type": "string"
+            }
+          },
+          {
+            "description": "2 to 50 characters after trimming.",
+            "in": "query",
+            "name": "query",
+            "required": true,
+            "schema": {
+              "maxLength": 50,
+              "minLength": 2,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserSearchPageDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "social"
+        ]
+      }
+    },
+    "/v1/users/{userId}": {
+      "get": {
+        "operationId": "UserDirectoryController_profile_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "userId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProfileDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "tags": [
+          "social"
+        ]
+      }
+    },
+    "/v1/users/{userId}/predictions": {
+      "get": {
+        "operationId": "VisiblePredictionsController_ofUser_v1",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "userId",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "minimum": 1,
+              "type": "number"
+            }
+          },
+          {
+            "in": "query",
+            "name": "cursor",
+            "required": false,
+            "schema": {
+              "maxLength": 512,
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VisiblePredictionPageDto"
+                }
+              }
+            },
+            "description": ""
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "A page can hold fewer than `limit`: predictions before kickoff are skipped, the cursor stays exact.",
+        "tags": [
+          "predictions"
         ]
       }
     }

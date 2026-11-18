@@ -2,9 +2,13 @@ import 'package:api_client/api_client.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:the_game/core/errors/app_error.dart';
+import 'package:the_game/core/errors/known_problem_error.dart';
 import 'package:the_game/core/network/api_client_provider.dart';
+import 'package:the_game/core/paging/cursor_page.dart';
 import 'package:the_game/core/time/parse_server_timestamp.dart';
 import 'package:the_game/features/predictions/data/prediction_models.dart';
+import 'package:the_game/features/social/data/social_mappers.dart';
+import 'package:the_game/features/social/data/social_models.dart';
 
 /// The player's own predictions (API §6.4).
 class PredictionsRepository {
@@ -50,7 +54,76 @@ class PredictionsRepository {
       ),
     ),
   );
+
+  /// `GET /v1/matches/{matchId}/predictions/friends`: the friends' predictions the server
+  /// allows the player to see now. Before kickoff the list is empty; visibility is never
+  /// computed on the device.
+  Future<CursorPage<FriendPrediction>> fetchFriendsPredictions(
+    String matchId, {
+    int? limit,
+    String? cursor,
+  }) async {
+    final page = await sendRequestAndReadData(
+      () => _predictionsApi.visiblePredictionsControllerFriendsForMatchV1(
+        matchId: matchId,
+        limit: limit,
+        cursor: cursor,
+      ),
+    );
+    return CursorPage(
+      items: [
+        for (final item in page.items)
+          FriendPrediction(
+            user: convertPublicUser(item.user),
+            picks: [for (final pick in item.picks) _convertPick(pick)],
+            status: _convertVisibleStatus(item.status.value),
+            points: item.score?.points.toInt(),
+          ),
+      ],
+      nextCursor: page.nextCursor,
+    );
+  }
+
+  /// `GET /v1/users/{userId}/predictions`: another player's visible predictions.
+  /// `404 USER_NOT_FOUND` (as `KnownProblemError<SocialFailureReason>`) when the player is
+  /// not a friend, is blocked, or does not exist.
+  Future<CursorPage<VisiblePrediction>> fetchPredictionsOfUser(
+    String userId, {
+    int? limit,
+    String? cursor,
+  }) async {
+    final page = await convertKnownProblems(
+      () => sendRequestAndReadData(
+        () => _predictionsApi.visiblePredictionsControllerOfUserV1(
+          userId: userId,
+          limit: limit,
+          cursor: cursor,
+        ),
+      ),
+      (problem) => findReasonByCode(problem, socialFailureReasonsByCode),
+    );
+    return CursorPage(
+      items: [
+        for (final item in page.items)
+          VisiblePrediction(
+            matchId: item.matchId,
+            picks: [for (final pick in item.picks) _convertPick(pick)],
+            status: _convertVisibleStatus(item.status.value),
+            updatedAt: parseServerTimestamp(item.updatedAt),
+            points: item.score?.points.toInt(),
+          ),
+      ],
+      nextCursor: page.nextCursor,
+    );
+  }
 }
+
+/// Both visible-prediction DTOs have their own status enum with the same wire values.
+PredictionStatus _convertVisibleStatus(String status) => switch (status) {
+  'ACTIVE' => PredictionStatus.active,
+  'VOID' => PredictionStatus.voided,
+  _ => PredictionStatus.unknown,
+};
 
 Prediction _convertPrediction(PredictionDto prediction) => Prediction(
   id: prediction.id,

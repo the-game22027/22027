@@ -4,6 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:the_game/core/errors/api_problem.dart';
 import 'package:the_game/core/errors/app_error.dart';
 import 'package:the_game/core/errors/describe_error_for_user.dart';
+import 'package:the_game/core/errors/known_problem_error.dart';
+import 'package:the_game/features/social/data/social_models.dart';
 import 'package:the_game/l10n/generated/app_localizations.dart';
 
 void main() {
@@ -14,6 +16,16 @@ void main() {
       ApiProblemError(ApiProblem(status: status, code: code));
 
   group('describeErrorForUser', () {
+    test('a typed failure is described from its problem', () {
+      const error = KnownProblemError(
+        SocialFailureReason.userNotFound,
+        ApiProblem(status: 404, code: 'USER_NOT_FOUND'),
+      );
+
+      expect(describeErrorForUser(error, english), english.errorNotFound);
+      expect(describeErrorForUser(error, arabic), arabic.errorNotFound);
+    });
+
     final expectedMessageByCode = {
       'VALIDATION_FAILED': english.errorValidationFailed,
       'UNAUTHENTICATED': english.errorSignInAgain,

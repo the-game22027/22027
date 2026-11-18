@@ -4,8 +4,11 @@ import 'package:dio/dio.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:the_game/core/errors/app_error.dart';
+import 'package:the_game/core/errors/known_problem_error.dart';
 import 'package:the_game/features/predictions/application/own_prediction_controller.dart';
 import 'package:the_game/features/predictions/data/prediction_models.dart';
+import 'package:the_game/features/predictions/data/predictions_repository.dart';
+import 'package:the_game/features/social/data/social_models.dart';
 
 import '../../helpers/fake_http_adapter.dart';
 import '../../helpers/test_overrides.dart';
@@ -130,5 +133,149 @@ void main() {
       throwsArgumentError,
     );
     expect(adapter.sentRequests, hasLength(1));
+  });
+
+  group("other players' predictions", () {
+    final user = {
+      'id': 'u-2',
+      'displayName': 'Bob',
+      'username': null,
+      'avatarUrl': null,
+    };
+
+    test(
+      'friends of a match: picks, status and points as the server sent',
+      () async {
+        final adapter = FakeHttpAdapter(
+          (_) => jsonResponse({
+            'items': [
+              {
+                'user': user,
+                'picks': [
+                  {'type': 'EXACT_SCORE', 'home': 1, 'away': 1},
+                ],
+                'status': 'ACTIVE',
+                'score': {'points': 5},
+              },
+            ],
+            'nextCursor': null,
+          }),
+        );
+        final container = await createSignedInTestContainer(adapter);
+
+        final page = await container
+            .read(predictionsRepositoryProvider)
+            .fetchFriendsPredictions('m-1', limit: 10);
+
+        final friend = page.items.single;
+        expect(friend.user.displayName, 'Bob');
+        expect(friend.exactScore?.away, 1);
+        expect(friend.points, 5);
+        expect(
+          adapter.sentRequests.single.path,
+          '/v1/matches/m-1/predictions/friends',
+        );
+      },
+    );
+
+    test('visible predictions of a user are mapped', () async {
+      final adapter = FakeHttpAdapter(
+        (_) => jsonResponse({
+          'items': [
+            {
+              'matchId': 'm-7',
+              'picks': [
+                {'type': 'EXACT_SCORE', 'home': 2, 'away': 0},
+              ],
+              'status': 'VOID',
+              'score': {'points': 0},
+              'updatedAt': '2026-11-14T12:00:00Z',
+            },
+          ],
+          'nextCursor': 'n',
+        }),
+      );
+      final container = await createSignedInTestContainer(adapter);
+
+      final page = await container
+          .read(predictionsRepositoryProvider)
+          .fetchPredictionsOfUser('u-2');
+
+      expect(page.items.single.matchId, 'm-7');
+      expect(page.items.single.status, PredictionStatus.voided);
+      expect(page.items.single.points, 0);
+      expect(page.nextCursor, 'n');
+      expect(adapter.sentRequests.single.path, '/v1/users/u-2/predictions');
+    });
+
+    test('an unscored prediction (score: null) is read as no points', () async {
+      final adapter = FakeHttpAdapter(
+        (_) => jsonResponse({
+          'items': [
+            {
+              'user': user,
+              'picks': <Object?>[],
+              'status': 'ACTIVE',
+              'score': null,
+            },
+          ],
+          'nextCursor': null,
+        }),
+      );
+      final container = await createSignedInTestContainer(adapter);
+
+      final page = await container
+          .read(predictionsRepositoryProvider)
+          .fetchFriendsPredictions('m-1');
+
+      expect(page.items.single.points, isNull);
+    });
+
+    test('a user\'s unscored prediction (score: null) parses too', () async {
+      final adapter = FakeHttpAdapter(
+        (_) => jsonResponse({
+          'items': [
+            {
+              'matchId': 'm-8',
+              'picks': [
+                {'type': 'EXACT_SCORE', 'home': 0, 'away': 0},
+              ],
+              'status': 'ACTIVE',
+              'score': null,
+              'updatedAt': '2026-11-14T12:00:00Z',
+            },
+          ],
+          'nextCursor': null,
+        }),
+      );
+      final container = await createSignedInTestContainer(adapter);
+
+      final page = await container
+          .read(predictionsRepositoryProvider)
+          .fetchPredictionsOfUser('u-2');
+
+      expect(page.items.single.points, isNull);
+      expect(page.items.single.exactScore?.home, 0);
+    });
+
+    test('not a friend (404 USER_NOT_FOUND) is a typed failure', () async {
+      final adapter = FakeHttpAdapter(
+        (_) => problemResponse(404, 'USER_NOT_FOUND'),
+      );
+      final container = await createSignedInTestContainer(adapter);
+
+      await expectLater(
+        container
+            .read(predictionsRepositoryProvider)
+            .fetchPredictionsOfUser('u-2'),
+        throwsA(
+          isA<KnownProblemError<SocialFailureReason>>().having(
+            (error) => error.reason,
+            'reason',
+            SocialFailureReason.userNotFound,
+          ),
+        ),
+      );
+    });
   });
 }
