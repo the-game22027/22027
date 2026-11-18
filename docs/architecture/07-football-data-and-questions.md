@@ -340,7 +340,9 @@ Not used: StatsBomb open data (non-commercial), FBref and SofaScore (scraping fo
 
 **D.3b: linking, one id per thing (the critical path).**
 - `core.entity_xref`: `entity_ref` (Wikidata), `source`, `source_id`, `method` (`WIKIDATA_ID` | `WIKIPEDIA_LINK` | `NAME_REVIEWED`), `reviewed_by`.
-- Exact links first: Wikidata stores Transfermarkt player and club ids (the property ids are checked during implementation); a Fjelstul player's Wikipedia link resolves to the Wikidata item that owns the article.
+- Exact links first: Wikidata stores Transfermarkt ids (`P2446` players, `P7223` clubs and national teams, `P2447` coaches); a Fjelstul player's Wikipedia link resolves to the Wikidata item that owns the article. An outside id held by two Wikidata items is ambiguous: left unlinked and counted.
+- Which Transfermarkt ids are linked: every player (lineups, scorers, substitutes, assists), club and national team in a competition listed in `data/config/tiers.toml`. A team that plays in a national-team competition is a `NATIONAL_TEAM`.
+- Linked items the D.1 scope did not include become entities, with their en/ar names, birth year and countries. `kb ingest` rebuilds `core.entity` and therefore clears the links; `kb link` runs after it and rebuilds them from the SPARQL cache.
 - Name matching only for sources without ids (martj42, openfootball): normalized name (§5.7) plus team and a date inside the player's career. Uncertain candidates go to `.out/link-review.csv`; reviewed rows go to `data/kb_overrides/links.csv`.
 - `core.entity.kind` gains `NATIONAL_TEAM`, `COACH` and `COMPETITION` (the app's `AnswerKind` already has them). National-team matches point at `NATIONAL_TEAM` entities, not at countries.
 - Fix found on 2026-11-17: some cities are stored as `CLUB` entities; they are removed in this step.
