@@ -321,6 +321,7 @@ questions (
   calibrated_difficulty numeric NULL,   -- from play data (future job)
   status question_status DEFAULT 'DRAFT',
   available_locales text[],             -- e.g. {en,ar}; selection filters on viewer locale
+  topics text[] DEFAULT '{}',           -- e.g. {la-liga,premier-league}; room filters (ADR-0020); empty = General only
   provenance jsonb,                     -- {facts:[...], sources:[...], licenses:[...], kbVersion:"..."}
   license_flags text[] DEFAULT '{}',    -- e.g. {CC-BY-SA-4.0}: lets us filter or attribute
   valid_until timestamptz NULL,         -- volatile facts ("current record holder")
@@ -331,6 +332,7 @@ questions (
   UQ (external_key, key_version)
   IX (status, difficulty, category_id)
   IX USING gin (available_locales)
+  IX USING gin (topics)
 question_translations (
   question_id uuid FK → questions ON DELETE CASCADE, locale text,
   text text, explanation text NULL, human_reviewed boolean DEFAULT false,
@@ -421,7 +423,7 @@ battle_rooms (
   host_user_id uuid FK → users,
   status battle_room_status DEFAULT 'LOBBY',
   game_type battle_game_type,           -- picked by the host; can change in LOBBY between battles
-  config jsonb,                         -- snapshot: {maxPlayers, ...} (DEC-38); game config is snapshotted on each battle
+  config jsonb,                         -- {maxPlayers, ...} (DEC-38) and the host's filters {topics, difficultyLevel} (ADR-0020); game config is snapshotted on each battle
   current_battle_id uuid NULL,          -- set while IN_BATTLE (FK added after battles exists)
   created_at timestamptz, last_activity_at timestamptz,
   expires_at timestamptz,               -- idle timeout (DEC-42); pushed forward on activity

@@ -28,6 +28,8 @@
 | **Participant** | A seat in a battle: `HUMAN` (a user) or `BOT`. Identified in the protocol by `participantId` |
 | **Matchmaking ticket** | A user's place in the Redis queue; removed when matched, cancelled, or turned into a bot battle |
 | **Bot fallback** | Giving a queued player a bot opponent after `botFallbackAfterMs` (DEC-39) |
+| **Topic** | What a round is about (`la-liga`, `world-cup`, `national-teams`); a round can have several. Separate from its category (what kind of question). Room hosts filter by topic (ADR-0020) |
+| **Difficulty level** | A named range of difficulties a room host can pick: `EASY`, `MEDIUM`, `HARD` or `MIXED` (config `room.difficultyLevels`, DEC-64) |
 | **Bot / bot profile** | Server-side participant with no socket; its accuracy and answer delays come from a configured profile (DEC-43). Never a `users` row, never earns ledger points, always labeled (DEC-40) |
 | **Room (private battle room)** | A multiplayer lobby created by a host and joined with a code, holding 2 up to `room.maxPlayers` players (DEC-38); starting it creates a battle with `mode = ROOM`; can host rematches (DEC-42) |
 | **Room code** | Short, unambiguous, random code identifying a live room; reusable after the room closes |
@@ -47,6 +49,10 @@
 | **Session family** | Chain of rotated refresh tokens; reuse of an old one revokes the whole family |
 | **Knowledge base (KB)** | `football_kb` database of verified football facts with provenance, owned by the Python pipeline |
 | **Fact** | A resolved, provenance-tracked assertion in the KB with status and confidence |
+| **Claim** | One source's version of an atomic fact, with its source row, snapshot and licence. Claims are never overwritten; resolution turns them into facts with a status: `VERIFIED`, `SINGLE_SOURCE` or `CONFLICT` (ADR-0022) |
+| **Coverage window** | The competitions and dates a source covers. Outside its window a source is silent: missing data is not evidence (ADR-0022) |
+| **Tier** | A competition's priority for questions, 1 (Champions League, top 5 leagues, World Cup, Euro, AFCON, Copa América) to 3 (other leagues), in `tiers.toml` (DEC-67) |
+| **Entity xref** | `core.entity_xref`: maps every source's own id (a Transfermarkt id, a Fjelstul id, a name in martj42) to one Wikidata entity |
 | **Bundle** | Versioned JSONL file of validated questions: the only interface from the KB pipeline to the app |
 | **Template** | Human-written bilingual question pattern + SQL over facts + distractor strategy |
 | **Distractor** | A wrong answer option, chosen from the DB and proven wrong for the question |

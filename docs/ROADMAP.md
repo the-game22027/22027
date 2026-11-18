@@ -100,7 +100,7 @@ Changes vs the original proposed order, and why:
 - Rewrite for ADR-0015: `WEBSOCKET.md` (reveal, buzz, typed answer, turns), `03-workflows.md` §4 (shared engine + game rules), `02-database.md` (rounds, buzzes, answers, answer catalog), `07` (catalog and content shapes in the bundle, Wikidata as the career source), `01-modules.md`. Data check for Tiki Taka Toe: enough players per club and country pair.
 - **Exit:** the four launch games can be walked through message by message from the docs; every number is named as configuration; the Tiki Taka Toe data check has a yes or no.
 - **Done (2026-11-10):** `architecture/08-battle-games.md` (engine + game rules + catalog); `WEBSOCKET.md`, `API.md`, `01`, `02`, `03`, `07` updated; data check passed for `GRID` and `CAREER` (`07` §4.1); Arabic names are the data gap.
-- **Order after G0:** D.1 (Wikidata → `football_kb`: players, clubs, careers, Arabic names; catalog export) → P5.2 (catalog + game content import, selection, answer checking; dev bundle rewritten as `BUZZER` + a few `CAREER` items) → P6.1 (engine + `BUZZER`, bot) → P6.2 (`CAREER`, `WHO_IS_PLAYER`) → P6.3 (matchmaking per game type, reconnect, forfeit, sweeper) → P6.4 (`GRID`). D.2 (generators for every game type) runs alongside P6: D.2a (`CAREER` and `BUZZER` generators, the `dev-0002` bundle, 07 §5.8) comes before P6.1; D.2b (`GRID`, `WHO_IS_PLAYER`) before P6.2 and P6.4.
+- **Order after G0:** D.1 (Wikidata → `football_kb`: players, clubs, careers, Arabic names; catalog export) → P5.2 (catalog + game content import, selection, answer checking; dev bundle rewritten as `BUZZER` + a few `CAREER` items) → P6.1 (engine + `BUZZER`, bot) → P6.2 (`CAREER`, `WHO_IS_PLAYER`) → P6.3 (matchmaking per game type, reconnect, forfeit, sweeper) → P6.4 (`GRID`). D.2 (generators for every game type) runs alongside P6: D.2a (`CAREER` and `BUZZER` generators, the `dev-0002` bundle, 07 §5.8) comes before P6.1; D.2b (`GRID`, `WHO_IS_PLAYER`) before P6.2 and P6.4. **D.3** (owner, 2026-11-11; widened 2026-11-18 by ADR-0022 and 07 §5.10): match data from several sources (Transfermarkt datasets, Fjelstul World Cup DB, martj42, openfootball, xgabora, hand-curated finals) in six steps: D.3a raw landing, D.3b linking (`core.entity_xref`), D.3c claims and conflict resolution, D.3d typed match tables, D.3e derived facts, D.3f quality gates. Scope and tiers in DEC-67, licences pending in DEC-66. Topic tags on every round (ADR-0020); its app side (`questions.topics`, the `topics` selection filter, `GET /v1/battle-topics`) ships with it, and the room filters with P8.
 
 ### P5 — Question bank + import
 - Tables, `questions:import` / `publish` / `disable` CLI, selection queries (locale intersection, difficulty/category balance, exclusion list), answer key, playable payload mapper, question reports endpoint, `BattleCompleted` stats handler (can be wired in P6).
@@ -131,8 +131,25 @@ Changes vs the original proposed order, and why:
 - Friend requests, friendships, blocks, user search; `PredictionVisibilityPolicy`; friends' predictions endpoints; blocked pairs skipped by the matchmaker. Two PRs: **P7a** friends, blocks, search and per-user rate limits (#52); **P7b** prediction visibility and the matcher (03 §7.1). **Done (2026-11-13).**
 - **Exit:** visibility matrix tests (owner, friend before/after kickoff, non-friend, blocked) for every read path.
 
+### Track N — New game types (DEC-68; before P8)
+- **Order change (2026-11-18, product owner):** D.3 and track N come before P8 private rooms. The new 1v1 games are the product's edge, and P8 waits for DEC-58 (Imposter rules) anyway.
+- **Every N phase starts with its design section in `08`** (rules, messages, config, open rules as DECs), then the generator, the engine rules, the bot and tests, and a dev bundle. About 3-5 focused days each.
+
+| Phase | Game type | Data it needs | Starts after |
+|---|---|---|---|
+| N0 Shared engine pieces | all | none: rock-paper-scissors to pick who starts, simultaneous vs turn-based rounds, rounds with several accepted answers, lockout after a wrong answer (`08`) | D.3a (docs in parallel) |
+| N1 `MINES` (لغم) | club + nationality and club + decade pools | careers and nationalities we already have, plus the cities-as-clubs fix (D.3b) | N0 |
+| N2 `AUCTION` (المزاد) | lists of 6-30 answers (scorers, assisters per club and competition season) | D.3d goals and assists | D.3d |
+| N3 `VAULT` (الخزنة) | facts with a 0-9 answer (scores, title counts, shirt numbers) | D.3d-e | D.3e |
+| N4 `HEX` (الهجمة) | name answers filtered by first letter | the N2 lists and other name templates; Arabic names linked | N2 |
+| N5 `LINEUP` (التشكيلة) | starting XIs of famous matches, captains, decoys | D.3d lineups, D.3e `famous_match`, curated finals | D.3e |
+| N6 `TIME_MACHINE` (آلة الزمن) | one tournament edition per year (finals, scorers, top scorers, knockout paths) | D.3e `edition_summary` | D.3e |
+| N7 `THREAD` (الخيط) | 5-hop chains where every hop has exactly one answer | the whole fact graph, coaches and venues | N6 (hardest generator) |
+
+- **Exit per phase:** the game can be walked through message by message from `08`; its bot plays it; a dev bundle with generated content imports and plays end to end; every open rule is config plus a Pending DEC.
+
 ### P8 — Private battle rooms
-- `battle_rooms` + members; code generation; create/join/leave/remove/start/close endpoints; lobby pushes (`room:*`); host transfer; rematch back to `LOBBY` (DEC-42); idle timers + backstop sweeper; block checks on join; join rate limits.
+- `battle_rooms` + members; topic and difficulty filters set by the host (ADR-0020, DEC-64); code generation; create/join/leave/remove/start/close endpoints; lobby pushes (`room:*`); host transfer; rematch back to `LOBBY` (DEC-42); idle timers + backstop sweeper; block checks on join; join rate limits.
 - **Exit:** concurrency tests (last seat, join vs start, double start); blocked user gets `ROOM_NOT_FOUND`; room survives an API restart and returns to `LOBBY`; two `maxPlayers` configs work (DEC-38); a room with 3 or more players plays a full battle and a rematch.
 
 ### P9 — MOTM voting
@@ -217,6 +234,7 @@ Estimates are **focused working days for one developer using coding agents**, in
 | C. Quiz battles (core) | P5, P6 (with the generic ledger + battles board), M3, P7, P8, M4 | 32-45 |
 | C2. Predictions scoring | P3.2, P3.3, P4 for the predictions board, M2 | 10-14 |
 | Parallel content | Track D (start during stage B; keep going until launch volume, K-09) | 10-15 |
+| C3. New game types (before P8) | D.3, N0-N7 | 35-50 |
 | D. Rest of the product | P9, P10, M5, P11 (+ Facebook/X in the app) | 14-22 |
 | E. Release v1.0 | R1 (fixtures, results, lineups), P12, R2 | 12-20 + 14 days closed test |
 

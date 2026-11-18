@@ -232,6 +232,7 @@ Stored in the battle config by game type, snapshotted on the battle row at creat
 | `showWrongAnswers` | all | DEC-60 |
 | `answers.maxLength`, `answers.typoTolerance` (letters → edits), `answers.singleWordMaxSharedBy` | all typed answers | DEC-55 |
 | `showYears` | `CAREER` | DEC-54 |
+| `room.difficultyLevels` (`EASY`, `MEDIUM`, `HARD` → difficulty ranges) | rooms | DEC-64 |
 | `points.*` | all | DEC-33 |
 | `latencyGraceMs`, `readyTimeoutMs`, `reconnectGraceMs`, `betweenRoundsMs` (pause after `round:result`) | engine | DEC-32 |
 | `matchmaking.botFallbackAfterMs`, `tickMs`, `queueDisconnectGraceMs` | matchmaking | DEC-39 |
@@ -262,3 +263,11 @@ The in-game `score` (`points.*` above) decides placements inside one battle. **L
 - **Buzz order is server arrival order.** A player on a slower network buzzes "later". Accepted for v1.0. Measure buzz-to-receive delays (`battle_buzz_latency_ms` from client timestamps, used for metrics only, never for ordering) before deciding whether compensation is needed.
 - **Answer lookups:** a cheater could search the web during the answer window. The window is short by design (`answerWindowMs`). Not solvable on the client; accepted.
 - **Monetization hook:** starting play still goes through the two entry use cases only (ADR-0016).
+
+## 8. Question topics and difficulty in private rooms (ADR-0020, DEC-64)
+
+- **Topics:** every round carries `topics` (07 §5.9), separate from its `category`. "General" plays everything.
+- **Room setup:** in `LOBBY` the host sets `topics` (empty = General) and `difficultyLevel` (`MIXED`, `EASY`, `MEDIUM`, `HARD`; ranges in `room.difficultyLevels`). Members see them in `room:updated`. The battle snapshots them into `battles.config.selection`.
+- **Selection:** `ContentSelector.pickContentIds` gets `topics` (any of them) and the level's `difficulties`. The exposure window still applies inside the filter and relaxes as usual (DEC-44).
+- **Availability:** `GET /v1/battle-topics?gameType=` lists topics with published content in the caller's locale and counts per level, so the app only offers choices that can fill a battle. A room start that cannot fill `roundCount` rounds fails with `409 NOT_ENOUGH_CONTENT` and changes nothing.
+- **Random matchmaking** stays unfiltered (DEC-65).

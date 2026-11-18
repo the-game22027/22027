@@ -74,7 +74,7 @@ Layered schemas inside `football_kb` (from the research report):
 
 Provenance per fact (Confirmed requirement): source, source identifier, license, confidence, validation status, import time, relevant timestamps (`as_of`, `valid_until`), canonical entity references. **Only `VERIFIED` facts** (or single-source facts from tier-1 structured datasets, if the reviewer approves) are eligible for questions.
 
-Initial sources (research context, licence review pending before commercial launch): Wikidata (CC0), openfootball (CC0), martj42/international_results (CC0), Fjelstul World Cup + English Football (CC BY-SA 4.0, GitHub copies only), engsoccerdata (GPL ≥ 2), Wikipedia (CC BY-SA 4.0, for LLM-extracted long-tail facts that need corroboration). Avoid: StatsBomb open data (non-commercial), football-data.co.uk (no commercial/AI use), FBref, Transfermarkt and mirrors.
+Initial sources (research context, licence review pending before commercial launch): Wikidata (CC0), openfootball (CC0), martj42/international_results (CC0), Fjelstul World Cup + English Football (CC BY-SA 4.0, GitHub copies only), engsoccerdata (GPL ≥ 2), Wikipedia (CC BY-SA 4.0, for LLM-extracted long-tail facts that need corroboration). Avoid: StatsBomb open data (non-commercial), football-data.co.uk (no commercial/AI use), FBref. **Update 2026-11-18:** D.3 loads more sources, the Transfermarkt datasets among them, with licences pending in DEC-66 (§5.10, ADR-0022).
 
 ### 4.1 Careers and names for the game types (ADR-0015)
 
@@ -300,6 +300,100 @@ Test vectors (both implementations must pass them):
 | `كرة` | `كره` |
 | `مُحَمَّد صَلاح` | `محمد صلاح` |
 | `٢٠١٠` | `2010` |
+
+### 5.9 Topics (ADR-0020, D.3)
+
+- **What:** each bundle line gets `topics: string[]`, and the manifest lists every topic once: `{ slug, names: { en, ar } }`. A line may only use listed topics (checked on import, like categories).
+- **Tagging rule (DEC-64, recommended):** a round gets every topic it touches.
+  - A club in a career or a question → that club's league. Wikidata gives the current league (`P118`), so a relegated club moves with the next ingest; accepted for v1.
+  - A match → its competition (`world-cup`, `champions-league`, a league).
+  - A national team → `national-teams`, plus the tournament when there is one.
+  - Nationality rounds → `national-teams`.
+- **Existing generators** (§5.8) get tags in D.3. Bundles without topics stay valid: their rounds only appear under General.
+
+### 5.10 D.3: match data from several sources (ADR-0022, DEC-66, DEC-67)
+
+**Purpose:** the facts the new game types need (DEC-68: finals, scorers, lineups, shootouts, coaches, venues, title counts), and more templates for the existing ones. Approved by the product owner on 2026-11-17/18.
+
+**Scope rules (DEC-67):** matches from 2000 onward; no qualifiers, friendlies or play-offs; every competition has a tier (1 to 3) in `data/config/tiers.toml`. Repeated per-season facts are deduped. Counts are always reported per tier, after resolution and dedupe.
+
+#### Sources
+
+| Source | What we take | Coverage | Licence (DEC-66) | Ids |
+|---|---|---|---|---|
+| Wikidata (D.1) | entities, careers, en/ar names, other sources' ids | all time | CC0 | the anchor id |
+| Transfermarkt datasets (dcaribou, public CSV) | games, events (goals with assists, cards, substitutions, shootouts), lineups (position, shirt number, captain), coaches per game, transfers | club seasons 2012 → 2026-07-06 (frozen) + national teams | labelled CC0, scraped from transfermarkt.com: pending | Transfermarkt ids, stored on Wikidata |
+| Fjelstul World Cup DB | men's World Cups: stages, lineups, shirt numbers, goals, bookings, shootouts, awards, coaches | 1930 → 2022 | CC BY-SA 4.0: pending | Wikipedia link per player |
+| martj42 international results | every national-team result, scorers, shootouts (AFCON, Asian Cup, Arab Cup included) | 1872 → 2026-10 | to confirm | none (names) |
+| openfootball champions-league | UCL fixtures, rounds, results | 2011-12 → 2025-26 | CC0 | none (names) |
+| xgabora Club-Football-Match-Data | league results, no players | 2000 → 2026 | MIT repository, but the data comes from football-data.co.uk (no commercial use): pending | none (names) |
+| Hand-curated CSVs (`data/kb_overrides/`) | UCL finals 2000–2011 (winner, score, scorers, XI); link and fact overrides | as written | ours | Wikidata ids |
+
+Not used: StatsBomb open data (non-commercial), FBref and SofaScore (scraping forbidden), football-data.co.uk directly.
+
+#### Steps
+
+**D.3a: raw landing.**
+- `raw.source_snapshot`: source, file, sha256, downloaded_at, row_count, licence. One row per downloaded file.
+- `raw.<source>_<file>`: rows exactly as downloaded. Nothing is cleaned here.
+- Download URLs are pinned in `data/config/sources.toml`; files are cached locally (gitignored), so reruns work offline, like `raw.sparql_cache`.
+
+**D.3b: linking, one id per thing (the critical path).**
+- `core.entity_xref`: `entity_ref` (Wikidata), `source`, `source_id`, `method` (`WIKIDATA_ID` | `WIKIPEDIA_LINK` | `NAME_REVIEWED`), `reviewed_by`.
+- Exact links first: Wikidata stores Transfermarkt player and club ids (the property ids are checked during implementation); a Fjelstul player's Wikipedia link resolves to the Wikidata item that owns the article.
+- Name matching only for sources without ids (martj42, openfootball): normalized name (§5.7) plus team and a date inside the player's career. Uncertain candidates go to `.out/link-review.csv`; reviewed rows go to `data/kb_overrides/links.csv`.
+- `core.entity.kind` gains `NATIONAL_TEAM`, `COACH` and `COMPETITION` (the app's `AnswerKind` already has them). National-team matches point at `NATIONAL_TEAM` entities, not at countries.
+- Fix found on 2026-11-17: some cities are stored as `CLUB` entities; they are removed in this step.
+- Target: 95% of tier-1 scorers and lineup players linked. Exact names alone reach 24–80% today, depending on the tournament.
+
+**D.3c: claims, coverage and resolution (ADR-0022).**
+- `core.claim`: source, source row id, snapshot, fact type, fact key, value (`jsonb`), licence. Every source row becomes claims; nothing is overwritten.
+- Coverage windows per source and competition live in `sources.toml`. Outside its window a source is silent: missing data is not evidence.
+- Match identity across sources: date ±1 day, home team, away team (after linking).
+- Each typed fact row gets `status` (`VERIFIED` | `SINGLE_SOURCE` | `CONFLICT`), `sources text[]` and `licenses text[]`. **`CONFLICT` rows never become questions** until an override in `data/kb_overrides/facts.csv` settles them.
+- Precedence for provisional values and for trusted single sources:
+
+| Fact type | First | Then | Then |
+|---|---|---|---|
+| World Cup matches, lineups, goals | Fjelstul | Transfermarkt | martj42 |
+| Other national-team results and scorers | martj42 | Transfermarkt | |
+| Club matches, events, lineups, coaches | Transfermarkt | openfootball (UCL results) | xgabora (results only) |
+| UCL finals 2000–2011 | curated CSV | openfootball | |
+| Entities, names, careers | Wikidata | | |
+
+- Totals ("6 World Cups") are never imported; they are computed from atomic facts.
+
+**D.3d: typed match tables (resolved).**
+- `core.competition` (ref, kind `LEAGUE` | `CUP` | `INTERNATIONAL`, tier, country) and `core.edition` (competition, season label, final year, winner, runner-up, host).
+- `core.match`: edition, stage (`GROUP` … `FINAL`, `LEAGUE`), date, home and away team, goals, extra time, shootout score, venue.
+- `core.goal` (scorer, team, minute, stoppage, penalty, own goal, assist), `core.lineup_slot` (team, player, starter, position, shirt number, captain), `core.card`, `core.shootout_kick` (team, player, order, scored), `core.match_coach` (team, coach), `core.transfer` (player, from, to, date, fee, loan).
+- The DEC-67 filters run at load: date ≥ 2000-01-01, and source competition or round names on the excluded list (qualifiers, friendlies, play-offs) are dropped.
+
+**D.3e: derived facts (schema `derived`, rebuilt from `core` on every run).**
+- `honour` (team, competition, edition) and title counts; `edition_summary` (final score and scorers, top scorer, knockout path); `player_shirt` and `captaincy` deduped to distinct facts with from and to; `famous_match` (reason `FINAL` | `KNOCKOUT` | `BIG_CLUBS`, big-club list in config).
+- The 2000–2011 club gap (Transfermarkt starts in 2012): the curated UCL finals CSV, plus xgabora for league scores.
+- One view per game type for its generator (`game_mines_pool`, `game_auction_list`, …), written with each game's design.
+
+**D.3f: quality gates (deterministic, fail the run).**
+- A match's score equals its goals per team; a lineup has 11 starters and at most one captain per team.
+- An assist comes from the scoring team's lineup (found on 2026-11-17: a Liverpool assist credited to a Leicester player).
+- Numeric answers for `VAULT` are 0–9; every answer entity has an en and an ar name (§4.2).
+- Every run prints facts per type per tier, link rate per source, and conflicts per source pair.
+
+#### Measured so far (2026-11-17, downloaded files)
+
+| Measure | Value |
+|---|---|
+| Transfermarkt: games / events / lineup rows / transfers | 88,959 / 1,274,470 / 3,179,017 / 175,166 |
+| martj42: matches / goals / shootouts | 49,940 / 47,914 / 700 |
+| Fjelstul: World Cup matches / with lineups | 964 / 764 |
+| xgabora: club results 2000–2026 | 238,858 |
+| Tier-1 and tier-2 knockout matches and finals in Transfermarkt | 555 / 1,508 |
+| Template estimate, 2000 onward, before dedupe | ≈ 820k (tier 1 ≈ 372k) |
+
+These are estimates before linking, resolution and dedupe; D.3 replaces them with measured counts.
+
+**Planned commands** (they do not exist yet): `kb sources:fetch`, `kb ingest:matches`, `kb links:review`, `kb report`. CLAUDE.md §6 gets them when they work.
 
 ### 5.8 D.2a: first generators (`CAREER`, `BUZZER`) and the `dev-0002` bundle
 

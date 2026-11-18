@@ -171,7 +171,9 @@ interface BattlePlayer { participantId: string; kind: 'HUMAN' | 'BOT'; user?: Pu
   bot?: { displayName: string; avatarUrl?: string | null }; seat: number }      // bots always labeled (DEC-40)
 interface BattleRoom { id: string; code: string; status: 'LOBBY' | 'IN_BATTLE' | 'CLOSED';
   host: PublicUser; members: { user: PublicUser; joinedAt: string }[];
-  maxPlayers: number; gameType: GameType; expiresAt: string; currentBattleId?: string | null; createdAt: string }
+  maxPlayers: number; gameType: GameType; expiresAt: string; currentBattleId?: string | null; createdAt: string;
+  topics: string[]; difficultyLevel: 'MIXED' | 'EASY' | 'MEDIUM' | 'HARD' }   // ADR-0020; topics [] = General
+interface BattleTopic { slug: string; name: string; counts: { MIXED: number; EASY: number; MEDIUM: number; HARD: number } }   // name in the caller's locale
 interface BattleSummary { id: string; gameType: GameType; mode: 'MATCHMAKING' | 'ROOM'; hasBot: boolean; status: string;
   players: BattlePlayer[]; myScore: number; myPlacement?: number | null;
   outcome?: 'WIN'|'LOSS'|'DRAW' | null; endedAt?: string | null; endReason?: string | null }
@@ -277,10 +279,11 @@ Matchmaking can also be joined over WS (`matchmaking:join`). Room lifecycle is R
 | ✅ | POST | `/v1/battles/matchmaking` | U | `{gameType}` → join that game's 1v1 queue (DEC-59) → `MatchmakingTicket` (`409 PLAYER_BUSY` / `GAME_TYPE_UNAVAILABLE`). Bot fallback after `botFallbackAt` (DEC-39) |
 | ✅ | DELETE | `/v1/battles/matchmaking` | U | Leave the queue (`204`; no-op if not queued) |
 | ✅ | POST | `/v1/battle-rooms` | U | `{gameType}` → create a private room (`Idempotency-Key`) → `201 BattleRoom` with its `code`; caller is host (`409 PLAYER_BUSY` / `GAME_TYPE_UNAVAILABLE`) |
-| ✅ | PATCH | `/v1/battle-rooms/{roomId}` | U (host) | `{gameType}` while in `LOBBY` → `BattleRoom` (`409 ROOM_NOT_IN_LOBBY` / `GAME_TYPE_UNAVAILABLE`); members get `room:updated` |
+| ✅ | GET | `/v1/battle-topics?gameType=` | U | `{ items: BattleTopic[] }`: topics with published content of that game type in the caller's locale, with counts per difficulty level, so the app only offers choices that can fill a battle (ADR-0020) |
+| ✅ | PATCH | `/v1/battle-rooms/{roomId}` | U (host) | `{gameType?, topics?, difficultyLevel?}` while in `LOBBY` → `BattleRoom` (`409 ROOM_NOT_IN_LOBBY` / `GAME_TYPE_UNAVAILABLE`); members get `room:updated` |
 | ✅ | POST | `/v1/battle-rooms/join` | U | `{code}` → `200 BattleRoom` (`404 ROOM_NOT_FOUND`, `409 ROOM_FULL` / `ROOM_NOT_IN_LOBBY` / `PLAYER_BUSY`); strict rate limit |
 | ✅ | GET | `/v1/battle-rooms/{roomId}` | U (member) | `BattleRoom` |
-| ✅ | POST | `/v1/battle-rooms/{roomId}/start` | U (host) | Start a battle of the room's game type with all current members → `202 {battleId}` (`409 ROOM_NOT_ENOUGH_PLAYERS` / `GAME_TYPE_PLAYER_COUNT`); repeat call returns the same battle |
+| ✅ | POST | `/v1/battle-rooms/{roomId}/start` | U (host) | Start a battle of the room's game type with all current members → `202 {battleId}` (`409 ROOM_NOT_ENOUGH_PLAYERS` / `GAME_TYPE_PLAYER_COUNT` / `NOT_ENOUGH_CONTENT` when the room's topics and level cannot fill `roundCount` rounds); repeat call returns the same battle |
 | ✅ | DELETE | `/v1/battle-rooms/{roomId}/members/{userId}` | U (self, or host in `LOBBY`) | Leave, or host removes a member (`204`). Host leaving transfers host |
 | ✅ | DELETE | `/v1/battle-rooms/{roomId}` | U (host) | Close the room (`204`) |
 | ✅ | GET | `/v1/battles/{battleId}` | U (participant) | `BattleSummary` while running; `BattleDetail` after completion |
