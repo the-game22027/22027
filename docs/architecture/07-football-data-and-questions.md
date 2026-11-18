@@ -384,6 +384,25 @@ Not used: StatsBomb open data (non-commercial), FBref and SofaScore (scraping fo
 
 - Totals ("6 World Cups") are never imported; they are computed from atomic facts.
 
+**D.3c/d first slice: matches and results (built 2026-11-18, `python -m kb ingest:matches`, offline, about 6.5 s).**
+- **What each source's score means:** Transfermarkt's game row includes extra time and the shootout kicks scored (the 2006 final is stored 6-4), so the kicks are subtracted using its shootout events; extra time counts as played only when an event comes after minute 90. Fjelstul and martj42 scores already include extra time. martj42 names only the shootout winner, and a missing shootout row means unknown, not "no shootout".
+- **Identity:** date ±1 day plus both teams; home and away may be swapped only when both claims are at a neutral or host venue (martj42 lists the host nation first).
+- **Transfermarkt scores are checked against its own goal events** before they become claims: a row whose total disagrees with the number of goal events (`SCORE_DISAGREES_WITH_EVENTS`, e.g. the 2014 Europa League final stored 4-2 when it was 0-0 and 4-2 on penalties), or that has goals but no goal events (`NO_GOAL_EVENTS`, e.g. awarded results), or an uneven one-off match with a shootout, is refused. Goals are compared per club (Transfermarkt files an own goal under the club that benefits), which also catches awarded results whose total equals the played goals (Union Berlin–Bochum 2024). Refused rows go to `.out/review-transfermarkt-scores.csv` for curation, and a match that another source has but Transfermarkt's row was refused for is marked `rejected_in` and is not usable until reviewed. Club matches usually have one source only, so this is the only cross-check they get.
+- **Status and use:** `VERIFIED` (two sources agree), `SINGLE_SOURCE` (one source, and no other source's coverage window includes the match), `CONFLICT`. A single-source match is not usable when a source whose window covers it has no row for it (`missing_from`); a source that has the match but cannot link a team goes to `unlinked_in` and does not block it, but its score is still compared (a disagreement makes the match `CONFLICT`). `shootout_known` tells "no shootout" from "no source says". Transfermarkt windows end at each competition's last row (`latest`). `core.usable_match` is the view generators read: no `CONFLICT`, no untrusted single source.
+- **Finals in martj42** (no stage column): an edition's only match on its last day, and only when both teams won their previous match in that edition and the edition has no unscored rows. Otherwise no final is inferred (Arab Cup 2012 lacks its final, so its last-day third-place match is not taken for it). Two-legged finals keep their leg.
+- **Competitions:** `data/config/competitions.toml` maps each source's ids to one Wikidata competition, with kind (`INTERNATIONAL` = national-team tournament, `LEAGUE`, `CUP`), names and edition naming; the tier always comes from `tiers.toml`. Coverage windows and the precedence table live in `sources.toml`.
+
+| Measured on dev | Tier 1 | Tier 2 |
+|---|---|---|
+| Matches | 28,460 | 16,865 |
+| `VERIFIED` / `SINGLE_SOURCE` / `CONFLICT` | 749 / 27,711 / 0 | 51 / 16,814 / 0 |
+| Usable | 28,457 | 16,865 |
+
+- Source pairs: Fjelstul × martj42 368 shared, 0 conflicts; Fjelstul × Transfermarkt 308, 0; martj42 × Transfermarkt 740, 0. The events check refused 157 Transfermarkt rows (124 disagreeing per club, 32 without goal events, 1 bad score), among them the AFCON 2026 Mali–Tunisia row that stored the shootout as the score, and the AFCON 2025 final, which looks awarded.
+- Checked by hand: World Cup finals 2006, 2014, 2022 and Euro 2016, 2020 come out right and `VERIFIED`; AFCON 2017, Copa 2016 and UCL 2016 right but single-source. UCL 2005 is missing: no loaded source covers 2000–2011 club finals (the curated CSV).
+- Skipped: 22 martj42 team names with no linked national team (168 rows, `.out/link-review-martj42.csv`, e.g. Guinea, Kuwait); Transfermarkt 2,559 rows with an unlinked team; 3 rows whose shootout kicks exceed the stored goals.
+- **Open:** third-place matches and the UCL/EL knockout play-off round are kept (DEC-67's "play-offs" read as qualification and relegation play-offs, to be confirmed); the dated rule "Serbia before 2006-08 = Serbia and Montenegro" needs a review mark; competitions are not `core.entity` rows yet (the link step should add them).
+
 **D.3d: typed match tables (resolved).**
 - `core.competition` (ref, kind `LEAGUE` | `CUP` | `INTERNATIONAL`, tier, country) and `core.edition` (competition, season label, final year, winner, runner-up, host).
 - `core.match`: edition, stage (`GROUP` … `FINAL`, `LEAGUE`), date, home and away team, goals, extra time, shootout score, venue.
