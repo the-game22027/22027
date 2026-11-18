@@ -1,6 +1,7 @@
 # Competition tiers for questions (DEC-67, product owner 2026-11-17). Ids are each source's own competition ids.
 # Matches before 2000, qualifiers, friendlies and play-offs never become questions, whatever their tier.
 # Tier 3 is "everything else" and needs no list. Other sources get their lists with their linkers.
+# config/competitions.toml maps these ids to one competition each (kb ingest:matches checks both files agree).
 
 [[tiers]]
 level = 1
@@ -8,6 +9,8 @@ level = 1
 transfermarkt = ["CL", "GB1", "ES1", "IT1", "L1", "FR1", "FIWC", "EURO", "AFCN", "COPA"]
 # Men's World Cups from 2000 (raw.fjelstul__tournaments); the women's World Cup is out of scope
 fjelstul = ["WC-2002", "WC-2006", "WC-2010", "WC-2014", "WC-2018", "WC-2022"]
+# raw.martj42__results tournament names, checked against the data on 2026-11-18
+martj42 = ["FIFA World Cup", "UEFA Euro", "African Cup of Nations", "Copa América"]
 
 [[tiers]]
 level = 2
@@ -19,3 +22,5 @@ transfermarkt = [
   "PO1", "POSU", "NL1", "NLP", "NLSC", "SA1",
   "AFAC",
 ]
+# martj42 has the Arab Cup (2002, 2012, 2021, 2025); qualifiers are separate tournaments there
+martj42 = ["AFC Asian Cup", "Arab Cup"]
