@@ -34,6 +34,26 @@ def test_a_spell_counts_for_every_decade_it_touches():
     assert decades_of_spell(2010, 2005, 2026) == set()
 
 
+def test_youth_years_on_the_club_item_do_not_count_for_a_decade():
+    # Marc-André ter Stegen (born 1992): Wikidata has Gladbach 1996-2010, his youth years.
+    assert decades_of_spell(1996, 2010, 2026, birth_year=1992) == {2000, 2010}
+    assert decades_of_spell(1996, 2004, 2026, birth_year=1992) == set()
+    assert decades_of_spell(1996, 2004, 2026) == {1990, 2000}
+
+
+def test_a_youth_only_spell_does_not_count_for_a_club_and_citizenship_category():
+    youth = PlayerFacts(
+        external_ref="wikidata:Q9999",
+        sitelinks=99,
+        names={"en": "kid", "ar": "kid"},
+        spells=(Spell("s-youth", "wikidata:Q9999", CLUB, 2000, 2005, False),),
+        country_refs=(FRANCE,),
+        birth_year=1995,
+    )
+    [line] = build([player(i) for i in range(3)] + [youth])
+    assert "wikidata:Q9999" not in line["answers"][0]["entities"]
+
+
 def test_a_club_and_citizenship_category_lists_its_players_most_popular_first():
     players = [player(i, sitelinks=i) for i in range(4)]
     [line] = build(players)
