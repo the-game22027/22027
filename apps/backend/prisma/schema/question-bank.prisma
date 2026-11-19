@@ -19,6 +19,7 @@ enum BattleGameType {
   AUCTION
   VAULT
   HEX
+  LINEUP
 
   @@map("battle_game_type")
 }

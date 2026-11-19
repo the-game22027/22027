@@ -126,6 +126,42 @@ describe('game content shape', () => {
     expect(localesOfQuestion(hex().content)).toEqual(['ar', 'en']);
   });
 
+  it('accepts a lineup of 11 starters, shown names with the fake among them, and the XI and fake slots', () => {
+    const starters = Array.from({ length: 11 }, (_, index) => `wd:starter${index}`);
+    const lineup = (change: Partial<{ slots: number; captains: number; shown: string[]; fake: string }> = {}) => {
+      const fake = change.fake ?? 'wd:bench';
+      const players = starters.slice(0, change.slots ?? 11);
+      return question({
+        body: {
+          gameType: 'LINEUP',
+          title: { en: 'Liverpool against Tottenham', ar: 'ليفربول أمام توتنهام' },
+          slots: players.map((player, index) => ({
+            line: index === 0 ? ('GK' as const) : ('DEF' as const),
+            role: null,
+            shirtNumber: index + 1,
+            captain: index < (change.captains ?? 1),
+            player,
+          })),
+          shown: change.shown ?? ['wd:starter1', fake, 'wd:starter2'],
+          fake,
+        },
+        answers: [
+          { slot: 0, entities: players },
+          { slot: 1, entities: [fake] },
+        ],
+      });
+    };
+    expect(problemsOf(lineup())).toBe('');
+    expect(problemsOf(lineup({ slots: 10 }))).toContain('a lineup has 11 slots');
+    expect(problemsOf(lineup({ captains: 2 }))).toContain('at most one captain');
+    expect(problemsOf(lineup({ fake: 'wd:starter3' }))).toContain('the fake must not be a starter');
+    expect(problemsOf(lineup({ shown: ['wd:starter1', 'wd:starter2'] }))).toContain(
+      'the fake must be one of the shown',
+    );
+    expect(problemsOf(lineup({ shown: ['wd:bench', 'wd:nobody'] }))).toContain('shown name wd:nobody is not a starter');
+    expect(localesOfQuestion(lineup().content)).toEqual(['ar', 'en']);
+  });
+
   it('accepts a vault of digit questions with no answer slots', () => {
     const digit = (answerNumber: number, text: Record<string, string> = { en: 'How many?', ar: 'كم؟' }) => ({
       template: 'TEAM_GOALS',

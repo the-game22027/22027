@@ -44,6 +44,24 @@ describe('the engine view of stored content', () => {
     expect(toEngineBody(buzzer, idOf, ['en'])).toMatchObject({ explanation: { en: 'Spain beat the Netherlands.' } });
   });
 
+  it('turns the lineup players, shown names and fake into entity ids', () => {
+    const lineup: GameBody = {
+      gameType: 'LINEUP',
+      title: { en: 'Portugal against Spain', ar: 'البرتغال أمام إسبانيا' },
+      slots: [{ line: 'FWD', role: 'LW', shirtNumber: 7, captain: true, player: 'wd:ronaldo' }],
+      shown: ['wd:sporting', 'wd:ronaldo'],
+      fake: 'wd:sporting',
+    };
+    expect(toEngineBody(lineup, idOf, ['ar'])).toEqual({
+      gameType: 'LINEUP',
+      title: { ar: 'البرتغال أمام إسبانيا' },
+      slots: [{ line: 'FWD', role: 'LW', shirtNumber: 7, captain: true, playerEntityId: 'id-ronaldo' }],
+      shownEntityIds: ['id-sporting', 'id-ronaldo'],
+      fakeEntityId: 'id-sporting',
+    });
+    expect(listEntityReferencesOfBody(lineup)).toEqual(['wd:ronaldo', 'wd:sporting']);
+  });
+
   it('fails loudly when content lacks a locale or points outside the catalog', () => {
     const englishOnly: GameBody = { ...buzzer, steps: { en: ['a', 'b'] } };
     expect(() => toEngineBody(englishOnly, idOf, ['ar'])).toThrow('no text in locale ar');
