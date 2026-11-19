@@ -108,6 +108,7 @@ def test_team_names_read_like_a_fan_says_them():
         "en": "Arsenal",
         "ar": "آرسنال",
     }
+    assert shorten_team_names({"en": "Real Madrid Club de Fútbol", "ar": "ريال مدريد"})["en"] == "Real Madrid"
     assert shorten_team_names({"en": "AFC Ajax", "ar": "أياكس أمستردام"}) == {
         "en": "AFC Ajax",
         "ar": "أياكس أمستردام",
