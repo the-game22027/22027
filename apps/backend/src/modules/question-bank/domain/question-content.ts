@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { type Locale, LOCALES } from '@shared/kernel';
 
-export const GAME_TYPES = ['BUZZER', 'CAREER', 'WHO_IS_PLAYER', 'GRID', 'MINES', 'AUCTION', 'VAULT'] as const;
+export const GAME_TYPES = ['BUZZER', 'CAREER', 'WHO_IS_PLAYER', 'GRID', 'MINES', 'AUCTION', 'VAULT', 'HEX'] as const;
 export type GameType = (typeof GAME_TYPES)[number];
 
 /** Kinds of answer catalog entities (08 §5). */
@@ -57,6 +57,12 @@ export interface VaultQuestion {
   answerNumber: number;
 }
 
+/** One HEX cell (08 §13.5): its letter in each locale and the lists asked behind it, in order. */
+export interface HexCell {
+  letter: LocalizedText;
+  questions: AuctionList[];
+}
+
 /** The game-specific part of a round (08 §4). Entities are referenced by catalog `externalRef`. */
 export type GameBody =
   | {
@@ -75,7 +81,8 @@ export type GameBody =
   | { gameType: 'GRID'; rows: GridCriterion[]; cols: GridCriterion[] }
   | { gameType: 'MINES'; criteria: MinesCriterion[] }
   | { gameType: 'AUCTION'; lists: AuctionList[] }
-  | { gameType: 'VAULT'; questions: VaultQuestion[] };
+  | { gameType: 'VAULT'; questions: VaultQuestion[] }
+  | { gameType: 'HEX'; size: number; cells: HexCell[] };
 
 /** Accepted answers of one slot: slot 0 for reveal games, 0..8 for grid cells (row * 3 + col). */
 export interface AnswerSlot {
@@ -126,6 +133,14 @@ export function localesOfQuestion(content: QuestionContent): Locale[] {
       return LOCALES.filter((locale) => body.lists.every((list) => list.title[locale] !== undefined)).sort();
     case 'VAULT':
       return LOCALES.filter((locale) => body.questions.every((question) => question.text[locale] !== undefined)).sort();
+    case 'HEX':
+      return LOCALES.filter((locale) =>
+        body.cells.every(
+          (cell) =>
+            cell.letter[locale] !== undefined &&
+            cell.questions.every((question) => question.title[locale] !== undefined),
+        ),
+      ).sort();
     case 'CAREER':
     case 'GRID':
     case 'MINES':
@@ -149,6 +164,8 @@ export function summaryTextOfQuestion(content: QuestionContent, locale: Locale):
       return body.lists.map((list) => list.title[locale] ?? '').join(' · ');
     case 'VAULT':
       return body.questions.map((question) => question.text[locale] ?? '').join(' · ');
+    case 'HEX':
+      return body.cells.map((cell) => cell.letter[locale] ?? '').join(' ');
     case 'CAREER':
     case 'GRID':
     case 'MINES':
