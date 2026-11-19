@@ -425,6 +425,7 @@ Not used: StatsBomb open data (non-commercial), FBref and SofaScore (scraping fo
 - **Famous matches are read by `kb bundle --lineups`** straight from `core.match` and `core.lineup_slot`, as N2 and N3 do; D.3e's `famous_match` replaces the filter later. Default (DEC-80): tier-1 knockouts from the round of 16, tier-2 finals, and World Cup knockouts 2002–2022. `BIG_CLUBS` league matches wait for D.3e.
 - **Not in N5:** the 2000–2011 Champions League finals (the curated CSV of D.3e) and Euro lineups (no source yet).
 - **Measured on 2026-11-19 (dev, before the Fjelstul load):** 542 tier-1 knockout lineups and 228 tier-2 final lineups have all 11 starters in the catalog; Fjelstul has 220 World Cup knockout lineups 2002–2022 with 11 starters, to be counted again after linking.
+- **Built 2026-11-20 (dev):** `kb ingest:matches` keeps 736 Fjelstul team lineups (World Cups 2002–2022, every stage) next to 80,374 Transfermarkt ones; the two sources share no World Cup lineup today (Transfermarkt's World Cup lineups are the 2026 group stage), so the disagreement gate found nothing yet. `kb bundle --lineups N` builds the rounds (08 §14.4).
 
 **D.3d: typed match tables (resolved).**
 - `core.competition` (ref, kind `LEAGUE` | `CUP` | `INTERNATIONAL`, tier, country) and `core.edition` (competition, season label, final year, winner, runner-up, host).
