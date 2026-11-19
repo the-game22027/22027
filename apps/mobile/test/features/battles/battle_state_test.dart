@@ -335,6 +335,82 @@ void main() {
     });
   });
 
+  group('a vault round', () {
+    BattleState playVaultRound() => applyAll(foundBattle(), [
+      event('round:start', 2, {
+        'roundNo': 1,
+        'gameType': 'VAULT',
+        'questions': ['سؤال ١؟', 'سؤال ٢؟', 'سؤال ٣؟', 'سؤال ٤؟'],
+        'digits': 4,
+        'roundDeadlineAt': '2026-11-12T10:02:00.000Z',
+        'firstLeakAt': '2026-11-12T10:00:45.000Z',
+      }),
+      event('vault:tried', 3, {
+        'roundNo': 1,
+        'participantId': 'p-bot',
+        'tries': 1,
+      }),
+      event('vault:leak', 4, {
+        'roundNo': 1,
+        'position': 2,
+        'digit': 5,
+        'nextLeakAt': '2026-11-12T10:01:00.000Z',
+      }),
+    ]);
+
+    test('the questions, the opponent try count and a leaked digit', () {
+      final round = playVaultRound().currentRound! as VaultRound;
+      expect(round.questions, hasLength(4));
+      expect(round.digits, 4);
+      expect(round.triesByParticipant, {'p-bot': 1});
+      expect(round.leakedDigits.single.position, 2);
+      expect(round.leakedDigits.single.digit, 5);
+      expect(round.nextLeakAt, DateTime.utc(2026, 11, 12, 10, 1));
+    });
+
+    test('the last leak clears the next leak time', () {
+      final state = applyAll(playVaultRound(), [
+        event('vault:leak', 5, {
+          'roundNo': 1,
+          'position': 0,
+          'digit': 7,
+          'nextLeakAt': null,
+        }),
+      ]);
+      final round = state.currentRound! as VaultRound;
+      expect(round.leakedDigits.map((leak) => leak.digit), [5, 7]);
+      expect(round.nextLeakAt, isNull);
+    });
+
+    test('a snapshot restores leaks, tries and your own lockout', () {
+      final restored = applyBattleSnapshot(playVaultRound(), {
+        'status': 'IN_PROGRESS',
+        'gameType': 'VAULT',
+        'mode': 'MATCHMAKING',
+        'players': [humanPlayerJson, botPlayerJson],
+        'currentRound': {
+          'roundNo': 1,
+          'questions': ['سؤال ١؟', 'سؤال ٢؟', 'سؤال ٣؟', 'سؤال ٤؟'],
+          'digits': 4,
+          'leaked': [
+            {'position': 2, 'digit': 5},
+          ],
+          'tries': {'p-human': 2, 'p-bot': 1},
+          'lockedUntil': '2026-11-12T10:00:50.000Z',
+          'roundDeadlineAt': '2026-11-12T10:02:00.000Z',
+          'nextLeakAt': '2026-11-12T10:01:00.000Z',
+        },
+        'rounds': <Object>[],
+        'scores': <Object>[],
+        'seq': 6,
+      });
+      final round = restored.currentRound! as VaultRound;
+      expect(round.triesByParticipant, {'p-human': 2, 'p-bot': 1});
+      expect(round.yourLockedUntil, DateTime.utc(2026, 11, 12, 10, 0, 50));
+      expect(round.leakedDigits.single.digit, 5);
+    });
+  });
+
   group('a mines round', () {
     final criteria = [
       {

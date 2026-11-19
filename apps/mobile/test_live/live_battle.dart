@@ -219,6 +219,7 @@ class LiveBattleRun {
           case final MinesRound round:
             await _buryOrAnswerMines(battle, round);
           case AuctionRound():
+          case VaultRound():
           case null:
             break;
         }
