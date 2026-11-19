@@ -6,6 +6,9 @@ import 'package:the_game/features/battles/data/battle_events.dart';
 
 enum BattlePhase {
   waitingReady,
+
+  /// Rock-paper-scissors decides who moves first, before round 1 (`08` §9.1).
+  pickingFirst,
   inProgress,
   cancelled,
   completed,
@@ -14,6 +17,55 @@ enum BattlePhase {
   /// the socket was down when `battle:completed` was sent, or the server restarted and
   /// abandoned it). The result is not known here.
   endedWhileAway,
+}
+
+/// One finished rock-paper-scissors attempt.
+class RockPaperScissorsAttemptResult {
+  const RockPaperScissorsAttemptResult({
+    required this.attempt,
+    required this.picks,
+    this.winnerId,
+  });
+
+  final int attempt;
+  final List<RockPaperScissorsPick> picks;
+
+  /// Null for a tie.
+  final String? winnerId;
+}
+
+/// The rock-paper-scissors duel as the server revealed it.
+class FirstMoverDuel {
+  const FirstMoverDuel({
+    required this.attempt,
+    this.pickDeadlineAt,
+    this.hasPicked = false,
+    this.results = const [],
+  });
+
+  final int attempt;
+
+  /// Null between a result and the next attempt.
+  final DateTime? pickDeadlineAt;
+
+  /// The server took this player's pick for [attempt].
+  final bool hasPicked;
+
+  /// Finished attempts, ties included, oldest first.
+  final List<RockPaperScissorsAttemptResult> results;
+
+  FirstMoverDuel copyWith({
+    DateTime? Function()? pickDeadlineAt,
+    bool? hasPicked,
+    List<RockPaperScissorsAttemptResult>? results,
+  }) => FirstMoverDuel(
+    attempt: attempt,
+    pickDeadlineAt: pickDeadlineAt == null
+        ? this.pickDeadlineAt
+        : pickDeadlineAt(),
+    hasPicked: hasPicked ?? this.hasPicked,
+    results: results ?? this.results,
+  );
 }
 
 sealed class CurrentRound {
@@ -127,6 +179,8 @@ class BattleState {
     required this.phase,
     required this.lastSeq,
     this.readyDeadlineAt,
+    this.firstMoverDuel,
+    this.firstMoverParticipantId,
     this.currentRound,
     this.scores = const {},
     this.finishedRounds = const [],
@@ -144,6 +198,12 @@ class BattleState {
   final Map<String, Object?> publicConfig;
   final BattlePhase phase;
   final DateTime? readyDeadlineAt;
+
+  /// Set while [BattlePhase.pickingFirst].
+  final FirstMoverDuel? firstMoverDuel;
+
+  /// Who moves first in the current round; null for games where everyone plays at once.
+  final String? firstMoverParticipantId;
   final CurrentRound? currentRound;
 
   /// Total score by participant id.
@@ -174,6 +234,8 @@ class BattleState {
   BattleState copyWith({
     List<BattlePlayer>? players,
     BattlePhase? phase,
+    FirstMoverDuel? Function()? firstMoverDuel,
+    String? firstMoverParticipantId,
     CurrentRound? Function()? currentRound,
     Map<String, int>? scores,
     List<RoundEnded>? finishedRounds,
@@ -191,6 +253,11 @@ class BattleState {
     publicConfig: publicConfig,
     phase: phase ?? this.phase,
     readyDeadlineAt: readyDeadlineAt,
+    firstMoverDuel: firstMoverDuel == null
+        ? this.firstMoverDuel
+        : firstMoverDuel(),
+    firstMoverParticipantId:
+        firstMoverParticipantId ?? this.firstMoverParticipantId,
     currentRound: currentRound == null ? this.currentRound : currentRound(),
     scores: scores ?? this.scores,
     finishedRounds: finishedRounds ?? this.finishedRounds,
@@ -239,6 +306,32 @@ BattleState _applyInOrder(BattleState state, BattleServerEvent event) {
         cancellationReason: reason,
         currentRound: () => null,
       );
+    case RockPaperScissorsStarted():
+      return state.copyWith(
+        phase: BattlePhase.pickingFirst,
+        firstMoverDuel: () => FirstMoverDuel(
+          attempt: event.attempt,
+          pickDeadlineAt: event.pickDeadlineAt,
+          results: state.firstMoverDuel?.results ?? const [],
+        ),
+      );
+    case RockPaperScissorsResult():
+      final duel =
+          state.firstMoverDuel ?? FirstMoverDuel(attempt: event.attempt);
+      return state.copyWith(
+        firstMoverDuel: () => duel.copyWith(
+          pickDeadlineAt: () => null,
+          results: [
+            ...duel.results,
+            RockPaperScissorsAttemptResult(
+              attempt: event.attempt,
+              picks: event.picks,
+              winnerId: event.winnerId,
+            ),
+          ],
+        ),
+        firstMoverParticipantId: event.winnerId,
+      );
     case RevealRoundStarted():
       return state.copyWith(
         currentRound: () => RevealRound(
@@ -249,6 +342,9 @@ BattleState _applyInOrder(BattleState state, BattleServerEvent event) {
       );
     case GridRoundStarted():
       return state.copyWith(
+        phase: BattlePhase.inProgress,
+        firstMoverDuel: () => null,
+        firstMoverParticipantId: event.firstTurnParticipantId,
         currentRound: () => GridRound(
           roundNo: event.roundNo,
           rows: event.rows,
@@ -386,6 +482,7 @@ BattleState applyBattleSnapshot(
   final scores = readParticipantScores(snapshot.readObjectList('scores'));
   final status = snapshot.readString('status');
   final players = readBattlePlayers(snapshot.readObjectList('players'));
+  final firstMover = snapshot.readOptionalObject('firstMover');
   final youParticipantId = state.youParticipantId.isNotEmpty
       ? state.youParticipantId
       : players
@@ -403,6 +500,7 @@ BattleState applyBattleSnapshot(
     publicConfig: state.publicConfig,
     phase: switch (status) {
       'WAITING_READY' => BattlePhase.waitingReady,
+      'PICKING_FIRST' => BattlePhase.pickingFirst,
       'IN_PROGRESS' => BattlePhase.inProgress,
       // The completion details came (or will come) with battle:completed.
       _ =>
@@ -411,6 +509,11 @@ BattleState applyBattleSnapshot(
             : BattlePhase.completed,
     },
     readyDeadlineAt: state.readyDeadlineAt,
+    firstMoverDuel:
+        firstMover == null || !firstMover.json.containsKey('attempt')
+        ? null
+        : _readSnapshotDuel(firstMover),
+    firstMoverParticipantId: firstMover?.readOptionalString('participantId'),
     currentRound: roundJson == null
         ? null
         : _readSnapshotRound(roundJson, state.currentRound),
@@ -423,6 +526,20 @@ BattleState applyBattleSnapshot(
     lastSeq: snapshot.readInt('seq'),
   );
 }
+
+FirstMoverDuel _readSnapshotDuel(JsonObjectReader duel) => FirstMoverDuel(
+  attempt: duel.readInt('attempt'),
+  pickDeadlineAt: duel.readOptionalTimestamp('pickDeadlineAt'),
+  hasPicked: duel.readBool('youPicked'),
+  results: [
+    for (final attempt in duel.readObjectList('attempts'))
+      RockPaperScissorsAttemptResult(
+        attempt: attempt.readInt('attempt'),
+        picks: readRockPaperScissorsPicks(attempt.readObjectList('picks')),
+        winnerId: attempt.readOptionalString('winnerId'),
+      ),
+  ],
+);
 
 CurrentRound? _readSnapshotRound(
   JsonObjectReader round,

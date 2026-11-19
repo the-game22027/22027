@@ -248,6 +248,113 @@ void main() {
     expect(restoredGrid.turnParticipantId, 'p-bot');
   });
 
+  test(
+    'rock-paper-scissors: a tie, a winner, then the winner starts the grid',
+    () {
+      Map<String, Object?> pick(String participantId, String choice) => {
+        'participantId': participantId,
+        'choice': choice,
+        'auto': false,
+      };
+      final picking = applyAll(foundBattle(), [
+        event('battle:started', 2, {
+          'startedAt': '2026-11-12T10:00:03.000Z',
+          'players': [humanPlayerJson, botPlayerJson],
+        }),
+        event('battle:rps-start', 3, {
+          'attempt': 1,
+          'pickDeadlineAt': '2026-11-12T10:00:08.000Z',
+        }),
+        event('battle:rps-result', 4, {
+          'attempt': 1,
+          'picks': [pick('p-human', 'ROCK'), pick('p-bot', 'ROCK')],
+          'winnerId': null,
+          'decidedBy': null,
+        }),
+        event('battle:rps-start', 5, {
+          'attempt': 2,
+          'pickDeadlineAt': '2026-11-12T10:00:15.000Z',
+        }),
+      ]);
+      expect(picking.phase, BattlePhase.pickingFirst);
+      expect(picking.firstMoverDuel!.attempt, 2);
+      expect(picking.firstMoverDuel!.hasPicked, isFalse);
+      expect(picking.firstMoverDuel!.results.single.winnerId, isNull);
+
+      final decided = applyAll(picking, [
+        event('battle:rps-result', 6, {
+          'attempt': 2,
+          'picks': [
+            pick('p-human', 'PAPER'),
+            {'participantId': 'p-bot', 'choice': 'ROCK', 'auto': true},
+          ],
+          'winnerId': 'p-human',
+          'decidedBy': 'RPS',
+        }),
+      ]);
+      expect(decided.firstMoverParticipantId, 'p-human');
+      expect(decided.firstMoverDuel!.pickDeadlineAt, isNull);
+      expect(
+        decided.firstMoverDuel!.results.last.picks.last.wasPickedByServer,
+        isTrue,
+      );
+
+      final started = applyAll(decided, [
+        event('round:start', 7, {
+          'roundNo': 1,
+          'gameType': 'GRID',
+          'rows': const <Object?>[],
+          'cols': const <Object?>[],
+          'firstTurnParticipantId': 'p-human',
+        }),
+      ]);
+      expect(started.phase, BattlePhase.inProgress);
+      expect(started.firstMoverDuel, isNull);
+      expect(started.firstMoverParticipantId, 'p-human');
+    },
+  );
+
+  test(
+    'a snapshot during rock-paper-scissors keeps the duel, not a finished battle',
+    () {
+      final state = applyBattleSnapshot(foundBattle(), {
+        'status': 'PICKING_FIRST',
+        'gameType': 'GRID',
+        'mode': 'MATCHMAKING',
+        'players': [humanPlayerJson, botPlayerJson],
+        'firstMover': {
+          'attempt': 2,
+          'pickDeadlineAt': '2026-11-12T10:00:15.000Z',
+          'youPicked': true,
+          'attempts': [
+            {
+              'attempt': 1,
+              'picks': [
+                {
+                  'participantId': 'p-human',
+                  'choice': 'SCISSORS',
+                  'auto': false,
+                },
+                {'participantId': 'p-bot', 'choice': 'SCISSORS', 'auto': false},
+              ],
+              'winnerId': null,
+            },
+          ],
+        },
+        'rounds': const <Object?>[],
+        'scores': const <Object?>[],
+        'seq': 9,
+      });
+      expect(state.phase, BattlePhase.pickingFirst);
+      expect(state.firstMoverDuel!.attempt, 2);
+      expect(state.firstMoverDuel!.hasPicked, isTrue);
+      expect(
+        state.firstMoverDuel!.results.single.picks.first.choice,
+        RockPaperScissorsChoice.scissors,
+      );
+    },
+  );
+
   test('completion, forfeits and other battles', () {
     final state = applyAll(foundBattle(), [
       event('player:forfeited', 2, {

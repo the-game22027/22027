@@ -105,6 +105,32 @@ class BattleSessionController extends Notifier<BattleSessionState> {
   /// `battle:ready`: this device becomes the one that plays (the active socket).
   Future<BattleCommandResult> markReady() => _sendBattleCommand('battle:ready');
 
+  /// Throws in the current rock-paper-scissors attempt. The server keeps it secret until
+  /// both players have picked (`08` §9.1).
+  Future<BattleCommandResult> pickRockPaperScissors(
+    RockPaperScissorsChoice choice,
+  ) async {
+    final duel = state.battle?.firstMoverDuel;
+    if (duel == null) return const BattleCommandRejected('INVALID_STATE');
+    final result = await _sendBattleCommand('battle:rps-pick', {
+      'attempt': duel.attempt,
+      'choice': findRockPaperScissorsCode(choice),
+    });
+    final current = state.battle;
+    final currentDuel = current?.firstMoverDuel;
+    if (result is BattleCommandAccepted &&
+        ref.mounted &&
+        current != null &&
+        currentDuel?.attempt == duel.attempt) {
+      state = state.copyWith(
+        battle: () => current.copyWith(
+          firstMoverDuel: () => currentDuel!.copyWith(hasPicked: true),
+        ),
+      );
+    }
+    return result;
+  }
+
   Future<BattleCommandResult> buzz() =>
       _sendRoundCommand('round:buzz', const {});
 
