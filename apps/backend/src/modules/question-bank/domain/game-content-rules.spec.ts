@@ -1,5 +1,11 @@
 import type { KnownEntity } from './answer-catalog';
-import { type BundleQuestion, computeContentHash, type GameContent, localesOfQuestion } from './question-content';
+import {
+  type AuctionList,
+  type BundleQuestion,
+  computeContentHash,
+  type GameContent,
+  localesOfQuestion,
+} from './question-content';
 import { findCatalogReferenceProblems, findQuestionProblems } from './question-rules';
 
 type GameQuestion = BundleQuestion & { content: GameContent };
@@ -67,8 +73,11 @@ describe('game content shape', () => {
   });
 
   it('accepts an auction round of 3 titled lists with one slot of names each', () => {
-    const list = (name: string) => ({ kind: 'SCORERS', title: { en: `${name} scorers`, ar: `هدافو ${name}` } });
-    const auction = (lists = [list('a'), list('b'), list('c')], slots = 3) =>
+    const list = (name: string): AuctionList => ({
+      kind: 'SCORERS',
+      title: { en: `${name} scorers`, ar: `هدافو ${name}` },
+    });
+    const auction = (lists: AuctionList[] = [list('a'), list('b'), list('c')], slots = 3) =>
       question({
         body: { gameType: 'AUCTION', lists },
         answers: Array.from({ length: slots }, (_, slot) => ({ slot, entities: ['wd:ronaldo'] })),
