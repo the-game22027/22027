@@ -137,7 +137,7 @@ Changes vs the original proposed order, and why:
 
 | Phase | Game type | Data it needs | Starts after |
 |---|---|---|---|
-| N0 Shared engine pieces (**design done 2026-11-18**: 08 §9, ADR-0023) | all | none: rock-paper-scissors to pick who starts, simultaneous vs turn-based rounds, rounds with several accepted answers, lockout after a wrong answer (`08`) | D.3a (docs in parallel) |
+| N0 Shared engine pieces (**design done 2026-11-18**: 08 §9, ADR-0023; **first-mover phase built 2026-11-19**; helpers come with N1) | all | none: rock-paper-scissors to pick who starts, simultaneous vs turn-based rounds, rounds with several accepted answers, lockout after a wrong answer (`08`) | D.3a (docs in parallel) |
 | N1 `MINES` (لغم) | club + nationality and club + decade pools | careers and nationalities we already have, plus the cities-as-clubs fix (D.3b) | N0 |
 | N2 `AUCTION` (المزاد) | lists of 6-30 answers (scorers, assisters per club and competition season) | D.3d goals and assists | D.3d |
 | N3 `VAULT` (الخزنة) | facts with a 0-9 answer (scores, title counts, shirt numbers) | D.3d-e | D.3e |

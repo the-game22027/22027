@@ -447,7 +447,7 @@ battles (
   room_id uuid NULL FK → battle_rooms,  -- set when mode = ROOM; the FK is added with rooms (P8)
   has_bot boolean DEFAULT false,
   config jsonb,                         -- snapshot of the game type's config (08 §6) + engine timers
-  first_mover jsonb NULL,               -- rock-paper-scissors outcome: picks per attempt, winner, decidedBy (08 §9.1, ADR-0023); NULL for games without a first mover
+  first_mover jsonb NULL,               -- first-mover decisions, one per round: winner, decidedBy, rock-paper-scissors throws (08 §9.1, ADR-0023); NULL for games without a first mover
   rule_set_id uuid NULL FK → scoring_rule_sets,   -- BATTLE rule set active at creation; NULL when none was (08 §6.1)
   created_at timestamptz, ready_deadline_at timestamptz,
   started_at timestamptz NULL, ended_at timestamptz NULL,

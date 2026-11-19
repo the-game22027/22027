@@ -31,7 +31,7 @@ ADR-0015 says a new game must not change the engine (no `if (gameType === ...)`)
    | `Hearts` | Lives per player; losing the last one ends the round or the battle | `MINES`, `TIME_MACHINE` |
    | `SecretChoices` | Choices each player submits before play, kept server-side, never in any other player's snapshot | `MINES` (buried mines), `AUCTION` (none: bids are public) |
 
-   Each game still has its own pure rules class and round runner (§2.2, §2.4). The helpers are values and functions the rules call. They are not base classes.
+   Each game still has its own pure rules class and round runner (§2.2, §2.4). The helpers are values and functions the rules call. They are not base classes. Each one is written with the first game that calls it (08 §9.2), not ahead of it.
 5. **Hidden information stays on the server.** Snapshots and events are rendered per viewer (§2.3), and that rule is tested per game:
    - a player's secret choices
    - the other player's typed answers in `THREAD` (only the opponent's room number is shown)
