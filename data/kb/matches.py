@@ -496,7 +496,9 @@ def store_claims_and_matches(
     editions, edition_keys = assign_editions(matches, config.competitions)
     with connection.transaction(), connection.cursor() as cursor:
         cursor.execute("DELETE FROM core.claim WHERE fact_type = %s", (FACT_MATCH_RESULT,))
-        cursor.execute("TRUNCATE core.goal, core.match, core.edition, core.competition RESTART IDENTITY")
+        cursor.execute(
+            "TRUNCATE core.lineup_slot, core.goal, core.match, core.edition, core.competition RESTART IDENTITY"
+        )
         with cursor.copy(
             """COPY core.claim (source, source_row_id, snapshot_id, fact_type, fact_key, value, license)
                FROM STDIN"""

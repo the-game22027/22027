@@ -11,6 +11,7 @@ from kb.db import apply_pending_migrations, connect_to_knowledge_base
 from kb.fjelstul_links import link_fjelstul
 from kb.goals import ingest_goals
 from kb.ingest import collect_snapshot
+from kb.lineups import ingest_lineups
 from kb.linking import link_transfermarkt
 from kb.matches import ingest_matches
 from kb.sources import download_source_file, load_file_into_raw, load_source_registry
@@ -147,6 +148,7 @@ def main(argv: list[str] | None = None) -> int:
             report = ingest_matches(connection)
             print("\n".join(report.lines()))
             print("\n".join(ingest_goals(connection).lines()))
+            print("\n".join(ingest_lineups(connection).lines()))
         elif args.command == "sources:fetch":
             for source_file in selected:
                 downloaded = download_source_file(source_file, refresh=args.refresh)
