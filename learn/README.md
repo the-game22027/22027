@@ -111,6 +111,7 @@ About 35 minutes in total. Cards marked *later* explain tools we have not needed
 | [backend/one-at-a-time-per-game](backend/one-at-a-time-per-game.md) | G0 | One input queue per battle makes "first buzz" exact |
 | [backend/secret-simultaneous-moves](backend/secret-simultaneous-moves.md) | N0 | Hold both picks on the server, reveal them together, auto-pick at the deadline |
 | [backend/private-results-in-acks](backend/private-results-in-acks.md) | N1 | One player's private result goes in their ack or their copy of a shared event, never in a lone event that leaves a `seq` gap |
+| [backend/one-timer-per-phase](backend/one-timer-per-phase.md) | N2 | One deadline timer replaced on each phase change; the handler acts on the phase at firing time |
 | [database/wikidata-truthy-vs-full-statements](database/wikidata-truthy-vs-full-statements.md) | G0 | `wdt:` hides former clubs; read `p:/ps:/pq:` |
 | [database/cache-external-responses](database/cache-external-responses.md) | D.1 | Keep raw answers keyed by the request; re-runs are offline |
 | [database/bulk-upsert-with-unnest](database/bulk-upsert-with-unnest.md) | P5.2 | Columns as arrays, one statement for thousands of rows |

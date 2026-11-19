@@ -17,7 +17,11 @@ export type PlayerCommand =
   | { type: 'GRID_SKIP' }
   | { type: 'MINE_BURY'; answer: { text: string } | BotAnswer }
   | { type: 'MINE_ANSWER'; answer: { text: string } | BotAnswer }
-  | { type: 'MINE_SCAN'; answer: { text: string } };
+  | { type: 'MINE_SCAN'; answer: { text: string } }
+  | { type: 'AUCTION_PICK'; list: number }
+  | { type: 'AUCTION_BID'; amount: number }
+  | { type: 'AUCTION_CALL' }
+  | { type: 'AUCTION_ANSWER'; answer: { text: string } | BotAnswer };
 
 /** null when accepted, a string for the ack's error code, or an accepted ack that carries data (08 §10.3). */
 export type RoundCommandOutcome = string | null | { accepted: true; data: Record<string, unknown> };

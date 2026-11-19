@@ -94,6 +94,24 @@ const minesGame = z.strictObject({
   }),
 });
 
+const auctionGame = z.strictObject({
+  ...firstMoverFields,
+  enabled: z.boolean(),
+  roundCount: z.number().int().positive(),
+  targetScore: z.number().int().positive(),
+  pickMs: positiveMs,
+  bidding: z.strictObject({ turnMs: positiveMs, minOpeningBid: z.number().int().positive() }),
+  proof: z.strictObject({ ms: positiveMs, maxWrong: z.number().int().positive() }),
+  allIn: z.strictObject({ maxWrong: z.number().int().positive() }),
+  steal: z.strictObject({ ms: positiveMs, names: z.number().int().positive() }),
+  showWrongAnswers: z.boolean(),
+  points: z.strictObject({ roundWin: z.number().int(), allInWin: z.number().int() }),
+  selection: z.strictObject({
+    difficulties: z.array(z.number().int().min(1).max(5)).min(1).nullable(),
+    excludeLastBattles: z.number().int().nonnegative(),
+  }),
+});
+
 const answers = z.strictObject({
   maxLength: z.number().int().positive(),
   typoTolerance: z
@@ -130,6 +148,7 @@ const settingsSchema = z
       WHO_IS_PLAYER: revealGame.optional(),
       GRID: gridGame.optional(),
       MINES: minesGame.optional(),
+      AUCTION: auctionGame.optional(),
     }),
   })
   .superRefine((settings, context) => {

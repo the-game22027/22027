@@ -168,6 +168,99 @@ class GridRound extends CurrentRound {
   );
 }
 
+enum AuctionPhase { picking, bidding, proving, stealing, closed }
+
+/// A bid in an AUCTION round.
+class AuctionBid {
+  const AuctionBid({required this.participantId, required this.amount});
+
+  final String participantId;
+  final int amount;
+}
+
+/// A right name said in an AUCTION round, and who said it.
+class AuctionSaidName {
+  const AuctionSaidName({required this.player, required this.participantId});
+
+  final EntityRef player;
+  final String participantId;
+}
+
+/// An `AUCTION` round (`08` §11): pick a list, bid, prove it live, maybe a steal.
+class AuctionRound extends CurrentRound {
+  const AuctionRound({
+    required int roundNo,
+    required this.lists,
+    required this.phase,
+    required this.pickerParticipantId,
+    this.pickedList,
+    this.bids = const [],
+    this.turnParticipantId,
+    this.deadline,
+    this.proverParticipantId,
+    this.amount,
+    this.isAllIn = false,
+    this.maxWrong,
+    this.saidNames = const [],
+    this.strikes = 0,
+    this.stealerParticipantId,
+    this.lastAnswer,
+  }) : super(roundNo);
+
+  final List<AuctionListOffer> lists;
+  final AuctionPhase phase;
+  final String pickerParticipantId;
+  final int? pickedList;
+  final List<AuctionBid> bids;
+  final String? turnParticipantId;
+
+  /// The current phase's deadline: pick, bidding turn, proof or steal.
+  final DateTime? deadline;
+  final String? proverParticipantId;
+  final int? amount;
+  final bool isAllIn;
+  final int? maxWrong;
+  final List<AuctionSaidName> saidNames;
+  final int strikes;
+  final String? stealerParticipantId;
+  final AuctionAnswered? lastAnswer;
+
+  int? get currentBid => bids.isEmpty ? null : bids.last.amount;
+
+  AuctionRound copyWith({
+    AuctionPhase? phase,
+    int? pickedList,
+    List<AuctionBid>? bids,
+    String? turnParticipantId,
+    DateTime? deadline,
+    String? proverParticipantId,
+    int? amount,
+    bool? isAllIn,
+    int? maxWrong,
+    List<AuctionSaidName>? saidNames,
+    int? strikes,
+    String? stealerParticipantId,
+    AuctionAnswered? lastAnswer,
+  }) => AuctionRound(
+    roundNo: roundNo,
+    lists: lists,
+    phase: phase ?? this.phase,
+    pickerParticipantId: pickerParticipantId,
+    pickedList: pickedList ?? this.pickedList,
+    bids: bids ?? this.bids,
+    turnParticipantId: turnParticipantId ?? this.turnParticipantId,
+    deadline: deadline ?? this.deadline,
+    proverParticipantId: proverParticipantId ?? this.proverParticipantId,
+    amount: amount ?? this.amount,
+    isAllIn: isAllIn ?? this.isAllIn,
+    maxWrong: maxWrong ?? this.maxWrong,
+    saidNames: saidNames ?? this.saidNames,
+    strikes: strikes ?? this.strikes,
+    stealerParticipantId: stealerParticipantId ?? this.stealerParticipantId,
+    lastAnswer: lastAnswer ?? this.lastAnswer,
+  );
+}
+
 enum MinesPhase { burying, turns, closed }
 
 /// A name said in a `MINES` round; [player] is missing when the server hides it.
@@ -461,6 +554,81 @@ BattleState _applyInOrder(BattleState state, BattleServerEvent event) {
           turnParticipantId: event.firstTurnParticipantId,
         ),
       );
+    case AuctionRoundStarted():
+      return state.copyWith(
+        phase: BattlePhase.inProgress,
+        firstMoverDuel: () => null,
+        firstMoverParticipantId: event.pickerParticipantId,
+        currentRound: () => AuctionRound(
+          roundNo: event.roundNo,
+          lists: event.lists,
+          phase: AuctionPhase.picking,
+          pickerParticipantId: event.pickerParticipantId,
+          deadline: event.pickDeadlineAt,
+        ),
+      );
+    case AuctionListPicked() when round is AuctionRound:
+      return state.copyWith(
+        currentRound: () =>
+            round.copyWith(phase: AuctionPhase.bidding, pickedList: event.list),
+      );
+    case AuctionTurnStarted() when round is AuctionRound:
+      return state.copyWith(
+        currentRound: () => round.copyWith(
+          phase: AuctionPhase.bidding,
+          turnParticipantId: event.participantId,
+          deadline: event.turnDeadlineAt,
+        ),
+      );
+    case AuctionBidPlaced() when round is AuctionRound:
+      return state.copyWith(
+        currentRound: () => round.copyWith(
+          bids: [
+            ...round.bids,
+            AuctionBid(
+              participantId: event.participantId,
+              amount: event.amount,
+            ),
+          ],
+        ),
+      );
+    case AuctionProofStarted() when round is AuctionRound:
+      return state.copyWith(
+        currentRound: () => round.copyWith(
+          phase: AuctionPhase.proving,
+          proverParticipantId: event.proverParticipantId,
+          amount: event.amount,
+          isAllIn: event.reason == AuctionProofReason.allIn,
+          maxWrong: event.maxWrong,
+          deadline: event.proofDeadlineAt,
+        ),
+      );
+    case AuctionAnswered() when round is AuctionRound:
+      final player = event.player;
+      return state.copyWith(
+        currentRound: () => round.copyWith(
+          saidNames:
+              event.outcome == AuctionAnswerOutcome.correct && player != null
+              ? [
+                  ...round.saidNames,
+                  AuctionSaidName(
+                    player: player,
+                    participantId: event.participantId,
+                  ),
+                ]
+              : null,
+          strikes: event.strikes,
+          lastAnswer: event,
+        ),
+      );
+    case AuctionStealStarted() when round is AuctionRound:
+      return state.copyWith(
+        currentRound: () => round.copyWith(
+          phase: AuctionPhase.stealing,
+          stealerParticipantId: event.stealerParticipantId,
+          deadline: event.stealDeadlineAt,
+        ),
+      );
     case MinesRoundStarted():
       return state.copyWith(
         phase: BattlePhase.inProgress,
@@ -734,6 +902,7 @@ CurrentRound? _readSnapshotRound(
   CurrentRound? previous,
 ) {
   final roundNo = round.readInt('roundNo');
+  if (round.json.containsKey('lists')) return _readSnapshotAuctionRound(round);
   if (round.json.containsKey('criteria')) return _readSnapshotMinesRound(round);
   if (round.json.containsKey('rows')) {
     final grid = GridRound(
@@ -824,5 +993,49 @@ MinesRound _readSnapshotMinesRound(JsonObjectReader round) {
     turnNo: round.readOptionalInt('turnNo') ?? 0,
     turnDeadlineAt: deadlines?.readOptionalTimestamp('turnDeadlineAt'),
     detectorUsesLeft: round.readOptionalInt('detectorUsesLeft'),
+  );
+}
+
+AuctionRound _readSnapshotAuctionRound(JsonObjectReader round) {
+  final deadlines = round.readOptionalObject('deadlines');
+  final deadline = deadlines == null || deadlines.json.isEmpty
+      ? null
+      : deadlines.readTimestamp(deadlines.json.keys.first);
+  return AuctionRound(
+    roundNo: round.readInt('roundNo'),
+    lists: readAuctionListOffers(round.readObjectList('lists')),
+    phase: switch (round.readOptionalString('phase')) {
+      'BIDDING' => AuctionPhase.bidding,
+      'PROVING' => AuctionPhase.proving,
+      'STEALING' => AuctionPhase.stealing,
+      'CLOSED' => AuctionPhase.closed,
+      _ => AuctionPhase.picking,
+    },
+    pickerParticipantId: round.readOptionalString('picker') ?? '',
+    pickedList: round.readOptionalInt('pickedList'),
+    bids: [
+      if (round.json.containsKey('bids'))
+        for (final bid in round.readObjectList('bids'))
+          AuctionBid(
+            participantId: bid.readString('participantId'),
+            amount: bid.readInt('amount'),
+          ),
+    ],
+    turnParticipantId: round.readOptionalString('turnOf'),
+    deadline: deadline,
+    proverParticipantId: round.readOptionalString('prover'),
+    amount: round.readOptionalInt('amount'),
+    isAllIn: round.readOptionalBool('allIn') ?? false,
+    maxWrong: round.readOptionalInt('maxWrong'),
+    saidNames: [
+      if (round.json.containsKey('found'))
+        for (final said in round.readObjectList('found'))
+          AuctionSaidName(
+            player: readEntityRef(said.readObject('player')),
+            participantId: said.readString('saidBy'),
+          ),
+    ],
+    strikes: round.readOptionalInt('strikes') ?? 0,
+    stealerParticipantId: round.readOptionalString('stealer'),
   );
 }

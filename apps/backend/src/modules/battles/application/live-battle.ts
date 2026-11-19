@@ -16,12 +16,19 @@ import type { ParticipantId, RoundAction, RoundResult } from '../domain/games/ga
 import { calculateLeaderboardPoints } from '../domain/leaderboard-points';
 import { placeParticipantsByScore } from '../domain/placements';
 import { type RandomSource, randomIntegerBetween } from '../domain/random-source';
-import type { BattleConfigSnapshot, GridGameSettings, MinesGameSettings, RevealGameSettings } from './battle-settings';
+import type {
+  AuctionGameSettings,
+  BattleConfigSnapshot,
+  GridGameSettings,
+  MinesGameSettings,
+  RevealGameSettings,
+} from './battle-settings';
 import type { LiveParticipant } from './live-participant';
 import type { BattleNotifier } from './ports/battle-notifier';
 import type { BattleRepository } from './ports/battle-repository';
 import type { ScheduledTimer, TimerScheduler } from './ports/timer-scheduler';
 import { GridRoundRunner } from './rounds/grid-round-runner';
+import { AuctionRoundRunner } from './rounds/auction-round-runner';
 import { MinesRoundRunner } from './rounds/mines-round-runner';
 import { RevealRoundRunner } from './rounds/reveal-round-runner';
 import type {
@@ -513,6 +520,15 @@ export class LiveBattle {
           host,
         );
         break;
+      case 'AUCTION':
+        this.runner = new AuctionRoundRunner(
+          roundNo,
+          content,
+          this.config.game as AuctionGameSettings,
+          latencyGraceMs,
+          host,
+        );
+        break;
       default:
         this.runner = new RevealRoundRunner(
           roundNo,
@@ -591,13 +607,20 @@ export class LiveBattle {
       })),
     }));
     if (this.status !== 'IN_PROGRESS') return;
-    if (this.roundIndex + 1 < this.questionIds.length) {
+    if (this.roundIndex + 1 < this.questionIds.length && !this.hasAnyoneReachedTargetScore()) {
       this.schedule('next-round', new Date(now.getTime() + this.config.engine.betweenRoundsMs), () =>
         this.decideFirstMoverThenStartRound(),
       );
     } else {
       await this.completeBattle();
     }
+  }
+
+  /** A game type with `targetScore` ends as soon as one score reaches it (08 §11.7). */
+  private hasAnyoneReachedTargetScore(): boolean {
+    const target = this.config.game.targetScore;
+    if (target === undefined || target === null) return false;
+    return [...this.scores.values()].some((score) => score >= target);
   }
 
   /** Those still in the battle are placed by score; those who left come after them, all as losses (DEC-33). */

@@ -151,3 +151,34 @@ export const minesFixture = () => {
   });
   return { entities: [club, country, ...players], line, players };
 };
+
+/** AUCTION lots (08 §11.4): each round offers lists of 4, 5 and 3 players, titled in both languages. */
+export const auctionFixture = () => {
+  const id = randomUUID().slice(0, 8);
+  const sizes = [4, 5, 3];
+  const players = sizes.map((size, list) =>
+    Array.from({ length: size }, (_, index) => ({
+      externalRef: `test:auction-${String(list)}-${String(index)}-${id}`,
+      kind: 'PLAYER',
+      names: {
+        en: `bidder ${String(list)} ${String(index)} ${id}`,
+        ar: `bidder ${String(list)} ${String(index)} ${id}`,
+      },
+      aliases: { en: [], ar: [] },
+      popularity: 1,
+      search: [`bidder ${String(list)} ${String(index)} ${id}`],
+    })),
+  );
+  const line = (key: string) => ({
+    ...common(key),
+    gameType: 'AUCTION',
+    content: {
+      lists: sizes.map((_, list) => ({
+        kind: 'SCORERS',
+        title: { en: `List ${String(list)} ${id}`, ar: `List ${String(list)} ${id}` },
+      })),
+    },
+    answers: players.map((names, slot) => ({ slot, entities: names.map((player) => player.externalRef) })),
+  });
+  return { entities: players.flat(), line, players };
+};

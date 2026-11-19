@@ -1,0 +1,59 @@
+{
+  "bundleVersion": "dev-0007",
+  "kbVersion": "wikidata-2026-11-19",
+  "generatorVersion": "kb-generate-2",
+  "questionCount": 299,
+  "checksum": "sha256:5c721fc2fa84a12bf8d0368111f0ba3732a51659dcec78a9f7c7425e9b835df4",
+  "catalogChecksum": "sha256:4ae5dfdd740932024b16851d185443808f913625b0e2a32d8e2f6021e3c38be6",
+  "categories": [
+    {
+      "slug": "careers",
+      "names": {
+        "en": "Careers",
+        "ar": "المسيرة"
+      }
+    },
+    {
+      "slug": "transfers",
+      "names": {
+        "en": "Transfers",
+        "ar": "الانتقالات"
+      }
+    },
+    {
+      "slug": "nationalities",
+      "names": {
+        "en": "Nationalities",
+        "ar": "الجنسيات"
+      }
+    },
+    {
+      "slug": "players",
+      "names": {
+        "en": "Players",
+        "ar": "اللاعبون"
+      }
+    },
+    {
+      "slug": "grids",
+      "names": {
+        "en": "Grids",
+        "ar": "الشبكات"
+      }
+    },
+    {
+      "slug": "mines",
+      "names": {
+        "en": "Mines",
+        "ar": "لغم"
+      }
+    },
+    {
+      "slug": "auctions",
+      "names": {
+        "en": "Auctions",
+        "ar": "المزاد"
+      }
+    }
+  ]
+}

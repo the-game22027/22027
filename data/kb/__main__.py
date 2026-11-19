@@ -9,6 +9,7 @@ from kb.catalog import load_catalog_entries, write_catalog_file, write_entities_
 from kb.config import load_scope
 from kb.db import apply_pending_migrations, connect_to_knowledge_base
 from kb.fjelstul_links import link_fjelstul
+from kb.goals import ingest_goals
 from kb.ingest import collect_snapshot
 from kb.linking import link_transfermarkt
 from kb.matches import ingest_matches
@@ -49,6 +50,12 @@ def main(argv: list[str] | None = None) -> int:
     bundle.add_argument("--mines-max-answers", type=int, default=40, help="most players in a MINES category")
     bundle.add_argument(
         "--mines-clubs", type=int, default=100, help="MINES uses only the N most popular clubs"
+    )
+    bundle.add_argument("--auctions", type=int, default=0, help="AUCTION (المزاد) lots of 3 lists")
+    bundle.add_argument("--auction-min-answers", type=int, default=6, help="fewest names in an AUCTION list")
+    bundle.add_argument("--auction-max-answers", type=int, default=30, help="most names in an AUCTION list")
+    bundle.add_argument(
+        "--auction-known-share", type=float, default=0.6, help="share of known players an AUCTION list needs"
     )
     bundle.add_argument(
         "--catalog-min-player-sitelinks",
@@ -119,6 +126,10 @@ def main(argv: list[str] | None = None) -> int:
                 mines_min_answers=args.mines_min_answers,
                 mines_max_answers=args.mines_max_answers,
                 mines_clubs=args.mines_clubs,
+                auction_count=args.auctions,
+                auction_min_answers=args.auction_min_answers,
+                auction_max_answers=args.auction_max_answers,
+                auction_known_share=args.auction_known_share,
             )
             print(
                 f"{args.version}: {summary.question_count} rounds {summary.by_game_type}, "
@@ -135,6 +146,7 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "ingest:matches":
             report = ingest_matches(connection)
             print("\n".join(report.lines()))
+            print("\n".join(ingest_goals(connection).lines()))
         elif args.command == "sources:fetch":
             for source_file in selected:
                 downloaded = download_source_file(source_file, refresh=args.refresh)

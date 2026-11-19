@@ -1,5 +1,11 @@
 import type { KnownEntity } from './answer-catalog';
-import { type BundleQuestion, computeContentHash, type GameContent, localesOfQuestion } from './question-content';
+import {
+  type AuctionList,
+  type BundleQuestion,
+  computeContentHash,
+  type GameContent,
+  localesOfQuestion,
+} from './question-content';
 import { findCatalogReferenceProblems, findQuestionProblems } from './question-rules';
 
 type GameQuestion = BundleQuestion & { content: GameContent };
@@ -64,6 +70,25 @@ describe('game content shape', () => {
     expect(problemsOf(mines({ kind: 'CLUB', entity: 'wd:city' }))).toContain('a mines category is a CLUB criterion');
     expect(problemsOf(mines({ kind: 'DECADE', fromYear: 2000 }, []))).toContain('exactly one slot 0');
     expect(localesOfQuestion(mines({ kind: 'DECADE', fromYear: 2000 }).content)).toEqual(['ar', 'en']);
+  });
+
+  it('accepts an auction round of 3 titled lists with one slot of names each', () => {
+    const list = (name: string): AuctionList => ({
+      kind: 'SCORERS',
+      title: { en: `${name} scorers`, ar: `هدافو ${name}` },
+    });
+    const auction = (lists: AuctionList[] = [list('a'), list('b'), list('c')], slots = 3) =>
+      question({
+        body: { gameType: 'AUCTION', lists },
+        answers: Array.from({ length: slots }, (_, slot) => ({ slot, entities: ['wd:ronaldo'] })),
+      });
+    expect(problemsOf(auction())).toBe('');
+    expect(problemsOf(auction([list('a'), list('b')]))).toContain('an auction round offers 3 lists');
+    expect(problemsOf(auction(undefined, 2))).toContain('auction list 3 has no names');
+    expect(problemsOf(auction([list('a'), list('b'), { kind: 'SCORERS', title: { en: 'only english' } }]))).toContain(
+      'list 3 must have a title in exactly the locales of list 1',
+    );
+    expect(localesOfQuestion(auction().content)).toEqual(['ar', 'en']);
   });
 
   it('accepts a valid buzzer, career and grid', () => {

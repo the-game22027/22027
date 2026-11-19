@@ -43,7 +43,12 @@ export interface RoundAction {
     | 'MINE_AUTO_BURY'
     | 'MINE_ANSWER'
     | 'MINE_HIT'
-    | 'MINE_SCAN';
+    | 'MINE_SCAN'
+    | 'AUCTION_PICK'
+    | 'AUCTION_BID'
+    | 'AUCTION_CALL'
+    | 'AUCTION_ANSWER'
+    | 'AUCTION_STEAL';
   answer?: JudgedAnswer;
   /** Grid only: row * 3 + col. */
   cell?: number;
@@ -73,6 +78,9 @@ export interface RoundResult {
     | 'SKIP_LIMIT'
     | 'LAST_HEART'
     | 'NO_SAFE_ANSWERS'
+    | 'PROVED'
+    | 'STOLEN'
+    | 'BUST'
     | 'FORFEIT';
   /** Points earned in this round, by participant; missing means 0. */
   points: Record<ParticipantId, number>;

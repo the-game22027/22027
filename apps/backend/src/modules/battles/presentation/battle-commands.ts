@@ -33,7 +33,10 @@ export const gridClaimCommand = z.object({
   answer: z.strictObject({ text: answerText }),
 });
 export const gridSkipCommand = z.object({ clientMsgId, battleId, roundNo });
-/** `mines:bury`, `mines:answer` and `mines:scan` share one shape (08 §10.3). */
+export const auctionPickCommand = z.object({ clientMsgId, battleId, roundNo, list: z.number().int().min(0).max(2) });
+export const auctionBidCommand = z.object({ clientMsgId, battleId, roundNo, amount: z.number().int().positive() });
+export const auctionCallCommand = z.object({ clientMsgId, battleId, roundNo });
+/** `mines:bury`, `mines:answer` and `mines:scan` share one shape (08 §10.3); so does `auction:answer`. */
 export const minesTextCommand = z.object({
   clientMsgId,
   battleId,

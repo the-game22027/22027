@@ -16,6 +16,7 @@ enum BattleGameType {
   WHO_IS_PLAYER
   GRID
   MINES
+  AUCTION
 
   @@map("battle_game_type")
 }

@@ -180,6 +180,161 @@ void main() {
     expect((next.currentRound! as RevealRound).revealedClues, hasLength(3));
   });
 
+  group('an auction round', () {
+    final lists = [
+      {'title': 'هدافو ليفربول في دوري أبطال أوروبا 2018-19', 'answerCount': 9},
+      {
+        'title': 'هدافو ريال مدريد في دوري أبطال أوروبا 2016-17',
+        'answerCount': 12,
+      },
+      {
+        'title': 'صانعو أهداف ليفربول في الدوري الإنجليزي الممتاز 2019-20',
+        'answerCount': 15,
+      },
+    ];
+    Map<String, Object?> salah() => {'entityId': 'salah', 'name': 'محمد صلاح'};
+
+    BattleState playAuctionRound() => applyAll(foundBattle(), [
+      event('round:start', 2, {
+        'roundNo': 1,
+        'gameType': 'AUCTION',
+        'lists': lists,
+        'pickerParticipantId': 'p-bot',
+        'pickDeadlineAt': '2026-11-12T10:00:10.000Z',
+      }),
+      event('auction:picked', 3, {
+        'roundNo': 1,
+        'list': 0,
+        'title': lists[0]['title'],
+        'answerCount': 9,
+        'auto': false,
+      }),
+      event('auction:turn', 4, {
+        'roundNo': 1,
+        'participantId': 'p-bot',
+        'currentBid': null,
+        'currentBidderId': null,
+        'turnDeadlineAt': '2026-11-12T10:00:18.000Z',
+      }),
+      event('auction:bid', 5, {
+        'roundNo': 1,
+        'participantId': 'p-bot',
+        'amount': 4,
+        'allIn': false,
+      }),
+      event('auction:turn', 6, {
+        'roundNo': 1,
+        'participantId': 'p-human',
+        'currentBid': 4,
+        'currentBidderId': 'p-bot',
+        'turnDeadlineAt': '2026-11-12T10:00:26.000Z',
+      }),
+      event('auction:bid', 7, {
+        'roundNo': 1,
+        'participantId': 'p-human',
+        'amount': 7,
+        'allIn': false,
+      }),
+      event('auction:proof', 8, {
+        'roundNo': 1,
+        'proverParticipantId': 'p-human',
+        'amount': 7,
+        'maxWrong': 3,
+        'proofDeadlineAt': '2026-11-12T10:01:11.000Z',
+        'reason': 'CALL',
+      }),
+      event('auction:answered', 9, {
+        'roundNo': 1,
+        'participantId': 'p-human',
+        'phase': 'PROOF',
+        'outcome': 'CORRECT',
+        'player': salah(),
+        'found': 1,
+        'strikes': 0,
+      }),
+      event('auction:answered', 10, {
+        'roundNo': 1,
+        'participantId': 'p-human',
+        'phase': 'PROOF',
+        'outcome': 'REPEATED',
+        'player': salah(),
+        'found': 1,
+        'strikes': 1,
+      }),
+    ]);
+
+    test(
+      'pick, bids, a call, then the proof with a right and a repeated name',
+      () {
+        final round = playAuctionRound().currentRound! as AuctionRound;
+        expect(round.lists.map((list) => list.answerCount), [9, 12, 15]);
+        expect(round.phase, AuctionPhase.proving);
+        expect(round.pickedList, 0);
+        expect(round.currentBid, 7);
+        expect(round.proverParticipantId, 'p-human');
+        expect(round.maxWrong, 3);
+        expect(round.saidNames.single.player.name, 'محمد صلاح');
+        expect(round.strikes, 1);
+        expect(round.lastAnswer!.outcome, AuctionAnswerOutcome.repeated);
+        expect(round.deadline, DateTime.utc(2026, 11, 12, 10, 1, 11));
+      },
+    );
+
+    test('a bust opens the steal for the other player', () {
+      final state = applyAll(playAuctionRound(), [
+        event('auction:steal', 11, {
+          'roundNo': 1,
+          'stealerParticipantId': 'p-bot',
+          'names': 1,
+          'stealDeadlineAt': '2026-11-12T10:01:30.000Z',
+        }),
+      ]);
+      final round = state.currentRound! as AuctionRound;
+      expect(round.phase, AuctionPhase.stealing);
+      expect(round.stealerParticipantId, 'p-bot');
+    });
+
+    test('a snapshot restores the bidding and the names said', () {
+      final restored = applyBattleSnapshot(playAuctionRound(), {
+        'status': 'IN_PROGRESS',
+        'gameType': 'AUCTION',
+        'mode': 'MATCHMAKING',
+        'players': [humanPlayerJson, botPlayerJson],
+        'currentRound': {
+          'roundNo': 1,
+          'lists': lists,
+          'phase': 'PROVING',
+          'picker': 'p-bot',
+          'pickedList': 0,
+          'bids': [
+            {'participantId': 'p-bot', 'amount': 4},
+            {'participantId': 'p-human', 'amount': 9},
+          ],
+          'turnOf': null,
+          'prover': 'p-human',
+          'amount': 9,
+          'allIn': true,
+          'maxWrong': 1,
+          'found': [
+            {'player': salah(), 'saidBy': 'p-human'},
+          ],
+          'strikes': 0,
+          'stealer': null,
+          'deadlines': {'proofDeadlineAt': '2026-11-12T10:01:11.000Z'},
+        },
+        'rounds': <Object>[],
+        'scores': <Object>[],
+        'seq': 12,
+      });
+      final round = restored.currentRound! as AuctionRound;
+      expect(round.phase, AuctionPhase.proving);
+      expect(round.isAllIn, isTrue);
+      expect(round.currentBid, 9);
+      expect(round.saidNames.single.participantId, 'p-human');
+      expect(round.deadline, DateTime.utc(2026, 11, 12, 10, 1, 11));
+    });
+  });
+
   group('a mines round', () {
     final criteria = [
       {
