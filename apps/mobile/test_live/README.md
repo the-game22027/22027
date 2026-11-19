@@ -34,6 +34,7 @@ fvm flutter test test_live
 | `mines_battle_live_test.dart` | a full `MINES` battle (burying, the detector's private answer, turns); a socket dropped during burying. Reported as skipped when the server answers `NO_CONTENT` |
 | `auction_battle_live_test.dart` | a full `AUCTION` battle (pick a list, an all-in, raise, call, proofs and steals, first to `targetScore`); a socket dropped during bidding. Reported as skipped when the server answers `NO_CONTENT` |
 | `vault_battle_live_test.dart` | a full `VAULT` battle (no first mover, wrong tries, a try refused `LOCKED_OUT`, leaks, the code revealed); a socket dropped after a wrong try. Reported as skipped when the server answers `NO_CONTENT` |
+| `hex_battle_live_test.dart` | a full `HEX` board (rock-paper-scissors for the first pick, picks, races with a lockout, one clear when the bot owns a cell, `CONNECTED` or `MAX_PICKS`); a socket dropped during a race. Reported as skipped when the server answers `NO_CONTENT` |
 
 The account checks use a revoked session's refresh token: access tokens stay valid until they
 expire (15 minutes, `docs/architecture/04-auth.md`), so the next request would still pass.
@@ -47,5 +48,6 @@ The moves come from the battle state only, never from knowing the answers: buzz 
 guess, claim a free cell or skip, bury guessed names (the server buries the rest at the
 deadline), use the detector once, pick an auction list, open all-in once then bid low, raise
 once and call, type guesses in a proof or a steal, try a vault code (one blind try, one while
-locked out, then the last unknown digit once the leaks leave one), pick rock-paper-scissors. Rule values (`roundCount`, timers)
+locked out, then the last unknown digit once the leaks leave one), pick the first open hex cell (or clear
+one of the bot's once) and type a famous name with the cell's letter, pick rock-paper-scissors. Rule values (`roundCount`, timers)
 come from `battle:found.config`.
