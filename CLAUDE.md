@@ -18,7 +18,7 @@ A football-focused **social gaming platform** (not a CRUD app, not a simple quiz
 - Friends (mutual), privacy-aware prediction visibility.
 - A fact-first football knowledge database that feeds an offline question generator.
 
-Current phase: **Phases 0-2, P3.1 (prediction submit), P5, D.1-D.2, D.3a-d (match data, goals, lineups), P6.1-P6.6, P7, and track N up to N4 implemented (N0 rock-paper-scissors first mover, N1 `MINES`, N2 `AUCTION`, N3 `VAULT`, N4 `HEX`); mobile M0-M1.5 done (data and application layers only, no new UI); next: DEC-44 rework (never repeat a question for the same player), then N5 `LINEUP`, N6 `TIME_MACHINE`, N7 `THREAD`, then P8 private rooms (DEC-58 Imposter rules first) (prediction scoring P3.2+ postponed, see `docs/ROADMAP.md`)**. See `docs/ROADMAP.md`.
+Current phase: **Phases 0-2, P3.1 (prediction submit), P5, D.1-D.2, D.3a-d (match data, goals, lineups), P6.1-P6.6, P7, and track N up to N4 implemented (N0 rock-paper-scissors first mover, N1 `MINES`, N2 `AUCTION`, N3 `VAULT`, N4 `HEX`); mobile M0-M1.5 done (data and application layers only, no new UI); DEC-44 done (a player never gets a seen question while unseen ones remain); next: N5 `LINEUP`, N6 `TIME_MACHINE`, N7 `THREAD`, then P8 private rooms (DEC-58 Imposter rules first) (prediction scoring P3.2+ postponed, see `docs/ROADMAP.md`)**. See `docs/ROADMAP.md`.
 
 ## 2. Hard constraints (do not violate)
 
