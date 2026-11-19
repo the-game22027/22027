@@ -679,3 +679,101 @@ Generator (`kb bundle --vaults N`, 07 §5.8), built from the N3 data slice (07 �
 - **Judging:** exact comparison of the typed code with the four `answerNumber`s; no `AnswerChecker`, no catalog.
 - **Actions:** `VAULT_TRY` (`is_correct`, the typed code kept as the answer text, never shown). Leaks are events only. Question stats count each wrong try as a wrong answer of the round.
 - **Snapshot `currentRound`:** the questions, `digits`, the leaked digits, every player's try count, the viewer's own `lockedUntil`, `roundDeadlineAt`, `nextLeakAt`.
+
+## 13. `HEX` (الهجمة, N4)
+
+Chosen by the product owner on 2026-11-18 (DEC-68; demo page: https://claude.ai/artifact/5eXj3vULNojAzdhz3jwftc). A 5×5 board of hexagons with a letter in each cell. The player on turn picks a cell; both players get its question at once, and the first right answer **that starts with the cell's letter** takes the cell. One player connects west to east, the other north to south; the first to connect wins the board. A hex board cannot end in a draw once it is full.
+
+### 13.1 A round (one board)
+
+```mermaid
+stateDiagram-v2
+  [*] --> PICKING: round:start (board, sides)
+  PICKING --> RACING: a cell is picked (or pickDeadlineAt: a random open cell)
+  RACING --> PICKING: a right answer takes the cell, or answerDeadlineAt (the cell stays open)
+  RACING --> [*]: the taken cell connects its owner's two sides (CONNECTED)
+  PICKING --> [*]: maxPicks reached (MAX_PICKS)
+```
+
+1. **The board:** `size × size` cells (5), rows offset like the demo, so each cell touches up to 6 others. Each cell shows one letter **in the viewer's language** (§13.2).
+2. **Sides:** the round-1 rock-paper-scissors winner (§9.1) picks first and connects `WEST_EAST`; the other player connects `NORTH_SOUTH`.
+3. **Pick:** the player on turn has `pickMs` to send `hex:pick { cell }` for an open cell; at the deadline the server picks a random open cell (`auto`).
+4. **Race:** the cell's current question goes to both players at once, with `answerMs` to answer.
+   - A right answer is a name from the question's list **and** the typed text starts with the cell's letter in that player's language. It takes the cell.
+   - A name from the list typed with another first letter is refused with `WRONG_LETTER` (ack only, no lockout, DEC-79): it is a slip, not a wrong fact.
+   - A wrong name locks that player out of this question for `lockoutMs` (`LockoutLadder`, §9.2, reset for each question). Others see that you are locked out, as in the demo.
+   - Nobody right by `answerDeadlineAt`: the cell stays open and moves to its next question, so a later pick of it asks something new.
+5. **Next pick:** the turn alternates after every race, whoever took the cell (DEC-79).
+6. **"شيلها" (clear):** once per battle (`clear.usesPerBattle`), on your pick you may send `hex:pick { cell, clear: true }` for one of the opponent's cells. It becomes open with its next question, and that question is raced at once.
+7. **Board end:** a taken cell that links its owner's two sides ends the board (`CONNECTED`, `points.boardWin`). If `maxPicks` picks pass first, the board ends with no winner (DEC-79), so a board of open cells nobody can answer does not run forever.
+8. **Battle:** `roundCount` boards with `targetScore` (DEC-79: one board, about 4 minutes). With several boards, `firstMoverAfterRound1` decides who picks first and plays `WEST_EAST`.
+9. **Reveal:** at the end of every race, the question's other right names for that letter (both languages); at the end of the board, the winning path.
+10. **Players:** exactly 2.
+
+### 13.2 Letters in two languages
+
+A typed answer is judged in the player's own language, and a letter belongs to one alphabet. So each cell carries a letter pair `{ ar, en }`, and every question of that cell has at least `minAnswersPerLetter` right names whose Arabic name or alias starts with the Arabic letter, and at least as many whose English name or alias starts with the English letter. Each player sees and must use their own language's letter. Two players with different languages race on the same question with different (never empty) answer sets; that is the price of mixed-language matchmaking, and it stays within one cell.
+
+Letters are compared in matching form (07 §5.4, ADR-0021): `أ`, `إ` and `آ` are `ا`, case and accents do not count.
+
+### 13.3 Hidden information
+
+Nothing is secret between the players except the right answers (§7): the board, picks, lockouts and every right name are public. A wrong name is shown only with `showWrongAnswers` (DEC-60).
+
+### 13.4 Protocol (details in `api/WEBSOCKET.md`)
+
+| Direction | Message | Purpose |
+|---|---|---|
+| C→S | `hex:pick { roundNo, cell, clear? }` | The player on turn picks an open cell, or clears an opponent cell |
+| C→S | `hex:answer { roundNo, answer: { text } }` | A name during the race |
+| S→C | `round:start` | The board (each cell's letter in the viewer's language), `sides`, `size`, the first picker, `pickDeadlineAt`, `clearsLeft` per player |
+| S→C | `hex:turn` | Whose pick, `pickDeadlineAt` |
+| S→C | `hex:race` | The picked cell, by whom, `auto`, `cleared`, the question title and the letter (viewer's language), `answerDeadlineAt` |
+| S→C | `hex:answered` | A wrong name: who, `lockedUntil`, the name only with `showWrongAnswers` |
+| S→C | `hex:claimed` | The cell, its new owner, the right name |
+| S→C | `hex:expired` | Nobody answered: the cell stays open |
+| S→C | `round:result` | `reveal: { outcome: CONNECTED \| MAX_PICKS \| FORFEIT, path?: cell[], owners: (participantId \| null)[] }` |
+
+Refusals: `NOT_YOUR_PICK`, `CELL_TAKEN`, `CELL_NOT_OPPONENTS`, `NO_CLEARS_LEFT`, `NOT_RACING`, `LOCKED_OUT`, `WRONG_LETTER`, `EMPTY_ANSWER`, `ANSWER_WINDOW_CLOSED`.
+
+### 13.5 Content and generator
+
+| `gameType` | Content | Accepted answers |
+|---|---|---|
+| `HEX` | `{ size, cells: [{ letter: { en, ar }, questions: [{ kind, title: { en, ar } } × questionsPerCell] } × size²] }` | Slot `cell × questionsPerCell + question`: every name of that question's list |
+
+The letter check is not in the accepted answers: the slot holds the whole list, and the rules check the typed text's first letter. So one stored list serves any letter.
+
+Generator (`kb bundle --hexes N`, 07 §5.8):
+- **Source (N4):** the AUCTION lists (§11.4: scorers and assisters per club and competition season, every name in the catalog, at least 60% known players). Later: any question whose answer is a name.
+- **A board:** `size²` cells. Letter pairs are drawn from letters with enough lists in both languages; a letter repeats only when the board needs more cells than there are such letters (each at most `--hex-max-letter-repeats`, default 2). Each cell gets `--hex-questions-per-cell` (default 3) lists with at least `--hex-min-answers` (default 1) right names for both of its letters; a list appears once per board.
+- **Difficulty:** from the known share of the right names for each cell's letters.
+- **Keys:** a board, `hex:` plus a hash of its cell list keys and letters.
+- **Measured on 2026-11-20 (dev):** 1,026 lists after the AUCTION filters. Arabic letters that start a name in at least 20 lists: 23 (`ا م ك د ج ف ب ر ل س ت ي ن خ غ ه و ش ع ز ص ح ث`; never `ط ق ض ظ ذ`), English: 22. About 8,500 list-and-letter questions per language. So a 25-cell board repeats two or three letters.
+
+### 13.6 Bot
+
+- **Pick:** the open cell on the shortest path to joining its sides (a breadth-first search counting open cells), ties at random; it clears an opponent cell once, when that cell is on the opponent's shortest path and the opponent needs at most 2 more cells.
+- **Race:** it knows a right name with its chance at the question's difficulty; it answers with a right name for its letter after `typingDelayMs`, otherwise a wrong name or silence.
+
+### 13.7 Configuration
+
+| Key | Default (dev) | Decision |
+|---|---|---|
+| `roundCount`, `targetScore` | 1, 1 | DEC-79 |
+| `firstMover`, `firstMoverAfterRound1`, `rps.*` | `RPS`, `ALTERNATE` | §9.1 |
+| `size` | 5 | owner, 2026-11-18 (content carries it; must match) |
+| `pickMs`, `answerMs` | 5000, 15000 | owner, 2026-11-18 |
+| `lockoutMs` | `[3000]` | owner, 2026-11-18 |
+| `clear.usesPerBattle` | 1 | owner, 2026-11-18 |
+| `maxPicks` | 60 | DEC-79 |
+| `showWrongAnswers` | true | DEC-60 |
+| `points.boardWin` | 1 | DEC-33 |
+
+### 13.8 How it fits the engine
+
+- **Rules:** pure `battles/domain/games/hex-rules.ts` with the board as data: cell owners, the adjacency of offset rows, and a breadth-first search for a connection. `HexRoundRunner` wraps them (§2.4), with `LockoutLadder` per question.
+- **Judging:** `AnswerChecker` against the cell's current slot; the runner checks the first letter of the typed text (matching form) against the viewer's letter before the rules see it.
+- **One timer per phase** (§11.7): the pick deadline, then the answer deadline.
+- **Actions:** `HEX_PICK`, `HEX_CLEAR`, `HEX_ANSWER` (`is_correct`), `TURN_TIMEOUT`. Question stats count a wrong `HEX_ANSWER` as a wrong answer.
+- **Snapshot `currentRound`:** the board (letters in the viewer's language, owners), `sides`, `phase`, whose pick, the racing cell with its question and letter, lockouts, clears left, `picks`, and the current deadline.
