@@ -20,6 +20,7 @@ from kb.generate import (
     who_is_player_round,
 )
 from kb.grids import grid_rounds
+from kb.mines import mines_rounds
 
 GENERATOR_VERSION = "kb-generate-2"  # 2: catalog lines carry nameWords (ADR-0021)
 CATEGORIES = [
@@ -28,6 +29,7 @@ CATEGORIES = [
     {"slug": "nationalities", "names": {"en": "Nationalities", "ar": "الجنسيات"}},
     {"slug": "players", "names": {"en": "Players", "ar": "اللاعبون"}},
     {"slug": "grids", "names": {"en": "Grids", "ar": "الشبكات"}},
+    {"slug": "mines", "names": {"en": "Mines", "ar": "لغم"}},
 ]
 
 
@@ -50,6 +52,10 @@ def build_bundle(
     who_count: int = 0,
     grid_count: int = 0,
     grid_min_answers: int = 3,
+    mines_count: int = 0,
+    mines_min_answers: int = 20,
+    mines_max_answers: int = 40,
+    mines_clubs: int = 100,
 ) -> BundleSummary:
     catalog = {entry["externalRef"]: entry for entry in load_catalog_entries(connection)}
     kb_version = _kb_version(connection)
@@ -82,6 +88,17 @@ def build_bundle(
             kb_version,
             count=grid_count,
             min_answers=grid_min_answers,
+        )
+        + mines_rounds(
+            players,
+            club_names_of,
+            country_names_of,
+            kb_version,
+            count=mines_count,
+            current_year=_year_of_kb_version(kb_version),
+            min_answers=mines_min_answers,
+            max_answers=mines_max_answers,
+            allowed_clubs=_most_popular_refs(catalog, "CLUB", mines_clubs),
         ),
         key=lambda line: line["externalKey"],
     )
@@ -180,6 +197,8 @@ def _references_of_line(line: dict) -> set[str]:
         refs.add(content["player"])
     if line["gameType"] == "GRID":
         refs.update(criterion["entity"] for criterion in [*content["rows"], *content["cols"]])
+    if line["gameType"] == "MINES":
+        refs.update(criterion["entity"] for criterion in content["criteria"] if "entity" in criterion)
     return refs
 
 
@@ -216,6 +235,20 @@ def _kb_version(connection: psycopg.Connection) -> str:
         "SELECT max(updated_at)::date FROM core.entity WHERE origin = 'SCOPE'"
     ).fetchone()[0]
     return f"wikidata-{last_ingest.isoformat() if last_ingest else 'empty'}"
+
+
+def _most_popular_refs(catalog: dict[str, dict], kind: str, limit: int) -> frozenset[str]:
+    entries = sorted(
+        (entry for entry in catalog.values() if entry["kind"] == kind),
+        key=lambda entry: (-entry["popularity"], _qid_number(entry["externalRef"])),
+    )
+    return frozenset(entry["externalRef"] for entry in entries[:limit])
+
+
+def _year_of_kb_version(kb_version: str) -> int:
+    """The year of the last ingest: an open spell runs to then, so a rebuild gives the same bundle."""
+    date = kb_version.removeprefix("wikidata-")
+    return int(date[:4]) if date[:4].isdigit() else 0
 
 
 def _qid_number(external_ref: str) -> int:

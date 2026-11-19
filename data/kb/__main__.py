@@ -41,6 +41,14 @@ def main(argv: list[str] | None = None) -> int:
     bundle.add_argument("--who", type=int, default=60, help="who-is-the-player rounds")
     bundle.add_argument("--grids", type=int, default=30, help="grid (tic-tac-toe) boards")
     bundle.add_argument("--grid-min-answers", type=int, default=3, help="fewest valid players per grid cell")
+    bundle.add_argument("--mines", type=int, default=0, help="MINES (لغم) categories")
+    bundle.add_argument(
+        "--mines-min-answers", type=int, default=20, help="fewest players in a MINES category"
+    )
+    bundle.add_argument("--mines-max-answers", type=int, default=40, help="most players in a MINES category")
+    bundle.add_argument(
+        "--mines-clubs", type=int, default=100, help="MINES uses only the N most popular clubs"
+    )
     bundle.add_argument(
         "--catalog-min-player-sitelinks",
         type=int,
@@ -102,6 +110,10 @@ def main(argv: list[str] | None = None) -> int:
                 who_count=args.who,
                 grid_count=args.grids,
                 grid_min_answers=args.grid_min_answers,
+                mines_count=args.mines,
+                mines_min_answers=args.mines_min_answers,
+                mines_max_answers=args.mines_max_answers,
+                mines_clubs=args.mines_clubs,
             )
             print(
                 f"{args.version}: {summary.question_count} rounds {summary.by_game_type}, "

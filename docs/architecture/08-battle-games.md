@@ -416,7 +416,8 @@ stateDiagram-v2
 
 Generator (`kb bundle --mines N`, 07 §5.8):
 - **Category answers:** catalog players with a spell at the club and that citizenship, or with a dated spell at the club that overlaps `fromYear`..`fromYear + 9` (an open spell runs to today). Undated spells never count for a decade.
-- **Size:** kept only with `--mines-min-answers` to `--mines-max-answers` answers (default 20 to 40). Measured on 2026-11-17: about 124 club × nationality and 115 club × decade categories with 12–40 answers.
+- **Clubs:** only the `--mines-clubs` most popular clubs of the catalog (default 100), so players know the names. Without the limit most categories are small clubs nobody can name (1,076 categories, 764 of them difficulty 5).
+- **Size:** kept only with `--mines-min-answers` to `--mines-max-answers` answers (default 20 to 40). Measured on 2026-11-19: 123 categories (87 club × nationality, 36 club × decade; a big club has more than 40 players in a decade).
 - **Difficulty:** from the popularity of the category's answers (the median sitelinks band of §5.8): famous names make an easy round.
 - **Key:** `mines:<club qid>:nationality:<country qid>` or `mines:<club qid>:decade:<fromYear>`.
 - **Variety:** a club appears in at most a few categories of one bundle.
