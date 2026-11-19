@@ -15,6 +15,8 @@
 **Watch out:**
 - Parsing without a `FormatException` is not enough: a field the app never reads also parses. Compare raw payloads with the models, field by field.
 - A live failure can be your test's wrong idea: a forfeit vs a bot ends `ABANDONED`, not `FORFEIT` (`WEBSOCKET.md` §6.4). Check the contract before "fixing" the app.
+- A revoked session still passes requests until its access token expires (a signed JWT is checked without the database, `04-auth.md`). Test revocation through the refresh token, which the server does look up.
+- A loop that runs on its own timer (the `VAULT` tries) outlives the test unless the teardown stops it before the container is disposed.
 
 **Check yourself:** why not run the live check in CI instead of the unit tests?
 <details><summary>Answer</summary>It needs a running backend, a database with published content and minutes of real timers, and it fails for reasons outside the app (the bot, the data). Unit tests stay fast and exact; the live check is a periodic proof that the fakes still match reality.</details>
