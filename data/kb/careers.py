@@ -38,6 +38,8 @@ def is_senior_club(team: TeamFacts, scope: Scope) -> bool:
         return False
     if team.classes & scope.excluded_team_classes:
         return False
+    if team.external_ref in scope.allowed_team_ids:
+        return True
     if team.english_label and scope.excluded_team_label_pattern.search(team.english_label):
         return False
     return True

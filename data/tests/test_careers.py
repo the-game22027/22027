@@ -125,3 +125,57 @@ def test_spells_without_a_start_year_are_left_out_of_the_order() -> None:
         [spell("a", "Q1", None, 2000), spell("b", "Q2", 2001, 2002)]
     )
     assert [s.team_ref for s in career] == ["Q2"]
+
+
+# Class sets of cities that sat on players' careers as "clubs" (measured on the dev knowledge base).
+CITY_CLASS_SETS = {
+    "Q12886 (Q1549591 big city, Q493522 municipality of Belgium)": {"Q1549591", "Q493522"},
+    "Q13666 (polis, big city, city, comune of Italy)": {"Q148837", "Q1549591", "Q515", "Q747074"},
+    "Q1492 (municipality of Catalonia, city)": {"Q33146843", "Q515"},
+    "Q16552 (US city classes)": {"Q1093829", "Q13218391", "Q1549591", "Q62049", "Q902814"},
+    "Q18487646 (human settlement)": {"Q486972"},
+    "Q34713 (Austrian statutory city)": {"Q13539802", "Q1549591", "Q262882", "Q667509", "Q871419", "Q902814"},
+    "Q3579 (capital, port city)": {"Q108178728", "Q1549591", "Q16124843", "Q2264924", "Q515"},
+    "Q15095 (municipality of Spain)": {"Q2074737"},
+    "Q609246 (city)": {"Q515"},
+    "Q72009 (comune of Italy)": {"Q747074"},
+}
+
+
+@pytest.mark.parametrize("classes", list(CITY_CLASS_SETS.values()), ids=list(CITY_CLASS_SETS))
+def test_cities_and_settlements_are_not_senior_clubs(classes: set[str]) -> None:
+    assert not is_senior_club(TeamFacts("Q1", "Some City", frozenset(classes)), SCOPE)
+
+
+@pytest.mark.parametrize(
+    "classes",
+    [
+        {CLUB},
+        {"Q15944511"},  # association football team
+        {"Q17270000"},  # football club
+        {"Q103229495"},  # men's association football team
+        {"Q2221906", CLUB},  # geographic location + association football club (Q1990243, a real club)
+        {"Q13580678"},  # multi-sports club
+    ],
+)
+def test_football_club_classes_are_not_excluded(classes: set[str]) -> None:
+    assert is_senior_club(TeamFacts("Q1", "Some Club", frozenset(classes)), SCOPE)
+
+
+def test_reserve_side_named_only_under_mul_is_excluded_through_the_fallback_label() -> None:
+    assert not is_senior_club(team("Ajax II"), SCOPE)
+
+
+def test_allowlisted_club_skips_the_label_pattern_but_not_the_classes() -> None:
+    willem = TeamFacts("Q332664", "Willem II", frozenset({CLUB}))
+    assert is_senior_club(willem, SCOPE)
+    assert not is_senior_club(TeamFacts("Q999", "Willem II", frozenset({CLUB})), SCOPE)
+    assert not is_senior_club(TeamFacts("Q332664", "Willem II", frozenset({"Q2412834"})), SCOPE)
+
+
+@pytest.mark.parametrize(
+    ("team_id", "label"),
+    [("Q170703", "Boca Juniors"), ("Q220621", "Argentinos Juniors"), ("Q332524", "Junior de Barranquilla")],
+)
+def test_clubs_with_juniors_in_their_name_are_allowlisted(team_id: str, label: str) -> None:
+    assert is_senior_club(TeamFacts(team_id, label, frozenset({CLUB})), SCOPE)

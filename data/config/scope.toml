@@ -16,9 +16,39 @@ excluded_team_classes = [
   "Q28140340", # women's association football team
   "Q6256",     # country: Wikidata sometimes lists a country (Brazil, India) as a player's team
   "Q3624078",  # sovereign state: same mistake
+  "Q515",      # city: Wikidata sometimes lists a player's home city as his team
+  "Q1549591",  # big city
+  "Q486972",   # human settlement
+  "Q15284",    # municipality
+  "Q3957",     # town
+  "Q532",      # village
+  "Q747074",   # comune of Italy
+  "Q33146843", # municipality of Catalonia
+  "Q2074737",  # municipality of Spain
+  "Q493522",   # municipality of Belgium
+  "Q667509",   # municipality of Austria
+  "Q16124843", # municipality of Libya
+  "Q1093829",  # city in the United States
+  "Q13218391", # charter city
+  "Q148837",   # polis
+  "Q262882",   # statutory city of Austria
+  "Q39715",    # lighthouse
+  "Q47521",    # stream
 ]
 # ...or when its English label matches this pattern (case-insensitive).
 excluded_team_label_pattern = '''\b(youth|academy|reserves?|under-?\d{2}|u-?\d{2}|castilla|primavera|next gen|juvenil|juniors?|amateure?s?)\b|\s(b|c|ii|iii|atlètic)$'''
+# Real clubs the label pattern would drop by mistake; they skip the label check (classes still apply).
+allowed_team_ids = [
+  "Q332664", # Willem II ("II" is part of the name)
+  "Q220621", # Argentinos Juniors ("Juniors" is part of the name)
+  "Q170703", # Boca Juniors
+  "Q853053", # Chacarita Juniors
+  "Q5532094", # General Paz Juniors
+  "Q509801", # Rampla Juniors
+  "Q2567648", # Boca Juniors de Cali
+  "Q332524", # Junior de Barranquilla
+  "Q1387445", # FC Juniors OÖ
+]
 
 [[leagues]]
 id = "Q9448"
