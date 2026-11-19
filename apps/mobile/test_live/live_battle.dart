@@ -250,6 +250,7 @@ class LiveBattleRun {
               unawaited(_tryVaultCodesUntilClosed(round.roundNo));
             }
           case HexRound():
+          case LineupRound():
           case null:
             break;
         }

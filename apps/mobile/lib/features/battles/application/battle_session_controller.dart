@@ -187,6 +187,38 @@ class BattleSessionController extends Notifier<BattleSessionState> {
         'answer': {'text': text},
       });
 
+  /// `lineup:answer`: a name for the XI (`08` §14.1). The server decides what it was: a starter
+  /// (placed), a shown name (your one accusation) or a wrong name (a short lockout). The ack tells
+  /// only you, in `data.result`.
+  Future<BattleCommandResult> answerInLineup(String text) async {
+    final result = await _sendRoundCommand('lineup:answer', {
+      'answer': {'text': text},
+    });
+    final battle = state.battle;
+    final round = battle?.currentRound;
+    if (!ref.mounted || battle == null || round is! LineupRound) return result;
+    if (result case BattleCommandAccepted(:final ack)) {
+      if (ack['data'] case final Map<Object?, Object?> data) {
+        final reader = JsonObjectReader(data, 'lineup:answer ack');
+        final answerResult = reader.readOptionalString('result');
+        state = state.copyWith(
+          battle: () => battle.copyWith(
+            currentRound: () => round.copyWith(
+              yourLockedUntil: () =>
+                  reader.readOptionalTimestamp('lockedUntil'),
+              hasUsedYourAccusation:
+                  answerResult == 'ACCUSED_RIGHT' ||
+                      answerResult == 'ACCUSED_WRONG'
+                  ? true
+                  : null,
+            ),
+          ),
+        );
+      }
+    }
+    return result;
+  }
+
   /// `vault:try`: the whole code, one digit per question (`08` §12.1). A wrong try's ack tells only
   /// you, with when you may try again; the others see your try count only.
   Future<BattleCommandResult> tryVaultCode(String code) async {

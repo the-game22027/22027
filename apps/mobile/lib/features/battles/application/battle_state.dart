@@ -337,6 +337,83 @@ class HexRound extends CurrentRound {
   );
 }
 
+/// One slot of a `LINEUP` board as the app shows it.
+class LineupSlotView {
+  const LineupSlotView({required this.spec, this.placed, this.placedBy});
+
+  final LineupSlotSpec spec;
+
+  /// The player once his name is on the board.
+  final EntityRef? placed;
+
+  /// Who typed it; null when nobody did (a real shown name placed after the fake was found).
+  final String? placedBy;
+
+  LineupSlotView place(EntityRef player, String? by) =>
+      LineupSlotView(spec: spec, placed: player, placedBy: by);
+}
+
+/// A `LINEUP` round (`08` §14): everyone fills the same XI; the first right name takes a slot.
+class LineupRound extends CurrentRound {
+  const LineupRound({
+    required int roundNo,
+    required this.title,
+    required this.slots,
+    required this.shown,
+    required this.roundDeadlineAt,
+    this.hintsAt,
+    this.letters = const {},
+    this.fake,
+    this.fakeUnmaskedBy,
+    this.yourLockedUntil,
+    this.hasUsedYourAccusation = false,
+  }) : super(roundNo);
+
+  final String title;
+  final List<LineupSlotView> slots;
+  final List<EntityRef> shown;
+  final DateTime roundDeadlineAt;
+  final DateTime? hintsAt;
+
+  /// First letters of the empty slots once the hints are out: slot → letter.
+  final Map<int, String> letters;
+
+  /// The fake, once someone unmasked it.
+  final EntityRef? fake;
+  final String? fakeUnmaskedBy;
+
+  /// From your last wrong name's ack; the server refuses `LOCKED_OUT` until then.
+  final DateTime? yourLockedUntil;
+
+  /// Typing a shown name is your one accusation of the round (DEC-80).
+  final bool hasUsedYourAccusation;
+
+  LineupRound copyWith({
+    List<LineupSlotView>? slots,
+    Map<int, String>? letters,
+    EntityRef? Function()? fake,
+    String? Function()? fakeUnmaskedBy,
+    DateTime? Function()? yourLockedUntil,
+    bool? hasUsedYourAccusation,
+  }) => LineupRound(
+    roundNo: roundNo,
+    title: title,
+    slots: slots ?? this.slots,
+    shown: shown,
+    roundDeadlineAt: roundDeadlineAt,
+    hintsAt: hintsAt,
+    letters: letters ?? this.letters,
+    fake: fake != null ? fake() : this.fake,
+    fakeUnmaskedBy: fakeUnmaskedBy != null
+        ? fakeUnmaskedBy()
+        : this.fakeUnmaskedBy,
+    yourLockedUntil: yourLockedUntil != null
+        ? yourLockedUntil()
+        : this.yourLockedUntil,
+    hasUsedYourAccusation: hasUsedYourAccusation ?? this.hasUsedYourAccusation,
+  );
+}
+
 /// A digit of a `VAULT` code revealed to everyone.
 class VaultLeakedDigit {
   const VaultLeakedDigit({required this.position, required this.digit});
@@ -758,6 +835,45 @@ BattleState _applyInOrder(BattleState state, BattleServerEvent event) {
           lastRightNames: event.rightNames,
         ),
       );
+    case LineupRoundStarted():
+      return state.copyWith(
+        phase: BattlePhase.inProgress,
+        firstMoverDuel: () => null,
+        currentRound: () => LineupRound(
+          roundNo: event.roundNo,
+          title: event.title,
+          slots: [for (final spec in event.slots) LineupSlotView(spec: spec)],
+          shown: event.shown,
+          roundDeadlineAt: event.roundDeadlineAt,
+          hintsAt: event.hintsAt,
+        ),
+      );
+    case LineupNamePlaced() when round is LineupRound:
+      return state.copyWith(
+        currentRound: () => round.copyWith(
+          slots: [
+            for (final slot in round.slots)
+              slot.spec.slot == event.slot
+                  ? slot.place(event.player, event.participantId)
+                  : slot,
+          ],
+          letters: {...round.letters}..remove(event.slot),
+        ),
+      );
+    case LineupAccused() when round is LineupRound:
+      return state.copyWith(
+        currentRound: () => round.copyWith(
+          fake: event.isRight ? () => event.player : null,
+          fakeUnmaskedBy: event.isRight ? () => event.participantId : null,
+          hasUsedYourAccusation: event.participantId == state.youParticipantId
+              ? true
+              : null,
+        ),
+      );
+    case LineupHintsGiven() when round is LineupRound:
+      return state.copyWith(
+        currentRound: () => round.copyWith(letters: event.letters),
+      );
     case VaultRoundStarted():
       return state.copyWith(
         phase: BattlePhase.inProgress,
@@ -1137,6 +1253,7 @@ CurrentRound? _readSnapshotRound(
   CurrentRound? previous,
 ) {
   final roundNo = round.readInt('roundNo');
+  if (round.json.containsKey('shown')) return _readSnapshotLineupRound(round);
   if (round.json.containsKey('sides')) return _readSnapshotHexRound(round);
   if (round.json.containsKey('questions')) {
     return _readSnapshotVaultRound(round);
@@ -1336,5 +1453,36 @@ HexRound _readSnapshotHexRound(JsonObjectReader round) {
             participantId.toString(),
           ),
     },
+  );
+}
+
+LineupRound _readSnapshotLineupRound(JsonObjectReader round) {
+  final fake = round.readOptionalObject('fake');
+  return LineupRound(
+    roundNo: round.readInt('roundNo'),
+    title: round.readString('title'),
+    slots: [
+      for (final slot in round.readObjectList('slots'))
+        switch (slot.readOptionalObject('placed')) {
+          final placed? => LineupSlotView(
+            spec: readLineupSlots([slot]).single,
+            placed: readEntityRef(placed.readObject('player')),
+            placedBy: placed.readOptionalString('participantId'),
+          ),
+          null => LineupSlotView(spec: readLineupSlots([slot]).single),
+        },
+    ],
+    shown: [
+      for (final name in round.readObjectList('shown')) readEntityRef(name),
+    ],
+    roundDeadlineAt: round.readTimestamp('roundDeadlineAt'),
+    hintsAt: round.readOptionalTimestamp('hintsAt'),
+    letters: round.json.containsKey('hints')
+        ? readLineupLetters(round.readObjectList('hints'))
+        : const {},
+    fake: fake == null ? null : readEntityRef(fake.readObject('player')),
+    fakeUnmaskedBy: fake?.readOptionalString('unmaskedBy'),
+    yourLockedUntil: round.readOptionalTimestamp('lockedUntil'),
+    hasUsedYourAccusation: round.readOptionalBool('accusationUsed') ?? false,
   );
 }
