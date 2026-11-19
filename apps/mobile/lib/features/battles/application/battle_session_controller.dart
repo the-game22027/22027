@@ -175,6 +175,18 @@ class BattleSessionController extends Notifier<BattleSessionState> {
         'answer': {'text': text},
       });
 
+  /// `hex:pick`: the player on turn picks an open cell (`08` §13.1). With [clear], an opponent's cell
+  /// goes back to open and is raced at once ("شيلها", once per battle).
+  Future<BattleCommandResult> pickHexCell(int cell, {bool clear = false}) =>
+      _sendRoundCommand('hex:pick', {'cell': cell, if (clear) 'clear': true});
+
+  /// `hex:answer`: a name during the race. It must start with the cell's letter in your language;
+  /// a right name with another first letter is refused `WRONG_LETTER` without a lockout.
+  Future<BattleCommandResult> answerInHex(String text) =>
+      _sendRoundCommand('hex:answer', {
+        'answer': {'text': text},
+      });
+
   /// `vault:try`: the whole code, one digit per question (`08` §12.1). A wrong try's ack tells only
   /// you, with when you may try again; the others see your try count only.
   Future<BattleCommandResult> tryVaultCode(String code) async {

@@ -335,6 +335,128 @@ void main() {
     });
   });
 
+  group('a hex board', () {
+    Map<String, Object?> mane() => {'entityId': 'mane', 'name': 'ساديو ماني'};
+
+    BattleState playHexBoard() => applyAll(foundBattle(), [
+      event('round:start', 2, {
+        'roundNo': 1,
+        'gameType': 'HEX',
+        'size': 3,
+        'board': ['م', 'ب', 'ك', 'ا', 'د', 'ج', 'ف', 'ر', 'ل'],
+        'sides': {'p-human': 'WEST_EAST', 'p-bot': 'NORTH_SOUTH'},
+        'firstPickerParticipantId': 'p-human',
+        'pickDeadlineAt': '2026-11-12T10:00:05.000Z',
+        'clearsLeft': {'p-human': 1, 'p-bot': 1},
+      }),
+      event('hex:race', 3, {
+        'roundNo': 1,
+        'cell': 0,
+        'pickedBy': 'p-human',
+        'auto': false,
+        'cleared': false,
+        'question': 'هدافو ليفربول في دوري أبطال أوروبا 2018-19',
+        'letter': 'م',
+        'answerDeadlineAt': '2026-11-12T10:00:20.000Z',
+      }),
+      event('hex:answered', 4, {
+        'roundNo': 1,
+        'participantId': 'p-bot',
+        'lockedUntil': '2026-11-12T10:00:09.000Z',
+      }),
+      event('hex:claimed', 5, {
+        'roundNo': 1,
+        'cell': 0,
+        'participantId': 'p-human',
+        'player': mane(),
+        'rightNames': [
+          {'entityId': 'milner', 'name': 'جيمس ميلنر'},
+        ],
+      }),
+      event('hex:turn', 6, {
+        'roundNo': 1,
+        'participantId': 'p-bot',
+        'pickDeadlineAt': '2026-11-12T10:00:13.000Z',
+      }),
+    ]);
+
+    test('a race, a lockout, a claimed cell, then the other player picks', () {
+      final round = playHexBoard().currentRound! as HexRound;
+      expect(round.board, hasLength(9));
+      expect(round.sides['p-human'], HexSide.westEast);
+      expect(round.owners[0], 'p-human');
+      expect(round.phase, HexPhase.picking);
+      expect(round.turnParticipantId, 'p-bot');
+      expect(round.racingCell, isNull);
+      expect(round.lastRightNames.single.name, 'جيمس ميلنر');
+    });
+
+    test('a cleared cell goes back to open and the clear is used up', () {
+      final state = applyAll(playHexBoard(), [
+        event('hex:race', 7, {
+          'roundNo': 1,
+          'cell': 0,
+          'pickedBy': 'p-bot',
+          'auto': false,
+          'cleared': true,
+          'question': 'هدافو ريال مدريد في دوري أبطال أوروبا 2016-17',
+          'letter': 'م',
+          'answerDeadlineAt': '2026-11-12T10:00:28.000Z',
+        }),
+      ]);
+      final round = state.currentRound! as HexRound;
+      expect(round.owners[0], isNull);
+      expect(round.clearsLeft, {'p-human': 1, 'p-bot': 0});
+      expect(round.phase, HexPhase.racing);
+      expect(round.letter, 'م');
+    });
+
+    test('a snapshot restores owners, the race and lockouts', () {
+      final restored = applyBattleSnapshot(playHexBoard(), {
+        'status': 'IN_PROGRESS',
+        'gameType': 'HEX',
+        'mode': 'MATCHMAKING',
+        'players': [humanPlayerJson, botPlayerJson],
+        'currentRound': {
+          'roundNo': 1,
+          'size': 3,
+          'board': ['م', 'ب', 'ك', 'ا', 'د', 'ج', 'ف', 'ر', 'ل'],
+          'owners': [
+            'p-human',
+            null,
+            null,
+            null,
+            'p-bot',
+            null,
+            null,
+            null,
+            null,
+          ],
+          'sides': {'p-human': 'WEST_EAST', 'p-bot': 'NORTH_SOUTH'},
+          'phase': 'RACING',
+          'turnOf': 'p-bot',
+          'racingCell': 1,
+          'question': 'هدافو برشلونة في الدوري الإسباني 2014-15',
+          'letter': 'ب',
+          'lockedUntil': {'p-human': '2026-11-12T10:00:31.000Z', 'p-bot': null},
+          'clearsLeft': {'p-human': 1, 'p-bot': 1},
+          'picks': 3,
+          'deadline': '2026-11-12T10:00:40.000Z',
+        },
+        'rounds': <Object>[],
+        'scores': <Object>[],
+        'seq': 9,
+      });
+      final round = restored.currentRound! as HexRound;
+      expect(round.owners[4], 'p-bot');
+      expect(round.racingCell, 1);
+      expect(round.letter, 'ب');
+      expect(round.lockedUntil, {
+        'p-human': DateTime.utc(2026, 11, 12, 10, 0, 31),
+      });
+    });
+  });
+
   group('a vault round', () {
     BattleState playVaultRound() => applyAll(foundBattle(), [
       event('round:start', 2, {

@@ -233,6 +233,7 @@ class LiveBattleRun {
           case final AuctionRound round:
             await _playAuctionRound(battle, round);
           case VaultRound():
+          case HexRound():
           case null:
             break;
         }
