@@ -1,10 +1,13 @@
 import type { Locale } from '@shared/kernel';
-import type { AnswerKind, GameBody, GameType, GridCriterion, LocalizedText } from './question-content';
+import type { AnswerKind, GameBody, GameType, GridCriterion, LocalizedText, MinesCriterion } from './question-content';
 
 export interface EngineGridCriterion {
   kind: GridCriterion['kind'];
   entityId: string;
 }
+
+export type EngineMinesCriterion =
+  { kind: 'CLUB' | 'NATIONALITY'; entityId: string } | { kind: 'DECADE'; fromYear: number };
 
 /** A round's game-specific part as the engine reads it: catalog references are entity ids (08 §5.4). */
 export type EngineGameBody =
@@ -21,7 +24,8 @@ export type EngineGameBody =
       spells: { clubEntityId: string; fromYear: number; toYear: number | null; loan: boolean }[];
     }
   | { gameType: 'WHO_IS_PLAYER'; playerEntityId: string; clues: { kind: string; text: LocalizedText }[] }
-  | { gameType: 'GRID'; rows: EngineGridCriterion[]; cols: EngineGridCriterion[] };
+  | { gameType: 'GRID'; rows: EngineGridCriterion[]; cols: EngineGridCriterion[] }
+  | { gameType: 'MINES'; criteria: EngineMinesCriterion[] };
 
 /** Everything the engine needs to play one round. Server side only: never sent to a client as is. */
 export interface EngineContent {
@@ -45,6 +49,8 @@ export function listEntityReferencesOfBody(body: GameBody): string[] {
       return [body.player];
     case 'GRID':
       return [...body.rows, ...body.cols].map((criterion) => criterion.entity);
+    case 'MINES':
+      return body.criteria.flatMap((criterion) => ('entity' in criterion ? [criterion.entity] : []));
   }
 }
 
@@ -102,6 +108,11 @@ export function toEngineBody(
         entityId: idOf(criterion.entity),
       });
       return { gameType: 'GRID', rows: body.rows.map(criterionOf), cols: body.cols.map(criterionOf) };
+    }
+    case 'MINES': {
+      const criterionOf = (criterion: MinesCriterion): EngineMinesCriterion =>
+        criterion.kind === 'DECADE' ? criterion : { kind: criterion.kind, entityId: idOf(criterion.entity) };
+      return { gameType: 'MINES', criteria: body.criteria.map(criterionOf) };
     }
   }
 }

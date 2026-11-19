@@ -175,6 +175,17 @@ function findGameShapeProblems(content: GameContent): string[] {
       }
       break;
     }
+    case 'MINES': {
+      const [club, second, ...extra] = body.criteria;
+      if (club?.kind !== 'CLUB' || !second || second.kind === 'CLUB' || extra.length > 0) {
+        problems.push('a mines category is a CLUB criterion plus one NATIONALITY or DECADE criterion');
+      }
+      if (second?.kind === 'DECADE' && (!Number.isInteger(second.fromYear) || second.fromYear % 10 !== 0)) {
+        problems.push('a DECADE criterion starts at a year ending in 0');
+      }
+      problems.push(...findSingleSlotProblems(answers));
+      break;
+    }
   }
   return problems;
 }
@@ -245,6 +256,13 @@ export function findCatalogReferenceProblems(
     case 'GRID':
       for (const criterion of [...body.rows, ...body.cols]) {
         expect(criterion.entity, GRID_CRITERION_KIND[criterion.kind], `${criterion.kind} criterion`);
+      }
+      break;
+    case 'MINES':
+      for (const criterion of body.criteria) {
+        if ('entity' in criterion) {
+          expect(criterion.entity, GRID_CRITERION_KIND[criterion.kind], `${criterion.kind} criterion`);
+        }
       }
       break;
   }

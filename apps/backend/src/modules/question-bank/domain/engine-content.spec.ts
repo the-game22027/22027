@@ -64,6 +64,32 @@ describe('the engine view of stored content', () => {
     });
   });
 
+  it('turns a mines category into entity ids and keeps a decade as a year', () => {
+    const byNationality: GameBody = {
+      gameType: 'MINES',
+      criteria: [
+        { kind: 'CLUB', entity: 'wd:united' },
+        { kind: 'NATIONALITY', entity: 'wd:spain' },
+      ],
+    };
+    const byDecade: GameBody = {
+      gameType: 'MINES',
+      criteria: [
+        { kind: 'CLUB', entity: 'wd:united' },
+        { kind: 'DECADE', fromYear: 2000 },
+      ],
+    };
+    expect(toEngineBody(byNationality, idOf, ['en'])).toEqual({
+      gameType: 'MINES',
+      criteria: [
+        { kind: 'CLUB', entityId: 'id-united' },
+        { kind: 'NATIONALITY', entityId: 'id-spain' },
+      ],
+    });
+    expect(toEngineBody(byDecade, idOf, ['en'])).toMatchObject({ criteria: [{}, { kind: 'DECADE', fromYear: 2000 }] });
+    expect(listEntityReferencesOfBody(byDecade)).toEqual(['wd:united']);
+  });
+
   it('lists the references a body points at, so they load in one query', () => {
     expect(listEntityReferencesOfBody(career)).toEqual(['wd:ronaldo', 'wd:sporting', 'wd:united']);
     expect(listEntityReferencesOfBody(buzzer)).toEqual([]);

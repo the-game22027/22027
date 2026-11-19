@@ -42,6 +42,7 @@ export function revealStepsForLocale(
       });
     }
     case 'GRID':
-      throw new Error('A grid has no reveal steps');
+    case 'MINES':
+      throw new Error(`A ${body.gameType} round has no reveal steps`);
   }
 }
