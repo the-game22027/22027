@@ -29,6 +29,8 @@ jobs:
   static-and-unit:
     name: lint, types, boundaries, unit, build
     runs-on: ubuntu-latest
+    # A stuck runner fails fast instead of waiting for the 6-hour default.
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
@@ -47,6 +49,8 @@ jobs:
   integration-and-e2e:
     name: integration + e2e (Testcontainers)
     runs-on: ubuntu-latest
+    # A stuck runner fails fast instead of waiting for the 6-hour default.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
