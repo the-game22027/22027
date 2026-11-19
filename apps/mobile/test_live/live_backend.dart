@@ -58,12 +58,16 @@ Future<void> stopUnlessLiveBackendIsReachable() async {
 class LivePlayer {
   LivePlayer._({
     required this.container,
+    required this.subject,
     required this.userId,
     required this.displayName,
     required this.unreadableEvents,
   });
 
   final ProviderContainer container;
+
+  /// The dev sign-in subject: signing in with it again is the same account.
+  final String subject;
   final String userId;
   final String displayName;
 
@@ -74,25 +78,43 @@ class LivePlayer {
 
   /// The same account on a second device: a new container that starts from this one's tokens,
   /// like the app after a restart.
-  Future<LivePlayer> openSecondDevice() async {
-    final session = read(sessionControllerProvider).value!;
+  Future<LivePlayer> openSecondDevice() =>
+      openDeviceWithSession(read(sessionControllerProvider).value!);
+
+  /// The same account on a device that starts from [session], for example one whose access
+  /// token the server refuses.
+  Future<LivePlayer> openDeviceWithSession(StoredSession session) async {
     final unreadableEvents = <String>[];
     final container = await _createLiveContainer(session, unreadableEvents);
     await container.read(sessionControllerProvider.future);
     return LivePlayer._(
       container: container,
+      subject: subject,
       userId: userId,
       displayName: displayName,
       unreadableEvents: unreadableEvents,
     );
   }
+
+  /// The same account signed in again on another device: a separate server session.
+  Future<LivePlayer> signInAgainOnAnotherDevice() =>
+      _signInLivePlayer(subject: subject, displayName: displayName);
 }
 
 /// Signs in a new dev account through the app's dev sign-in. The subject and display name are
 /// unique per call, so runs never share a player or leftover state.
-Future<LivePlayer> signInFreshLivePlayer(String label) async {
+Future<LivePlayer> signInFreshLivePlayer(String label) {
   final uniqueId = DateTime.now().microsecondsSinceEpoch.toString();
-  final displayName = 'Live $label ${uniqueId.substring(uniqueId.length - 9)}';
+  return _signInLivePlayer(
+    subject: 'live-$label-$uniqueId',
+    displayName: 'Live $label ${uniqueId.substring(uniqueId.length - 9)}',
+  );
+}
+
+Future<LivePlayer> _signInLivePlayer({
+  required String subject,
+  required String displayName,
+}) async {
   final unreadableEvents = <String>[];
   final container = await _createLiveContainer(null, unreadableEvents);
   await container.read(sessionControllerProvider.future);
@@ -100,7 +122,7 @@ Future<LivePlayer> signInFreshLivePlayer(String label) async {
   final keepAlive = container.listen(devSignInControllerProvider, (_, _) {});
   await container
       .read(devSignInControllerProvider.notifier)
-      .signIn(subject: 'live-$label-$uniqueId', displayName: displayName);
+      .signIn(subject: subject, displayName: displayName);
   final signIn = container.read(devSignInControllerProvider);
   keepAlive.close();
   if (signIn.hasError) {
@@ -112,6 +134,7 @@ Future<LivePlayer> signInFreshLivePlayer(String label) async {
       .fetchPlayerAccountProfile();
   return LivePlayer._(
     container: container,
+    subject: subject,
     userId: profile.userId,
     displayName: profile.displayName,
     unreadableEvents: unreadableEvents,
