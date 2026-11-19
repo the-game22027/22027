@@ -48,7 +48,8 @@ export interface RoundAction {
     | 'AUCTION_BID'
     | 'AUCTION_CALL'
     | 'AUCTION_ANSWER'
-    | 'AUCTION_STEAL';
+    | 'AUCTION_STEAL'
+    | 'VAULT_TRY';
   answer?: JudgedAnswer;
   /** Grid only: row * 3 + col. */
   cell?: number;
@@ -81,6 +82,7 @@ export interface RoundResult {
     | 'PROVED'
     | 'STOLEN'
     | 'BUST'
+    | 'OPENED'
     | 'FORFEIT';
   /** Points earned in this round, by participant; missing means 0. */
   points: Record<ParticipantId, number>;

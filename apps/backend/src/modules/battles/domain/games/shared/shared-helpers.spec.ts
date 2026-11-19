@@ -9,6 +9,8 @@ import {
   startSecretChoices,
 } from './secret-choices';
 import { addUsedAnswer, hasAnswerBeenUsed } from './used-answers';
+import { findNextHintAt } from './hint-schedule';
+import { findLockedUntil, lockOutAfterWrongTry, noLockouts } from './lockout-ladder';
 
 describe('shared rule helpers', () => {
   it('UsedAnswers keeps each name once, in the order said', () => {
@@ -46,5 +48,28 @@ describe('shared rule helpers', () => {
     expect(choicesOf(filled, 'p')[1].entityId).not.toBe('x');
     expect(new Set(choicesOf(filled, 'q').map((choice) => choice.entityId)).size).toBe(2);
     expect(fill()).toEqual(filled);
+  });
+
+  it('LockoutLadder locks a player longer after each wrong try, the last step repeating', () => {
+    const at = (ms: number) => new Date(Date.UTC(2026, 10, 20) + ms);
+    let lockouts = noLockouts(['a', 'b']);
+    expect(findLockedUntil(lockouts, 'a', at(0))).toBeNull();
+    const steps = [3000, 6000];
+    lockouts = lockOutAfterWrongTry(lockouts, 'a', at(0), steps);
+    expect(findLockedUntil(lockouts, 'a', at(1000))).toEqual(at(3000));
+    expect(findLockedUntil(lockouts, 'a', at(3000))).toBeNull();
+    expect(findLockedUntil(lockouts, 'b', at(1000))).toBeNull();
+    lockouts = lockOutAfterWrongTry(lockouts, 'a', at(3000), steps);
+    expect(findLockedUntil(lockouts, 'a', at(3000))).toEqual(at(9000));
+    lockouts = lockOutAfterWrongTry(lockouts, 'a', at(9000), steps);
+    expect(lockouts.a).toEqual({ wrongTries: 3, lockedUntil: at(15000) });
+  });
+
+  it('HintSchedule gives the first hint late, then one every interval, up to the max', () => {
+    const start = new Date(Date.UTC(2026, 10, 20));
+    const schedule = { firstAtMs: 45000, everyMs: 15000, max: 2 };
+    expect(findNextHintAt(start, schedule, 0)).toEqual(new Date(start.getTime() + 45000));
+    expect(findNextHintAt(start, schedule, 1)).toEqual(new Date(start.getTime() + 60000));
+    expect(findNextHintAt(start, schedule, 2)).toBeNull();
   });
 });
