@@ -14,6 +14,7 @@ class Scope:
     min_senior_age: int
     excluded_team_classes: frozenset[str]
     excluded_team_label_pattern: re.Pattern[str]
+    allowed_team_ids: frozenset[str] = frozenset()
 
 
 def load_scope(path: Path) -> Scope:
@@ -29,4 +30,5 @@ def load_scope(path: Path) -> Scope:
         min_senior_age=int(data["min_senior_age"]),
         excluded_team_classes=frozenset(data.get("excluded_team_classes", [])),
         excluded_team_label_pattern=re.compile(data["excluded_team_label_pattern"], re.IGNORECASE),
+        allowed_team_ids=frozenset(data.get("allowed_team_ids", [])),
     )

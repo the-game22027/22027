@@ -161,13 +161,14 @@ def year_of_wikidata_date(value: str | None) -> int | None:
 
 
 def fetch_team_facts(client: WikidataClient, team_qids: list[str]) -> dict[str, TeamFacts]:
-    labels: dict[str, str] = {}
+    english_labels: dict[str, str] = {}
+    mul_labels: dict[str, str] = {}
     classes: dict[str, set[str]] = defaultdict(set)
     sitelinks: dict[str, int] = {}
     for batch in split_into_batches(team_qids):
         query = f"""SELECT ?team ?label ?class ?sitelinks WHERE {{
           {values_block("team", batch)}
-          OPTIONAL {{ ?team rdfs:label ?label FILTER(lang(?label) = "en") }}
+          OPTIONAL {{ ?team rdfs:label ?label FILTER(lang(?label) IN ("en", "mul")) }}
           OPTIONAL {{ ?team wdt:P31 ?class }}
           OPTIONAL {{ ?team wikibase:sitelinks ?sitelinks }}
         }}"""
@@ -175,13 +176,18 @@ def fetch_team_facts(client: WikidataClient, team_qids: list[str]) -> dict[str, 
             qid = qid_from_uri(row["team"])
             classes[qid]  # every team gets an entry, even without types
             if "label" in row:
-                labels[qid] = row["label"]
+                (mul_labels if row.get("label@lang") == "mul" else english_labels)[qid] = row["label"]
             if "class" in row:
                 classes[qid].add(qid_from_uri(row["class"]))
             if "sitelinks" in row:
                 sitelinks[qid] = int(row["sitelinks"])
     return {
-        qid: TeamFacts(qid, labels.get(qid), frozenset(classes[qid]), sitelinks.get(qid, 0))
+        qid: TeamFacts(
+            qid,
+            english_labels.get(qid) or mul_labels.get(qid),  # "en" wins, same rule as names_from_rows
+            frozenset(classes[qid]),
+            sitelinks.get(qid, 0),
+        )
         for qid in classes
     }
 
@@ -222,15 +228,39 @@ def fetch_entity_names(client: WikidataClient, qids: list[str]) -> Iterable[tupl
           {values_block("item", batch)}
           {{ ?item rdfs:label ?name BIND("LABEL" AS ?kind) }}
           UNION {{ ?item skos:altLabel ?name BIND("ALIAS" AS ?kind) }}
-          FILTER(lang(?name) IN ("en", "ar"))
+          FILTER(lang(?name) IN ("en", "ar", "mul"))
         }}"""
-        for row in client.select_rows(query):
-            yield (
-                external_ref_from_qid(qid_from_uri(row["item"])),
-                row["name@lang"],
-                row["name"],
-                row["kind"],
-            )
+        yield from names_from_rows(client.select_rows(query))
+
+
+def names_from_rows(rows: Iterable[Row]) -> list[tuple[str, str, str, str]]:
+    """Turn label rows into (entity, locale, name, kind) tuples.
+
+    Wikidata stores many names once under "mul" (default for all languages) instead of "en".
+    An item without an English label uses its "mul" label and aliases as English; "en" always wins.
+    """
+    rows = list(rows)
+    items_with_english_label = {
+        row["item"] for row in rows if row["name@lang"] == "en" and row["kind"] == "LABEL"
+    }
+    promoted_labels = {
+        (row["item"], row["name"])
+        for row in rows
+        if row["name@lang"] == "mul"
+        and row["kind"] == "LABEL"
+        and row["item"] not in items_with_english_label
+    }
+    names: list[tuple[str, str, str, str]] = []
+    for row in rows:
+        language = row["name@lang"]
+        if language == "mul":
+            if row["item"] in items_with_english_label:
+                continue
+            language = "en"
+        elif language == "en" and row["kind"] == "ALIAS" and (row["item"], row["name"]) in promoted_labels:
+            continue  # same text as the promoted label: the (entity, locale, name) key would clash
+        names.append((external_ref_from_qid(qid_from_uri(row["item"])), language, row["name"], row["kind"]))
+    return names
 
 
 def split_into_batches(items: list[str], size: int = BATCH_SIZE) -> Iterable[list[str]]:

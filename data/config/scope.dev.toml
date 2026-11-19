@@ -1,8 +1,22 @@
 # Small scope for fast development runs: a few clubs instead of whole leagues.
 min_player_sitelinks = 15
 min_senior_age = 17
-excluded_team_classes = ["Q2412834", "Q6979740", "Q23901123", "Q28140340", "Q6256", "Q3624078"]
+excluded_team_classes = ["Q2412834", "Q6979740", "Q23901123", "Q28140340", "Q6256", "Q3624078",
+  "Q515", "Q1549591", "Q486972", "Q15284", "Q3957", "Q532", "Q747074", "Q33146843", "Q2074737", "Q493522",
+  "Q667509", "Q16124843", "Q1093829", "Q13218391", "Q148837", "Q262882", "Q39715", "Q47521"]
 excluded_team_label_pattern = '''\b(youth|academy|reserves?|under-?\d{2}|u-?\d{2}|castilla|primavera|next gen|juvenil|juniors?|amateure?s?)\b|\s(b|c|ii|iii|atlètic)$'''
+# Real clubs the label pattern would drop by mistake; they skip the label check (classes still apply).
+allowed_team_ids = [
+  "Q332664", # Willem II ("II" is part of the name)
+  "Q220621", # Argentinos Juniors ("Juniors" is part of the name)
+  "Q170703", # Boca Juniors
+  "Q853053", # Chacarita Juniors
+  "Q5532094", # General Paz Juniors
+  "Q509801", # Rampla Juniors
+  "Q2567648", # Boca Juniors de Cali
+  "Q332524", # Junior de Barranquilla
+  "Q1387445", # FC Juniors OÖ
+]
 
 # Clubs listed directly instead of leagues.
 clubs = [
