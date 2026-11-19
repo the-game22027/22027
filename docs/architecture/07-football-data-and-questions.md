@@ -403,7 +403,14 @@ Not used: StatsBomb open data (non-commercial), FBref and SofaScore (scraping fo
 - Skipped: 22 martj42 team names with no linked national team (168 rows, `.out/link-review-martj42.csv`, e.g. Guinea, Kuwait); Transfermarkt 2,559 rows with an unlinked team; 3 rows whose shootout kicks exceed the stored goals.
 - **Open:** third-place matches and the UCL/EL knockout play-off round are kept (DEC-67's "play-offs" read as qualification and relegation play-offs, to be confirmed); the dated rule "Serbia before 2006-08 = Serbia and Montenegro" needs a review mark; competitions are not `core.entity` rows yet (the link step should add them).
 
-**D.3d first goals slice (N2, 2026-11-19 design):** `core.goal` from Transfermarkt goal events only, for usable matches (`core.usable_match`): match, team, scorer, minute, penalty, own goal, assist provider. Own goals are kept and flagged. An assist counts only when the assist provider is in the scoring team's lineup for that match (the quality gate of D.3f, applied here first); dropped assists are counted and listed in `.out/review-assists.csv`. Fjelstul and martj42 goals come with a later slice. `derived.game_auction_list` is the view `kb bundle --auctions` reads (`08` §11.4).
+**D.3d first goals slice (N2, 2026-11-19 design):** `core.goal` from Transfermarkt goal events only, for usable matches (`core.usable_match`): match, team, scorer, minute, penalty, own goal, assist provider. Own goals are kept and flagged. An assist counts only when the assist provider is in the scoring team's lineup for that match (the quality gate of D.3f, applied here first); dropped assists are counted and listed in `.out/review-assists.csv`. Fjelstul and martj42 goals come with a later slice. `kb bundle --auctions` builds the lists from `core.goal` (`08` §11.4).
+- On a penalty, Transfermarkt's assist field names the fouled player ("Penalty: Fouled player"): never an assist.
+- An assist with no lineup for its match cannot be checked and is dropped.
+- **Measured on 2026-11-19 (dev):**
+  - 125,057 goals (3,643 own goals, 10,595 penalties; 611 scorers not linked);
+  - assists: 80,428 kept; dropped: 5,027 fouled players, 1,834 on own goals, 1,799 not in the lineup, 8,795 in matches with no lineup;
+  - `kb ingest:matches` now takes about 19 s;
+  - check by hand: Liverpool's 2018-19 Champions League scorers come out as the 9 real ones.
 
 **D.3d: typed match tables (resolved).**
 - `core.competition` (ref, kind `LEAGUE` | `CUP` | `INTERNATIONAL`, tier, country) and `core.edition` (competition, season label, final year, winner, runner-up, host).
