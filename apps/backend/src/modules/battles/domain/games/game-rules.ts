@@ -52,7 +52,9 @@ export interface RoundAction {
     | 'VAULT_TRY'
     | 'HEX_PICK'
     | 'HEX_CLEAR'
-    | 'HEX_ANSWER';
+    | 'HEX_ANSWER'
+    | 'LINEUP_ANSWER'
+    | 'LINEUP_ACCUSE';
   answer?: JudgedAnswer;
   /** Grid only: row * 3 + col. */
   cell?: number;
@@ -87,6 +89,8 @@ export interface RoundResult {
     | 'BUST'
     | 'OPENED'
     | 'CONNECTED'
+    | 'LINEUP_COMPLETE'
+    | 'TIME_UP'
     | 'FORFEIT';
   /** Points earned in this round, by participant; missing means 0. */
   points: Record<ParticipantId, number>;
