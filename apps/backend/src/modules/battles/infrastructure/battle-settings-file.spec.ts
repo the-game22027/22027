@@ -42,6 +42,25 @@ describe('the battle config file', () => {
     expect(() => loadBattleSettingsFile(path, false)).toThrow('answers.typoTolerance');
   });
 
+  it('needs the rock-paper-scissors timers and a rule for later rounds when a game type has a first mover', () => {
+    const grid = (json: Record<string, unknown>) => (json.gameTypes as Record<string, Record<string, unknown>>)['GRID'];
+    const withoutRps = writeVariant((json) => {
+      delete grid(json)['rps'];
+    });
+    expect(() => loadBattleSettingsFile(withoutRps, false)).toThrow('gameTypes.GRID.rps');
+    const withoutLaterRounds = writeVariant((json) => {
+      Object.assign(grid(json), { firstMover: 'RANDOM' });
+      delete grid(json)['firstMoverAfterRound1'];
+    });
+    expect(() => loadBattleSettingsFile(withoutLaterRounds, false)).toThrow('gameTypes.GRID.firstMoverAfterRound1');
+    const duelEachRoundWithoutDuel = writeVariant((json) => {
+      Object.assign(grid(json), { firstMover: 'RANDOM', firstMoverAfterRound1: 'RPS_EACH_ROUND' });
+    });
+    expect(() => loadBattleSettingsFile(duelEachRoundWithoutDuel, false)).toThrow(
+      'RPS_EACH_ROUND needs firstMover RPS',
+    );
+  });
+
   it('refuses unknown keys, so a typo cannot silently fall back to nothing', () => {
     const path = writeVariant((json) => {
       json.matchmakng = {};

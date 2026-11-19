@@ -195,6 +195,39 @@ void main() {
     expect(claim['answer'], {'text': 'زيدان'});
   });
 
+  test(
+    'a rock-paper-scissors pick names the current attempt and is remembered',
+    () async {
+      final container = await createContainer();
+      final controller = controllerOf(container);
+
+      expect(
+        await controller.pickRockPaperScissors(RockPaperScissorsChoice.rock),
+        isA<BattleCommandRejected>(),
+      );
+      await receiveBattleFound(container);
+      socket.receive(
+        'battle:rps-start',
+        battleEnvelope('battle:rps-start', 2, {
+          'attempt': 1,
+          'pickDeadlineAt': '2026-11-12T10:00:08.000Z',
+        }),
+      );
+      await pumpEventQueue();
+      await controller.pickRockPaperScissors(RockPaperScissorsChoice.paper);
+
+      final (event, payload) = socket.sentCommands.last;
+      expect(event, 'battle:rps-pick');
+      expect(payload['battleId'], battleId);
+      expect(payload['attempt'], 1);
+      expect(payload['choice'], 'PAPER');
+      expect(
+        container.read(battleSessionProvider).battle!.firstMoverDuel!.hasPicked,
+        isTrue,
+      );
+    },
+  );
+
   test('a seq gap sends battle:resync and applies the snapshot', () async {
     final container = await createContainer();
     socket.answerCommand = (event, payload) => event == 'battle:resync'

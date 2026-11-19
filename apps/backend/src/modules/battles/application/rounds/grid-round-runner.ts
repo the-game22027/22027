@@ -47,8 +47,8 @@ export class GridRoundRunner implements RoundRunner {
     const criteria = [...this.body.rows, ...this.body.cols].map((criterion) => criterion.entityId);
     this.names = await loadEntityNames(this.host.catalog, criteria);
     const players = this.host.activeParticipantIds();
-    // Who starts comes from the battle's seeded random source, so a replay starts the same way.
-    const firstTurn = players[Math.floor(this.host.random.next() * players.length)];
+    // The first-mover phase decides (08 §9.1); without one, the battle's seeded random source does.
+    const firstTurn = this.host.firstMoverId ?? players[Math.floor(this.host.random.next() * players.length)];
     const step = this.rules.startRound(this.roundNo, players, firstTurn, this.host.now());
     this.state = step.state;
     await this.applyEffects(step.effects);

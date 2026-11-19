@@ -116,6 +116,41 @@ class ParticipantPlacement {
 
 enum BattleOutcome { win, loss, draw, unknown }
 
+/// A rock-paper-scissors throw (`08` §9.1).
+enum RockPaperScissorsChoice { rock, paper, scissors, unknown }
+
+RockPaperScissorsChoice findRockPaperScissorsChoiceByCode(String code) =>
+    switch (code) {
+      'ROCK' => RockPaperScissorsChoice.rock,
+      'PAPER' => RockPaperScissorsChoice.paper,
+      'SCISSORS' => RockPaperScissorsChoice.scissors,
+      _ => RockPaperScissorsChoice.unknown,
+    };
+
+String findRockPaperScissorsCode(RockPaperScissorsChoice choice) =>
+    switch (choice) {
+      RockPaperScissorsChoice.rock => 'ROCK',
+      RockPaperScissorsChoice.paper => 'PAPER',
+      RockPaperScissorsChoice.scissors => 'SCISSORS',
+      RockPaperScissorsChoice.unknown => throw ArgumentError(
+        'unknown choice has no code',
+      ),
+    };
+
+class RockPaperScissorsPick {
+  const RockPaperScissorsPick({
+    required this.participantId,
+    required this.choice,
+    required this.wasPickedByServer,
+  });
+
+  final String participantId;
+  final RockPaperScissorsChoice choice;
+
+  /// The player did not pick in time, so the server picked (`auto`).
+  final bool wasPickedByServer;
+}
+
 /// Base of every event. Battle events carry `battleId` and a per-battle `seq`; matchmaking
 /// and session events carry neither.
 sealed class BattleServerEvent {
@@ -193,6 +228,42 @@ class BattleStarted extends BattleServerEvent {
 
   final DateTime startedAt;
   final List<BattlePlayer> players;
+}
+
+/// `battle:rps-start`: a new rock-paper-scissors attempt decides who moves first (`08` §9.1).
+class RockPaperScissorsStarted extends BattleServerEvent {
+  const RockPaperScissorsStarted({
+    required super.serverTime,
+    required super.battleId,
+    required super.seq,
+    required this.attempt,
+    required this.pickDeadlineAt,
+  });
+
+  final int attempt;
+  final DateTime pickDeadlineAt;
+}
+
+/// `battle:rps-result`: both throws of one attempt, revealed together.
+class RockPaperScissorsResult extends BattleServerEvent {
+  const RockPaperScissorsResult({
+    required super.serverTime,
+    required super.battleId,
+    required super.seq,
+    required this.attempt,
+    required this.picks,
+    this.winnerId,
+    this.decidedBy,
+  });
+
+  final int attempt;
+  final List<RockPaperScissorsPick> picks;
+
+  /// Null for a tie: another attempt follows.
+  final String? winnerId;
+
+  /// `RPS`, or `DRAW` when every attempt was a tie and the server drew the winner.
+  final String? decidedBy;
 }
 
 /// `round:start` of a reveal-and-buzz game (`BUZZER`, `CAREER`, `WHO_IS_PLAYER`).
@@ -523,6 +594,24 @@ BattleServerEvent parseBattleServerEvent(String eventName, Object? payload) {
         startedAt: data.readTimestamp('startedAt'),
         players: _readPlayers(data),
       );
+    case 'battle:rps-start':
+      return RockPaperScissorsStarted(
+        serverTime: serverTime,
+        battleId: id,
+        seq: sequence,
+        attempt: data.readInt('attempt'),
+        pickDeadlineAt: data.readTimestamp('pickDeadlineAt'),
+      );
+    case 'battle:rps-result':
+      return RockPaperScissorsResult(
+        serverTime: serverTime,
+        battleId: id,
+        seq: sequence,
+        attempt: data.readInt('attempt'),
+        picks: readRockPaperScissorsPicks(data.readObjectList('picks')),
+        winnerId: data.readOptionalString('winnerId'),
+        decidedBy: data.readOptionalString('decidedBy'),
+      );
     case 'round:start':
       if (data.json.containsKey('rows')) {
         return GridRoundStarted(
@@ -686,6 +775,17 @@ BattleServerEvent parseBattleServerEvent(String eventName, Object? payload) {
       );
   }
 }
+
+List<RockPaperScissorsPick> readRockPaperScissorsPicks(
+  List<JsonObjectReader> picks,
+) => [
+  for (final pick in picks)
+    RockPaperScissorsPick(
+      participantId: pick.readString('participantId'),
+      choice: findRockPaperScissorsChoiceByCode(pick.readString('choice')),
+      wasPickedByServer: pick.readBool('auto'),
+    ),
+];
 
 List<ParticipantScore> readParticipantScores(List<JsonObjectReader> scores) => [
   for (final score in scores)

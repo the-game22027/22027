@@ -23,6 +23,7 @@ import {
   leaveMatchmakingCommand,
   readyCommand,
   resyncCommand,
+  rockPaperScissorsPickCommand,
   timeSyncCommand,
 } from './battle-commands';
 import { SocketBattleNotifier, userChannel } from './socket-battle-notifier';
@@ -97,6 +98,20 @@ export class BattlesGateway
   ready(socket: Socket, body: unknown): Promise<Ack> {
     return this.withPayload(readyCommand, body, (command) =>
       this.engine.ready(command.battleId, userIdOf(socket), socket.id, command.clientMsgId),
+    );
+  }
+
+  @SubscribeMessage('battle:rps-pick')
+  pickRockPaperScissors(socket: Socket, body: unknown): Promise<Ack> {
+    return this.withPayload(rockPaperScissorsPickCommand, body, (command) =>
+      this.engine.pickRockPaperScissors(
+        command.battleId,
+        userIdOf(socket),
+        socket.id,
+        command.attempt,
+        command.choice,
+        command.clientMsgId,
+      ),
     );
   }
 

@@ -3,6 +3,7 @@ import type { Locale } from '@shared/kernel';
 import type { BattleConfigSnapshot } from '../battle-settings';
 import type { Placement } from '../../domain/placements';
 import type { RoundAction, RoundResult } from '../../domain/games/game-rules';
+import type { FirstMoverOutcome } from '../../domain/first-mover/next-first-mover';
 
 export const BATTLE_REPOSITORY = Symbol('BATTLE_REPOSITORY');
 
@@ -47,6 +48,8 @@ export interface BattleRepository {
   markParticipantReady(participantId: string, at: Date): Promise<void>;
   markBattleStarted(battleId: string, at: Date): Promise<void>;
   markRoundStarted(battleId: string, roundNo: number, at: Date): Promise<void>;
+  /** Replaces battles.first_mover with every first-mover decision so far (08 §9.1). */
+  saveFirstMoverOutcomes(battleId: string, outcomes: readonly FirstMoverOutcome[]): Promise<void>;
   recordRoundAction(
     battleId: string,
     roundNo: number,

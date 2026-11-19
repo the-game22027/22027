@@ -42,6 +42,8 @@ model Battle {
   hasBot          Boolean        @default(false) @map("has_bot")
   /// Snapshot of the game type's config and the engine timers at creation (ADR-0018).
   config          Json
+  /// First-mover decisions, one per round that has one: winner, how it was decided, rock-paper-scissors throws (08 §9.1, ADR-0023).
+  firstMover      Json?          @map("first_mover")
   /// The BATTLE scoring rule set active at creation; null when none was (08 §6.1).
   ruleSetId       String?        @map("rule_set_id") @db.Uuid
   createdAt       DateTime       @map("created_at") @db.Timestamptz(3)

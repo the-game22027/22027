@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { GAME_TYPES } from '@modules/question-bank';
+import { ROCK_PAPER_SCISSORS_CHOICES } from '../domain/first-mover/rock-paper-scissors-duel';
 
 /** Payloads of client commands (WEBSOCKET.md §3), checked before anything reaches the engine. */
 const clientMsgId = z.string().min(1).max(64);
@@ -10,6 +11,12 @@ const answerText = z.string().max(500);
 export const joinMatchmakingCommand = z.object({ clientMsgId, gameType: z.enum(GAME_TYPES) });
 export const leaveMatchmakingCommand = z.object({ clientMsgId });
 export const readyCommand = z.object({ clientMsgId, battleId });
+export const rockPaperScissorsPickCommand = z.object({
+  clientMsgId,
+  battleId,
+  attempt: z.number().int().positive(),
+  choice: z.enum(ROCK_PAPER_SCISSORS_CHOICES),
+});
 export const buzzCommand = z.object({ clientMsgId, battleId, roundNo });
 export const answerCommand = z.object({
   clientMsgId,

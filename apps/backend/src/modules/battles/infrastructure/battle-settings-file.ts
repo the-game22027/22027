@@ -18,7 +18,26 @@ const botProfile = z.strictObject({
     .refine((range) => range.min <= range.max, 'min > max'),
 });
 
+const delayRange = z
+  .strictObject({ min: z.number().int().nonnegative(), max: z.number().int().nonnegative() })
+  .refine((range) => range.min <= range.max, 'min > max');
+
+// Checked against `firstMover` for every game type in settingsSchema (zod cannot extend a refined object).
+const firstMoverFields = {
+  firstMover: z.enum(['RPS', 'RANDOM', 'NONE']),
+  firstMoverAfterRound1: z.enum(['ALTERNATE', 'LOSER_STARTS', 'RPS_EACH_ROUND']).optional(),
+  rps: z
+    .strictObject({
+      pickMs: positiveMs,
+      maxReplays: z.number().int().nonnegative(),
+      revealMs: z.number().int().nonnegative(),
+      botPickDelayMs: delayRange,
+    })
+    .optional(),
+};
+
 const revealGame = z.strictObject({
+  ...firstMoverFields,
   enabled: z.boolean(),
   roundCount: z.number().int().positive(),
   revealIntervalMs: positiveMs,
@@ -35,6 +54,7 @@ const revealGame = z.strictObject({
 });
 
 const gridGame = z.strictObject({
+  ...firstMoverFields,
   enabled: z.boolean(),
   roundCount: z.number().int().positive(),
   turnMs: positiveMs,
@@ -63,30 +83,57 @@ const answers = z.strictObject({
   singleWordMaxSharedBy: z.number().int().positive(),
 });
 
-const settingsSchema = z.strictObject({
-  devOnly: z.boolean(),
-  engine: z.strictObject({
-    readyTimeoutMs: positiveMs,
-    latencyGraceMs: z.number().int().nonnegative(),
-    betweenRoundsMs: z.number().int().nonnegative(),
-    reconnectGraceMs: positiveMs,
-  }),
-  matchmaking: z.strictObject({
-    botFallbackAfterMs: z.number().int().nonnegative(),
-    tickMs: positiveMs,
-    queueDisconnectGraceMs: z.number().int().nonnegative(),
-  }),
-  bots: z.strictObject({
-    profiles: z.record(z.string(), botProfile).refine((p) => Object.keys(p).length > 0, 'at least one'),
-  }),
-  answers,
-  gameTypes: z.strictObject({
-    BUZZER: revealGame.optional(),
-    CAREER: revealGame.extend({ showYears: z.boolean() }).optional(),
-    WHO_IS_PLAYER: revealGame.optional(),
-    GRID: gridGame.optional(),
-  }),
-});
+const settingsSchema = z
+  .strictObject({
+    devOnly: z.boolean(),
+    engine: z.strictObject({
+      readyTimeoutMs: positiveMs,
+      latencyGraceMs: z.number().int().nonnegative(),
+      betweenRoundsMs: z.number().int().nonnegative(),
+      reconnectGraceMs: positiveMs,
+    }),
+    matchmaking: z.strictObject({
+      botFallbackAfterMs: z.number().int().nonnegative(),
+      tickMs: positiveMs,
+      queueDisconnectGraceMs: z.number().int().nonnegative(),
+    }),
+    bots: z.strictObject({
+      profiles: z.record(z.string(), botProfile).refine((p) => Object.keys(p).length > 0, 'at least one'),
+    }),
+    answers,
+    gameTypes: z.strictObject({
+      BUZZER: revealGame.optional(),
+      CAREER: revealGame.extend({ showYears: z.boolean() }).optional(),
+      WHO_IS_PLAYER: revealGame.optional(),
+      GRID: gridGame.optional(),
+    }),
+  })
+  .superRefine((settings, context) => {
+    for (const [gameType, game] of Object.entries(settings.gameTypes)) {
+      if (!game) continue;
+      if (game.firstMover === 'RPS' && !game.rps) {
+        context.addIssue({
+          code: 'custom',
+          path: ['gameTypes', gameType, 'rps'],
+          message: 'required when firstMover is RPS',
+        });
+      }
+      if (game.firstMover !== 'NONE' && !game.firstMoverAfterRound1) {
+        context.addIssue({
+          code: 'custom',
+          path: ['gameTypes', gameType, 'firstMoverAfterRound1'],
+          message: 'required unless firstMover is NONE',
+        });
+      }
+      if (game.firstMoverAfterRound1 === 'RPS_EACH_ROUND' && game.firstMover !== 'RPS') {
+        context.addIssue({
+          code: 'custom',
+          path: ['gameTypes', gameType, 'firstMoverAfterRound1'],
+          message: 'RPS_EACH_ROUND needs firstMover RPS',
+        });
+      }
+    }
+  });
 
 export class InvalidBattleSettingsError extends Error {}
 
