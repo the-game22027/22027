@@ -13,8 +13,15 @@ Every number in this file is configuration (per game type), never a constant. Na
 | `WHO_IS_PLAYER` | Reveal and buzz | Clues about one player (nationality, position, birth year, a club, a trophy...), hardest first | A player | 2..N |
 | `GRID` | Turns on a board | Nothing: the whole 3×3 board of criteria is shown | A player who fits a cell's row and column | exactly 2 (DEC-61) |
 | `IMPOSTER` | Chat and vote (P8, DEC-58) | Not designed yet | — | rooms only |
+| `MINES` (لغم) | Turns with hearts, hidden mines (N1) | A category; each player first buries mines in secret | Players of the category, no repeats | 2 |
+| `AUCTION` (المزاد) | Bidding, then proof (N2) | A list title and its answer count | As many names of the list as you bid | 2 |
+| `VAULT` (الخزنة) | Simultaneous race (N3) | Four questions whose answers are digits 0–9; leaks on a timer | The whole 4-digit code, all or nothing | 2 |
+| `HEX` (الهجمة) | Hex board race (N4) | A board of letters; a question per picked cell | A name starting with the cell's letter | 2 |
+| `LINEUP` (التشكيلة) | Simultaneous slot filling (N5) | A famous match's formation, 3 shown names (one fake) | The starting XI; accuse the fake | 2 |
+| `TIME_MACHINE` (آلة الزمن) | Turns with hearts, years going back (N6) | A tournament edition per turn | One fact about that edition | 2 |
+| `THREAD` (الخيط) | Simultaneous chained race (N7) | Five rooms, each question pointing at the previous answer | Each room's single answer | 2 |
 
-A battle has **one** game type, chosen when it is created: by the queue the player joined (DEC-59), or by the host in a room. A battle is `roundCount` rounds of that game (DEC-31, per game type).
+The seven new game types (DEC-68) are designed one by one in track N; §9 holds what they share. A battle has **one** game type, chosen when it is created: by the queue the player joined (DEC-59), or by the host in a room. A battle is `roundCount` rounds of that game (DEC-31, per game type).
 
 ## 2. Engine and game rules
 
@@ -54,7 +61,7 @@ interface Rejection { code: string }                                     // beco
 
 ### 2.3 What stays in the engine (all games)
 
-Readiness and `WAITING_READY`; round sequencing and `roundCount`; timers (one scheduler per battle, keyed by `TimerKey`; all cancelled at battle end); `seq` and `serverTime` on every event; persistence of rounds and actions; disconnect grace and forfeit; `battle:resync` snapshots (built from the rules' state through a `snapshotFor(participant)` method, so a client only ever sees what was revealed); bot scheduling (bots send commands through the same `handleCommand` path, with no `clientMsgId`); scoring hand-off (`BattleScorer` totals the rounds' points; placements as before); completion and `BattleCompleted`.
+Readiness and `WAITING_READY`; the first-mover phase `PICKING_FIRST` (rock-paper-scissors, §9.1); round sequencing and `roundCount`; timers (one scheduler per battle, keyed by `TimerKey`; all cancelled at battle end); `seq` and `serverTime` on every event; persistence of rounds and actions; disconnect grace and forfeit; `battle:resync` snapshots (built from the rules' state through a `snapshotFor(participant)` method, so a client only ever sees what was revealed); bot scheduling (bots send commands through the same `handleCommand` path, with no `clientMsgId`); scoring hand-off (`BattleScorer` totals the rounds' points; placements as before); completion and `BattleCompleted`.
 
 ### 2.4 Round runners (P6.4)
 
@@ -106,7 +113,7 @@ stateDiagram-v2
 Approved on condition that the data supports it. The 2026-11-10 check passed (`07` §4.1).
 
 1. **Board:** 3 row criteria and 3 column criteria. A criterion is `{ kind: CLUB | NATIONALITY | COMPETITION_WON, entityId }`. Every cell has at least `minAnswersPerCell` valid players, guaranteed by the pipeline. The whole board is sent in `round:start`.
-2. **Turns:** players alternate; who starts is random per round (seeded). The player on turn has `turnMs` to send `grid:claim { cell, answer: { text } }`.
+2. **Turns:** players alternate. Round 1 starts with the rock-paper-scissors winner (§9.1, ADR-0023); later rounds follow `firstMoverAfterRound1` (default `ALTERNATE`). The player on turn has `turnMs` to send `grid:claim { cell, answer: { text } }`.
    - Valid when: it is their turn and the cell is free. The text is judged against the cell's valid players (§5.3); naming a player already used on this board is rejected (`PLAYER_ALREADY_USED`).
    - **Correct** (the player fits both criteria): the cell is theirs. `grid:claimed`.
    - **Wrong:** the cell stays free. `grid:missed { cell, participantId, answer? }` (DEC-60). After `attemptsPerTurn` wrong tries (default 1) the turn passes.
@@ -115,7 +122,7 @@ Approved on condition that the data supports it. The 2026-11-10 check passed (`0
 4. **Points:** `points.roundWin`, `points.roundDraw`, plus optional `points.perCell`.
 5. **Players:** exactly 2 (DEC-61). A room can start a `GRID` battle only with 2 members.
 6. **Details (P6.4):**
-   - Who starts is drawn from the battle's seeded random source, so a replay starts the same way.
+   - Who starts round 1 comes from the first-mover phase (§9.1); it was a seeded draw until ADR-0023. Replays still start the same way, because the duel's fallbacks use the seeded random source.
    - A turn number counts every turn started. Starting turn `maxTurns + 1` ends the round as a draw (`MAX_TURNS`).
    - A wrong answer keeps the turn while `attemptsLeft > 0`, with the same deadline; it never uses the player up.
    - `skipsPerRound: null` means unlimited. With a number, the skip after the last allowed one gives the round to the opponent (`SKIP_LIMIT`).
@@ -271,3 +278,60 @@ The in-game `score` (`points.*` above) decides placements inside one battle. **L
 - **Selection:** `ContentSelector.pickContentIds` gets `topics` (any of them) and the level's `difficulties`. The exposure window still applies inside the filter and relaxes as usual (DEC-44).
 - **Availability:** `GET /v1/battle-topics?gameType=` lists topics with published content in the caller's locale and counts per level, so the app only offers choices that can fill a battle. A room start that cannot fill `roundCount` rounds fails with `409 NOT_ENOUGH_CONTENT` and changes nothing.
 - **Random matchmaking** stays unfiltered (DEC-65).
+
+## 9. New game types: shared pieces (N0, DEC-68, ADR-0023)
+
+Each new game gets its own section here when its N phase starts (rules, state diagram, content shape, bot, config, open rules as DECs). This section holds only what several of them share.
+
+### 9.1 Who starts: rock-paper-scissors
+
+For a game type with `firstMover: "RPS"` the engine adds a phase between `WAITING_READY` and round 1. It is engine work: the rules only receive `RoundSetup.firstMoverId`.
+
+```mermaid
+stateDiagram-v2
+  [*] --> PICKING_FIRST: everyone ready
+  PICKING_FIRST --> PICKING_FIRST: both picked, tie, replays left
+  PICKING_FIRST --> ROUND_1: both picked, a winner
+  PICKING_FIRST --> ROUND_1: tie after maxReplays → seeded draw
+  ROUND_1 --> [*]
+```
+
+1. The server emits `battle:rps-start { attempt, pickDeadlineAt }` to both players.
+2. Each player sends `battle:rps-pick { choice: ROCK | PAPER | SCISSORS }` once per attempt. The server keeps the picks secret: no event says who has already picked.
+3. When both have picked, or `pickDeadlineAt` passes, the server emits `battle:rps-result { attempt, picks: [{ participantId, choice, auto }], winnerId | null }`. A missing pick is drawn from the seeded random source and marked `auto: true`.
+4. A tie with replays left starts the next attempt. A tie after `rps.maxReplays` replays ends the phase with a seeded draw (`winnerId` set, `decidedBy: "DRAW"`).
+5. Bots pick from the seeded random source after a human-like delay (`rps.botPickDelayMs`).
+6. The outcome is stored on `battles.first_mover` (picks per attempt, winner, how it was decided), so the start replays identically and can be audited.
+7. Later rounds: `firstMoverAfterRound1` per game type, `ALTERNATE` (default), `LOSER_STARTS` or `RPS_EACH_ROUND` (DEC-71).
+8. Rooms with 3 or more players: a seeded random order instead of a duel (DEC-70).
+9. Forfeit during the phase: the battle ends as a forfeit, as in any other phase.
+
+Config (per game type): `firstMover` (`RPS` | `RANDOM` | `NONE` for games where everyone plays at once, like `VAULT` and `THREAD`), `rps.pickMs` (default 5000), `rps.maxReplays` (default 2), `rps.botPickDelayMs`, `firstMoverAfterRound1`.
+
+| Game type | `firstMover` | Why |
+|---|---|---|
+| `GRID`, `MINES`, `HEX`, `TIME_MACHINE`, `AUCTION` | `RPS` | One player moves, picks or bids first |
+| `VAULT`, `THREAD`, `LINEUP` | `NONE` | Both players race on the same content at the same time |
+| Reveal and buzz | `NONE` | The first buzz decides, not a turn order |
+
+### 9.2 Shared rule helpers
+
+Plain TypeScript in `battles/domain/games/shared/`, called by each game's own rules (ADR-0023). They are values plus pure functions with the clock passed in, unit-tested once.
+
+| Helper | State it keeps | Config | Used by |
+|---|---|---|---|
+| `LockoutLadder` | wrong tries per player, locked-until time | `lockoutMs: number[]` (last value repeats) | `VAULT`, `HEX`, `THREAD` |
+| `HintSchedule` | which hints are out | `hints: { firstAtMs, everyMs, max }` | `VAULT` (digit leaks), `THREAD` (first letter), `LINEUP` (first letters) |
+| `UsedAnswers` | entity ids named this round | `repeatCountsAsWrong: boolean` | `MINES`, `AUCTION`, `LINEUP`, `HEX` |
+| `Hearts` | lives per player | `hearts: number` | `MINES`, `TIME_MACHINE` |
+| `SecretChoices` | choices per player before play | `secretChoices: { count, deadlineMs }` | `MINES` |
+
+### 9.3 Hidden information
+
+- A snapshot or event never carries another player's secret choices, typed answers that the game keeps private, or anything not yet revealed. This is already the rule for clues (§2.3); each new game adds a test that renders every event for the opponent and finds no hidden value.
+- Per game: `MINES` hides the opponent's mines until one explodes. `THREAD` shows the opponent's room number only. `VAULT` shows the opponent's attempt count only. `AUCTION` bids are public. In `LINEUP`, which shown name is the fake is hidden until someone accuses it or the round ends.
+
+### 9.4 Order of work
+
+N0 (this section, the first-mover phase in the engine, the helpers) comes first. Then N1 `MINES` (data ready today), N2 `AUCTION`, N3 `VAULT`, N4 `HEX`, N5 `LINEUP`, N6 `TIME_MACHINE`, N7 `THREAD` (ROADMAP track N). Each N phase writes its own subsection here before any code.
+
