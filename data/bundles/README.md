@@ -5,13 +5,21 @@ Each folder is one bundle: `manifest.json`, `questions.jsonl` and optionally `ca
 Import one into the app database (from `apps/backend`):
 
 ```bash
-npm run cli -- questions:import ../../data/bundles/dev-0006
-npm run cli -- questions:publish dev-0006 --include-drafts   # development only: the rounds are unreviewed
+npm run cli -- questions:import ../../data/bundles/dev-0007
+npm run cli -- questions:publish dev-0007 --include-drafts   # development only: the rounds are unreviewed
 ```
 
 Importing the same bundle twice changes nothing. A bundle version is never reused: a changed bundle gets a new folder and a new `bundleVersion`.
 
-## dev-0006 (use this one)
+## dev-0007 (use this one)
+
+Like dev-0006, plus **60 `AUCTION` rounds**: each a lot of 3 lists (a club's scorers or assist providers in one competition season, 6-30 names, every name in the catalog; 08 §11.4), built from the goals of `core.goal`. 299 rounds, catalog of 7,946 entities.
+
+```bash
+.venv/bin/python -m kb bundle --version dev-0007 --out bundles/dev-0007 --careers 60 --buzzers 60 --who 60 --grids 30 --mines 40 --auctions 60 --catalog-min-player-sitelinks 40
+```
+
+## dev-0006
 
 Built from the knowledge base rebuilt on 2026-11-19 (`mul` names, cities out of careers): 60 `CAREER`, 60 `BUZZER`, 60 `WHO_IS_PLAYER`, 19 `GRID` and **40 `MINES`** categories (a club plus a citizenship or a decade, 20-40 players each, from the 100 most popular clubs; 08 §10.4). 239 rounds, catalog of 7,791 entities.
 

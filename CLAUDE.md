@@ -146,9 +146,9 @@ Question bank (from `apps/backend`; available in every environment, not only dev
 
 ```bash
 npm run cli -- questions:import ../../data/bundles/dev-0001   # validate + import a bundle; re-import is a no-op
-npm run cli -- questions:import ../../data/bundles/dev-0006   # generated game content + its catalog (07 §5.8), MINES included
-npm run cli -- questions:publish dev-0006                     # APPROVED questions of that bundle → PUBLISHED (battles pick only these)
-npm run cli -- questions:publish dev-0006 --include-drafts    # development: also the unreviewed rounds (refused in production)
+npm run cli -- questions:import ../../data/bundles/dev-0007   # generated game content + its catalog (07 §5.8), MINES and AUCTION included
+npm run cli -- questions:publish dev-0007                     # APPROVED questions of that bundle → PUBLISHED (battles pick only these)
+npm run cli -- questions:publish dev-0007 --include-drafts    # development: also the unreviewed rounds (refused in production)
 npm run cli -- questions:disable <questionId> --reason "…"     # battles stop picking it at once
 npm run cli -- questions:reports [--limit 20]                  # most reported questions with their latest reasons (08 §5.7)
 python3 -I ../../data/generate/dev_bundle.py                  # rebuild the hand-written dev bundle (bump its version first)
@@ -169,10 +169,10 @@ python3 -m venv .venv && .venv/bin/pip install 'psycopg[binary]>=3.2' pytest ruf
 .venv/bin/python -m kb ingest --scope config/scope.toml           # 9 leagues; --refresh refetches from Wikidata
 .venv/bin/python -m kb sources:fetch                             # D.3a: download config/sources.toml files into raw_downloads/ and load raw.*; --source <id>, --refresh
 .venv/bin/python -m kb link                                      # D.3b: source ids → Wikidata entities (core.entity_xref); --source transfermarkt|fjelstul; run again after every ingest; unlinked ids → .out/link-review-<source>.csv
-.venv/bin/python -m kb ingest:matches                            # D.3c/d: claims → core.match (resolved results), offline; rerun after ingest or link
+.venv/bin/python -m kb ingest:matches                            # D.3c/d: claims → core.match (resolved results) and core.goal, offline; rerun after ingest or link
 .venv/bin/python -m kb names:missing --locale ar                  # entities without an Arabic name → .out/names-missing-ar.csv
 .venv/bin/python -m kb catalog --out .out/catalog                 # write catalog.jsonl
-.venv/bin/python -m kb bundle --version dev-0007 --out bundles/dev-0007 --careers 60 --buzzers 60 --who 60 --grids 30 --mines 40 --catalog-min-player-sitelinks 40   # generated bundle (07 §5.8)
+.venv/bin/python -m kb bundle --version dev-0008 --out bundles/dev-0008 --careers 60 --buzzers 60 --who 60 --grids 30 --mines 40 --auctions 60 --catalog-min-player-sitelinks 40   # generated bundle (07 §5.8)
 FOOTBALL_KB_TEST_URL=postgresql://game:game@localhost:5440/football_kb_test .venv/bin/python -m pytest   # needs CREATE DATABASE football_kb_test once
 .venv/bin/ruff check . && .venv/bin/ruff format --check .
 ```
