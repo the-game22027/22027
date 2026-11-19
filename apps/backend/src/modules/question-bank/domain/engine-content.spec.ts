@@ -90,6 +90,18 @@ describe('the engine view of stored content', () => {
     expect(listEntityReferencesOfBody(byDecade)).toEqual(['wd:united']);
   });
 
+  it('keeps auction titles only in the battle locales and references no entity', () => {
+    const auction: GameBody = {
+      gameType: 'AUCTION',
+      lists: [{ kind: 'SCORERS', title: { en: 'Liverpool scorers', ar: 'هدافو ليفربول' } }],
+    };
+    expect(toEngineBody(auction, idOf, ['ar'])).toEqual({
+      gameType: 'AUCTION',
+      lists: [{ kind: 'SCORERS', title: { ar: 'هدافو ليفربول' } }],
+    });
+    expect(listEntityReferencesOfBody(auction)).toEqual([]);
+  });
+
   it('lists the references a body points at, so they load in one query', () => {
     expect(listEntityReferencesOfBody(career)).toEqual(['wd:ronaldo', 'wd:sporting', 'wd:united']);
     expect(listEntityReferencesOfBody(buzzer)).toEqual([]);

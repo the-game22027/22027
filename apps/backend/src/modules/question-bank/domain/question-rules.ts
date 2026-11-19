@@ -24,6 +24,8 @@ export const MIN_CAREER_SPELLS = 2;
 export const MIN_CLUES = 2;
 export const MAX_CLUE_TEXT_LENGTH = 200;
 export const GRID_SIZE = 3;
+export const AUCTION_LISTS_PER_ROUND = 3;
+export const MAX_AUCTION_TITLE_LENGTH = 200;
 
 const checkText = (problems: string[], field: string, value: string, maxLength: number): void => {
   if (value.trim() === '') problems.push(`${field} is empty`);
@@ -172,6 +174,28 @@ function findGameShapeProblems(content: GameContent): string[] {
       }
       if (answers.some((answer) => answer.slot < 0 || answer.slot >= cellCount)) {
         problems.push(`grid answer slots must be 0 to ${cellCount - 1}`);
+      }
+      break;
+    }
+    case 'AUCTION': {
+      if (body.lists.length !== AUCTION_LISTS_PER_ROUND) {
+        problems.push(`an auction round offers ${AUCTION_LISTS_PER_ROUND} lists`);
+      }
+      const locales = Object.keys(body.lists[0]?.title ?? {})
+        .sort()
+        .join();
+      body.lists.forEach((list, index) => {
+        if (Object.keys(list.title).sort().join() !== locales) {
+          problems.push(`list ${index + 1} must have a title in exactly the locales of list 1`);
+        }
+        for (const [locale, title] of Object.entries(list.title)) {
+          checkText(problems, `list ${index + 1} ${locale} title`, title, MAX_AUCTION_TITLE_LENGTH);
+        }
+        const answer = answers.find((slot) => slot.slot === index);
+        if (!answer || answer.entities.length === 0) problems.push(`auction list ${index + 1} has no names`);
+      });
+      if (answers.some((answer) => answer.slot < 0 || answer.slot >= AUCTION_LISTS_PER_ROUND)) {
+        problems.push(`auction answer slots must be 0 to ${AUCTION_LISTS_PER_ROUND - 1}`);
       }
       break;
     }

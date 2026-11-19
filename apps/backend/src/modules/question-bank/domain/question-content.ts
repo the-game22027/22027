@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { type Locale, LOCALES } from '@shared/kernel';
 
-export const GAME_TYPES = ['BUZZER', 'CAREER', 'WHO_IS_PLAYER', 'GRID', 'MINES'] as const;
+export const GAME_TYPES = ['BUZZER', 'CAREER', 'WHO_IS_PLAYER', 'GRID', 'MINES', 'AUCTION'] as const;
 export type GameType = (typeof GAME_TYPES)[number];
 
 /** Kinds of answer catalog entities (08 §5). */
@@ -44,6 +44,12 @@ export interface GridCriterion {
 /** A MINES category: a club plus a citizenship or a decade (08 §10.4). */
 export type MinesCriterion = { kind: 'CLUB' | 'NATIONALITY'; entity: string } | { kind: 'DECADE'; fromYear: number };
 
+/** One AUCTION list (08 §11.4): its kind and its title, written by the pipeline in each locale. */
+export interface AuctionList {
+  kind: string;
+  title: LocalizedText;
+}
+
 /** The game-specific part of a round (08 §4). Entities are referenced by catalog `externalRef`. */
 export type GameBody =
   | {
@@ -60,7 +66,8 @@ export type GameBody =
     }
   | { gameType: 'WHO_IS_PLAYER'; player: string; clues: { kind: string; text: LocalizedText }[] }
   | { gameType: 'GRID'; rows: GridCriterion[]; cols: GridCriterion[] }
-  | { gameType: 'MINES'; criteria: MinesCriterion[] };
+  | { gameType: 'MINES'; criteria: MinesCriterion[] }
+  | { gameType: 'AUCTION'; lists: AuctionList[] };
 
 /** Accepted answers of one slot: slot 0 for reveal games, 0..8 for grid cells (row * 3 + col). */
 export interface AnswerSlot {
@@ -107,6 +114,8 @@ export function localesOfQuestion(content: QuestionContent): Locale[] {
       return (Object.keys(body.steps) as Locale[]).sort();
     case 'WHO_IS_PLAYER':
       return (Object.keys(body.clues[0]?.text ?? {}) as Locale[]).sort();
+    case 'AUCTION':
+      return LOCALES.filter((locale) => body.lists.every((list) => list.title[locale] !== undefined)).sort();
     case 'CAREER':
     case 'GRID':
     case 'MINES':
@@ -126,6 +135,8 @@ export function summaryTextOfQuestion(content: QuestionContent, locale: Locale):
       return (body.steps[locale] ?? []).join(' ');
     case 'WHO_IS_PLAYER':
       return body.clues.map((clue) => clue.text[locale] ?? '').join(' · ');
+    case 'AUCTION':
+      return body.lists.map((list) => list.title[locale] ?? '').join(' · ');
     case 'CAREER':
     case 'GRID':
     case 'MINES':
