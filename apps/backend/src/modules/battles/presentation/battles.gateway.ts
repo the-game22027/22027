@@ -15,6 +15,9 @@ import type { Ack } from '../application/live-battle';
 import { MatchmakingService } from '../application/matchmaking.service';
 import {
   answerCommand,
+  auctionBidCommand,
+  auctionCallCommand,
+  auctionPickCommand,
   buzzCommand,
   forfeitCommand,
   gridClaimCommand,
@@ -183,6 +186,49 @@ export class BattlesGateway
         { type, answer: { text: command.answer.text } },
         command.clientMsgId,
       ),
+    );
+  }
+
+  @SubscribeMessage('auction:pick')
+  pickAuctionList(socket: Socket, body: unknown): Promise<Ack> {
+    return this.withPayload(auctionPickCommand, body, (command) =>
+      this.sendAuction(socket, command, { type: 'AUCTION_PICK', list: command.list }),
+    );
+  }
+
+  @SubscribeMessage('auction:bid')
+  bidInAuction(socket: Socket, body: unknown): Promise<Ack> {
+    return this.withPayload(auctionBidCommand, body, (command) =>
+      this.sendAuction(socket, command, { type: 'AUCTION_BID', amount: command.amount }),
+    );
+  }
+
+  @SubscribeMessage('auction:call')
+  callInAuction(socket: Socket, body: unknown): Promise<Ack> {
+    return this.withPayload(auctionCallCommand, body, (command) =>
+      this.sendAuction(socket, command, { type: 'AUCTION_CALL' }),
+    );
+  }
+
+  @SubscribeMessage('auction:answer')
+  answerInAuction(socket: Socket, body: unknown): Promise<Ack> {
+    return this.withPayload(minesTextCommand, body, (command) =>
+      this.sendAuction(socket, command, { type: 'AUCTION_ANSWER', answer: { text: command.answer.text } }),
+    );
+  }
+
+  private sendAuction(
+    socket: Socket,
+    command: { battleId: string; roundNo: number; clientMsgId: string },
+    auctionCommand: Parameters<BattleEngine['sendAuctionCommand']>[4],
+  ): Promise<Ack> {
+    return this.engine.sendAuctionCommand(
+      command.battleId,
+      userIdOf(socket),
+      socket.id,
+      command.roundNo,
+      auctionCommand,
+      command.clientMsgId,
     );
   }
 

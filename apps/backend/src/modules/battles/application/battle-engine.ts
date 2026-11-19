@@ -318,6 +318,20 @@ export class BattleEngine implements OnApplicationBootstrap, BeforeApplicationSh
     );
   }
 
+  /** `auction:pick`, `auction:bid`, `auction:call`, `auction:answer` (08 §11.3). */
+  sendAuctionCommand(
+    battleId: string,
+    userId: string,
+    socketId: string,
+    roundNo: number,
+    command: Extract<PlayerCommand, { type: 'AUCTION_PICK' | 'AUCTION_BID' | 'AUCTION_CALL' | 'AUCTION_ANSWER' }>,
+    clientMsgId: string,
+  ): Promise<Ack> {
+    return this.withBattle(battleId, clientMsgId, (battle) =>
+      battle.roundCommand(userId, socketId, roundNo, command, clientMsgId),
+    );
+  }
+
   forfeit(battleId: string, userId: string, clientMsgId: string): Promise<Ack> {
     return this.withBattle(battleId, clientMsgId, (battle) => battle.forfeit(userId, clientMsgId));
   }

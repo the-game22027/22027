@@ -16,12 +16,19 @@ import type { ParticipantId, RoundAction, RoundResult } from '../domain/games/ga
 import { calculateLeaderboardPoints } from '../domain/leaderboard-points';
 import { placeParticipantsByScore } from '../domain/placements';
 import { type RandomSource, randomIntegerBetween } from '../domain/random-source';
-import type { BattleConfigSnapshot, GridGameSettings, MinesGameSettings, RevealGameSettings } from './battle-settings';
+import type {
+  AuctionGameSettings,
+  BattleConfigSnapshot,
+  GridGameSettings,
+  MinesGameSettings,
+  RevealGameSettings,
+} from './battle-settings';
 import type { LiveParticipant } from './live-participant';
 import type { BattleNotifier } from './ports/battle-notifier';
 import type { BattleRepository } from './ports/battle-repository';
 import type { ScheduledTimer, TimerScheduler } from './ports/timer-scheduler';
 import { GridRoundRunner } from './rounds/grid-round-runner';
+import { AuctionRoundRunner } from './rounds/auction-round-runner';
 import { MinesRoundRunner } from './rounds/mines-round-runner';
 import { RevealRoundRunner } from './rounds/reveal-round-runner';
 import type {
@@ -509,6 +516,15 @@ export class LiveBattle {
           roundNo,
           content,
           this.config.game as MinesGameSettings,
+          latencyGraceMs,
+          host,
+        );
+        break;
+      case 'AUCTION':
+        this.runner = new AuctionRoundRunner(
+          roundNo,
+          content,
+          this.config.game as AuctionGameSettings,
           latencyGraceMs,
           host,
         );

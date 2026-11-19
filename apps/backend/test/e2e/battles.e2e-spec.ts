@@ -19,6 +19,7 @@ import {
   entitySet,
   gridFixture,
   minesFixture,
+  auctionFixture,
   whoLine,
 } from '../support/question-bundles';
 import { devSignIn } from '../support/sign-in';
@@ -52,7 +53,7 @@ function writeBattleConfig(bot: { knows: number; guess: number }, botFallbackAft
         typingDelayMs: { min: 20, max: 20 },
       },
     };
-    const { GRID: grid, MINES: mines, ...revealGames } = config.gameTypes;
+    const { GRID: grid, MINES: mines, AUCTION: auction, ...revealGames } = config.gameTypes;
     if (grid) {
       Object.assign(grid, {
         roundCount: 1,
@@ -73,6 +74,16 @@ function writeBattleConfig(bot: { knows: number; guess: number }, botFallbackAft
         rps: { pickMs: 600, maxReplays: 2, revealMs: 50, botPickDelayMs: { min: 200, max: 200 } },
       });
     }
+    if (auction) {
+      Object.assign(auction, {
+        roundCount: 3,
+        targetScore: 2,
+        pickMs: 1_500,
+        bidding: { turnMs: 1_500, minOpeningBid: 1 },
+        proof: { ms: 3_000, maxWrong: 3 },
+        rps: { pickMs: 600, maxReplays: 2, revealMs: 50, botPickDelayMs: { min: 200, max: 200 } },
+      });
+    }
     for (const game of Object.values(revealGames)) {
       Object.assign(game, {
         roundCount: 2,
@@ -90,6 +101,7 @@ describe('battles over WebSocket (e2e)', () => {
   const e = entitySet();
   const grid = gridFixture();
   const mines = minesFixture();
+  const auction = auctionFixture();
   const gridPlayerIds: string[] = [];
   let spainId: string;
   let naniId: string;
@@ -119,8 +131,11 @@ describe('battles over WebSocket (e2e)', () => {
             whoLine(`test:${randomUUID()}`, e),
             grid.line(`test:${randomUUID()}`),
             mines.line(`test:${randomUUID()}`),
+            auction.line(`test:${randomUUID()}`),
+            auction.line(`test:${randomUUID()}`),
+            auction.line(`test:${randomUUID()}`),
           ],
-          [...Object.values(e), ...grid.entities, ...mines.entities],
+          [...Object.values(e), ...grid.entities, ...mines.entities, ...auction.entities],
         ),
       );
     await moduleRef.get(QuestionBankFacade).publishQuestionsOfBundle(version);
@@ -526,6 +541,71 @@ describe('battles over WebSocket (e2e)', () => {
         expect.objectContaining({ player: expect.objectContaining({ entityId: botMineIds[0] }), exploded: true }),
       );
       expect((await player.waitFor('battle:completed')).data).toMatchObject({ you: { outcome: 'WIN' } });
+    });
+
+    it('plays AUCTION: pick a list, bid, the bot calls, prove it live, first to the target score wins', async () => {
+      const player = await connectPlayer();
+      await player.send('matchmaking:join', { gameType: 'AUCTION' });
+      const found = await player.waitFor('battle:found');
+      const battleId = found.battleId as string;
+      const me = found.data['youParticipantId'] as string;
+      await player.send('battle:ready', { battleId });
+      for (let attempt = 1; ; attempt += 1) {
+        await player.waitFor('battle:rps-start', (event) => event.data['attempt'] === attempt);
+        await player.send('battle:rps-pick', { battleId, attempt, choice: 'ROCK' });
+        const result = await player.waitFor('battle:rps-result', (event) => event.data['attempt'] === attempt);
+        if (result.data['winnerId'] !== null) break;
+      }
+
+      for (const roundNo of [1, 2]) {
+        const inRound = (event: { data: Record<string, unknown> }) => event.data['roundNo'] === roundNo;
+        const start = await player.waitFor('round:start', inRound);
+        const lists = start.data['lists'] as { title: string; answerCount: number }[];
+        expect(lists.map((list) => list.answerCount)).toEqual([4, 5, 3]);
+        if (start.data['pickerParticipantId'] === me) {
+          expect(await player.send('auction:pick', { battleId, roundNo, list: 0 })).toMatchObject({ accepted: true });
+        }
+        const picked = await player.waitFor('auction:picked', inRound);
+        const list = picked.data['list'] as number;
+        const size = lists[list]?.answerCount ?? 0;
+
+        const myTurn = await player.waitFor(
+          'auction:turn',
+          (event) => inRound(event) && event.data['participantId'] === me,
+        );
+        expect(await player.send('auction:bid', { battleId, roundNo, amount: size + 1 })).toMatchObject({
+          accepted: false,
+          code: 'BID_TOO_HIGH',
+        });
+        const opening = myTurn.data['currentBid'] === null ? 2 : (myTurn.data['currentBid'] as number) + 1;
+        expect(await player.send('auction:bid', { battleId, roundNo, amount: opening })).toMatchObject({
+          accepted: true,
+        });
+        const proof = await player.waitFor('auction:proof', inRound);
+        expect(proof.data).toMatchObject({ proverParticipantId: me, amount: opening, reason: 'CALL' });
+
+        const nameOf = (index: number) => auction.players[list]?.[index]?.names.en ?? '';
+        const answer = (text: string) => player.send('auction:answer', { battleId, roundNo, answer: { text } });
+        expect(await answer(nameOf(0))).toMatchObject({ accepted: true });
+        expect(await answer(nameOf(0))).toMatchObject({ accepted: true });
+        const repeated = await player.waitFor(
+          'auction:answered',
+          (event) => inRound(event) && event.data['outcome'] === 'REPEATED',
+        );
+        expect(repeated.data).toMatchObject({ phase: 'PROOF', found: 1, strikes: 1 });
+        for (let index = 1; index < opening; index += 1) {
+          expect(await answer(nameOf(index))).toMatchObject({ accepted: true });
+        }
+        const result = await player.waitFor('round:result', inRound);
+        expect(result.data['winnerParticipantIds']).toEqual([me]);
+        const reveal = result.data['reveal'] as { outcome: string; answers: { saidBy?: string }[] };
+        expect(reveal.outcome).toBe('PROVED');
+        expect(reveal.answers).toHaveLength(size);
+        expect(reveal.answers.filter((said) => said.saidBy === me)).toHaveLength(opening);
+      }
+      // targetScore 2 is reached after two rounds, although the battle could have three.
+      expect((await player.waitFor('battle:completed')).data).toMatchObject({ you: { outcome: 'WIN', score: 2 } });
+      expect(player.events.some((event) => event.type === 'round:start' && event.data['roundNo'] === 3)).toBe(false);
     });
 
     it('picks for a player who does not throw in time, and still starts the round', async () => {
