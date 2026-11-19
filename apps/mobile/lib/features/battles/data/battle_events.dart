@@ -2,7 +2,16 @@
 /// their envelope. Screens and the battle state reducer use these, never raw maps.
 library;
 
-enum GameType { buzzer, career, whoIsPlayer, grid, mines, auction, unknown }
+enum GameType {
+  buzzer,
+  career,
+  whoIsPlayer,
+  grid,
+  mines,
+  auction,
+  vault,
+  unknown,
+}
 
 GameType findGameTypeByCode(String code) => switch (code) {
   'BUZZER' => GameType.buzzer,
@@ -11,6 +20,7 @@ GameType findGameTypeByCode(String code) => switch (code) {
   'GRID' => GameType.grid,
   'MINES' => GameType.mines,
   'AUCTION' => GameType.auction,
+  'VAULT' => GameType.vault,
   _ => GameType.unknown,
 };
 
@@ -21,6 +31,7 @@ String convertGameTypeToCode(GameType gameType) => switch (gameType) {
   GameType.grid => 'GRID',
   GameType.mines => 'MINES',
   GameType.auction => 'AUCTION',
+  GameType.vault => 'VAULT',
   GameType.unknown => throw ArgumentError('unknown game type has no code'),
 };
 
@@ -626,6 +637,68 @@ class AuctionStealStarted extends BattleServerEvent {
   final DateTime stealDeadlineAt;
 }
 
+/// `round:start` of a `VAULT` round: one question per digit of the code (`08` §12.1).
+class VaultRoundStarted extends BattleServerEvent {
+  const VaultRoundStarted({
+    required super.serverTime,
+    required super.battleId,
+    required super.seq,
+    required this.roundNo,
+    required this.questions,
+    required this.digits,
+    required this.roundDeadlineAt,
+    this.firstLeakAt,
+  });
+
+  final int roundNo;
+
+  /// The questions in the viewer's language; question `i` answers digit `i`.
+  final List<String> questions;
+  final int digits;
+  final DateTime roundDeadlineAt;
+
+  /// `null` when the round has no leaks.
+  final DateTime? firstLeakAt;
+}
+
+/// `vault:tried`: a player's wrong try. Only the count: never the code (`08` §12.2).
+class VaultTried extends BattleServerEvent {
+  const VaultTried({
+    required super.serverTime,
+    required super.battleId,
+    required super.seq,
+    required this.roundNo,
+    required this.participantId,
+    required this.tries,
+  });
+
+  final int roundNo;
+  final String participantId;
+  final int tries;
+}
+
+/// `vault:leak`: one digit revealed to everyone.
+class VaultDigitLeaked extends BattleServerEvent {
+  const VaultDigitLeaked({
+    required super.serverTime,
+    required super.battleId,
+    required super.seq,
+    required this.roundNo,
+    required this.position,
+    required this.digit,
+    this.nextLeakAt,
+  });
+
+  final int roundNo;
+
+  /// 0-based, in question order.
+  final int position;
+  final int digit;
+
+  /// `null` after the last leak.
+  final DateTime? nextLeakAt;
+}
+
 class ClueRevealed extends BattleServerEvent {
   const ClueRevealed({
     required super.serverTime,
@@ -949,6 +1022,18 @@ BattleServerEvent parseBattleServerEvent(String eventName, Object? payload) {
         decidedBy: data.readOptionalString('decidedBy'),
       );
     case 'round:start':
+      if (data.json.containsKey('questions')) {
+        return VaultRoundStarted(
+          serverTime: serverTime,
+          battleId: id,
+          seq: sequence,
+          roundNo: data.readInt('roundNo'),
+          questions: data.readStringList('questions'),
+          digits: data.readInt('digits'),
+          roundDeadlineAt: data.readTimestamp('roundDeadlineAt'),
+          firstLeakAt: data.readOptionalTimestamp('firstLeakAt'),
+        );
+      }
       if (data.json.containsKey('lists')) {
         return AuctionRoundStarted(
           serverTime: serverTime,
@@ -1135,6 +1220,25 @@ BattleServerEvent parseBattleServerEvent(String eventName, Object? payload) {
         player: answeredPlayer == null ? null : _readEntityRef(answeredPlayer),
         found: data.readInt('found'),
         strikes: data.readInt('strikes'),
+      );
+    case 'vault:tried':
+      return VaultTried(
+        serverTime: serverTime,
+        battleId: id,
+        seq: sequence,
+        roundNo: data.readInt('roundNo'),
+        participantId: data.readString('participantId'),
+        tries: data.readInt('tries'),
+      );
+    case 'vault:leak':
+      return VaultDigitLeaked(
+        serverTime: serverTime,
+        battleId: id,
+        seq: sequence,
+        roundNo: data.readInt('roundNo'),
+        position: data.readInt('position'),
+        digit: data.readInt('digit'),
+        nextLeakAt: data.readOptionalTimestamp('nextLeakAt'),
       );
     case 'auction:steal':
       return AuctionStealStarted(

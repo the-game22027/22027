@@ -36,6 +36,8 @@ export const gridSkipCommand = z.object({ clientMsgId, battleId, roundNo });
 export const auctionPickCommand = z.object({ clientMsgId, battleId, roundNo, list: z.number().int().min(0).max(2) });
 export const auctionBidCommand = z.object({ clientMsgId, battleId, roundNo, amount: z.number().int().positive() });
 export const auctionCallCommand = z.object({ clientMsgId, battleId, roundNo });
+/** The code is checked against the round's digit count by the rules (`INVALID_CODE`). */
+export const vaultTryCommand = z.object({ clientMsgId, battleId, roundNo, code: z.string().regex(/^[0-9]{1,9}$/) });
 /** `mines:bury`, `mines:answer` and `mines:scan` share one shape (08 §10.3); so does `auction:answer`. */
 export const minesTextCommand = z.object({
   clientMsgId,

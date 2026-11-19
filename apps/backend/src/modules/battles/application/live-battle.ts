@@ -18,6 +18,7 @@ import { placeParticipantsByScore } from '../domain/placements';
 import { type RandomSource, randomIntegerBetween } from '../domain/random-source';
 import type {
   AuctionGameSettings,
+  VaultGameSettings,
   BattleConfigSnapshot,
   GridGameSettings,
   MinesGameSettings,
@@ -29,6 +30,7 @@ import type { BattleRepository } from './ports/battle-repository';
 import type { ScheduledTimer, TimerScheduler } from './ports/timer-scheduler';
 import { GridRoundRunner } from './rounds/grid-round-runner';
 import { AuctionRoundRunner } from './rounds/auction-round-runner';
+import { VaultRoundRunner } from './rounds/vault-round-runner';
 import { MinesRoundRunner } from './rounds/mines-round-runner';
 import { RevealRoundRunner } from './rounds/reveal-round-runner';
 import type {
@@ -525,6 +527,15 @@ export class LiveBattle {
           roundNo,
           content,
           this.config.game as AuctionGameSettings,
+          latencyGraceMs,
+          host,
+        );
+        break;
+      case 'VAULT':
+        this.runner = new VaultRoundRunner(
+          roundNo,
+          content,
+          this.config.game as VaultGameSettings,
           latencyGraceMs,
           host,
         );

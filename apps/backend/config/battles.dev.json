@@ -245,6 +245,26 @@
         "difficulties": null,
         "excludeLastBattles": 20
       }
+    },
+    "VAULT": {
+      "enabled": true,
+      "roundCount": 5,
+      "targetScore": 3,
+      "firstMover": "NONE",
+      "roundMs": 120000,
+      "lockoutMs": [3000, 6000, 9000],
+      "leaks": {
+        "firstAtMs": 45000,
+        "everyMs": 15000,
+        "max": 3
+      },
+      "points": {
+        "vaultOpened": 1
+      },
+      "selection": {
+        "difficulties": null,
+        "excludeLastBattles": 20
+      }
     }
   }
 }

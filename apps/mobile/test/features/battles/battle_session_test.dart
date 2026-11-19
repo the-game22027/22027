@@ -232,6 +232,48 @@ void main() {
   });
 
   test(
+    'a wrong vault try keeps your lockout and try count from the ack',
+    () async {
+      final container = await createContainer();
+      final controller = controllerOf(container);
+
+      await receiveBattleFound(container);
+      socket.receive(
+        'round:start',
+        battleEnvelope('round:start', 2, {
+          'roundNo': 1,
+          'gameType': 'VAULT',
+          'questions': ['q1', 'q2', 'q3', 'q4'],
+          'digits': 4,
+          'roundDeadlineAt': '2026-11-12T10:02:00.000Z',
+          'firstLeakAt': '2026-11-12T10:00:45.000Z',
+        }),
+      );
+      await pumpEventQueue();
+      socket.answerCommand = (_, payload) => BattleCommandAccepted({
+        ...payload,
+        'accepted': true,
+        'data': {
+          'opened': false,
+          'lockedUntil': '2026-11-12T10:00:13.000Z',
+          'tries': 1,
+        },
+      });
+      await controller.tryVaultCode('7652');
+
+      final (event, payload) = socket.sentCommands.last;
+      expect(event, 'vault:try');
+      expect(payload['code'], '7652');
+      expect(payload['roundNo'], 1);
+      final round =
+          container.read(battleSessionProvider).battle!.currentRound!
+              as VaultRound;
+      expect(round.yourLockedUntil, DateTime.utc(2026, 11, 12, 10, 0, 13));
+      expect(round.triesByParticipant, {'p-human': 1});
+    },
+  );
+
+  test(
     'a mine bury keeps the mines from the ack and counts wrong tries',
     () async {
       final container = await createContainer();

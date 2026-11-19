@@ -261,6 +261,58 @@ class AuctionRound extends CurrentRound {
   );
 }
 
+/// A digit of a `VAULT` code revealed to everyone.
+class VaultLeakedDigit {
+  const VaultLeakedDigit({required this.position, required this.digit});
+
+  final int position;
+  final int digit;
+}
+
+/// A `VAULT` round (`08` §12): everyone races to type the whole code; a wrong try locks only you out.
+class VaultRound extends CurrentRound {
+  const VaultRound({
+    required int roundNo,
+    required this.questions,
+    required this.digits,
+    required this.roundDeadlineAt,
+    this.leakedDigits = const [],
+    this.triesByParticipant = const {},
+    this.yourLockedUntil,
+    this.nextLeakAt,
+  }) : super(roundNo);
+
+  final List<String> questions;
+  final int digits;
+  final DateTime roundDeadlineAt;
+  final List<VaultLeakedDigit> leakedDigits;
+
+  /// Wrong tries per participant: all a player ever sees of the others' tries.
+  final Map<String, int> triesByParticipant;
+
+  /// From your last wrong try's ack; the server refuses `LOCKED_OUT` until then.
+  final DateTime? yourLockedUntil;
+  final DateTime? nextLeakAt;
+
+  VaultRound copyWith({
+    List<VaultLeakedDigit>? leakedDigits,
+    Map<String, int>? triesByParticipant,
+    DateTime? Function()? yourLockedUntil,
+    DateTime? Function()? nextLeakAt,
+  }) => VaultRound(
+    roundNo: roundNo,
+    questions: questions,
+    digits: digits,
+    roundDeadlineAt: roundDeadlineAt,
+    leakedDigits: leakedDigits ?? this.leakedDigits,
+    triesByParticipant: triesByParticipant ?? this.triesByParticipant,
+    yourLockedUntil: yourLockedUntil != null
+        ? yourLockedUntil()
+        : this.yourLockedUntil,
+    nextLeakAt: nextLeakAt != null ? nextLeakAt() : this.nextLeakAt,
+  );
+}
+
 enum MinesPhase { burying, turns, closed }
 
 /// A name said in a `MINES` round; [player] is missing when the server hides it.
@@ -552,6 +604,37 @@ BattleState _applyInOrder(BattleState state, BattleServerEvent event) {
           rows: event.rows,
           cols: event.cols,
           turnParticipantId: event.firstTurnParticipantId,
+        ),
+      );
+    case VaultRoundStarted():
+      return state.copyWith(
+        phase: BattlePhase.inProgress,
+        firstMoverDuel: () => null,
+        currentRound: () => VaultRound(
+          roundNo: event.roundNo,
+          questions: event.questions,
+          digits: event.digits,
+          roundDeadlineAt: event.roundDeadlineAt,
+          nextLeakAt: event.firstLeakAt,
+        ),
+      );
+    case VaultTried() when round is VaultRound:
+      return state.copyWith(
+        currentRound: () => round.copyWith(
+          triesByParticipant: {
+            ...round.triesByParticipant,
+            event.participantId: event.tries,
+          },
+        ),
+      );
+    case VaultDigitLeaked() when round is VaultRound:
+      return state.copyWith(
+        currentRound: () => round.copyWith(
+          leakedDigits: [
+            ...round.leakedDigits,
+            VaultLeakedDigit(position: event.position, digit: event.digit),
+          ],
+          nextLeakAt: () => event.nextLeakAt,
         ),
       );
     case AuctionRoundStarted():
@@ -902,6 +985,9 @@ CurrentRound? _readSnapshotRound(
   CurrentRound? previous,
 ) {
   final roundNo = round.readInt('roundNo');
+  if (round.json.containsKey('questions')) {
+    return _readSnapshotVaultRound(round);
+  }
   if (round.json.containsKey('lists')) return _readSnapshotAuctionRound(round);
   if (round.json.containsKey('criteria')) return _readSnapshotMinesRound(round);
   if (round.json.containsKey('rows')) {
@@ -1037,5 +1123,30 @@ AuctionRound _readSnapshotAuctionRound(JsonObjectReader round) {
     ],
     strikes: round.readOptionalInt('strikes') ?? 0,
     stealerParticipantId: round.readOptionalString('stealer'),
+  );
+}
+
+VaultRound _readSnapshotVaultRound(JsonObjectReader round) {
+  final tries = round.readOptionalObject('tries');
+  return VaultRound(
+    roundNo: round.readInt('roundNo'),
+    questions: round.readStringList('questions'),
+    digits: round.readInt('digits'),
+    roundDeadlineAt: round.readTimestamp('roundDeadlineAt'),
+    leakedDigits: [
+      if (round.json.containsKey('leaked'))
+        for (final leak in round.readObjectList('leaked'))
+          VaultLeakedDigit(
+            position: leak.readInt('position'),
+            digit: leak.readInt('digit'),
+          ),
+    ],
+    triesByParticipant: {
+      if (tries != null)
+        for (final participantId in tries.json.keys)
+          participantId.toString(): tries.readInt(participantId.toString()),
+    },
+    yourLockedUntil: round.readOptionalTimestamp('lockedUntil'),
+    nextLeakAt: round.readOptionalTimestamp('nextLeakAt'),
   );
 }

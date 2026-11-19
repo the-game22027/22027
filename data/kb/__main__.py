@@ -11,6 +11,7 @@ from kb.db import apply_pending_migrations, connect_to_knowledge_base
 from kb.fjelstul_links import link_fjelstul
 from kb.goals import ingest_goals
 from kb.ingest import collect_snapshot
+from kb.lineups import ingest_lineups
 from kb.linking import link_transfermarkt
 from kb.matches import ingest_matches
 from kb.sources import download_source_file, load_file_into_raw, load_source_registry
@@ -56,6 +57,16 @@ def main(argv: list[str] | None = None) -> int:
     bundle.add_argument("--auction-max-answers", type=int, default=30, help="most names in an AUCTION list")
     bundle.add_argument(
         "--auction-known-share", type=float, default=0.6, help="share of known players an AUCTION list needs"
+    )
+    bundle.add_argument("--vaults", type=int, default=0, help="VAULT (الخزنة) rounds of 4 digit questions")
+    bundle.add_argument(
+        "--vault-min-player-sitelinks",
+        type=int,
+        default=40,
+        help="how known a player a VAULT question names must be",
+    )
+    bundle.add_argument(
+        "--vault-max-per-template", type=int, default=2, help="most questions of one template in a VAULT"
     )
     bundle.add_argument(
         "--catalog-min-player-sitelinks",
@@ -130,6 +141,9 @@ def main(argv: list[str] | None = None) -> int:
                 auction_min_answers=args.auction_min_answers,
                 auction_max_answers=args.auction_max_answers,
                 auction_known_share=args.auction_known_share,
+                vault_count=args.vaults,
+                vault_min_player_sitelinks=args.vault_min_player_sitelinks,
+                vault_max_per_template=args.vault_max_per_template,
             )
             print(
                 f"{args.version}: {summary.question_count} rounds {summary.by_game_type}, "
@@ -147,6 +161,7 @@ def main(argv: list[str] | None = None) -> int:
             report = ingest_matches(connection)
             print("\n".join(report.lines()))
             print("\n".join(ingest_goals(connection).lines()))
+            print("\n".join(ingest_lineups(connection).lines()))
         elif args.command == "sources:fetch":
             for source_file in selected:
                 downloaded = download_source_file(source_file, refresh=args.refresh)

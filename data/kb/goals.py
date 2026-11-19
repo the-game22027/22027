@@ -96,7 +96,7 @@ class GoalReport:
 def ingest_goals(connection: psycopg.Connection, review_dir: Path = REVIEW_DIR) -> GoalReport:
     """Rebuild core.goal from the goal events of usable matches that have a Transfermarkt claim."""
     report = GoalReport()
-    if not _raw_table_exists(connection, GOAL_EVENTS_TABLE):
+    if not raw_table_exists(connection, GOAL_EVENTS_TABLE):
         return report
     match_of_game = dict(
         connection.execute(
@@ -118,13 +118,13 @@ def ingest_goals(connection: psycopg.Connection, review_dir: Path = REVIEW_DIR) 
         ).fetchall()
     )
     lineups: dict[str, set[tuple[str, str]]] = defaultdict(set)
-    if _raw_table_exists(connection, LINEUPS_TABLE):
+    if raw_table_exists(connection, LINEUPS_TABLE):
         for game_id, club_id, player_id in connection.execute(
             f"SELECT game_id, club_id, player_id FROM raw.{LINEUPS_TABLE}"
         ):
             if game_id in match_of_game:
                 lineups[game_id].add((club_id, player_id))
-    license = _license_of(connection, GOAL_EVENTS_TABLE)
+    license = license_of(connection, GOAL_EVENTS_TABLE)
 
     rows = []
     review = []
@@ -190,11 +190,11 @@ def _write_assist_review_file(rows: list[dict[str, str]], out_dir: Path) -> None
         writer.writerows(rows)
 
 
-def _raw_table_exists(connection: psycopg.Connection, table: str) -> bool:
+def raw_table_exists(connection: psycopg.Connection, table: str) -> bool:
     return connection.execute("SELECT to_regclass(%s)", (f"raw.{table}",)).fetchone()[0] is not None
 
 
-def _license_of(connection: psycopg.Connection, table: str) -> str:
+def license_of(connection: psycopg.Connection, table: str) -> str:
     row = connection.execute(
         """SELECT license FROM raw.source_snapshot WHERE raw_table = %s ORDER BY loaded_at DESC, id DESC LIMIT 1""",
         (f"raw.{table}",),

@@ -112,6 +112,21 @@ const auctionGame = z.strictObject({
   }),
 });
 
+const vaultGame = z.strictObject({
+  ...firstMoverFields,
+  enabled: z.boolean(),
+  roundCount: z.number().int().positive(),
+  targetScore: z.number().int().positive(),
+  roundMs: positiveMs,
+  lockoutMs: z.array(z.number().int().nonnegative()).min(1),
+  leaks: z.strictObject({ firstAtMs: positiveMs, everyMs: positiveMs, max: z.number().int().nonnegative() }),
+  points: z.strictObject({ vaultOpened: z.number().int() }),
+  selection: z.strictObject({
+    difficulties: z.array(z.number().int().min(1).max(5)).min(1).nullable(),
+    excludeLastBattles: z.number().int().nonnegative(),
+  }),
+});
+
 const answers = z.strictObject({
   maxLength: z.number().int().positive(),
   typoTolerance: z
@@ -149,6 +164,7 @@ const settingsSchema = z
       GRID: gridGame.optional(),
       MINES: minesGame.optional(),
       AUCTION: auctionGame.optional(),
+      VAULT: vaultGame.optional(),
     }),
   })
   .superRefine((settings, context) => {

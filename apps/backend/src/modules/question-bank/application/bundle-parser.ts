@@ -71,7 +71,7 @@ const minesCriterion = z.union([
 const gameLineSchema = z.strictObject({
   ...commonLineFields,
   type: z.literal('GAME'),
-  gameType: z.enum(['BUZZER', 'CAREER', 'WHO_IS_PLAYER', 'GRID', 'MINES', 'AUCTION']),
+  gameType: z.enum(['BUZZER', 'CAREER', 'WHO_IS_PLAYER', 'GRID', 'MINES', 'AUCTION', 'VAULT']),
   content: z.record(z.string(), z.unknown()),
   answers: z.array(z.strictObject({ slot: z.number().int(), entities: z.array(externalRef) })).default([]),
 });
@@ -101,6 +101,9 @@ const gameBodySchemas = {
   GRID: z.strictObject({ rows: z.array(gridCriterion), cols: z.array(gridCriterion) }),
   MINES: z.strictObject({ criteria: z.array(minesCriterion) }),
   AUCTION: z.strictObject({ lists: z.array(z.strictObject({ kind: nonEmpty, title: localizedText })) }),
+  VAULT: z.strictObject({
+    questions: z.array(z.strictObject({ template: nonEmpty, text: localizedText, answerNumber: z.number().int() })),
+  }),
 } as const;
 
 const catalogLineSchema = z.strictObject({
@@ -200,6 +203,10 @@ const toGameBody = (gameType: GameBody['gameType'], content: unknown): { body: G
     }
     case 'AUCTION': {
       const result = gameBodySchemas.AUCTION.safeParse(content);
+      return result.success ? { body: { gameType, ...result.data } } : { issues: describeIssues(result.error) };
+    }
+    case 'VAULT': {
+      const result = gameBodySchemas.VAULT.safeParse(content);
       return result.success ? { body: { gameType, ...result.data } } : { issues: describeIssues(result.error) };
     }
   }

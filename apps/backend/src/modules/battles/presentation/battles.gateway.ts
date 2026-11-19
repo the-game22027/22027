@@ -27,6 +27,7 @@ import {
   minesTextCommand,
   readyCommand,
   resyncCommand,
+  vaultTryCommand,
   rockPaperScissorsPickCommand,
   timeSyncCommand,
 } from './battle-commands';
@@ -229,6 +230,20 @@ export class BattlesGateway
       command.roundNo,
       auctionCommand,
       command.clientMsgId,
+    );
+  }
+
+  @SubscribeMessage('vault:try')
+  tryVaultCode(socket: Socket, body: unknown): Promise<Ack> {
+    return this.withPayload(vaultTryCommand, body, (command) =>
+      this.engine.sendVaultTry(
+        command.battleId,
+        userIdOf(socket),
+        socket.id,
+        command.roundNo,
+        command.code,
+        command.clientMsgId,
+      ),
     );
   }
 

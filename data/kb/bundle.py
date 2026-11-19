@@ -22,6 +22,7 @@ from kb.generate import (
 )
 from kb.grids import grid_rounds
 from kb.mines import mines_rounds
+from kb.vaults import KNOCKOUT_STAGES, VaultMatch, vault_facts, vault_rounds
 
 GENERATOR_VERSION = "kb-generate-2"  # 2: catalog lines carry nameWords (ADR-0021)
 CATEGORIES = [
@@ -32,6 +33,7 @@ CATEGORIES = [
     {"slug": "grids", "names": {"en": "Grids", "ar": "الشبكات"}},
     {"slug": "mines", "names": {"en": "Mines", "ar": "لغم"}},
     {"slug": "auctions", "names": {"en": "Auctions", "ar": "المزاد"}},
+    {"slug": "vaults", "names": {"en": "Vaults", "ar": "الخزنة"}},
 ]
 
 
@@ -62,6 +64,9 @@ def build_bundle(
     auction_min_answers: int = 6,
     auction_max_answers: int = 30,
     auction_known_share: float = 0.6,
+    vault_count: int = 0,
+    vault_min_player_sitelinks: int = 40,
+    vault_max_per_template: int = 2,
 ) -> BundleSummary:
     catalog = {entry["externalRef"]: entry for entry in load_catalog_entries(connection)}
     kb_version = _kb_version(connection)
@@ -115,6 +120,27 @@ def build_bundle(
             min_answers=auction_min_answers,
             max_answers=auction_max_answers,
             known_share=auction_known_share,
+        )
+        + (
+            vault_rounds(
+                vault_facts(
+                    load_vault_matches(connection),
+                    load_player_goal_counts(connection),
+                    load_starter_shirts(connection),
+                    load_covered_international_editions(connection),
+                    load_label_lookup(connection),
+                    _names_lookup(catalog, "PLAYER"),
+                    lambda ref: (
+                        catalog[ref]["popularity"] if catalog.get(ref, {}).get("kind") == "PLAYER" else None
+                    ),
+                    min_player_sitelinks=vault_min_player_sitelinks,
+                ),
+                kb_version,
+                count=vault_count,
+                max_per_template=vault_max_per_template,
+            )
+            if vault_count
+            else []
         ),
         key=lambda line: line["externalKey"],
     )
@@ -151,6 +177,50 @@ def load_goal_rows(connection: psycopg.Connection) -> list[tuple]:
            FROM core.goal g JOIN core.match m ON m.id = g.match_id JOIN core.edition e ON e.id = m.edition_id
            JOIN core.competition co ON co.competition_ref = e.competition_ref
            WHERE m.usable ORDER BY g.id"""
+    ).fetchall()
+
+
+def load_vault_matches(connection: psycopg.Connection) -> list[VaultMatch]:
+    """Usable knockout matches and finals, with whether their goal rows add up to the score per team."""
+    rows = connection.execute(
+        """SELECT m.id, co.key, co.name_en, co.name_ar, co.kind, co.tier, e.season_label, e.final_year, m.stage,
+                  m.leg, m.home_team_ref, m.away_team_ref, m.home_goals, m.away_goals, m.shootout_home,
+                  m.shootout_away, m.shootout_winner_ref,
+                  (SELECT count(*) FROM core.goal g WHERE g.match_id = m.id AND g.team_ref = m.home_team_ref)
+                    = m.home_goals
+                  AND (SELECT count(*) FROM core.goal g WHERE g.match_id = m.id AND g.team_ref = m.away_team_ref)
+                    = m.away_goals
+           FROM core.match m JOIN core.edition e ON e.id = m.edition_id
+           JOIN core.competition co ON co.competition_ref = e.competition_ref
+           WHERE m.usable AND m.stage = ANY (%s) ORDER BY m.id""",
+        (list(KNOCKOUT_STAGES),),
+    ).fetchall()
+    return [VaultMatch(row[0], row[1], {"en": row[2], "ar": row[3]}, *row[4:]) for row in rows]
+
+
+def load_player_goal_counts(connection: psycopg.Connection) -> list[tuple]:
+    """(match_id, team_ref, scorer_ref, goals) for every linked scorer; own goals do not count."""
+    return connection.execute(
+        """SELECT match_id, team_ref, scorer_ref, count(*) FROM core.goal
+           WHERE NOT own_goal AND scorer_ref IS NOT NULL GROUP BY 1, 2, 3 ORDER BY 1, 2, 3"""
+    ).fetchall()
+
+
+def load_starter_shirts(connection: psycopg.Connection) -> list[tuple]:
+    """(match_id, team_ref, player_ref, shirt_number) of linked starters."""
+    return connection.execute(
+        """SELECT match_id, team_ref, player_ref, shirt_number FROM core.lineup_slot
+           WHERE starter AND player_ref IS NOT NULL AND shirt_number IS NOT NULL ORDER BY id"""
+    ).fetchall()
+
+
+def load_covered_international_editions(connection: psycopg.Connection) -> list[tuple]:
+    """(competition key, final year, has a usable final) of every international tournament edition."""
+    return connection.execute(
+        """SELECT co.key, e.final_year,
+                  EXISTS (SELECT 1 FROM core.match m WHERE m.edition_id = e.id AND m.usable AND m.stage = 'FINAL')
+           FROM core.edition e JOIN core.competition co ON co.competition_ref = e.competition_ref
+           WHERE co.kind = 'INTERNATIONAL' ORDER BY 1, 2"""
     ).fetchall()
 
 
@@ -235,7 +305,7 @@ def _references_of_line(line: dict) -> set[str]:
         refs.add(content["player"])
     if line["gameType"] == "GRID":
         refs.update(criterion["entity"] for criterion in [*content["rows"], *content["cols"]])
-    # AUCTION titles are text and its answers are players: nothing else to keep.
+    # AUCTION titles and VAULT questions are text: nothing else to keep.
     if line["gameType"] == "MINES":
         refs.update(criterion["entity"] for criterion in content["criteria"] if "entity" in criterion)
     return refs

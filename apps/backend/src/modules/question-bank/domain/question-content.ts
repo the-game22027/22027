@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { type Locale, LOCALES } from '@shared/kernel';
 
-export const GAME_TYPES = ['BUZZER', 'CAREER', 'WHO_IS_PLAYER', 'GRID', 'MINES', 'AUCTION'] as const;
+export const GAME_TYPES = ['BUZZER', 'CAREER', 'WHO_IS_PLAYER', 'GRID', 'MINES', 'AUCTION', 'VAULT'] as const;
 export type GameType = (typeof GAME_TYPES)[number];
 
 /** Kinds of answer catalog entities (08 §5). */
@@ -50,6 +50,13 @@ export interface AuctionList {
   title: LocalizedText;
 }
 
+/** One VAULT question (08 §12.4): its template, its text in each locale, and its digit. */
+export interface VaultQuestion {
+  template: string;
+  text: LocalizedText;
+  answerNumber: number;
+}
+
 /** The game-specific part of a round (08 §4). Entities are referenced by catalog `externalRef`. */
 export type GameBody =
   | {
@@ -67,7 +74,8 @@ export type GameBody =
   | { gameType: 'WHO_IS_PLAYER'; player: string; clues: { kind: string; text: LocalizedText }[] }
   | { gameType: 'GRID'; rows: GridCriterion[]; cols: GridCriterion[] }
   | { gameType: 'MINES'; criteria: MinesCriterion[] }
-  | { gameType: 'AUCTION'; lists: AuctionList[] };
+  | { gameType: 'AUCTION'; lists: AuctionList[] }
+  | { gameType: 'VAULT'; questions: VaultQuestion[] };
 
 /** Accepted answers of one slot: slot 0 for reveal games, 0..8 for grid cells (row * 3 + col). */
 export interface AnswerSlot {
@@ -116,6 +124,8 @@ export function localesOfQuestion(content: QuestionContent): Locale[] {
       return (Object.keys(body.clues[0]?.text ?? {}) as Locale[]).sort();
     case 'AUCTION':
       return LOCALES.filter((locale) => body.lists.every((list) => list.title[locale] !== undefined)).sort();
+    case 'VAULT':
+      return LOCALES.filter((locale) => body.questions.every((question) => question.text[locale] !== undefined)).sort();
     case 'CAREER':
     case 'GRID':
     case 'MINES':
@@ -137,6 +147,8 @@ export function summaryTextOfQuestion(content: QuestionContent, locale: Locale):
       return body.clues.map((clue) => clue.text[locale] ?? '').join(' · ');
     case 'AUCTION':
       return body.lists.map((list) => list.title[locale] ?? '').join(' · ');
+    case 'VAULT':
+      return body.questions.map((question) => question.text[locale] ?? '').join(' · ');
     case 'CAREER':
     case 'GRID':
     case 'MINES':

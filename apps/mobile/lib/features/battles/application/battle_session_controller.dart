@@ -175,6 +175,33 @@ class BattleSessionController extends Notifier<BattleSessionState> {
         'answer': {'text': text},
       });
 
+  /// `vault:try`: the whole code, one digit per question (`08` §12.1). A wrong try's ack tells only
+  /// you, with when you may try again; the others see your try count only.
+  Future<BattleCommandResult> tryVaultCode(String code) async {
+    final result = await _sendRoundCommand('vault:try', {'code': code});
+    final battle = state.battle;
+    final round = battle?.currentRound;
+    if (!ref.mounted || battle == null || round is! VaultRound) return result;
+    if (result case BattleCommandAccepted(:final ack)) {
+      if (ack['data'] case final Map<Object?, Object?> data) {
+        final reader = JsonObjectReader(data, 'vault:try ack');
+        state = state.copyWith(
+          battle: () => battle.copyWith(
+            currentRound: () => round.copyWith(
+              yourLockedUntil: () =>
+                  reader.readOptionalTimestamp('lockedUntil'),
+              triesByParticipant: {
+                ...round.triesByParticipant,
+                battle.youParticipantId: reader.readInt('tries'),
+              },
+            ),
+          ),
+        );
+      }
+    }
+    return result;
+  }
+
   /// `mines:bury`: buries one mine in secret (`08` §10.1). The ack carries your mines so far,
   /// which only you ever see; a name outside the category uses one of your wrong tries.
   Future<BattleCommandResult> buryMine(String text) async {
