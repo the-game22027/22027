@@ -32,7 +32,18 @@ export const isRejection = (value: unknown): value is Rejection =>
 /** One accepted player action or timeout, persisted to battle_round_actions in this order. */
 export interface RoundAction {
   participantId: ParticipantId;
-  kind: 'BUZZ' | 'ANSWER' | 'ANSWER_TIMEOUT' | 'GRID_CLAIM' | 'GRID_SKIP' | 'TURN_TIMEOUT';
+  kind:
+    | 'BUZZ'
+    | 'ANSWER'
+    | 'ANSWER_TIMEOUT'
+    | 'GRID_CLAIM'
+    | 'GRID_SKIP'
+    | 'TURN_TIMEOUT'
+    | 'MINE_BURY'
+    | 'MINE_AUTO_BURY'
+    | 'MINE_ANSWER'
+    | 'MINE_HIT'
+    | 'MINE_SCAN';
   answer?: JudgedAnswer;
   /** Grid only: row * 3 + col. */
   cell?: number;
@@ -53,8 +64,19 @@ export type JudgedAnswer = { entityId: string | null; text?: string; match?: Tex
 export interface RoundResult {
   winnerParticipantId: ParticipantId | null;
   endReason:
-    'CORRECT' | 'NO_WINNER' | 'ALL_LOCKED_OUT' | 'GRID_LINE' | 'GRID_FULL' | 'MAX_TURNS' | 'SKIP_LIMIT' | 'FORFEIT';
+    | 'CORRECT'
+    | 'NO_WINNER'
+    | 'ALL_LOCKED_OUT'
+    | 'GRID_LINE'
+    | 'GRID_FULL'
+    | 'MAX_TURNS'
+    | 'SKIP_LIMIT'
+    | 'LAST_HEART'
+    | 'NO_SAFE_ANSWERS'
+    | 'FORFEIT';
   /** Points earned in this round, by participant; missing means 0. */
   points: Record<ParticipantId, number>;
   stepsRevealed: number;
+  /** Opaque state handed to the next round's runner (08 §10.7); the engine stores it without reading it. */
+  carryOver?: unknown;
 }

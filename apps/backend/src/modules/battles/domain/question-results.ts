@@ -20,7 +20,7 @@ export interface QuestionResult {
   stepsRevealed: number | null;
 }
 
-const ANSWERING_ACTIONS = new Set(['ANSWER', 'GRID_CLAIM']);
+const ANSWERING_ACTIONS = new Set(['ANSWER', 'GRID_CLAIM', 'MINE_ANSWER']);
 
 /**
  * What a round says about its question, counting humans only: a bot's answers come from its profile,
