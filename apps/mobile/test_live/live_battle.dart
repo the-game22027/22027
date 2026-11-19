@@ -30,6 +30,37 @@ const _nameGuesses = [
   'Henry',
 ];
 
+/// HEX: one well-known name per English letter, so the typed text starts with the cell's letter
+/// (the server refuses another first letter only for a right name).
+const _famousNamesByLetter = {
+  'A': 'Aguero',
+  'B': 'Benzema',
+  'C': 'Cafu',
+  'D': 'Drogba',
+  'E': 'Etoo',
+  'F': 'Figo',
+  'G': 'Gerrard',
+  'H': 'Henry',
+  'I': 'Iniesta',
+  'J': 'Jorginho',
+  'K': 'Kaka',
+  'L': 'Lampard',
+  'M': 'Messi',
+  'N': 'Neymar',
+  'O': 'Oblak',
+  'P': 'Pirlo',
+  'Q': 'Quaresma',
+  'R': 'Ronaldo',
+  'S': 'Salah',
+  'T': 'Totti',
+  'U': 'Umtiti',
+  'V': 'Vieira',
+  'W': 'Walcott',
+  'X': 'Xavi',
+  'Y': 'Yashin',
+  'Z': 'Zidane',
+};
+
 /// How often the VAULT loop looks again while it waits for a leak or the end of a lockout.
 const _vaultPollEvery = Duration(milliseconds: 300);
 
@@ -79,6 +110,14 @@ class LiveBattleRun {
   final vaultRefusals = <String>[];
   int vaultLeaks = 0;
 
+  /// HEX: the races this device saw, the ones started by its clear ("شيلها"), its wrong names
+  /// (each locks it out of that race) and the answers the server refused.
+  int hexRaces = 0;
+  int hexClearedRaces = 0;
+  int hexWrongAnswers = 0;
+  final hexRefusals = <String>[];
+  BattleCommandResult? hexClearResult;
+
   /// The `battle:resync` ack after the socket came back, and the state it left.
   BattleCommandResult? resyncAfterReconnect;
   BattleState? stateAfterReconnect;
@@ -96,11 +135,15 @@ class LiveBattleRun {
   bool _hasGoneAllIn = false;
   final _startedVaultRounds = <int>{};
   bool _hasTriedWhileLockedOut = false;
+  final _playedHexPicks = <DateTime>{};
+  final _answeredHexRaces = <DateTime>{};
+  bool _hasAnsweredHexWhileLockedOut = false;
   bool _hasStartedBurying = false;
   bool _isMoving = true;
   bool _hasDroppedSocket = false;
   bool _isSocketDropped = false;
   String? _battleId;
+  String? _youParticipantId;
   int _lastSeenSeq = 0;
 
   BattleSessionController get controller =>
@@ -249,7 +292,8 @@ class LiveBattleRun {
             if (_startedVaultRounds.add(round.roundNo)) {
               unawaited(_tryVaultCodesUntilClosed(round.roundNo));
             }
-          case HexRound():
+          case final HexRound round:
+            await _pickOrAnswerHex(battle, round);
           case null:
             break;
         }
@@ -449,6 +493,60 @@ class LiveBattleRun {
     return answer is BattleCommandAccepted;
   }
 
+  /// Picks the first open cell, or once per battle clears an opponent's cell. In each race it
+  /// types one famous name with the cell's letter and, once per battle, a second one at once,
+  /// which the server refuses `LOCKED_OUT` when the first was wrong.
+  Future<void> _pickOrAnswerHex(BattleState battle, HexRound round) async {
+    final you = battle.youParticipantId;
+    switch (round.phase) {
+      case HexPhase.picking:
+        if (round.turnParticipantId != you ||
+            !_playedHexPicks.add(round.deadline)) {
+          return;
+        }
+        final opponentCell = round.owners.indexWhere(
+          (owner) => owner != null && owner != you,
+        );
+        final canClear = (round.clearsLeft[you] ?? 0) > 0;
+        if (hexClearResult == null && canClear && opponentCell >= 0) {
+          final clear = await controller.pickHexCell(opponentCell, clear: true);
+          hexClearResult = clear;
+          log.add(
+            'hex clear $opponentCell round ${round.roundNo}: '
+            '${describeCommandResult(clear)}',
+          );
+          if (clear is BattleCommandAccepted) return;
+        }
+        final openCell = round.owners.indexOf(null);
+        if (openCell < 0) return;
+        final pick = await controller.pickHexCell(openCell);
+        log.add(
+          'hex pick $openCell round ${round.roundNo}: '
+          '${describeCommandResult(pick)}',
+        );
+      case HexPhase.racing:
+        final letter = round.letter;
+        if (letter == null || !_answeredHexRaces.add(round.deadline)) return;
+        final guess =
+            _famousNamesByLetter[letter.toUpperCase()] ?? '${letter}zzz';
+        await _answerHex(round, guess);
+        if (_hasAnsweredHexWhileLockedOut) return;
+        _hasAnsweredHexWhileLockedOut = true;
+        await _answerHex(round, guess);
+      case HexPhase.closed:
+        break;
+    }
+  }
+
+  Future<void> _answerHex(HexRound round, String guess) async {
+    final answer = await controller.answerInHex(guess);
+    log.add(
+      'hex answer $guess cell ${round.racingCell}: '
+      '${describeCommandResult(answer)}',
+    );
+    if (answer case BattleCommandRejected(:final code)) hexRefusals.add(code);
+  }
+
   /// VAULT has no turns, so this loop runs for the whole round: one blind try at once, one try
   /// while locked out (once per battle), then, like the bot, only when at most one digit is
   /// still unknown, cycling that digit and waiting out each lockout.
@@ -532,12 +630,20 @@ class LiveBattleRun {
     log.add(describeBattleEvent(event));
     if (event is BattleFound) {
       _battleId = event.battleId;
+      _youParticipantId = event.youParticipantId;
       _lastSeenSeq = event.seq!;
       return;
     }
     if (event is RockPaperScissorsResult) rockPaperScissorsResults.add(event);
     if (event is AuctionProofStarted) auctionProofReasons.add(event.reason);
     if (event is VaultDigitLeaked) vaultLeaks++;
+    if (event is HexRaceStarted) {
+      hexRaces++;
+      if (event.wasCleared) hexClearedRaces++;
+    }
+    if (event is HexWrongAnswer && event.participantId == _youParticipantId) {
+      hexWrongAnswers++;
+    }
     final seq = event.seq;
     if (seq == null || event.battleId != _battleId) return;
     if (seq > _lastSeenSeq + 1 && !_hasDroppedSocket) {
@@ -705,6 +811,24 @@ String describeBattleEvent(BattleServerEvent event) {
     ) =>
       '${phase.name} ${outcome.name}, found $found, strikes $strikes',
     AuctionStealStarted(:final stealerParticipantId) => stealerParticipantId,
+    HexRoundStarted(
+      :final roundNo,
+      :final size,
+      :final firstPickerParticipantId,
+    ) =>
+      'round $roundNo, ${size}x$size, first pick $firstPickerParticipantId',
+    HexTurnStarted(:final participantId) => participantId,
+    HexRaceStarted(
+      :final cell,
+      :final letter,
+      :final wasCleared,
+      :final wasPickedByServer,
+    ) =>
+      'cell $cell letter $letter${wasCleared ? ' (cleared)' : ''}${wasPickedByServer ? ' (auto)' : ''}',
+    HexWrongAnswer(:final participantId) => participantId,
+    HexCellClaimed(:final cell, :final participantId, :final player) =>
+      'cell $cell $participantId ${player.name}',
+    HexRaceExpired(:final cell) => 'cell $cell',
     VaultRoundStarted(:final roundNo, :final digits) =>
       'round $roundNo, $digits digits',
     VaultTried(:final participantId, :final tries) =>
