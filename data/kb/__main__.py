@@ -51,6 +51,12 @@ def main(argv: list[str] | None = None) -> int:
     bundle.add_argument(
         "--mines-clubs", type=int, default=100, help="MINES uses only the N most popular clubs"
     )
+    bundle.add_argument("--auctions", type=int, default=0, help="AUCTION (المزاد) lots of 3 lists")
+    bundle.add_argument("--auction-min-answers", type=int, default=6, help="fewest names in an AUCTION list")
+    bundle.add_argument("--auction-max-answers", type=int, default=30, help="most names in an AUCTION list")
+    bundle.add_argument(
+        "--auction-known-share", type=float, default=0.6, help="share of known players an AUCTION list needs"
+    )
     bundle.add_argument(
         "--catalog-min-player-sitelinks",
         type=int,
@@ -120,6 +126,10 @@ def main(argv: list[str] | None = None) -> int:
                 mines_min_answers=args.mines_min_answers,
                 mines_max_answers=args.mines_max_answers,
                 mines_clubs=args.mines_clubs,
+                auction_count=args.auctions,
+                auction_min_answers=args.auction_min_answers,
+                auction_max_answers=args.auction_max_answers,
+                auction_known_share=args.auction_known_share,
             )
             print(
                 f"{args.version}: {summary.question_count} rounds {summary.by_game_type}, "

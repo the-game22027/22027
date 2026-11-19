@@ -8,6 +8,7 @@ from pathlib import Path
 
 import psycopg
 
+from kb.auctions import auction_rounds, build_goal_lists
 from kb.careers import Spell
 from kb.catalog import load_catalog_entries, write_catalog_file
 from kb.generate import (
@@ -30,6 +31,7 @@ CATEGORIES = [
     {"slug": "players", "names": {"en": "Players", "ar": "اللاعبون"}},
     {"slug": "grids", "names": {"en": "Grids", "ar": "الشبكات"}},
     {"slug": "mines", "names": {"en": "Mines", "ar": "لغم"}},
+    {"slug": "auctions", "names": {"en": "Auctions", "ar": "المزاد"}},
 ]
 
 
@@ -56,6 +58,10 @@ def build_bundle(
     mines_min_answers: int = 20,
     mines_max_answers: int = 40,
     mines_clubs: int = 100,
+    auction_count: int = 0,
+    auction_min_answers: int = 6,
+    auction_max_answers: int = 30,
+    auction_known_share: float = 0.6,
 ) -> BundleSummary:
     catalog = {entry["externalRef"]: entry for entry in load_catalog_entries(connection)}
     kb_version = _kb_version(connection)
@@ -99,6 +105,16 @@ def build_bundle(
             min_answers=mines_min_answers,
             max_answers=mines_max_answers,
             allowed_clubs=_most_popular_refs(catalog, "CLUB", mines_clubs),
+        )
+        + auction_rounds(
+            build_goal_lists(load_goal_rows(connection)) if auction_count else [],
+            lambda ref: catalog[ref]["popularity"] if catalog.get(ref, {}).get("kind") == "PLAYER" else None,
+            load_label_lookup(connection),
+            kb_version,
+            count=auction_count,
+            min_answers=auction_min_answers,
+            max_answers=auction_max_answers,
+            known_share=auction_known_share,
         ),
         key=lambda line: line["externalKey"],
     )
@@ -125,6 +141,28 @@ def pick_buzzer_rounds(
     for index, candidates in enumerate((first_clubs, transfers, nationalities)):
         picked += pick_spread_over_difficulties(candidates, share + (1 if index < extra else 0))
     return picked
+
+
+def load_goal_rows(connection: psycopg.Connection) -> list[tuple]:
+    """Every goal of core.goal with its competition season, in the row shape of `build_goal_lists`."""
+    return connection.execute(
+        """SELECT co.key, co.name_en, co.name_ar, e.season_label, g.team_ref, g.scorer_ref, g.own_goal,
+                  g.assist_ref, g.assist_source_id
+           FROM core.goal g JOIN core.match m ON m.id = g.match_id JOIN core.edition e ON e.id = m.edition_id
+           JOIN core.competition co ON co.competition_ref = e.competition_ref
+           WHERE m.usable ORDER BY g.id"""
+    ).fetchall()
+
+
+def load_label_lookup(connection: psycopg.Connection) -> Callable[[str], dict[str, str] | None]:
+    """External ref → {en, ar} labels of any entity (national teams are not catalog entities yet), or None
+    when a language is missing."""
+    labels: dict[str, dict[str, str]] = {}
+    for external_ref, locale, name in connection.execute(
+        "SELECT external_ref, locale, name FROM core.entity_name WHERE name_kind = 'LABEL' AND locale IN ('en', 'ar')"
+    ):
+        labels.setdefault(external_ref, {})[locale] = name
+    return lambda ref: labels[ref] if len(labels.get(ref, {})) == 2 else None
 
 
 def load_player_facts(connection: psycopg.Connection) -> list[PlayerFacts]:
@@ -197,6 +235,7 @@ def _references_of_line(line: dict) -> set[str]:
         refs.add(content["player"])
     if line["gameType"] == "GRID":
         refs.update(criterion["entity"] for criterion in [*content["rows"], *content["cols"]])
+    # AUCTION titles are text and its answers are players: nothing else to keep.
     if line["gameType"] == "MINES":
         refs.update(criterion["entity"] for criterion in content["criteria"] if "entity" in criterion)
     return refs
