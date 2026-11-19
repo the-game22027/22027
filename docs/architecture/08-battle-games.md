@@ -779,3 +779,100 @@ Generator (`kb bundle --hexes N`, 07 §5.8):
 - **One timer per phase** (§11.7): the pick deadline, then the answer deadline.
 - **Actions:** `HEX_PICK`, `HEX_CLEAR`, `HEX_ANSWER` (`is_correct`), `TURN_TIMEOUT`. Question stats count a wrong `HEX_ANSWER` as a wrong answer.
 - **Snapshot `currentRound`:** the board (letters in the viewer's language, owners), `sides`, `phase`, whose pick, the racing cell with its question and letter, lockouts, clears left, `picks`, and the current deadline.
+
+## 14. `LINEUP` (التشكيلة, N5)
+
+Chosen by the product owner on 2026-11-17 (DEC-68; demo page: https://claude.ai/artifact/5YroowQ5Qt63dNXH3NHmjo). Each round shows one team's formation in a famous match ("Liverpool, 2019 Champions League final against Tottenham") with 11 empty slots. Both players type names at the same time; the server places each right name in its slot for whoever typed it first. Three names are shown beside the pitch, and one of them is a fake. Three rounds; the most points wins.
+
+### 14.1 A round
+
+```mermaid
+stateDiagram-v2
+  [*] --> OPEN: round:start (formation, 3 shown names)
+  OPEN --> OPEN: a placed name, a wrong name (lockout), an accusation, the first-letter hints
+  OPEN --> [*]: every typed slot taken, or roundDeadlineAt
+```
+
+1. **The formation:** a round's content is one team's starting XI in one match (§14.4). `round:start` shows the match (competition, season, stage, both teams, score), which team, and 11 slots, each with its line and role (GK, CB, LW, ... as codes the app translates) and the captain's armband on its slot. Names and shirt numbers stay hidden.
+2. **No first mover:** both play at the same time (`firstMover: NONE`, §9.1).
+3. **Three shown names:** two real starters (never the captain) and one fake: a player who sat on the bench in that match (§14.4). The three are shuffled and not placed in slots, so the board does not give the fake away.
+4. **Typing a name:** `lineup:answer { text }`. The server judges it against the XI and the fake (§14.7) and answers in the ack:
+   - **A starter in an empty slot:** placed for that player: `points.correct`, or `points.captain` for the captain's slot. Both players see it at once (`lineup:placed`).
+   - **A starter already placed:** refused with `ALREADY_TAKEN`, no penalty (knowing it was not a mistake, being slower was).
+   - **A shown name:** an accusation, at most `accuse.perPlayer` (1) per player per round. The fake: `points.accuseRight`, the fake is crossed out for both, and the two real shown names are placed in their slots with no owner. A real starter: `points.accuseWrong`.
+   - **Anything else:** a wrong name. The player is locked out for the next step of `lockoutMs` (`LockoutLadder`, §9.2), which stops typing every famous player of the club. With `showWrongAnswers` (DEC-60) the opponent sees the typed text.
+   - The same wrong text twice counts once (`UsedAnswers`, §9.2).
+5. **Hints:** at `hints.firstAtMs` (30 s), the first letter of every empty slot's player appears, in the viewer's language (`HintSchedule`, §9.2; `hints.max` 1 for now).
+6. **Round end:** when every slot that can be typed is taken (the 9 not shown, or all 11 after the fake is found), or at `roundMs` (60 s).
+7. **Reveal:** the whole XI with shirt numbers, who placed each name, the fake and why it was fake ("on the bench that night"), and who unmasked it.
+8. **End of the battle:** after `roundCount` (3) rounds the scores decide, ties as in DEC-33. There is no `targetScore`: points add up across rounds.
+9. **Players:** 2 now. The rules do not depend on the count, so rooms (P8) can use them as they are.
+
+### 14.2 Hidden information
+
+- Which shown name is the fake stays on the server until someone unmasks it or the round ends (§9.3).
+- A wrong accusation is public only as "X accused wrongly" (`lineup:accused { right: false }` without the name), so it does not tell the opponent which shown name is real.
+- Names and shirt numbers of empty slots never leave the server before the reveal; hints carry only the first letter.
+- Placed names, wrong typed text (DEC-60) and scores are public.
+
+### 14.3 Protocol (details in `api/WEBSOCKET.md` when built)
+
+| Direction | Message | Purpose |
+|---|---|---|
+| C→S | `lineup:answer { roundNo, text }` | A typed name: a slot, an accusation or a wrong name, decided by the server |
+| S→C | ack of `lineup:answer` | Only to the player: `{ result: PLACED \| WRONG \| ACCUSED_RIGHT \| ACCUSED_WRONG, slot?, lockedUntil? }` (§2.4, private results in acks) |
+| S→C | `round:start` | The match header, the team, `slots: [{ slot, line, role, captain }]`, `shown: [{ entityId, name }]`, `roundDeadlineAt`, `hintsAt` |
+| S→C | `lineup:placed` | `slot`, `entityId`, `name`, `participantId` (null for the real shown names placed after an unmasking) |
+| S→C | `lineup:wrong` | A wrong name's `participantId` and text (with `showWrongAnswers`) |
+| S→C | `lineup:accused` | `participantId`, `right`; `entityId` only when right |
+| S→C | `lineup:hint` | `letters: [{ slot, letter }]` in the viewer's language |
+| S→C | `round:result` | `reveal: { slots: [{ slot, entityId, name, shirtNumber, placedBy }], fake: { entityId, name, reason, unmaskedBy } }` |
+
+Refusals: `LOCKED_OUT`, `ALREADY_TAKEN`, `ACCUSATION_USED` (a shown name after the player's accusation is spent), `BLANK_ANSWER`, `ROUND_CLOSED`.
+
+### 14.4 Content and generator
+
+| `gameType` | Content | Accepted answers |
+|---|---|---|
+| `LINEUP` | `{ match: { competitionKey, season, stage, leg, homeRef, awayRef, homeGoals, awayGoals, shootout }, teamRef, slots: [{ slot, line, role, shirtNumber, captain, playerRef } ×11], shown: [{ playerRef, isFake }] ×3 }` | Slot 0: the 11 starters; slot 1: the fake |
+
+The engine strips `playerRef`, `shirtNumber` and `isFake` before anything reaches a client, and sends each slot's name only when it is placed or revealed. Lines are `GK`, `DEF`, `MID`, `FWD`; roles are codes (`GK`, `LB`, `CB`, `RB`, `DM`, `CM`, `AM`, `LM`, `RM`, `LW`, `RW`, `SS`, `CF`) that the app translates, or only the line when the source is coarse (Fjelstul). No text in the content: the app renders the header from the competition key, the stage code and the team entities.
+
+Generator (`kb bundle --lineups N`, 07 §5.8), from `core.lineup_slot` (07 §5.10, N5 slice):
+
+- **Famous matches only** (DEC-67, the data plan: nobody remembers an ordinary league XI). Default (DEC-80): tier-1 knockouts from the round of 16 and tier-2 finals.
+- **Every starter is a catalog player** with names in both languages, so every slot can be judged; at least `--lineup-min-known` (default 6) are known players (sitelinks ≥ 40).
+- **The fake:** a bench player of the same team in the same match, a known catalog player, never one who came on later in a way the reveal cannot explain (the reveal only says "on the bench"). A lineup with no such bench player is skipped.
+- **The two real shown names:** drawn from the less known starters (never the captain, never the best-known player), so they help without giving away the stars.
+- **Captain:** from the source; a lineup with no known captain is played without the armband (every slot `points.correct`).
+- **Difficulty:** from the stage (final easiest to remember), the tier, the competition and the known share of the XI.
+- **Keys:** `lineup:<match id>:<team qid>`. Both teams of one match are separate rounds; two legs of a tie are separate matches.
+- **Measured on 2026-11-19 (dev, Transfermarkt lineups only, before the bench-player and known-player filters):** tier-1 lineups with all 11 starters in the catalog: finals 22, semi-finals 89, quarter-finals 148, round of 16 283 (542, almost all Champions League 2012–2026); tier-2 finals 228. Bench players in the catalog average 7–10 per tier-1 lineup, so a fake is almost always available. The World Cup comes from Fjelstul (220 knockout lineups 2002–2022 with 11 starters, before linking); the Euro has no lineup source yet.
+
+### 14.5 Bot
+
+- **Knowledge:** for each starter it knows the name with its chance at the round's difficulty, more for well-known players (bot profile, like the auction bot).
+- **Typing:** it sends one known name every `typingDelayMs`, empty slots first, the captain first when it knows him; a wrong popular name now and then from its guess chance, and it waits out its lockout like a player.
+- **Accusing:** only when it knows the fake (its chance at that difficulty), never a blind guess. It never reads the opponent's acks.
+
+### 14.6 Configuration
+
+| Key | Default (dev) | Decision |
+|---|---|---|
+| `roundCount`, `targetScore` | 3, null | owner, 2026-11-17 (3 rounds) |
+| `firstMover` | `NONE` | §9.1 |
+| `roundMs` | 60000 | owner, 2026-11-17 |
+| `hints.firstAtMs`, `hints.everyMs`, `hints.max` | 30000, 0, 1 | owner, 2026-11-17 (30 s); DEC-80 (one wave) |
+| `lockoutMs` | `[2000]` | DEC-80 |
+| `accuse.perPlayer` | 1 | DEC-80 |
+| `showWrongAnswers` | true | DEC-60 |
+| `latencyGraceMs` | 300 | §2.3 |
+| `points.correct`, `points.captain`, `points.accuseRight`, `points.accuseWrong` | 1, 2, 3, -2 | owner, 2026-11-17 |
+
+### 14.7 How it fits the engine
+
+- **Rules:** pure `battles/domain/games/lineup-rules.ts`: slot owners, the shown names, accusations per player, lockouts. `LineupRoundRunner` wraps them (§2.4), with `LockoutLadder`, `HintSchedule` and `UsedAnswers` from §9.2 (all three exist already).
+- **Judging:** `AnswerChecker` against slot 0 (the XI); no match there, then slot 1 (the fake). The rules turn the matched entity into a placement (its slot from the content), an accusation (a shown entity) or a refusal. A typed name that matches a shown real starter is an accusation, not a placement.
+- **Timers:** one `round` timer (`roundMs`) and one `hint` timer. Lockouts need no timer (checked against `lockedUntil` with the clock passed in, as in `VAULT`).
+- **Actions:** `LINEUP_ANSWER` (`is_correct`, entity, typed text), `LINEUP_ACCUSE` (`is_correct`). Question stats count a wrong answer or a wrong accusation as wrong.
+- **Snapshot `currentRound`:** the header, the slots with their placed names and owners, the shown names (the fake crossed out once found), the hints out, the viewer's own `lockedUntil` and whether their accusation is spent, every player's score this round, `roundDeadlineAt`, `hintsAt`.

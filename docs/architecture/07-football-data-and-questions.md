@@ -419,6 +419,13 @@ Not used: StatsBomb open data (non-commercial), FBref and SofaScore (scraping fo
 - Every number is checked to be 0–9 before it is written (D.3f).
 - **Measured on 2026-11-20 (dev):** 40,187 matches with lineups, 1,595,649 slots (23,060 players not linked); the gates refused 81 matches (70 with two captains, 11 without 11 starters). `kb ingest:matches` now takes about 90 s. Check by hand: the 2019 Champions League final comes out with the right XIs, numbers and captains (Henderson, Lloris). The 2022 World Cup final has no Transfermarkt lineup; Fjelstul's lineups come with N5.
 
+**N5 slice: World Cup lineups and famous matches (2026-11-19 design).** For `LINEUP` (`08` §14.4):
+- **Fjelstul World Cup lineups into `core.lineup_slot`** (source `fjelstul`, from `player_appearances.csv`): starter, shirt number, coarse position (`GK`, `DF`, `MF`, `FW`). Fjelstul has no captain column. Players link through `kb link --source fjelstul` (the same D.3b step that links its teams).
+- **One lineup per match and team:** when Transfermarkt and Fjelstul both have one, Transfermarkt's is used (captain, finer positions). The two must name the same 11 linked starters; a disagreement is listed in `.out/review-lineups.csv` and that lineup is not used (a D.3f gate, applied here first). A Fjelstul-only lineup is played without the armband.
+- **Famous matches are read by `kb bundle --lineups`** straight from `core.match` and `core.lineup_slot`, as N2 and N3 do; D.3e's `famous_match` replaces the filter later. Default (DEC-80): tier-1 knockouts from the round of 16, tier-2 finals, and World Cup knockouts 2002–2022. `BIG_CLUBS` league matches wait for D.3e.
+- **Not in N5:** the 2000–2011 Champions League finals (the curated CSV of D.3e) and Euro lineups (no source yet).
+- **Measured on 2026-11-19 (dev, before the Fjelstul load):** 542 tier-1 knockout lineups and 228 tier-2 final lineups have all 11 starters in the catalog; Fjelstul has 220 World Cup knockout lineups 2002–2022 with 11 starters, to be counted again after linking.
+
 **D.3d: typed match tables (resolved).**
 - `core.competition` (ref, kind `LEAGUE` | `CUP` | `INTERNATIONAL`, tier, country) and `core.edition` (competition, season label, final year, winner, runner-up, host).
 - `core.match`: edition, stage (`GROUP` … `FINAL`, `LEAGUE`), date, home and away team, goals, extra time, shootout score, venue.
