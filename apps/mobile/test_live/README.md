@@ -31,12 +31,15 @@ fvm flutter test test_live
 | `grid_battle_live_test.dart` | a full `GRID` battle with rock-paper-scissors; a socket dropped during rock-paper-scissors |
 | `reconnect_and_resume_live_test.dart` | a socket dropped mid-round (`battle:resync`); a second device resuming through `GET /v1/me/play-state` |
 | `mines_battle_live_test.dart` | a full `MINES` battle (burying, the detector's private answer, turns); a socket dropped during burying. Reported as skipped when the server answers `NO_CONTENT` |
+| `auction_battle_live_test.dart` | a full `AUCTION` battle (pick a list, an all-in, raise, call, proofs and steals, first to `targetScore`); a socket dropped during bidding. Reported as skipped when the server answers `NO_CONTENT` |
 
 Each battle fails when an event cannot be parsed (the message names the event, the field and
 the payload), when `seq` has a gap in a normal run, or when the battle does not end
-`COMPLETED` with placements. Afterwards, `play-state` must show no queue ticket and no battle.
+`COMPLETED` with placements (every round of `roundCount`, or until someone reaches
+`targetScore` when the config has one). Afterwards, `play-state` must show no queue ticket and no battle.
 
 The moves come from the battle state only, never from knowing the answers: buzz and type a
 guess, claim a free cell or skip, bury guessed names (the server buries the rest at the
-deadline), use the detector once, pick rock-paper-scissors. Rule values (`roundCount`, timers)
+deadline), use the detector once, pick an auction list, open all-in once then bid low, raise
+once and call, type guesses in a proof or a steal, pick rock-paper-scissors. Rule values (`roundCount`, timers)
 come from `battle:found.config`.
