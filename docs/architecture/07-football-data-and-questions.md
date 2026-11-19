@@ -412,6 +412,12 @@ Not used: StatsBomb open data (non-commercial), FBref and SofaScore (scraping fo
   - `kb ingest:matches` now takes about 19 s;
   - check by hand: Liverpool's 2018-19 Champions League scorers come out as the 9 real ones.
 
+**N3 slice: lineups and vault facts (2026-11-19 design).** For `VAULT` (`08` §12.4):
+- **`core.lineup_slot`** (D.3d) from Transfermarkt lineups of usable matches: match, team, player, starter, position, shirt number, captain. Players link through `core.entity_xref`; an unlinked player keeps its source id and is never used for a question. Fjelstul World Cup lineups come with N5 `LINEUP`.
+- **D.3f gates on it, applied here first:** a team's lineup has 11 starters and at most one captain; a match that fails is listed in `.out/review-lineups.csv` and its lineup is not used.
+- **Vault facts are read by `kb bundle --vaults`** straight from `core.match`, `core.goal` and `core.lineup_slot` (no `derived` view yet, as with N2). `TITLES_SINCE_2000` counts final winners (goals, then the shootout) only for competitions with a usable final for every edition since 2000.
+- Every number is checked to be 0–9 before it is written (D.3f).
+
 **D.3d: typed match tables (resolved).**
 - `core.competition` (ref, kind `LEAGUE` | `CUP` | `INTERNATIONAL`, tier, country) and `core.edition` (competition, season label, final year, winner, runner-up, host).
 - `core.match`: edition, stage (`GROUP` … `FINAL`, `LEAGUE`), date, home and away team, goals, extra time, shootout score, venue.
