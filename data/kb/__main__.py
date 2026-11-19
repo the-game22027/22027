@@ -58,6 +58,16 @@ def main(argv: list[str] | None = None) -> int:
     bundle.add_argument(
         "--auction-known-share", type=float, default=0.6, help="share of known players an AUCTION list needs"
     )
+    bundle.add_argument("--vaults", type=int, default=0, help="VAULT (الخزنة) rounds of 4 digit questions")
+    bundle.add_argument(
+        "--vault-min-player-sitelinks",
+        type=int,
+        default=40,
+        help="how known a player a VAULT question names must be",
+    )
+    bundle.add_argument(
+        "--vault-max-per-template", type=int, default=2, help="most questions of one template in a VAULT"
+    )
     bundle.add_argument(
         "--catalog-min-player-sitelinks",
         type=int,
@@ -131,6 +141,9 @@ def main(argv: list[str] | None = None) -> int:
                 auction_min_answers=args.auction_min_answers,
                 auction_max_answers=args.auction_max_answers,
                 auction_known_share=args.auction_known_share,
+                vault_count=args.vaults,
+                vault_min_player_sitelinks=args.vault_min_player_sitelinks,
+                vault_max_per_template=args.vault_max_per_template,
             )
             print(
                 f"{args.version}: {summary.question_count} rounds {summary.by_game_type}, "
