@@ -467,6 +467,8 @@ The same career rules as `CAREER` apply (dated spells, at most one open spell). 
 - **Key:** `grid:<club qids>:<country qids>` in board order.
 - **Later:** club × club boards ("played for both"), and `COMPETITION_WON` once trophies are ingested.
 
+**`MINES` categories (N1):** a club plus a citizenship or a decade, with 20 to 40 players (`--mines N`, `--mines-min-answers`, `--mines-max-answers`); rules, keys and difficulty in `08` §10.4.
+
 **Difficulty:** a first guess from popularity (Wikipedia sitelinks). Answer statistics recalibrate it later (`calibrated_difficulty`).
 
 | Sitelinks | ≥ 100 | 60-99 | 40-59 | 20-39 | < 20 |

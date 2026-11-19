@@ -150,6 +150,7 @@ Round content lives in `question-bank` (`02-database.md` §4.6) and comes from b
 | `CAREER` | `{ playerEntityId, spells: [{ clubEntityId, fromYear, toYear \| null, loan }] }` | The player (slot 0) |
 | `WHO_IS_PLAYER` | `{ playerEntityId, clues: [{ kind, text: {en, ar} }] }` | The player (slot 0) |
 | `GRID` | `{ rows: [criterion ×3], cols: [criterion ×3] }` | For each cell (slot 0..8), every valid player id |
+| `MINES` | `{ criteria: [criterion ×2] }` (§10.4) | Slot 0: every player of the category |
 
 `answerKind` is `PLAYER`, `CLUB`, `NATIONAL_TEAM`, `COUNTRY`, `COMPETITION`, `COACH`, or `NUMBER`. Catalog entities of kind `COUNTRY` also name the nationality criteria of `GRID`. The client uses it to filter suggestions; it gives nothing away.
 
@@ -239,6 +240,7 @@ Stored in the battle config by game type, snapshotted on the battle row at creat
 | `showWrongAnswers` | all | DEC-60 |
 | `answers.maxLength`, `answers.typoTolerance` (letters → edits), `answers.singleWordMaxSharedBy` | all typed answers | DEC-55 |
 | `showYears` | `CAREER` | DEC-54 |
+| `burying.*`, `hearts`, `ownMine`, `detector.*`, `points.perSafeAnswer` | `MINES` (§10.6) | DEC-72, DEC-73, DEC-75 |
 | `room.difficultyLevels` (`EASY`, `MEDIUM`, `HARD` → difficulty ranges) | rooms | DEC-64 |
 | `points.*` | all | DEC-33 |
 | `latencyGraceMs`, `readyTimeoutMs`, `reconnectGraceMs`, `betweenRoundsMs` (pause after `round:result`) | engine | DEC-32 |
@@ -281,7 +283,7 @@ The in-game `score` (`points.*` above) decides placements inside one battle. **L
 
 ## 9. New game types: shared pieces (N0, DEC-68, ADR-0023)
 
-Each new game gets its own section here when its N phase starts (rules, state diagram, content shape, bot, config, open rules as DECs). This section holds only what several of them share.
+Each new game gets its own section after this one when its N phase starts (rules, state diagram, content shape, bot, config, open rules as DECs; `MINES` is §10). This section holds only what several of them share.
 
 ### 9.1 Who starts: rock-paper-scissors
 
@@ -338,5 +340,112 @@ Plain TypeScript in `battles/domain/games/shared/`, called by each game's own ru
 
 ### 9.4 Order of work
 
-N0 (this section and the first-mover phase in the engine, built 2026-11-19) comes first; the helpers arrive with their first game. Then N1 `MINES` (data ready today), N2 `AUCTION`, N3 `VAULT`, N4 `HEX`, N5 `LINEUP`, N6 `TIME_MACHINE`, N7 `THREAD` (ROADMAP track N). Each N phase writes its own subsection here before any code.
+N0 (this section and the first-mover phase in the engine, built 2026-11-19) comes first; the helpers arrive with their first game. Then N1 `MINES` (data ready today), N2 `AUCTION`, N3 `VAULT`, N4 `HEX`, N5 `LINEUP`, N6 `TIME_MACHINE`, N7 `THREAD` (ROADMAP track N). Each N phase writes its own section (§10 onward) before any code.
 
+
+## 10. `MINES` (لغم, N1)
+
+Chosen by the product owner on 2026-11-17 (DEC-68; demo page: https://claude.ai/artifact/YKW4nz4GNuJsgaaavhW64X). Each player secretly buries mines among the answers of a category, then the two take turns naming answers without stepping on the other's mines. The data exists today: careers and citizenships from D.1.
+
+### 10.1 A round
+
+```mermaid
+stateDiagram-v2
+  [*] --> BURYING: round:start
+  BURYING --> TURNS: both buried all mines, or buryDeadlineAt
+  TURNS --> TURNS: answer or timeout, the turn passes
+  TURNS --> [*]: a player has no hearts, no safe answer left, maxTurns, or a forfeit
+```
+
+1. **Category:** two criteria that every accepted answer meets: `CLUB` plus `NATIONALITY` (citizenship, as in `GRID`) or `DECADE` (a spell at the club in those ten years) (DEC-74). The generator keeps categories with `20`–`40` answers (§10.4). `round:start` shows the category, `answerCount` and `minesPerPlayer`.
+2. **Burying (`BURYING`):** each player buries `burying.minesPerPlayer` mines (default 3) within `burying.ms` by typing answers of the category, one per command. The server judges each one like any typed answer (§5.3).
+   - A name outside the category is refused (`NOT_IN_CATEGORY`) and uses one of `burying.maxWrongTries`: without a cap, burying would be a free check of which names are valid. After the cap, further tries are refused (`NO_TRIES_LEFT`).
+   - Burying the same player twice is refused (`ALREADY_BURIED`, no try used). A buried mine cannot be swapped in N1.
+   - The phase ends early when both have buried all their mines. At the deadline, empty slots are filled from the category with the seeded random source and marked `auto` (DEC-73).
+   - The opponent gets no event while you bury. Both players may bury the same player; the name is then a mine for each of them.
+3. **Turns (`TURNS`):** round 1 starts with the rock-paper-scissors winner (§9.1); later rounds follow `firstMoverAfterRound1` (default `ALTERNATE`). Turns alternate, also after a lost heart. The player on turn has `turnMs` to send one answer.
+4. **Judging an answer**, checked in this order:
+
+   | The text matches | Outcome | Effect |
+   |---|---|---|
+   | nothing in the category | `WRONG` | −1 heart |
+   | a player already said this round (safe or exploded) | `REPEATED` | −1 heart (`UsedAnswers` with `repeatCountsAsWrong`) |
+   | one of the speaker's own live mines | per `ownMine` (DEC-72) | `REJECT` (default): refused with `OWN_MINE`, the turn and its clock go on, nothing is revealed. `COSTS_HEART`: outcome `OWN_MINE`, −1 heart, the mine stays hidden |
+   | an opponent's live mine | `MINE` | The mine explodes: −1 heart; everyone sees the player and who buried it; the name counts as said |
+   | any other player of the category | `SAFE` | `points.perSafeAnswer`; the name counts as said |
+   | no answer by `turnDeadlineAt + latencyGraceMs` | `TIMEOUT` | −1 heart |
+
+   After every outcome except a refusal, the turn passes. A name buried by both players is caught by the own-mine check first, so with `REJECT` neither of them can say it.
+5. **Mine detector:** `detector.usesPerBattle` (default 1). On your turn, `mines:scan` with a name costs `detector.costMs` of your turn (a deadline already passed is a timeout). Only you get the result: `MINE` when the name is a live mine of the opponent, otherwise `CLEAR`, also for a wrong or already said name (the detector finds mines; it does not check answers). The opponent sees that you scanned and your new deadline, never the name or the result. The turn goes on.
+6. **Round end:**
+   - A player loses the last heart: the other wins the round (`LAST_HEART`).
+   - The player on turn has no safe answer left (every unsaid answer is a live mine), or turn `maxTurns + 1` would start: the player with more hearts wins, then more safe answers this round, else a draw (`NO_SAFE_ANSWERS`, `MAX_TURNS`; DEC-75).
+   - A participant leaves: the other wins (`FORFEIT`, no points).
+   - Every mine is then revealed (who buried it, exploded or not, `auto`), with up to `revealAnswersAtEnd` unsaid answers.
+7. **Hearts:** `hearts` per player (default 3), full again each round.
+8. **Points:** `points.roundWin`, `points.roundDraw`, `points.perSafeAnswer`.
+9. **On screen:** `answersLeft` (unsaid answers of the category, mines included) and `minesLeft` per player (not yet exploded) are public, so the app shows "safe answers left ≈ answersLeft − both minesLeft". It is approximate on purpose: the exact count would tell the players when they buried the same name.
+10. **Players:** exactly 2 in N1. Rooms with 3 or more players (P8) would explode a mine for anyone except who buried it, with a seeded turn order (DEC-70); not built in N1.
+
+### 10.2 Hidden information
+
+- A live mine reaches only the player who buried it (`mines:buried`, their snapshot) until it explodes or the round ends.
+- No event tells the opponent how many mines you have buried so far, and a scan result goes only to the scanner.
+- The bot strategy never receives the human's mines; it can step on them like anyone.
+- Test (§9.3): render every event and snapshot of a round for the opponent and find no live mine's entity id or name.
+
+### 10.3 Protocol (details in `api/WEBSOCKET.md`)
+
+| Direction | Message | Purpose |
+|---|---|---|
+| C→S | `mines:bury { roundNo, answer: { text } }` | Bury one mine |
+| C→S | `mines:answer { roundNo, answer: { text } }` | Your turn's answer |
+| C→S | `mines:scan { roundNo, answer: { text } }` | Use the detector |
+| S→C | `round:start` | Category, `answerCount`, `minesPerPlayer`, `buryDeadlineAt` |
+| S→C | `mines:buried` | To the burier only: your mines so far, and the `auto` ones when the phase closes |
+| S→C | `mines:turn` | Whose turn, `turnDeadlineAt`, `turnNo` |
+| S→C | `mines:answered` | Outcome, the player named (wrong text only with `showWrongAnswers`), who buried an exploded mine, hearts, `answersLeft`, `minesLeft` |
+| S→C | `mines:scanned` | Who scanned and the new deadline; `result` only for the scanner |
+| S→C | `round:result` | `reveal: { reason, mines, sampleAnswers }` |
+
+### 10.4 Content and generator
+
+| `gameType` | Content | Accepted answers |
+|---|---|---|
+| `MINES` | `{ criteria: [{ kind: "CLUB", entityId }, { kind: "NATIONALITY", entityId } \| { kind: "DECADE", fromYear }] }` | Slot 0: every player of the category, most popular first |
+
+Generator (`kb bundle --mines N`, 07 §5.8):
+- **Category answers:** catalog players with a spell at the club and that citizenship, or with a dated spell at the club that overlaps `fromYear`..`fromYear + 9` (an open spell runs to today). Undated spells never count for a decade.
+- **Size:** kept only with `--mines-min-answers` to `--mines-max-answers` answers (default 20 to 40). Measured on 2026-11-17: about 124 club × nationality and 115 club × decade categories with 12–40 answers.
+- **Difficulty:** from the popularity of the category's answers (the median sitelinks band of §5.8): famous names make an easy round.
+- **Key:** `mines:<club qid>:nationality:<country qid>` or `mines:<club qid>:decade:<fromYear>`.
+- **Variety:** a club appears in at most a few categories of one bundle.
+
+### 10.5 Bot
+
+- **Burying:** `minesPerPlayer` players of the category, drawn with the seeded random source, after a human-like delay.
+- **Turn:** after `typingDelayMs`, with the chance `knowsAnswerByDifficulty[difficulty]` it names the most popular unsaid player of the category that is not its own mine. Otherwise it sends a wrong player of the same kind, or lets the turn time out (`guessChance`).
+- **Detector:** bots do not use it in N1.
+
+### 10.6 Configuration
+
+| Key | Default (dev) | Decision |
+|---|---|---|
+| `roundCount` | 1 | DEC-31 |
+| `firstMover`, `firstMoverAfterRound1`, `rps.*` | `RPS`, `ALTERNATE` | §9.1, DEC-71 |
+| `burying.minesPerPlayer`, `burying.ms`, `burying.maxWrongTries` | 3, 20000, 3 | DEC-73 |
+| `turnMs`, `maxTurns` | 10000, 60 | DEC-54 |
+| `hearts` | 3 | DEC-75 |
+| `ownMine` (`REJECT` \| `COSTS_HEART`) | `REJECT` | DEC-72 |
+| `detector.usesPerBattle`, `detector.costMs` | 1, 3000 | DEC-75 |
+| `revealAnswersAtEnd`, `showWrongAnswers` | 5, true | DEC-60 |
+| `points.roundWin`, `points.roundDraw`, `points.perSafeAnswer` | 3, 1, 1 | DEC-33 |
+
+### 10.7 How it fits the engine
+
+- **Rules:** pure `battles/domain/games/mines/mines-rules.ts`; `MinesRoundRunner` wraps them like `GridRoundRunner` (§2.4). The engine gets no `if (gameType === "MINES")`.
+- **Helpers (§9.2), written now:** `UsedAnswers` (entity ids said this round, `repeatCountsAsWrong`), `Hearts` (lives per player, `loseHeart`, `hasHeartsLeft`), `SecretChoices` (each player's hidden picks up to a count, `addChoice`, `fillMissingChoices` with the random source).
+- **Detector across rounds:** a round can hand opaque state to the next one (`carryOver` on the round result, given to the next runner). The engine stores it without reading it. `MINES` passes the detector uses left; `TIME_MACHINE` and `AUCTION` will need the same.
+- **Actions (`battle_round_actions.kind`):** `MINE_BURY` (entity, `auto` as `answer_match = 'AUTO'`), `MINE_ANSWER` (entity, outcome in `answer_match`), `MINE_SCAN`, `TURN_TIMEOUT`. `kind` is text, so no migration. Live mines are rebuilt from these actions on restart, like every other round state.
+- **Judging:** `AnswerChecker` with slot 0 as the accepted answers, as for a `GRID` cell.
+- **Snapshot `currentRound`:** `phase`, `buryDeadlineAt`, your mines (`exploded`, `auto`), the exploded mines of others, every said name with its outcome, hearts, the turn and its deadline, `detectorUsesLeft`, `answersLeft`, `minesLeft`.
