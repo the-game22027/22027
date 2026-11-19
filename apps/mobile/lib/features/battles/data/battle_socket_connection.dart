@@ -61,11 +61,23 @@ abstract interface class BattleSocketConnection {
   void dispose();
 }
 
+/// Called with an event the app could not read: the server broke the contract, or the app
+/// reads it wrong.
+typedef UnreadableEventHandler =
+    void Function(String eventName, Object? payload, FormatException error);
+
+void _logUnreadableEvent(
+  String eventName,
+  Object? payload,
+  FormatException error,
+) => developer.log('ignored $eventName: $error', name: 'battles');
+
 class SocketIoBattleConnection implements BattleSocketConnection {
   SocketIoBattleConnection({
     required String apiBaseUrl,
     required String? Function() readAccessToken,
     this.ackTimeout = const Duration(seconds: 10),
+    this.onUnreadableEvent = _logUnreadableEvent,
   }) : _socket = socket_io.io(
          '$apiBaseUrl/battles',
          socket_io.OptionBuilder()
@@ -87,6 +99,7 @@ class SocketIoBattleConnection implements BattleSocketConnection {
 
   final socket_io.Socket _socket;
   final Duration ackTimeout;
+  final UnreadableEventHandler onUnreadableEvent;
   final _events = StreamController<BattleServerEvent>.broadcast();
   final _statuses = StreamController<BattleSocketStatus>.broadcast();
   BattleSocketStatus _status = BattleSocketStatus.disconnected;
@@ -149,7 +162,7 @@ class SocketIoBattleConnection implements BattleSocketConnection {
       _events.add(parseBattleServerEvent(eventName, payload));
     } on FormatException catch (error) {
       // A contract break must not end the battle: skip the event; a seq gap then resyncs.
-      developer.log('ignored $eventName: $error', name: 'battles');
+      onUnreadableEvent(eventName, payload, error);
     }
   }
 

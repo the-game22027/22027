@@ -755,6 +755,7 @@ class RoundEnded extends BattleServerEvent {
     required super.battleId,
     required super.seq,
     required this.roundNo,
+    required this.questionId,
     required this.winnerParticipantIds,
     required this.reveal,
     required this.pointsByParticipant,
@@ -762,6 +763,10 @@ class RoundEnded extends BattleServerEvent {
   });
 
   final int roundNo;
+
+  /// What a report of this round's question names (`POST /v1/questions/{questionId}/reports`,
+  /// `08` §5.7). The server sends it only once the round is over.
+  final String questionId;
 
   /// Empty when nobody won (or a grid draw).
   final List<String> winnerParticipantIds;
@@ -823,6 +828,7 @@ class BattleCompleted extends BattleServerEvent {
     this.yourPlacement,
     this.yourOutcome,
     this.yourScore,
+    this.yourPoints,
   });
 
   /// `COMPLETED`, `FORFEIT` or `ABANDONED` (no placements).
@@ -830,6 +836,10 @@ class BattleCompleted extends BattleServerEvent {
   final int? yourPlacement;
   final BattleOutcome? yourOutcome;
   final int? yourScore;
+
+  /// What this battle adds to the player's `BATTLES` leaderboards (`08` §6.1). They show it
+  /// later, while [arePointsPending].
+  final int? yourPoints;
   final List<ParticipantPlacement> placements;
 
   /// Ledger points arrive later; false when this mode earns none (DEC-41).
@@ -1190,6 +1200,7 @@ BattleServerEvent parseBattleServerEvent(String eventName, Object? payload) {
         battleId: id,
         seq: sequence,
         roundNo: data.readInt('roundNo'),
+        questionId: data.readString('questionId'),
         winnerParticipantIds: data.readStringList('winnerParticipantIds'),
         reveal: data.readObject('reveal').json,
         pointsByParticipant: {
@@ -1237,6 +1248,7 @@ BattleServerEvent parseBattleServerEvent(String eventName, Object? payload) {
           _ => BattleOutcome.unknown,
         },
         yourScore: you?.readOptionalInt('score'),
+        yourPoints: you?.readOptionalInt('points'),
         placements: [
           for (final placement in data.readObjectList('placements'))
             ParticipantPlacement(

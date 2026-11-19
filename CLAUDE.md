@@ -128,6 +128,7 @@ fvm flutter run --flavor dev --dart-define-from-file=config/dev.json
 dart format lib test                         # generated code excluded
 fvm flutter analyze
 fvm flutter test
+fvm flutter test test_live                    # live check, backend on :3000; never in CI (test_live/README.md)
 
 # REST contract
 tool/update_openapi.sh                       # backend running: snapshot /docs-json into openapi/openapi.json

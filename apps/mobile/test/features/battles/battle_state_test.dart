@@ -76,6 +76,7 @@ void main() {
       afterWrong,
       event('round:result', 8, {
         'roundNo': 1,
+        'questionId': 'q-1',
         'winnerParticipantIds': ['p-human'],
         'reveal': <String, Object?>{},
         'points': [
@@ -90,6 +91,7 @@ void main() {
     expect(ended.currentRound, isNull);
     expect(ended.scores, {'p-human': 10, 'p-bot': 0});
     expect(ended.finishedRounds.single.winnerParticipantIds, ['p-human']);
+    expect(ended.finishedRounds.single.questionId, 'q-1');
     expect(ended.lastSeq, 8);
   });
 
