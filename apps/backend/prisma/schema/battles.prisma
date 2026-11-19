@@ -99,7 +99,7 @@ model BattleRound {
   closedAt            DateTime? @map("closed_at") @db.Timestamptz(3)
   stepsRevealed       Int?      @map("steps_revealed") @db.SmallInt
   winnerParticipantId String?   @map("winner_participant_id") @db.Uuid
-  /// CORRECT | NO_WINNER | ALL_LOCKED_OUT | GRID_LINE | GRID_FULL | MAX_TURNS | SKIP_LIMIT | LAST_HEART | NO_SAFE_ANSWERS | PROVED | STOLEN | BUST | OPENED | FORFEIT
+  /// CORRECT | NO_WINNER | ALL_LOCKED_OUT | GRID_LINE | GRID_FULL | MAX_TURNS | SKIP_LIMIT | LAST_HEART | NO_SAFE_ANSWERS | PROVED | STOLEN | BUST | OPENED | CONNECTED | FORFEIT
   endReason           String?   @map("end_reason")
 
   battle   Battle              @relation(fields: [battleId], references: [id], onDelete: Cascade)
@@ -118,7 +118,7 @@ model BattleRoundAction {
   roundNo       Int      @map("round_no") @db.SmallInt
   actionNo      Int      @map("action_no") @db.SmallInt
   participantId String   @map("participant_id") @db.Uuid
-  /// BUZZ | ANSWER | ANSWER_TIMEOUT | GRID_CLAIM | GRID_SKIP | TURN_TIMEOUT | MINE_BURY | MINE_AUTO_BURY | MINE_ANSWER | MINE_HIT | MINE_SCAN | AUCTION_PICK | AUCTION_BID | AUCTION_CALL | AUCTION_ANSWER | AUCTION_STEAL | VAULT_TRY
+  /// BUZZ | ANSWER | ANSWER_TIMEOUT | GRID_CLAIM | GRID_SKIP | TURN_TIMEOUT | MINE_BURY | MINE_AUTO_BURY | MINE_ANSWER | MINE_HIT | MINE_SCAN | AUCTION_PICK | AUCTION_BID | AUCTION_CALL | AUCTION_ANSWER | AUCTION_STEAL | VAULT_TRY | HEX_PICK | HEX_CLEAR | HEX_ANSWER
   kind          String
   entityId      String?  @map("entity_id") @db.Uuid
   numberAnswer  Decimal? @map("number_answer") @db.Decimal
