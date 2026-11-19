@@ -121,48 +121,32 @@ void main() {
     expect(parse({}).answer, isNull);
   });
 
-  test('round:result and battle:completed read scores and placements', () {
-    final result =
-        parseBattleServerEvent(
-              'round:result',
-              battleEnvelope('round:result', 11, {
-                'roundNo': 1,
-                'winnerParticipantIds': ['p-human'],
-                'reveal': {
-                  'steps': ['a', 'b'],
-                  'answer': {'entityId': 'e-1', 'name': 'Ronaldo'},
-                },
-                'points': [
-                  {'participantId': 'p-human', 'points': 10},
-                  {'participantId': 'p-bot', 'points': 0},
-                ],
-                'scores': [
-                  {'participantId': 'p-human', 'score': 10},
-                  {'participantId': 'p-bot', 'score': 0},
-                ],
-              }),
-            )
-            as RoundEnded;
-    final completed =
-        parseBattleServerEvent(
-              'battle:completed',
-              battleEnvelope('battle:completed', 30, {
-                'endReason': 'COMPLETED',
-                'you': {'placement': 1, 'outcome': 'WIN', 'score': 40},
-                'placements': [
-                  {'participantId': 'p-human', 'placement': 1, 'score': 40},
-                  {'participantId': 'p-bot', 'placement': 2, 'score': 10},
-                ],
-                'pointsPending': false,
-              }),
-            )
-            as BattleCompleted;
+  test(
+    'round:result and battle:completed as the backend sends them: scores, placements, '
+    'the question id to report and the leaderboard points',
+    () {
+      final result =
+          parseBattleServerEvent('round:result', recordedRoundResultJson)
+              as RoundEnded;
+      final completed =
+          parseBattleServerEvent(
+                'battle:completed',
+                recordedBattleCompletedJson,
+              )
+              as BattleCompleted;
 
-    expect(result.pointsByParticipant, {'p-human': 10, 'p-bot': 0});
-    expect(result.reveal['steps'], ['a', 'b']);
-    expect(completed.yourOutcome, BattleOutcome.win);
-    expect(completed.placements.last.placement, 2);
-  });
+      expect(result.questionId, '01a1cf94-8e06-778b-860a-9db35ec13d0a');
+      expect(result.winnerParticipantIds, isEmpty);
+      expect(result.reveal['steps'], hasLength(4));
+      expect(result.pointsByParticipant.values, [0, 0]);
+      expect(completed.endReason, 'COMPLETED');
+      expect(completed.yourOutcome, BattleOutcome.loss);
+      expect(completed.yourPlacement, 2);
+      expect(completed.yourPoints, 0);
+      expect(completed.placements.first.score, 20);
+      expect(completed.arePointsPending, isFalse);
+    },
+  );
 
   test('an abandoned battle has no "you" and no placements', () {
     final completed =
@@ -177,6 +161,7 @@ void main() {
             as BattleCompleted;
 
     expect(completed.yourOutcome, isNull);
+    expect(completed.yourPoints, isNull);
     expect(completed.placements, isEmpty);
   });
 
