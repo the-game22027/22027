@@ -208,6 +208,44 @@ void main() {
   );
 
   test(
+    'friend requests: the addressee declines, a resent one is cancelled',
+    () async {
+      final alice = await signInFreshLivePlayer('rest-requests-a');
+      final bob = await signInFreshLivePlayer('rest-requests-b');
+      final aliceFriends = alice.read(friendsRepositoryProvider);
+      final bobFriends = bob.read(friendsRepositoryProvider);
+
+      final first = await aliceFriends.sendFriendRequest(bob.userId);
+      final declined = await bobFriends.declineFriendRequest(first.id);
+      expect(declined.status, FriendRequestStatus.declined);
+      expect(
+        (await bobFriends.listFriendRequests(
+          FriendRequestDirection.incoming,
+        )).items,
+        isEmpty,
+      );
+
+      final second = await aliceFriends.sendFriendRequest(bob.userId);
+      expect(second.id, isNot(first.id));
+      await aliceFriends.cancelFriendRequest(second.id);
+      expect(
+        (await bobFriends.listFriendRequests(
+          FriendRequestDirection.incoming,
+        )).items,
+        isEmpty,
+      );
+      expect(
+        (await alice
+                .read(userDirectoryRepositoryProvider)
+                .fetchUserProfile(bob.userId))
+            .relationship,
+        UserRelationship.none,
+      );
+      expect((await aliceFriends.listFriends()).items, isEmpty);
+    },
+  );
+
+  test(
     'leaderboards: periods, a BATTLES page and my rank for every kind',
     () async {
       final player = await signInFreshLivePlayer('rest-leaderboards');

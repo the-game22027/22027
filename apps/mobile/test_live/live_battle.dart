@@ -30,6 +30,9 @@ const _nameGuesses = [
   'Henry',
 ];
 
+/// How often the VAULT loop looks again while it waits for a leak or the end of a lockout.
+const _vaultPollEvery = Duration(milliseconds: 300);
+
 /// Rock, then paper, then scissors on replays, so a tie with the bot can happen.
 const _rockPaperScissorsCycle = [
   RockPaperScissorsChoice.rock,
@@ -70,6 +73,12 @@ class LiveBattleRun {
   int auctionProofAnswers = 0;
   int auctionStealAnswers = 0;
 
+  /// VAULT: wrong tries this device made, the codes the server refused (`LOCKED_OUT` for the
+  /// try sent on purpose while locked out), and the digits leaked to everyone.
+  int vaultWrongTries = 0;
+  final vaultRefusals = <String>[];
+  int vaultLeaks = 0;
+
   /// The `battle:resync` ack after the socket came back, and the state it left.
   BattleCommandResult? resyncAfterReconnect;
   BattleState? stateAfterReconnect;
@@ -85,6 +94,8 @@ class LiveBattleRun {
   final _raisedAuctionRounds = <int>{};
   final _sentAuctionAnswers = <String>{};
   bool _hasGoneAllIn = false;
+  final _startedVaultRounds = <int>{};
+  bool _hasTriedWhileLockedOut = false;
   bool _hasStartedBurying = false;
   bool _isMoving = true;
   bool _hasDroppedSocket = false;
@@ -101,6 +112,8 @@ class LiveBattleRun {
   Future<BattleState> start() async {
     addTearDown(() => printOnFailure(log.join('\n')));
     addTearDown(_forfeitIfStillRunning);
+    // Runs before the container is disposed: a VAULT loop waiting to look again stops here.
+    addTearDown(stopMoving);
     final eventSubscription = player
         .read(battleSocketConnectionProvider)
         .events
@@ -232,7 +245,10 @@ class LiveBattleRun {
             await _buryOrAnswerMines(battle, round);
           case final AuctionRound round:
             await _playAuctionRound(battle, round);
-          case VaultRound():
+          case final VaultRound round:
+            if (_startedVaultRounds.add(round.roundNo)) {
+              unawaited(_tryVaultCodesUntilClosed(round.roundNo));
+            }
           case HexRound():
           case null:
             break;
@@ -433,6 +449,71 @@ class LiveBattleRun {
     return answer is BattleCommandAccepted;
   }
 
+  /// VAULT has no turns, so this loop runs for the whole round: one blind try at once, one try
+  /// while locked out (once per battle), then, like the bot, only when at most one digit is
+  /// still unknown, cycling that digit and waiting out each lockout.
+  Future<void> _tryVaultCodesUntilClosed(int roundNo) async {
+    final triedDigits = <int>{};
+    var hasTriedBlind = false;
+    while (_isMoving) {
+      final battle = session.battle;
+      final round = battle?.currentRound;
+      if (battle == null ||
+          battle.isFinished ||
+          round is! VaultRound ||
+          round.roundNo != roundNo) {
+        return;
+      }
+      if (_isSocketDropped ||
+          session.connection != BattleSocketStatus.connected) {
+        await Future<void>.delayed(_vaultPollEvery);
+        continue;
+      }
+      final known = {
+        for (final leak in round.leakedDigits) leak.position: leak.digit,
+      };
+      final unknown = [
+        for (var position = 0; position < round.digits; position++)
+          if (!known.containsKey(position)) position,
+      ];
+      final isLockedOut =
+          session.clock.measureTimeLeftUntil(
+            round.yourLockedUntil ?? DateTime.utc(2000),
+            deviceNow: DateTime.now(),
+          ) >
+          Duration.zero;
+      final shouldTryWhileLockedOut = isLockedOut && !_hasTriedWhileLockedOut;
+      final untried = [
+        for (var digit = 0; digit <= 9; digit++)
+          if (!triedDigits.contains(digit)) digit,
+      ];
+      final canGuessLastDigit =
+          !isLockedOut && unknown.length <= 1 && untried.isNotEmpty;
+      if (hasTriedBlind && !shouldTryWhileLockedOut && !canGuessLastDigit) {
+        await Future<void>.delayed(_vaultPollEvery);
+        continue;
+      }
+      if (shouldTryWhileLockedOut) _hasTriedWhileLockedOut = true;
+      final guess = unknown.isEmpty || !hasTriedBlind ? 0 : untried.first;
+      if (hasTriedBlind && !shouldTryWhileLockedOut) triedDigits.add(guess);
+      hasTriedBlind = true;
+      final code = [
+        for (var position = 0; position < round.digits; position++)
+          known[position] ?? guess,
+      ].join();
+      final result = await controller.tryVaultCode(code);
+      log.add(
+        'vault try $code round $roundNo: ${describeCommandResult(result)}',
+      );
+      switch (result) {
+        case BattleCommandAccepted(:final ack):
+          if (ack['data'] case {'opened': false}) vaultWrongTries++;
+        case BattleCommandRejected(:final code):
+          vaultRefusals.add(code);
+      }
+    }
+  }
+
   /// Uses the detector, then waits for its private answer to reach the state.
   Future<void> _scanOnce(MinesRound round) async {
     final scan = await controller.scanForMine(_guess);
@@ -456,6 +537,7 @@ class LiveBattleRun {
     }
     if (event is RockPaperScissorsResult) rockPaperScissorsResults.add(event);
     if (event is AuctionProofStarted) auctionProofReasons.add(event.reason);
+    if (event is VaultDigitLeaked) vaultLeaks++;
     final seq = event.seq;
     if (seq == null || event.battleId != _battleId) return;
     if (seq > _lastSeenSeq + 1 && !_hasDroppedSocket) {
@@ -623,6 +705,12 @@ String describeBattleEvent(BattleServerEvent event) {
     ) =>
       '${phase.name} ${outcome.name}, found $found, strikes $strikes',
     AuctionStealStarted(:final stealerParticipantId) => stealerParticipantId,
+    VaultRoundStarted(:final roundNo, :final digits) =>
+      'round $roundNo, $digits digits',
+    VaultTried(:final participantId, :final tries) =>
+      '$participantId tries $tries',
+    VaultDigitLeaked(:final position, :final digit) =>
+      'position $position is $digit',
     GridCellClaimed(:final cell, :final player) =>
       '(${cell.row},${cell.col}) ${player.name}',
     GridTurnMissed(:final hasTimedOut, :final wasSkipped) =>
