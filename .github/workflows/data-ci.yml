@@ -27,6 +27,8 @@ jobs:
   lint-and-test:
     name: ruff, pytest (with a throwaway football_kb)
     runs-on: ubuntu-latest
+    # A stuck runner fails fast instead of waiting for the 6-hour default.
+    timeout-minutes: 10
     services:
       postgres:
         image: postgres:17

@@ -27,6 +27,8 @@ jobs:
   analyze-test-build:
     name: format, analyze, test, build dev apk
     runs-on: ubuntu-latest
+    # A stuck runner fails fast instead of waiting for the 6-hour default.
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v7
 
