@@ -1,6 +1,7 @@
 import type { TypedAnswerRules } from '@modules/question-bank';
 import type { LeaderboardPointsRule } from '../domain/leaderboard-points';
 import type { BotProfile } from '../domain/bots/reveal-and-buzz-bot';
+import type { FirstMoverAfterRound1, FirstMoverMethod } from '../domain/first-mover/next-first-mover';
 import type { GridConfig } from '../domain/games/grid-rules';
 import type { RevealAndBuzzConfig } from '../domain/games/reveal-and-buzz-rules';
 
@@ -9,7 +10,16 @@ export const BATTLE_SETTINGS = Symbol('BATTLE_SETTINGS');
 /** Game types played with the reveal-and-buzz rules (08 §3.1). */
 export type RevealGameType = 'BUZZER' | 'CAREER' | 'WHO_IS_PLAYER';
 
-interface CommonGameSettings {
+/** Who moves first (08 §9.1, ADR-0023). */
+export interface FirstMoverSettings {
+  firstMover: FirstMoverMethod;
+  /** DEC-71: who starts rounds 2+. Required unless `firstMover` is NONE. */
+  firstMoverAfterRound1?: FirstMoverAfterRound1;
+  /** Required when `firstMover` is RPS. `revealMs`: how long a result shows before the next attempt or round. */
+  rps?: { pickMs: number; maxReplays: number; revealMs: number; botPickDelayMs: { min: number; max: number } };
+}
+
+interface CommonGameSettings extends FirstMoverSettings {
   enabled: boolean;
   roundCount: number;
   /** DEC-44: content of a player's last `excludeLastBattles` battles is skipped while the bank allows it. */

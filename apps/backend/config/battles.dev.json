@@ -75,6 +75,7 @@
   },
   "gameTypes": {
     "BUZZER": {
+      "firstMover": "NONE",
       "enabled": true,
       "roundCount": 5,
       "revealIntervalMs": 2500,
@@ -94,6 +95,7 @@
       }
     },
     "CAREER": {
+      "firstMover": "NONE",
       "enabled": true,
       "roundCount": 5,
       "revealIntervalMs": 3000,
@@ -114,6 +116,7 @@
       "showYears": true
     },
     "WHO_IS_PLAYER": {
+      "firstMover": "NONE",
       "enabled": true,
       "roundCount": 5,
       "revealIntervalMs": 3500,
@@ -133,6 +136,17 @@
       }
     },
     "GRID": {
+      "firstMover": "RPS",
+      "firstMoverAfterRound1": "ALTERNATE",
+      "rps": {
+        "pickMs": 5000,
+        "maxReplays": 2,
+        "revealMs": 2000,
+        "botPickDelayMs": {
+          "min": 800,
+          "max": 2500
+        }
+      },
       "enabled": true,
       "roundCount": 3,
       "turnMs": 20000,

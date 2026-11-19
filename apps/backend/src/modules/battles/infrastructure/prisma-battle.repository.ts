@@ -4,6 +4,7 @@ import type { Prisma } from '@generated/prisma/client';
 import { OutboxWriter } from '@shared/infrastructure/outbox';
 import { summarizeRoundForQuestionStats } from '../domain/question-results';
 import type { PrismaService, TransactionalAdapterPrisma } from '@shared/infrastructure/persistence';
+import type { FirstMoverOutcome } from '../domain/first-mover/next-first-mover';
 import type { RoundAction, RoundResult } from '../domain/games/game-rules';
 import type { BattleCompletion, BattleRepository, NewBattle } from '../application/ports/battle-repository';
 
@@ -53,6 +54,13 @@ export class PrismaBattleRepository implements BattleRepository {
     await this.txHost.tx.battle.update({
       where: { id: battleId },
       data: { status: 'IN_PROGRESS', startedAt: at, version: { increment: 1 } },
+    });
+  }
+
+  async saveFirstMoverOutcomes(battleId: string, outcomes: readonly FirstMoverOutcome[]): Promise<void> {
+    await this.txHost.tx.battle.update({
+      where: { id: battleId },
+      data: { firstMover: outcomes as unknown as Prisma.InputJsonValue },
     });
   }
 
