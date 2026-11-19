@@ -20,6 +20,7 @@ import {
   gridFixture,
   minesFixture,
   auctionFixture,
+  vaultLine,
   whoLine,
 } from '../support/question-bundles';
 import { devSignIn } from '../support/sign-in';
@@ -53,7 +54,7 @@ function writeBattleConfig(bot: { knows: number; guess: number }, botFallbackAft
         typingDelayMs: { min: 20, max: 20 },
       },
     };
-    const { GRID: grid, MINES: mines, AUCTION: auction, ...revealGames } = config.gameTypes;
+    const { GRID: grid, MINES: mines, AUCTION: auction, VAULT: vault, ...revealGames } = config.gameTypes;
     if (grid) {
       Object.assign(grid, {
         roundCount: 1,
@@ -82,6 +83,15 @@ function writeBattleConfig(bot: { knows: number; guess: number }, botFallbackAft
         bidding: { turnMs: 1_500, minOpeningBid: 1 },
         proof: { ms: 3_000, maxWrong: 3 },
         rps: { pickMs: 600, maxReplays: 2, revealMs: 50, botPickDelayMs: { min: 200, max: 200 } },
+      });
+    }
+    if (vault) {
+      Object.assign(vault, {
+        roundCount: 3,
+        targetScore: 2,
+        roundMs: 5_000,
+        lockoutMs: [200, 400],
+        leaks: { firstAtMs: 300, everyMs: 300, max: 3 },
       });
     }
     for (const game of Object.values(revealGames)) {
@@ -134,6 +144,8 @@ describe('battles over WebSocket (e2e)', () => {
             auction.line(`test:${randomUUID()}`),
             auction.line(`test:${randomUUID()}`),
             auction.line(`test:${randomUUID()}`),
+            vaultLine(`test:${randomUUID()}`),
+            vaultLine(`test:${randomUUID()}`),
           ],
           [...Object.values(e), ...grid.entities, ...mines.entities, ...auction.entities],
         ),
@@ -608,6 +620,42 @@ describe('battles over WebSocket (e2e)', () => {
       expect(player.events.some((event) => event.type === 'round:start' && event.data['roundNo'] === 3)).toBe(false);
     });
 
+    it('plays VAULT: a leak, a wrong try that locks only me out, the right code opens it; first to 2 vaults', async () => {
+      const player = await connectPlayer();
+      await player.send('matchmaking:join', { gameType: 'VAULT' });
+      const found = await player.waitFor('battle:found');
+      const battleId = found.battleId as string;
+      const me = found.data['youParticipantId'] as string;
+      await player.send('battle:ready', { battleId });
+
+      for (const roundNo of [1, 2]) {
+        const inRound = (event: { data: Record<string, unknown> }) => event.data['roundNo'] === roundNo;
+        const start = await player.waitFor('round:start', inRound);
+        expect(start.data).toMatchObject({ digits: 4, questions: expect.arrayContaining(['سؤال الخزنة 1؟']) });
+        expect(JSON.stringify(start.data)).not.toContain('7653');
+        const attempt = (code: string) => player.send('vault:try', { battleId, roundNo, code });
+        if (roundNo === 1) {
+          const leak = await player.waitFor('vault:leak', inRound);
+          expect(leak.data['digit']).toBe(Number('7653'[leak.data['position'] as number]));
+          expect(await attempt('765')).toMatchObject({ accepted: false, code: 'INVALID_CODE' });
+          const wrong = await attempt('7652');
+          expect(wrong).toMatchObject({ accepted: true, data: { opened: false, tries: 1 } });
+          expect(await attempt('7653')).toMatchObject({ accepted: false, code: 'LOCKED_OUT' });
+          const tried = await player.waitFor('vault:tried', inRound);
+          expect(tried.data).toEqual({ roundNo, participantId: me, tries: 1 });
+          const lockedUntil = new Date(
+            (wrong as unknown as { data: { lockedUntil: string } }).data.lockedUntil,
+          ).getTime();
+          await new Promise((resolve) => setTimeout(resolve, Math.max(0, lockedUntil - Date.now()) + 20));
+        }
+        expect(await attempt('7653')).toMatchObject({ accepted: true });
+        const result = await player.waitFor('round:result', inRound);
+        expect(result.data['winnerParticipantIds']).toEqual([me]);
+        expect(result.data['reveal']).toMatchObject({ code: '7653', outcome: 'OPENED', openedBy: me });
+      }
+      expect((await player.waitFor('battle:completed')).data).toMatchObject({ you: { outcome: 'WIN', score: 2 } });
+    });
+
     it('picks for a player who does not throw in time, and still starts the round', async () => {
       const player = await connectPlayer();
       await player.send('matchmaking:join', { gameType: 'GRID' });
@@ -704,6 +752,19 @@ describe('battles over WebSocket (e2e)', () => {
       expect(buzzed.data['participantId']).not.toBe(found.data['youParticipantId']);
       const completed = await player.waitFor('battle:completed');
       expect(completed.data).toMatchObject({ you: { placement: 2, outcome: 'LOSS', score: 0 } });
+    });
+
+    it('a bot that knows every digit opens each vault first', async () => {
+      const player = await connectPlayer();
+      await player.send('matchmaking:join', { gameType: 'VAULT' });
+      const found = await player.waitFor('battle:found');
+      const me = found.data['youParticipantId'];
+      await player.send('battle:ready', { battleId: found.battleId });
+
+      const result = await player.waitFor('round:result', (event) => event.data['roundNo'] === 1);
+      expect(result.data['reveal']).toMatchObject({ code: '7653', outcome: 'OPENED' });
+      expect(result.data['winnerParticipantIds']).not.toContain(me);
+      expect((await player.waitFor('battle:completed')).data).toMatchObject({ you: { outcome: 'LOSS', score: 0 } });
     });
   });
 

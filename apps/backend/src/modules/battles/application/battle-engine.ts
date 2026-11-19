@@ -332,6 +332,20 @@ export class BattleEngine implements OnApplicationBootstrap, BeforeApplicationSh
     );
   }
 
+  /** `vault:try` (08 §12.3). */
+  sendVaultTry(
+    battleId: string,
+    userId: string,
+    socketId: string,
+    roundNo: number,
+    code: string,
+    clientMsgId: string,
+  ): Promise<Ack> {
+    return this.withBattle(battleId, clientMsgId, (battle) =>
+      battle.roundCommand(userId, socketId, roundNo, { type: 'VAULT_TRY', code }, clientMsgId),
+    );
+  }
+
   forfeit(battleId: string, userId: string, clientMsgId: string): Promise<Ack> {
     return this.withBattle(battleId, clientMsgId, (battle) => battle.forfeit(userId, clientMsgId));
   }

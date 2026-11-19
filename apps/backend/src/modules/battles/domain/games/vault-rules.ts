@@ -68,7 +68,7 @@ export class VaultRules {
       openedBy: null,
       points: {},
     };
-    const firstLeakAt = this.nextLeakAt(state);
+    const firstLeakAt = this.findNextLeakAt(state);
     return {
       state,
       effects: [
@@ -120,7 +120,7 @@ export class VaultRules {
     const position = hidden[Math.floor(random.next() * hidden.length)];
     if (position === undefined) return { state, effects: [] };
     const leaked: VaultRoundState = { ...state, leaked: [...state.leaked, position] };
-    const nextLeakAt = this.nextLeakAt(leaked);
+    const nextLeakAt = this.findNextLeakAt(leaked);
     return {
       state: leaked,
       effects: [
@@ -168,7 +168,7 @@ export class VaultRules {
   }
 
   /** The next leak, or null when every leak allowed is out or it would come after the round ends. */
-  private nextLeakAt(state: VaultRoundState): Date | null {
+  findNextLeakAt(state: VaultRoundState): Date | null {
     const at = findNextHintAt(
       state.startedAt,
       { ...this.config.leaks, max: this.leaksAllowed(state) },

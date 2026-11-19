@@ -66,6 +66,15 @@ export interface AuctionGameSettings extends CommonGameSettings {
   points: { roundWin: number; allInWin: number };
 }
 
+/** The `VAULT` section of the battle config (08 §12.6). The code has one digit per question of the content. */
+export interface VaultGameSettings extends CommonGameSettings {
+  roundMs: number;
+  lockoutMs: number[];
+  /** DEC-78. */
+  leaks: { firstAtMs: number; everyMs: number; max: number };
+  points: { vaultOpened: number };
+}
+
 /** One reveal-and-buzz game type's section of the battle config (08 §6). */
 export interface RevealGameSettings extends CommonGameSettings, Omit<RevealAndBuzzConfig, 'latencyGraceMs'> {
   /** CAREER only: show the years of each spell (08 §3.1). */
@@ -86,10 +95,12 @@ export interface BattleSettings {
     GRID?: GridGameSettings;
     MINES?: MinesGameSettings;
     AUCTION?: AuctionGameSettings;
+    VAULT?: VaultGameSettings;
   };
 }
 
-export type GameSettings = RevealGameSettings | GridGameSettings | MinesGameSettings | AuctionGameSettings;
+export type GameSettings =
+  RevealGameSettings | GridGameSettings | MinesGameSettings | AuctionGameSettings | VaultGameSettings;
 
 /** The config of a game type, or undefined when it has none. */
 export function findGameSettings(settings: BattleSettings, gameType: string): GameSettings | undefined {

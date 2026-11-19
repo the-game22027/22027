@@ -182,3 +182,16 @@ export const auctionFixture = () => {
   });
   return { entities: players.flat(), line, players };
 };
+
+/** A VAULT round: one question per digit of `code` (08 §12.4). */
+export const vaultLine = (key: string, code = '7653') => ({
+  ...common(key),
+  gameType: 'VAULT',
+  content: {
+    questions: [...code].map((digit, position) => ({
+      template: 'TEAM_GOALS',
+      text: { en: `Vault question ${String(position + 1)}?`, ar: `سؤال الخزنة ${String(position + 1)}؟` },
+      answerNumber: Number(digit),
+    })),
+  },
+});
