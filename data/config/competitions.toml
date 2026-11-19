@@ -1,0 +1,276 @@
+# Competitions for match data (07 §5.10 D.3d, DEC-67). One entry per competition: each source's own ids map
+# to one Wikidata item. Tiers are not repeated here: they come from config/tiers.toml, and
+# `kb ingest:matches` refuses to run if the two files disagree (an id in one file only, or one competition
+# whose ids sit in two tiers).
+#
+# kind: LEAGUE (domestic league), CUP (any club cup: domestic cups and super cups, UEFA club competitions),
+# INTERNATIONAL (national-team tournament; its teams are NATIONAL_TEAM entities).
+# fjelstul ids are tournament series: "WC" covers WC-2002 … WC-2022 (the men's tournaments in tiers.toml).
+# Wikidata items and labels checked on 2026-11-18 (Transfermarkt competition id P12758 where Wikidata has it).
+# edition_labels: final year → the edition's official name, for tournaments played after their name year.
+
+# DEC-67 filters, applied when rows are loaded.
+first_match_date = "2000-01-01"
+# Transfermarkt round names: qualifiers, preliminary rounds ("2.Vorrunde" is the KNVB Cup's) and play-offs are dropped...
+excluded_round_pattern = '(?i)qualif|prelim|vorrunde|play-?off|relegation|friendl'
+# ...except the third-place match of a tournament, which Transfermarkt calls "Third Place Play-Off".
+kept_round_pattern = '(?i)third place'
+# martj42 tournament names
+excluded_tournament_pattern = '(?i)qualification|friendly'
+
+# ---- national-team tournaments ----
+
+[[competitions]]
+key = "world-cup"
+ref = "wikidata:Q19317"
+name_en = "FIFA World Cup"
+name_ar = "كأس العالم"
+kind = "INTERNATIONAL"
+transfermarkt = ["FIWC"]
+fjelstul = ["WC"]
+martj42 = ["FIFA World Cup"]
+
+[[competitions]]
+key = "euro"
+ref = "wikidata:Q260858"
+name_en = "UEFA European Championship"
+name_ar = "بطولة أمم أوروبا"
+kind = "INTERNATIONAL"
+transfermarkt = ["EURO"]
+martj42 = ["UEFA Euro"]
+edition_labels = { "2021" = "2020" }
+
+[[competitions]]
+key = "africa-cup-of-nations"
+ref = "wikidata:Q83145"
+name_en = "Africa Cup of Nations"
+name_ar = "كأس الأمم الإفريقية"
+kind = "INTERNATIONAL"
+transfermarkt = ["AFCN"]
+martj42 = ["African Cup of Nations"]
+edition_labels = { "2022" = "2021", "2024" = "2023", "2026" = "2025" }
+
+[[competitions]]
+key = "copa-america"
+ref = "wikidata:Q178750"
+name_en = "Copa América"
+name_ar = "كوبا أمريكا"
+kind = "INTERNATIONAL"
+transfermarkt = ["COPA"]
+martj42 = ["Copa América"]
+
+[[competitions]]
+key = "asian-cup"
+ref = "wikidata:Q157894"
+name_en = "AFC Asian Cup"
+name_ar = "كأس آسيا"
+kind = "INTERNATIONAL"
+transfermarkt = ["AFAC"]
+martj42 = ["AFC Asian Cup"]
+edition_labels = { "2024" = "2023" }
+
+[[competitions]]
+key = "arab-cup"
+ref = "wikidata:Q624237"
+name_en = "FIFA Arab Cup"
+name_ar = "كأس العرب"
+kind = "INTERNATIONAL"
+martj42 = ["Arab Cup"]
+
+# ---- UEFA club competitions ----
+
+[[competitions]]
+key = "champions-league"
+ref = "wikidata:Q18756"
+name_en = "UEFA Champions League"
+name_ar = "دوري أبطال أوروبا"
+kind = "CUP"
+transfermarkt = ["CL"]
+
+[[competitions]]
+key = "europa-league"
+ref = "wikidata:Q18760"
+name_en = "UEFA Europa League"
+name_ar = "الدوري الأوروبي"
+kind = "CUP"
+transfermarkt = ["EL"]
+
+[[competitions]]
+key = "conference-league"
+ref = "wikidata:Q59365764"
+name_en = "UEFA Conference League"
+name_ar = "دوري المؤتمر الأوروبي"
+kind = "CUP"
+transfermarkt = ["UCOL"]
+
+[[competitions]]
+key = "uefa-super-cup"
+ref = "wikidata:Q484028"
+name_en = "UEFA Super Cup"
+name_ar = "كأس السوبر الأوروبي"
+kind = "CUP"
+transfermarkt = ["USC"]
+
+# ---- domestic leagues ----
+
+[[competitions]]
+key = "premier-league"
+ref = "wikidata:Q9448"
+name_en = "Premier League"
+name_ar = "الدوري الإنجليزي الممتاز"
+kind = "LEAGUE"
+transfermarkt = ["GB1"]
+
+[[competitions]]
+key = "la-liga"
+ref = "wikidata:Q324867"
+name_en = "La Liga"
+name_ar = "الدوري الإسباني"
+kind = "LEAGUE"
+transfermarkt = ["ES1"]
+
+[[competitions]]
+key = "serie-a"
+ref = "wikidata:Q15804"
+name_en = "Serie A"
+name_ar = "الدوري الإيطالي"
+kind = "LEAGUE"
+transfermarkt = ["IT1"]
+
+[[competitions]]
+key = "bundesliga"
+ref = "wikidata:Q82595"
+name_en = "Bundesliga"
+name_ar = "الدوري الألماني"
+kind = "LEAGUE"
+transfermarkt = ["L1"]
+
+[[competitions]]
+key = "ligue-1"
+ref = "wikidata:Q13394"
+name_en = "Ligue 1"
+name_ar = "الدوري الفرنسي الدرجة الأولى"
+kind = "LEAGUE"
+transfermarkt = ["FR1"]
+
+[[competitions]]
+key = "primeira-liga"
+ref = "wikidata:Q182994"
+name_en = "Primeira Liga"
+name_ar = "الدوري البرتغالي الممتاز"
+kind = "LEAGUE"
+transfermarkt = ["PO1"]
+
+[[competitions]]
+key = "eredivisie"
+ref = "wikidata:Q167541"
+name_en = "Eredivisie"
+name_ar = "الدوري الهولندي الممتاز"
+kind = "LEAGUE"
+transfermarkt = ["NL1"]
+
+[[competitions]]
+key = "saudi-pro-league"
+ref = "wikidata:Q255633"
+name_en = "Saudi Pro League"
+name_ar = "الدوري السعودي للمحترفين"
+kind = "LEAGUE"
+transfermarkt = ["SA1"]
+
+# ---- domestic cups and super cups ----
+
+[[competitions]]
+key = "fa-cup"
+ref = "wikidata:Q11151"
+name_en = "FA Cup"
+name_ar = "كأس الاتحاد الإنجليزي"
+kind = "CUP"
+transfermarkt = ["FAC"]
+
+[[competitions]]
+key = "community-shield"
+ref = "wikidata:Q189188"
+name_en = "FA Community Shield"
+name_ar = "درع المجتمع الإنجليزي"
+kind = "CUP"
+transfermarkt = ["GBCS"]
+
+[[competitions]]
+key = "copa-del-rey"
+ref = "wikidata:Q483794"
+name_en = "Copa del Rey"
+name_ar = "كأس ملك إسبانيا"
+kind = "CUP"
+transfermarkt = ["CDR"]
+
+[[competitions]]
+key = "supercopa-de-espana"
+ref = "wikidata:Q485997"
+name_en = "Supercopa de España"
+name_ar = "كأس السوبر الإسباني"
+kind = "CUP"
+transfermarkt = ["SUC"]
+
+[[competitions]]
+key = "coppa-italia"
+ref = "wikidata:Q169918"
+name_en = "Coppa Italia"
+name_ar = "كأس إيطاليا"
+kind = "CUP"
+transfermarkt = ["CIT"]
+
+[[competitions]]
+key = "supercoppa-italiana"
+ref = "wikidata:Q19618"
+name_en = "Supercoppa Italiana"
+name_ar = "كأس السوبر الإيطالي"
+kind = "CUP"
+transfermarkt = ["SCI"]
+
+[[competitions]]
+key = "dfb-pokal"
+ref = "wikidata:Q150880"
+name_en = "DFB-Pokal"
+name_ar = "كأس ألمانيا"
+kind = "CUP"
+transfermarkt = ["DFB"]
+
+[[competitions]]
+key = "dfl-supercup"
+ref = "wikidata:Q156973"
+name_en = "DFL-Supercup"
+name_ar = "كأس السوبر الألماني"
+kind = "CUP"
+transfermarkt = ["DFL"]
+
+[[competitions]]
+key = "trophee-des-champions"
+ref = "wikidata:Q653544"
+name_en = "Trophée des Champions"
+name_ar = "كأس الأبطال الفرنسي"
+kind = "CUP"
+transfermarkt = ["FRCH"]
+
+[[competitions]]
+key = "supertaca"
+ref = "wikidata:Q1127062"
+name_en = "Supertaça Cândido de Oliveira"
+name_ar = "كأس السوبر البرتغالي"
+kind = "CUP"
+transfermarkt = ["POSU"]
+
+[[competitions]]
+key = "knvb-cup"
+ref = "wikidata:Q216858"
+name_en = "KNVB Cup"
+name_ar = "كأس هولندا"
+kind = "CUP"
+transfermarkt = ["NLP"]
+
+[[competitions]]
+key = "johan-cruyff-shield"
+ref = "wikidata:Q591412"
+name_en = "Johan Cruyff Shield"
+name_ar = "كأس السوبر الهولندي"
+kind = "CUP"
+transfermarkt = ["NLSC"]

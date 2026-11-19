@@ -50,3 +50,107 @@ license = "CC0-1.0"
 license_note = "To confirm from the repository's licence file. Pending in DEC-66"
 base_url = "https://raw.githubusercontent.com/martj42/international_results/master/"
 files = ["results.csv", "goalscorers.csv", "shootouts.csv"]
+
+# ---- Coverage windows (ADR-0022, 07 §5.10 D.3c) ----
+# Which competitions (config/competitions.toml keys) and which dates each source covers. Outside its window a
+# source is silent: `kb ingest:matches` does not load its rows there, and a match it lacks there is no
+# evidence of anything. Inside its window, a match it lacks is listed in core.match.missing_from.
+# `to = "latest"` means the source's last match date in that competition, read from its files at each run.
+
+[[coverage]]
+source = "fjelstul"
+competitions = ["world-cup"]
+from = "1930-01-01"
+to = "2022-12-31"
+
+# Transfermarkt: from its first season per competition (raw.transfermarkt__games, checked 2026-11-18) to its
+# last row there. The dataset froze on 2026-07-06, but its rows end earlier: the 2026 World Cup on 2026-06-28
+# (group stage only), the Champions League on 2026-05-06 (before the final).
+[[coverage]]
+source = "transfermarkt"
+competitions = [
+  "champions-league", "europa-league", "uefa-super-cup",
+  "premier-league", "la-liga", "serie-a", "bundesliga", "ligue-1", "primeira-liga", "eredivisie",
+  "fa-cup", "community-shield", "copa-del-rey", "supercopa-de-espana", "coppa-italia", "supercoppa-italiana",
+  "dfb-pokal", "dfl-supercup", "trophee-des-champions", "supertaca", "knvb-cup", "johan-cruyff-shield",
+]
+from = "2012-07-01"
+to = "latest"
+
+[[coverage]]
+source = "transfermarkt"
+competitions = ["conference-league"]
+from = "2021-07-01"
+to = "latest"
+
+[[coverage]]
+source = "transfermarkt"
+competitions = ["saudi-pro-league"]
+from = "2024-07-01"
+to = "latest"
+
+[[coverage]]
+source = "transfermarkt"
+competitions = ["world-cup"]
+from = "2006-06-01"
+to = "latest"
+
+[[coverage]]
+source = "transfermarkt"
+competitions = ["euro"]
+from = "2008-06-01"
+to = "latest"
+
+[[coverage]]
+source = "transfermarkt"
+competitions = ["asian-cup"]
+from = "2024-01-01"
+to = "latest"
+
+[[coverage]]
+source = "transfermarkt"
+competitions = ["copa-america"]
+from = "2024-06-01"
+to = "latest"
+
+[[coverage]]
+source = "transfermarkt"
+competitions = ["africa-cup-of-nations"]
+from = "2025-12-01"
+to = "latest"
+
+[[coverage]]
+source = "martj42"
+competitions = ["world-cup", "euro", "africa-cup-of-nations", "copa-america", "asian-cup", "arab-cup"]
+from = "1872-11-30"
+to = "latest"
+
+# ---- Precedence (07 §5.10) ----
+# For each fact, the first listed source that has it gives a CONFLICT's provisional value, and a
+# SINGLE_SOURCE fact is trusted only from a listed source. A rule names competitions, or a team kind for the
+# rest.
+
+[[precedence]]
+fact = "MATCH_RESULT"
+competitions = ["world-cup"]
+sources = ["fjelstul", "transfermarkt", "martj42"]
+
+[[precedence]]
+fact = "MATCH_RESULT"
+team_kind = "NATIONAL_TEAM"
+sources = ["martj42", "transfermarkt"]
+
+[[precedence]]
+fact = "MATCH_RESULT"
+team_kind = "CLUB"
+sources = ["transfermarkt", "openfootball", "xgabora"]
+
+# ---- martj42 team names by date ----
+# martj42 files a team's older matches under its current name. Where the team was a different Wikidata item
+# then, a dated rule says which. Evidence: Fjelstul (T-67) and Transfermarkt (23380) both name the 2006 World
+# Cup team "Serbia and Montenegro" (Q1131732, which is also FR Yugoslavia at Euro 2000); Serbia's first match
+# as Serbia was in August 2006.
+[[martj42_team_names]]
+name = "Serbia"
+until = "2006-07-31"
+entity_ref = "wikidata:Q1131732"

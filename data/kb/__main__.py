@@ -11,6 +11,7 @@ from kb.db import apply_pending_migrations, connect_to_knowledge_base
 from kb.fjelstul_links import link_fjelstul
 from kb.ingest import collect_snapshot
 from kb.linking import link_transfermarkt
+from kb.matches import ingest_matches
 from kb.sources import download_source_file, load_file_into_raw, load_source_registry
 from kb.store import replace_knowledge_base_contents
 from kb.wikidata import WikidataClient
@@ -62,6 +63,10 @@ def main(argv: list[str] | None = None) -> int:
         help="only this source (repeatable; default: every source)",
     )
     link.add_argument("--refresh", action="store_true", help="ignore the SPARQL cache and fetch again")
+    commands.add_parser(
+        "ingest:matches",
+        help="rebuild match claims, competitions, editions and matches from raw.* and links, offline (07 §5.10)",
+    )
     args = parser.parse_args(argv)
 
     if args.command == "sources:fetch":
@@ -115,6 +120,9 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"== {source}")
                 report = LINKERS[source](connection, client)
                 print("\n".join(report.lines()))
+        elif args.command == "ingest:matches":
+            report = ingest_matches(connection)
+            print("\n".join(report.lines()))
         elif args.command == "sources:fetch":
             for source_file in selected:
                 downloaded = download_source_file(source_file, refresh=args.refresh)
