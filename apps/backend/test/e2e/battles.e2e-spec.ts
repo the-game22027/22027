@@ -418,7 +418,7 @@ describe('battles over WebSocket (e2e)', () => {
       await player.send('matchmaking:join', { gameType: 'GRID' });
       const found = await player.waitFor('battle:found');
       const me = found.data['youParticipantId'] as string;
-      await player.send('battle:ready', { battleId: found.battleId as string });
+      await player.send('battle:ready', { battleId: found.battleId });
 
       const result = await player.waitFor('battle:rps-result', (event) => event.data['attempt'] === 1);
       expect(result.data['picks']).toContainEqual(expect.objectContaining({ participantId: me, auto: true }));
