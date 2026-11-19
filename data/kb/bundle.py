@@ -22,6 +22,7 @@ from kb.generate import (
 )
 from kb.grids import grid_rounds
 from kb.hexes import hex_rounds, letter_lists
+from kb.lineup_rounds import LineupPlayer, SourcedLineup, lineup_rounds, without_sort_fields
 from kb.mines import mines_rounds
 from kb.vaults import KNOCKOUT_STAGES, VaultMatch, vault_facts, vault_rounds
 
@@ -36,6 +37,7 @@ CATEGORIES = [
     {"slug": "auctions", "names": {"en": "Auctions", "ar": "المزاد"}},
     {"slug": "vaults", "names": {"en": "Vaults", "ar": "الخزنة"}},
     {"slug": "hexes", "names": {"en": "Hex boards", "ar": "الهجمة"}},
+    {"slug": "lineups", "names": {"en": "Lineups", "ar": "التشكيلة"}},
 ]
 
 
@@ -72,6 +74,8 @@ def build_bundle(
     hex_count: int = 0,
     hex_questions_per_cell: int = 3,
     hex_min_answers: int = 1,
+    lineup_count: int = 0,
+    lineup_min_known: int = 6,
 ) -> BundleSummary:
     catalog = {entry["externalRef"]: entry for entry in load_catalog_entries(connection)}
     kb_version = _kb_version(connection)
@@ -168,6 +172,24 @@ def build_bundle(
             )
             if hex_count
             else []
+        )
+        + (
+            without_sort_fields(
+                pick_spread_over_difficulties(
+                    lineup_rounds(
+                        load_vault_matches(connection),
+                        load_lineups(connection),
+                        load_label_lookup(connection),
+                        _names_lookup(catalog, "PLAYER"),
+                        player_popularity_of,
+                        kb_version,
+                        min_known=lineup_min_known,
+                    ),
+                    lineup_count,
+                )
+            )
+            if lineup_count
+            else []
         ),
         key=lambda line: line["externalKey"],
     )
@@ -223,6 +245,36 @@ def load_vault_matches(connection: psycopg.Connection) -> list[VaultMatch]:
         (list(KNOCKOUT_STAGES),),
     ).fetchall()
     return [VaultMatch(row[0], row[1], {"en": row[2], "ar": row[3]}, *row[4:]) for row in rows]
+
+
+def load_lineups(connection: psycopg.Connection) -> list[SourcedLineup]:
+    """Every stored team lineup of a usable knockout match or final, one per match and team (07 §5.10)."""
+    lineups: dict[tuple[int, str], dict] = {}
+    for (
+        match_id,
+        team_ref,
+        source,
+        license,
+        player_ref,
+        starter,
+        position,
+        number,
+        captain,
+    ) in connection.execute(
+        """SELECT s.match_id, s.team_ref, s.source, s.license, s.player_ref, s.starter, s.position, s.shirt_number,
+                  s.captain
+           FROM core.lineup_slot s JOIN core.match m ON m.id = s.match_id
+           WHERE m.usable AND m.stage = ANY (%s) ORDER BY s.match_id, s.team_ref, s.id""",
+        (list(KNOCKOUT_STAGES),),
+    ):
+        lineup = lineups.setdefault(
+            (match_id, team_ref), {"source": source, "license": license, "players": []}
+        )
+        lineup["players"].append(LineupPlayer(player_ref, starter, position, number, captain))
+    return [
+        SourcedLineup(match_id, team_ref, lineup["source"], lineup["license"], tuple(lineup["players"]))
+        for (match_id, team_ref), lineup in lineups.items()
+    ]
 
 
 def load_player_goal_counts(connection: psycopg.Connection) -> list[tuple]:
@@ -333,6 +385,9 @@ def _references_of_line(line: dict) -> set[str]:
     if line["gameType"] == "GRID":
         refs.update(criterion["entity"] for criterion in [*content["rows"], *content["cols"]])
     # AUCTION and HEX titles and VAULT questions are text: nothing else to keep.
+    if line["gameType"] == "LINEUP":
+        refs.update(slot["player"] for slot in content["slots"])
+        refs.update(content["shown"])
     if line["gameType"] == "MINES":
         refs.update(criterion["entity"] for criterion in content["criteria"] if "entity" in criterion)
     return refs
