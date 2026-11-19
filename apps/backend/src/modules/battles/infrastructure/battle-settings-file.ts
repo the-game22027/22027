@@ -71,6 +71,29 @@ const gridGame = z.strictObject({
   }),
 });
 
+const minesGame = z.strictObject({
+  ...firstMoverFields,
+  enabled: z.boolean(),
+  roundCount: z.number().int().positive(),
+  burying: z.strictObject({
+    minesPerPlayer: z.number().int().positive(),
+    ms: positiveMs,
+    maxWrongTries: z.number().int().nonnegative(),
+  }),
+  turnMs: positiveMs,
+  maxTurns: z.number().int().positive(),
+  hearts: z.number().int().positive(),
+  ownMine: z.enum(['REJECT', 'COSTS_HEART']),
+  detector: z.strictObject({ usesPerBattle: z.number().int().nonnegative(), costMs: z.number().int().nonnegative() }),
+  revealAnswersAtEnd: z.number().int().nonnegative(),
+  showWrongAnswers: z.boolean(),
+  points: z.strictObject({ roundWin: z.number().int(), roundDraw: z.number().int(), perSafeAnswer: z.number().int() }),
+  selection: z.strictObject({
+    difficulties: z.array(z.number().int().min(1).max(5)).min(1).nullable(),
+    excludeLastBattles: z.number().int().nonnegative(),
+  }),
+});
+
 const answers = z.strictObject({
   maxLength: z.number().int().positive(),
   typoTolerance: z
@@ -106,6 +129,7 @@ const settingsSchema = z
       CAREER: revealGame.extend({ showYears: z.boolean() }).optional(),
       WHO_IS_PLAYER: revealGame.optional(),
       GRID: gridGame.optional(),
+      MINES: minesGame.optional(),
     }),
   })
   .superRefine((settings, context) => {
