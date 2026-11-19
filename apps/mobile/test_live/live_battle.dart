@@ -4,6 +4,7 @@
 library;
 
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
 
@@ -18,9 +19,9 @@ import 'live_backend.dart';
 /// A guess that is probably wrong, so wrong answers and misses are exercised too.
 const _guess = 'Messi';
 
-/// Names typed for MINES with no idea of the category, so most are refused as
-/// `NOT_IN_CATEGORY` and the server buries the rest at the deadline.
-const _mineGuesses = [
+/// Names typed with no idea of the category: MINES burying (most are refused as
+/// `NOT_IN_CATEGORY`, the server buries the rest at the deadline) and AUCTION proofs and steals.
+const _nameGuesses = [
   'Messi',
   'Zidane',
   'Pele',
@@ -63,6 +64,12 @@ class LiveBattleRun {
   int? minesAtFirstTurn;
   MineScanResult? scanResult;
 
+  /// AUCTION: why each proof started, and how many names this device typed in a proof or a
+  /// steal.
+  final auctionProofReasons = <AuctionProofReason>[];
+  int auctionProofAnswers = 0;
+  int auctionStealAnswers = 0;
+
   /// The `battle:resync` ack after the socket came back, and the state it left.
   BattleCommandResult? resyncAfterReconnect;
   BattleState? stateAfterReconnect;
@@ -73,6 +80,11 @@ class LiveBattleRun {
   final _buzzedRounds = <int>{};
   final _playedGridTurns = <DateTime>{};
   final _playedMinesTurns = <int>{};
+  final _pickedAuctionRounds = <int>{};
+  final _playedAuctionTurns = <DateTime>{};
+  final _raisedAuctionRounds = <int>{};
+  final _sentAuctionAnswers = <String>{};
+  bool _hasGoneAllIn = false;
   bool _hasStartedBurying = false;
   bool _isMoving = true;
   bool _hasDroppedSocket = false;
@@ -218,7 +230,8 @@ class LiveBattleRun {
             await _claimOrSkipIfYourTurn(battle, round);
           case final MinesRound round:
             await _buryOrAnswerMines(battle, round);
-          case AuctionRound():
+          case final AuctionRound round:
+            await _playAuctionRound(battle, round);
           case VaultRound():
           case null:
             break;
@@ -320,7 +333,7 @@ class LiveBattleRun {
   Future<void> _buryMinesFromGuesses(BattleState battle) async {
     final burying = battle.publicConfig['burying']! as Map<String, Object?>;
     final minesPerPlayer = burying['minesPerPlayer']! as int;
-    for (final guess in _mineGuesses) {
+    for (final guess in _nameGuesses) {
       final round = session.battle?.currentRound;
       if (round is! MinesRound ||
           round.phase != MinesPhase.burying ||
@@ -335,6 +348,88 @@ class LiveBattleRun {
         return;
       }
     }
+  }
+
+  /// Picks list 0, 1 or 2 in turn. The first opening bid of the battle is the all-in, later
+  /// ones the config's minimum; a bid already on the table is raised once per round, then
+  /// called. Proofs and steals type guesses until the server closes the phase.
+  Future<void> _playAuctionRound(BattleState battle, AuctionRound round) async {
+    final you = battle.youParticipantId;
+    switch (round.phase) {
+      case AuctionPhase.picking:
+        if (round.pickerParticipantId != you ||
+            !_pickedAuctionRounds.add(round.roundNo)) {
+          return;
+        }
+        final list = (round.roundNo - 1) % round.lists.length;
+        final pick = await controller.pickAuctionList(list);
+        log.add(
+          'auction pick $list round ${round.roundNo}: '
+          '${describeCommandResult(pick)}',
+        );
+      case AuctionPhase.bidding:
+        final deadline = round.deadline;
+        if (round.turnParticipantId != you ||
+            deadline == null ||
+            !_playedAuctionTurns.add(deadline)) {
+          return;
+        }
+        await _bidOrCallInAuction(battle, round);
+      case AuctionPhase.proving:
+        if (round.proverParticipantId != you) return;
+        if (await _sendAuctionGuess(round, 'proof')) auctionProofAnswers++;
+      case AuctionPhase.stealing:
+        if (round.stealerParticipantId != you) return;
+        if (await _sendAuctionGuess(round, 'steal')) auctionStealAnswers++;
+      case AuctionPhase.closed:
+        break;
+    }
+  }
+
+  Future<void> _bidOrCallInAuction(
+    BattleState battle,
+    AuctionRound round,
+  ) async {
+    final answerCount = round.lists[round.pickedList!].answerCount;
+    final currentBid = round.currentBid;
+    final BattleCommandResult result;
+    final String move;
+    if (currentBid == null) {
+      final bidding = battle.publicConfig['bidding']! as Map<String, Object?>;
+      final amount = _hasGoneAllIn
+          ? bidding['minOpeningBid']! as int
+          : answerCount;
+      _hasGoneAllIn = true;
+      move = 'open $amount of $answerCount';
+      result = await controller.bidInAuction(amount);
+    } else if (currentBid + 1 < answerCount &&
+        _raisedAuctionRounds.add(round.roundNo)) {
+      move = 'raise to ${currentBid + 1}';
+      result = await controller.bidInAuction(currentBid + 1);
+    } else {
+      move = 'call $currentBid';
+      result = await controller.callAuctionBid();
+    }
+    log.add(
+      'auction $move round ${round.roundNo}: ${describeCommandResult(result)}',
+    );
+  }
+
+  /// One guess per verdict: the key changes only when `auction:answered` moved the round on.
+  Future<bool> _sendAuctionGuess(AuctionRound round, String phase) async {
+    final verdicts = round.saidNames.length + round.strikes;
+    if (!_sentAuctionAnswers.add('${round.roundNo}-$phase-$verdicts')) {
+      return false;
+    }
+    final guess = verdicts < _nameGuesses.length
+        ? _nameGuesses[verdicts]
+        : 'Not A Footballer $verdicts';
+    final answer = await controller.answerInAuction(guess);
+    log.add(
+      'auction $phase $guess round ${round.roundNo}: '
+      '${describeCommandResult(answer)}',
+    );
+    return answer is BattleCommandAccepted;
   }
 
   /// Uses the detector, then waits for its private answer to reach the state.
@@ -359,6 +454,7 @@ class LiveBattleRun {
       return;
     }
     if (event is RockPaperScissorsResult) rockPaperScissorsResults.add(event);
+    if (event is AuctionProofStarted) auctionProofReasons.add(event.reason);
     final seq = event.seq;
     if (seq == null || event.battleId != _battleId) return;
     if (seq > _lastSeenSeq + 1 && !_hasDroppedSocket) {
@@ -450,11 +546,25 @@ void expectBattleCompletedWithPlacements(
   }
   if (!run.hasDroppedSocket) {
     expect(run.seqGaps, isEmpty, reason: 'seq gaps in a normal run');
-    expect(
-      battle.finishedRounds,
-      hasLength(battle.publicConfig['roundCount']),
-      reason: 'every round of the config was played',
-    );
+    final roundCount = battle.publicConfig['roundCount']! as int;
+    final targetScore = battle.publicConfig['targetScore'] as int?;
+    if (targetScore == null) {
+      expect(
+        battle.finishedRounds,
+        hasLength(roundCount),
+        reason: 'every round of the config was played',
+      );
+    } else {
+      // First to targetScore (AUCTION): it ends there or after the last round.
+      final bestScore = battle.scores.values.fold(0, max);
+      expect(
+        battle.finishedRounds.length == roundCount || bestScore >= targetScore,
+        isTrue,
+        reason:
+            '${battle.finishedRounds.length} of $roundCount rounds, '
+            'best score $bestScore of $targetScore',
+      );
+    }
   }
 }
 
@@ -486,6 +596,32 @@ String describeBattleEvent(BattleServerEvent event) {
     MinesTurnStarted(:final participantId, :final turnNo) =>
       'turn $turnNo $participantId',
     MinesAnswered(:final outcome) => outcome.name,
+    AuctionRoundStarted(:final roundNo, :final pickerParticipantId) =>
+      'round $roundNo picker $pickerParticipantId',
+    AuctionListPicked(
+      :final list,
+      :final answerCount,
+      :final wasPickedByServer,
+    ) =>
+      'list $list of $answerCount names${wasPickedByServer ? ' (auto)' : ''}',
+    AuctionTurnStarted(:final participantId, :final currentBid) =>
+      '$participantId on ${currentBid ?? 'no bid'}',
+    AuctionBidPlaced(:final participantId, :final amount, :final isAllIn) =>
+      '$participantId $amount${isAllIn ? ' all-in' : ''}',
+    AuctionProofStarted(
+      :final proverParticipantId,
+      :final amount,
+      :final reason,
+    ) =>
+      '$proverParticipantId proves $amount (${reason.name})',
+    AuctionAnswered(
+      :final phase,
+      :final outcome,
+      :final found,
+      :final strikes,
+    ) =>
+      '${phase.name} ${outcome.name}, found $found, strikes $strikes',
+    AuctionStealStarted(:final stealerParticipantId) => stealerParticipantId,
     GridCellClaimed(:final cell, :final player) =>
       '(${cell.row},${cell.col}) ${player.name}',
     GridTurnMissed(:final hasTimedOut, :final wasSkipped) =>
