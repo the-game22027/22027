@@ -593,11 +593,11 @@ stateDiagram-v2
 
 1. **The vault:** a round's content is 4 questions (§12.4), shown to both players at once in `round:start`. Digit `i` of the code is the answer to question `i`.
 2. **No first mover:** both play at the same time (`firstMover: NONE`, §9.1).
-3. **A try:** `vault:try { code }` with exactly `digits` digits. The server compares the whole code.
-   - Right: the round ends at once, won by that player (`OPENED`). Two right tries are ordered by arrival; the second is refused with `ROUND_OVER`.
-   - Wrong: only the player who tried learns it (in the ack, §12.3), and nothing says which digit is wrong. That player is locked out for the next step of `lockoutMs` (`LockoutLadder`, §9.2: 3 s, 6 s, 9 s, then 9 s again); a try while locked is refused with `LOCKED_OUT` and `lockedUntil`.
+3. **A try:** `vault:try { code }` with one digit per question. The server compares the whole code.
+   - Right: the round ends at once, won by that player (`OPENED`). Two right tries are ordered by arrival; the second is refused with `ROUND_CLOSED`.
+   - Wrong: only the player who tried learns it (in the ack, §12.3), and nothing says which digit is wrong. That player is locked out for the next step of `lockoutMs` (`LockoutLadder`, §9.2: 3 s, 6 s, 9 s, then 9 s again); a try while locked is refused with `LOCKED_OUT` (the wrong try's ack and the snapshot carry `lockedUntil`).
 4. **Leaks:** if nobody has opened the vault, one digit is revealed to both players at `leaks.firstAtMs`, then another every `leaks.everyMs`, up to `leaks.max` (`HintSchedule`, §9.2). Which digit leaks is drawn from the unleaked ones with the seeded random source. A player who knows more digits opens after fewer leaks.
-5. **Round end without an opener:** at `roundMs` the round ends with no winner (`NOBODY`).
+5. **Round end without an opener:** at `roundMs` the round ends with no winner (end reason `NO_WINNER`, reveal outcome `NOBODY`).
 6. **Round points:** `points.vaultOpened` to the opener.
 7. **End of the battle:** the first player whose score reaches `targetScore` (3) wins; `roundCount` is the most rounds (5, because a round can end with no winner). If the rounds run out first, scores decide as usual.
 8. **Reveal:** at the end of every round, the code and each question's answer, so the players learn the facts they missed.
@@ -614,12 +614,12 @@ stateDiagram-v2
 |---|---|---|
 | C→S | `vault:try { roundNo, code }` | A try at the whole code (a string of `digits` digits) |
 | S→C | ack of `vault:try` | Only to the player: `{ accepted: true, data: { opened: false, lockedUntil, tries } }` on a wrong try (§2.4, private results in acks) |
-| S→C | `round:start` | The 4 questions (`{ en, ar }` each), `digits`, `roundDeadlineAt`, `firstLeakAt` |
+| S→C | `round:start` | The questions in the viewer's language, `digits`, `roundDeadlineAt`, `firstLeakAt` |
 | S→C | `vault:tried` | A player's try count after a wrong try (the code is never sent) |
 | S→C | `vault:leak` | `position`, `digit`, `nextLeakAt` (null after the last) |
 | S→C | `round:result` | `reveal: { code, outcome: OPENED \| NOBODY, openedBy?, answers: [{ position, digit }] }` |
 
-Refusals: `LOCKED_OUT` (with `lockedUntil`), `INVALID_CODE` (wrong length or not digits), `ROUND_OVER`.
+Refusals: `LOCKED_OUT`, `INVALID_CODE` (wrong length or not digits), `ROUND_CLOSED` (opened, or past the deadline).
 
 ### 12.4 Content and generator
 
@@ -641,7 +641,7 @@ Generator (`kb bundle --vaults N`, 07 §5.8), built from the N3 data slice (07 �
 | `TITLES_SINCE_2000` | How many {competition} titles have {team} won since 2000? | `core.match` finals | only competitions with a usable final for every edition since 2000; teams that played at least one final (so 0 is a real answer) |
 
 - **Every name is a catalog entity** and every player is a known player (sitelinks ≥ 40, `--vault-min-player-sitelinks`), so a fan can know the fact.
-- **A vault:** 4 facts of close difficulty, from 4 different matches (one fact never gives away another), with at most `--vault-max-per-template` (default 1) of the same template, so `SHIRT_NUMBER`, the largest pool, does not fill vaults alone. Each fact is in one vault only.
+- **A vault:** 4 facts of the same difficulty, from 4 different matches (one fact never gives away another), with at most `--vault-max-per-template` (default 2) of the same template, so every vault mixes at least two kinds of question. Each fact is in one vault only. (A limit of 1 was measured first: it allowed only 152 vaults, because each difficulty needs 4 templates with facts left.)
 - **Difficulty:** from the stage (a final is better known than a round of 16), the teams' and player's popularity, and the template.
 - **Keys:** a fact `vault:<template>:<match id or team:competition>[:<player qid>]`; a vault, its four fact keys.
 - **Measured on 2026-11-19 (dev, before the known-player and vault filters):**
@@ -651,11 +651,12 @@ Generator (`kb bundle --vaults N`, 07 §5.8), built from the N3 data slice (07 �
   - 570 of them have Transfermarkt lineups: 4,865 starters with a linked player and a number 1–9 (`SHIRT_NUMBER`);
   - `TITLES_SINCE_2000`: only the World Cup and the Euro have every final since 2000 today; AFCON (2025 final refused), Copa América and the Asian Cup miss one each until the curated finals arrive. Club title counts wait for the 2000–2011 curated finals.
   - That is about 2,000 facts outside `SHIRT_NUMBER`, enough for 400+ vaults with the one-per-template rule.
+  - **After every filter (built 2026-11-20):** 2,790 facts (`TEAM_GOALS` 1,582, `SHIRT_NUMBER` 579 after one fact per player, team and number, `FINAL_TOTAL_GOALS` 240, `PLAYER_GOALS` 218, `SHOOTOUT_SCORED` 156, `TITLES_SINCE_2000` 15), giving 545 vaults (difficulty 1: 25, 2: 137, 3: 122, 4: 224, 5: 37). Answers lean low (0–2 are 63% of facts), as football scores do. The 2026 World Cup final (Spain 1–0 Argentina) comes from martj42 only and counts in the title totals.
 
 ### 12.5 Bot
 
 - **Knowledge:** for each question it knows the digit with its chance at that difficulty (bot profile); leaked digits are known.
-- **Trying:** when at most `maxGuessDigits` (profile, default 1) digits are unknown, it tries a code after `typingDelayMs`, filling unknown digits with values it has not tried in that position; it waits out its lockout like a player.
+- **Trying:** when at most 1 digit is unknown to it (a runner constant, like the auction bot's decoy pool), it tries a code after `typingDelayMs`, filling the unknown digit with values it has not tried in that position; it waits out its lockout like a player. It looks again after each leak.
 - It never reads the opponent's tries (it sees only the count, as a player does).
 
 ### 12.6 Configuration
@@ -663,8 +664,8 @@ Generator (`kb bundle --vaults N`, 07 §5.8), built from the N3 data slice (07 �
 | Key | Default (dev) | Decision |
 |---|---|---|
 | `roundCount` (most rounds), `targetScore` | 5, 3 | DEC-78 (first to 3: owner, 2026-11-17) |
+| Code length | one digit per question: 4 from the generator | owner, 2026-11-17 (content, not config) |
 | `firstMover` | `NONE` | §9.1 |
-| `digits` | 4 | owner, 2026-11-17 |
 | `lockoutMs` | `[3000, 6000, 9000]` | owner, 2026-11-17 |
 | `leaks.firstAtMs`, `leaks.everyMs`, `leaks.max` | 45000, 15000, 3 | DEC-78 (45 s and 15 s: owner, 2026-11-17; the max is open) |
 | `roundMs` | 120000 | DEC-78 |
@@ -676,5 +677,5 @@ Generator (`kb bundle --vaults N`, 07 §5.8), built from the N3 data slice (07 �
 - **Rules:** pure `battles/domain/games/vault-rules.ts`; `VaultRoundRunner` wraps them (§2.4). The first users of `LockoutLadder` and `HintSchedule` (§9.2), written here.
 - **Timers:** one `round` timer (`roundMs`) and one `leak` timer, rescheduled after each leak. Lockouts need no timer: a try is checked against `lockedUntil` with the clock passed in.
 - **Judging:** exact comparison of the typed code with the four `answerNumber`s; no `AnswerChecker`, no catalog.
-- **Actions:** `VAULT_TRY` (`is_correct`), `VAULT_LEAK`. Question stats count each wrong try as a wrong answer of the round.
-- **Snapshot `currentRound`:** the 4 questions, `digits`, the leaked digits, your tries and `lockedUntil`, the opponent's try count, `roundDeadlineAt`, `nextLeakAt`.
+- **Actions:** `VAULT_TRY` (`is_correct`, the typed code kept as the answer text, never shown). Leaks are events only. Question stats count each wrong try as a wrong answer of the round.
+- **Snapshot `currentRound`:** the questions, `digits`, the leaked digits, every player's try count, the viewer's own `lockedUntil`, `roundDeadlineAt`, `nextLeakAt`.

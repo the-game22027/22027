@@ -417,6 +417,7 @@ Not used: StatsBomb open data (non-commercial), FBref and SofaScore (scraping fo
 - **D.3f gates on it, applied here first:** a team's lineup has 11 starters and at most one captain; a match that fails is listed in `.out/review-lineups.csv` and its lineup is not used.
 - **Vault facts are read by `kb bundle --vaults`** straight from `core.match`, `core.goal` and `core.lineup_slot` (no `derived` view yet, as with N2). `TITLES_SINCE_2000` counts final winners (goals, then the shootout) only for competitions with a usable final for every edition since 2000.
 - Every number is checked to be 0–9 before it is written (D.3f).
+- **Measured on 2026-11-20 (dev):** 40,187 matches with lineups, 1,595,649 slots (23,060 players not linked); the gates refused 81 matches (70 with two captains, 11 without 11 starters). `kb ingest:matches` now takes about 90 s. Check by hand: the 2019 Champions League final comes out with the right XIs, numbers and captains (Henderson, Lloris). The 2022 World Cup final has no Transfermarkt lineup; Fjelstul's lineups come with N5.
 
 **D.3d: typed match tables (resolved).**
 - `core.competition` (ref, kind `LEAGUE` | `CUP` | `INTERNATIONAL`, tier, country) and `core.edition` (competition, season label, final year, winner, runner-up, host).
