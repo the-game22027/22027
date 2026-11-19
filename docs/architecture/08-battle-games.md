@@ -151,6 +151,7 @@ Round content lives in `question-bank` (`02-database.md` §4.6) and comes from b
 | `WHO_IS_PLAYER` | `{ playerEntityId, clues: [{ kind, text: {en, ar} }] }` | The player (slot 0) |
 | `GRID` | `{ rows: [criterion ×3], cols: [criterion ×3] }` | For each cell (slot 0..8), every valid player id |
 | `MINES` | `{ criteria: [criterion ×2] }` (§10.4) | Slot 0: every player of the category |
+| `AUCTION` | `{ lists: [{ kind, title } ×3] }` (§11.4) | Slots 0..2: every name of each list |
 
 `answerKind` is `PLAYER`, `CLUB`, `NATIONAL_TEAM`, `COUNTRY`, `COMPETITION`, `COACH`, or `NUMBER`. Catalog entities of kind `COUNTRY` also name the nationality criteria of `GRID`. The client uses it to filter suggestions; it gives nothing away.
 
@@ -241,6 +242,7 @@ Stored in the battle config by game type, snapshotted on the battle row at creat
 | `answers.maxLength`, `answers.typoTolerance` (letters → edits), `answers.singleWordMaxSharedBy` | all typed answers | DEC-55 |
 | `showYears` | `CAREER` | DEC-54 |
 | `burying.*`, `hearts`, `ownMine`, `detector.*`, `points.perSafeAnswer` | `MINES` (§10.6) | DEC-72, DEC-73, DEC-75 |
+| `targetScore`, `pickMs`, `bidding.*`, `proof.*`, `allIn.maxWrong`, `steal.*`, `points.allInWin` | `AUCTION` (§11.6) | DEC-76, DEC-77 |
 | `room.difficultyLevels` (`EASY`, `MEDIUM`, `HARD` → difficulty ranges) | rooms | DEC-64 |
 | `points.*` | all | DEC-33 |
 | `latencyGraceMs`, `readyTimeoutMs`, `reconnectGraceMs`, `betweenRoundsMs` (pause after `round:result`) | engine | DEC-32 |
@@ -283,7 +285,7 @@ The in-game `score` (`points.*` above) decides placements inside one battle. **L
 
 ## 9. New game types: shared pieces (N0, DEC-68, ADR-0023)
 
-Each new game gets its own section after this one when its N phase starts (rules, state diagram, content shape, bot, config, open rules as DECs; `MINES` is §10). This section holds only what several of them share.
+Each new game gets its own section after this one when its N phase starts (rules, state diagram, content shape, bot, config, open rules as DECs; `MINES` is §10, `AUCTION` §11). This section holds only what several of them share.
 
 ### 9.1 Who starts: rock-paper-scissors
 
@@ -450,3 +452,126 @@ Generator (`kb bundle --mines N`, 07 §5.8):
 - **Acks with data:** a round command may return an accepted ack with `data` (`RoundCommandOutcome`); `mines:bury` uses it.
 - **Judging:** `AnswerChecker` with slot 0 as the accepted answers, as for a `GRID` cell.
 - **Snapshot `currentRound`:** `phase`, `buryDeadlineAt`, your mines (`exploded`, `auto`), `wrongTriesLeft`, the exploded mines of others, every said name with its outcome (names hidden as in `mines:answered`), hearts, the turn and its deadline, `detectorUsesLeft`, `answersLeft`, `minesLeft`.
+
+## 11. `AUCTION` (المزاد, N2)
+
+Chosen by the product owner on 2026-11-18 (DEC-68; demo page: https://claude.ai/artifact/K9M3P4DBCKH9naFvG9jBbx). Each round offers a list ("Liverpool scorers in the 2018-19 Champions League"). The two players bid on how many names of it they can say; the last bidder must prove it live, and a bust gives the other player a chance to steal the round. First to 3 round wins.
+
+### 11.1 A round
+
+```mermaid
+stateDiagram-v2
+  [*] --> PICKING: round:start (3 lists)
+  PICKING --> BIDDING: a list is picked, or pickDeadlineAt
+  BIDDING --> BIDDING: a raise, the turn passes
+  BIDDING --> PROVING: a call, a bid of the whole list, or a timeout after a bid
+  PROVING --> [*]: enough correct names (PROVED)
+  PROVING --> STEALING: too many wrong names, or proofDeadlineAt (bust)
+  STEALING --> [*]: a correct unsaid name (STOLEN), or wrong names or stealDeadlineAt (BUST)
+```
+
+1. **Three lists:** a round's content is a lot of 3 lists (§11.4); `round:start` shows each one's title and answer count (DEC-76: the count is shown).
+2. **Who picks:** round 1, the rock-paper-scissors winner (§9.1); later rounds, the loser of the last round (`firstMoverAfterRound1: LOSER_STARTS`). After a round nobody won, the pick passes to the other player.
+   - The picker has `pickMs` to send `auction:pick`; at the deadline the server picks with the seeded random source (`auto`).
+3. **Bidding:** the picker opens.
+   - Each turn lasts `bidding.turnMs`.
+   - The opening bid is at least `bidding.minOpeningBid` (DEC-76: 1); every raise is higher than the current bid, and no bid is above the list's answer count.
+   - From the second turn on, a player may call (`auction:call`, "اتفضل ورّيني") instead of raising.
+   - A bid equal to the answer count is the all-in ("كله يا عم"). Nobody can raise it, so the proof starts at once.
+   - The opener's timeout opens with the minimum bid; any later timeout counts as a call.
+4. **Proof:** the last bidder (the prover) has `proof.ms` to type that many different names of the list, one `auction:answer` at a time. Both players see every name live.
+   - A correct unsaid name fills a slot. A wrong name, or one already said, is a strike (`UsedAnswers` with repeats counted as wrong).
+   - Reaching the bid wins the round (`PROVED`).
+   - `proof.maxWrong` strikes (`allIn.maxWrong` for an all-in, DEC-77), or the deadline, is a bust.
+5. **Steal:** after a bust the other player has `steal.ms` to name `steal.names` unsaid names (DEC-76: 1).
+   - Success wins them the round (`STOLEN`).
+   - A wrong name ends the steal at once. A wrong name or the deadline leaves the round with no winner (`BUST`, DEC-77).
+6. **Round points:**
+   - `points.roundWin` for `PROVED` or `STOLEN`;
+   - `points.allInWin` for a proved all-in (the demo: it counts as 2 rounds).
+7. **End of the battle:** the first player whose score reaches `targetScore` (3) wins; `roundCount` is only the most rounds a battle can have (7: rounds can end with no winner). If the rounds run out first, scores decide as usual (DEC-77).
+8. **Reveal:** at the end of every round, all names of the list, marked with who said them; the unsaid ones are the "how did I forget him!" moment.
+9. **Players:** exactly 2.
+
+### 11.2 Hidden information
+
+Nothing is secret between the players: titles, counts, bids and every typed name are public, as on the demo. Only the accepted answers stay on the server until the reveal (§7).
+
+### 11.3 Protocol (details in `api/WEBSOCKET.md`)
+
+| Direction | Message | Purpose |
+|---|---|---|
+| C→S | `auction:pick { roundNo, list: 0..2 }` | The picker chooses a list |
+| C→S | `auction:bid { roundNo, amount }` | Open or raise |
+| C→S | `auction:call { roundNo }` | "اتفضل ورّيني" |
+| C→S | `auction:answer { roundNo, answer: { text } }` | A name, during the proof (prover) or the steal (the other player) |
+| S→C | `round:start` | The 3 lists (title, answer count), the picker, `pickDeadlineAt` |
+| S→C | `auction:picked` | The chosen list, `auto` |
+| S→C | `auction:turn` | Whose bidding turn, the current bid, `turnDeadlineAt` |
+| S→C | `auction:bid` | A bid, `allIn` |
+| S→C | `auction:proof` | Prover, amount, `maxWrong`, `proofDeadlineAt`; also how it started (call, all-in, timeout) |
+| S→C | `auction:answered` | Phase (`PROOF` \| `STEAL`), outcome (`CORRECT` \| `WRONG` \| `REPEATED`), the name (wrong names only with `showWrongAnswers`), found so far, strikes |
+| S→C | `auction:steal` | Stealer, `stealDeadlineAt` |
+| S→C | `round:result` | `reveal: { list, outcome: PROVED \| STOLEN \| BUST, bid, answers: [{ player, saidBy? }] }` |
+
+### 11.4 Content and generator
+
+| `gameType` | Content | Accepted answers |
+|---|---|---|
+| `AUCTION` | `{ lists: [{ kind, title: { en, ar } } ×3] }` | Slots 0..2: every name of each list, most popular first |
+
+The pipeline writes the titles in both languages: competitions are not catalog entities yet (07 §5.10), so titles cannot be built from catalog names at play time.
+
+Generator (`kb bundle --auctions N`, 07 §5.8):
+- **Source (N2):** Transfermarkt goal events in usable matches (`core.usable_match`) of tier 1 and 2 competitions, from 2012 (its coverage). This is the first slice of D.3d goals (07 §5.10).
+- **List kinds (N2):**
+  - `SCORERS`: a club's scorers in one competition season;
+  - `ASSISTERS`: its assist providers.
+  - Own goals never count. An assist counts only when the assist provider is in the scoring team's lineup for that match; the rest are dropped and counted (the Söyüncü case, 07 §5.10).
+  - Later kinds: scorers against a club, national-team tournament scorers, famous XIs, winners lists.
+- **Kept when:**
+  - 6 to 30 names (`--auction-min-answers`, `--auction-max-answers`);
+  - **every name is a catalog entity** (DEC-69 stays at (a)), so any right name can be judged right;
+  - at least 60% of names are known players (sitelinks ≥ 40, `--auction-known-share`);
+  - no other kept list has the same names.
+- **A lot:** 3 lists of close difficulty, from 3 different clubs or kinds; each list is in one lot only.
+- **Difficulty:** from the share of known names and the list size.
+- **Keys:**
+  - a list: `auction:<kind>:<club qid>:<competition>:<season>`;
+  - a lot: its three list keys.
+- **Measured on 2026-11-19** (lists of 6–30 names, before the known-share filter):
+  - tier 1: 1,671 scorer and 1,680 assister lists, of which 768 and 676 have every name in the catalog;
+  - tier 2: 1,673 and 1,432, of which 420 and 352.
+  - That is about 2,200 lists, or 730 lots.
+
+### 11.5 Bot
+
+- **Pick:** the list with the best expected count: answer count × its chance to know a name at that difficulty.
+- **Bidding:** it raises by 1 while the current bid is below that expected count, with a small random push from its profile; otherwise it calls.
+- **Proof and steal:** each name it sends is the most popular unsaid name of the list with its knowledge chance, otherwise a wrong name or silence, after `typingDelayMs`.
+
+### 11.6 Configuration
+
+| Key | Default (dev) | Decision |
+|---|---|---|
+| `roundCount` (most rounds), `targetScore` | 7, 3 | DEC-77 |
+| `firstMover`, `firstMoverAfterRound1`, `rps.*` | `RPS`, `LOSER_STARTS` | §9.1, DEC-71 |
+| `pickMs` | 10000 | DEC-77 |
+| `bidding.turnMs`, `bidding.minOpeningBid` | 8000, 1 | DEC-76 (minimum), DEC-77 |
+| `proof.ms`, `proof.maxWrong` | 45000, 3 | DEC-77 |
+| `allIn.maxWrong` | 1 | DEC-77 |
+| `steal.ms`, `steal.names` | 10000, 1 | DEC-76 (names), DEC-77 |
+| `showWrongAnswers` | true | DEC-60 |
+| `points.roundWin`, `points.allInWin` | 1, 2 | DEC-33 |
+
+### 11.7 How it fits the engine
+
+- **Rules:** pure `battles/domain/games/auction-rules.ts`; `AuctionRoundRunner` wraps them (§2.4), with `UsedAnswers` from §9.2.
+- **Engine change (generic):** `targetScore` per game type, nullable. After each round the engine completes the battle when a score reaches it. No game-specific code.
+- **Judging:** `AnswerChecker` with the picked list's slot as the accepted answers.
+- **Actions:** `AUCTION_PICK`, `AUCTION_BID`, `AUCTION_CALL`, `AUCTION_ANSWER` (`is_correct`), `AUCTION_STEAL`, `TURN_TIMEOUT`. Question stats count a wrong `AUCTION_ANSWER` as a wrong answer.
+- **Snapshot `currentRound`:**
+  - `phase`, the 3 lists and the picked one;
+  - the picker, the bids so far and whose turn;
+  - the prover, the amount, the names found, the strikes;
+  - the stealer, and the deadlines.
