@@ -591,13 +591,20 @@ export class LiveBattle {
       })),
     }));
     if (this.status !== 'IN_PROGRESS') return;
-    if (this.roundIndex + 1 < this.questionIds.length) {
+    if (this.roundIndex + 1 < this.questionIds.length && !this.hasAnyoneReachedTargetScore()) {
       this.schedule('next-round', new Date(now.getTime() + this.config.engine.betweenRoundsMs), () =>
         this.decideFirstMoverThenStartRound(),
       );
     } else {
       await this.completeBattle();
     }
+  }
+
+  /** A game type with `targetScore` ends as soon as one score reaches it (08 §11.7). */
+  private hasAnyoneReachedTargetScore(): boolean {
+    const target = this.config.game.targetScore;
+    if (target === undefined || target === null) return false;
+    return [...this.scores.values()].some((score) => score >= target);
   }
 
   /** Those still in the battle are placed by score; those who left come after them, all as losses (DEC-33). */

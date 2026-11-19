@@ -204,6 +204,47 @@
         "difficulties": null,
         "excludeLastBattles": 20
       }
+    },
+    "AUCTION": {
+      "enabled": true,
+      "roundCount": 7,
+      "targetScore": 3,
+      "firstMover": "RPS",
+      "firstMoverAfterRound1": "LOSER_STARTS",
+      "rps": {
+        "pickMs": 5000,
+        "maxReplays": 2,
+        "revealMs": 2000,
+        "botPickDelayMs": {
+          "min": 800,
+          "max": 2500
+        }
+      },
+      "pickMs": 10000,
+      "bidding": {
+        "turnMs": 8000,
+        "minOpeningBid": 1
+      },
+      "proof": {
+        "ms": 45000,
+        "maxWrong": 3
+      },
+      "allIn": {
+        "maxWrong": 1
+      },
+      "steal": {
+        "ms": 10000,
+        "names": 1
+      },
+      "showWrongAnswers": true,
+      "points": {
+        "roundWin": 1,
+        "allInWin": 2
+      },
+      "selection": {
+        "difficulties": null,
+        "excludeLastBattles": 20
+      }
     }
   }
 }

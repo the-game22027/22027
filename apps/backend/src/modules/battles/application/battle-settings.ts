@@ -24,6 +24,8 @@ interface CommonGameSettings extends FirstMoverSettings {
   roundCount: number;
   /** DEC-44: content of a player's last `excludeLastBattles` battles is skipped while the bank allows it. */
   selection: { difficulties: number[] | null; excludeLastBattles: number };
+  /** The battle ends as soon as a score reaches this (08 §11.7); `roundCount` is then only the most rounds. */
+  targetScore?: number | null;
 }
 
 /** The `GRID` section of the battle config (08 §6). */
@@ -50,6 +52,20 @@ export interface MinesGameSettings extends CommonGameSettings {
   points: { roundWin: number; roundDraw: number; perSafeAnswer: number };
 }
 
+/** The `AUCTION` section of the battle config (08 §11.6). */
+export interface AuctionGameSettings extends CommonGameSettings {
+  pickMs: number;
+  /** DEC-76: `minOpeningBid`. */
+  bidding: { turnMs: number; minOpeningBid: number };
+  proof: { ms: number; maxWrong: number };
+  /** DEC-77. */
+  allIn: { maxWrong: number };
+  /** DEC-76: `names`. */
+  steal: { ms: number; names: number };
+  showWrongAnswers: boolean;
+  points: { roundWin: number; allInWin: number };
+}
+
 /** One reveal-and-buzz game type's section of the battle config (08 §6). */
 export interface RevealGameSettings extends CommonGameSettings, Omit<RevealAndBuzzConfig, 'latencyGraceMs'> {
   /** CAREER only: show the years of each spell (08 §3.1). */
@@ -69,10 +85,11 @@ export interface BattleSettings {
   gameTypes: Partial<Record<RevealGameType, RevealGameSettings>> & {
     GRID?: GridGameSettings;
     MINES?: MinesGameSettings;
+    AUCTION?: AuctionGameSettings;
   };
 }
 
-export type GameSettings = RevealGameSettings | GridGameSettings | MinesGameSettings;
+export type GameSettings = RevealGameSettings | GridGameSettings | MinesGameSettings | AuctionGameSettings;
 
 /** The config of a game type, or undefined when it has none. */
 export function findGameSettings(settings: BattleSettings, gameType: string): GameSettings | undefined {
