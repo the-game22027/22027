@@ -185,13 +185,16 @@ export class HexRules {
     return findLockedUntil(state.lockouts, who, now);
   }
 
-  /** Open cells on the shortest way to join this player's sides, counting open cells (for the bot, 08 §13.6). */
-  findShortestOpenPath(state: HexRoundState, who: ParticipantId): number[] {
+  /**
+   * The cheapest chain joining this player's sides, counting only open cells (owned ones are free, the
+   * opponent's are blocked): what the bot aims at and blocks (08 §13.6). Empty when the way is cut.
+   */
+  findShortestPathFor(state: HexRoundState, who: ParticipantId): number[] {
     return findShortestPath(state.size, state.sides[who] ?? 'WEST_EAST', (cell) => {
       const owner = state.owners[cell];
       if (owner === who) return 0;
       return owner === null ? 1 : null;
-    }).filter((cell) => state.owners[cell] === null);
+    });
   }
 
   private pick(state: HexRoundState, from: ParticipantId, cell: number, clear: boolean, now: Date): Step | Rejection {

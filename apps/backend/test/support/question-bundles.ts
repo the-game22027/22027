@@ -195,3 +195,36 @@ export const vaultLine = (key: string, code = '7653') => ({
     })),
   },
 });
+
+/** A 3×3 HEX board, every cell م / m, one question per cell: two right names and one with another letter. */
+export const hexFixture = () => {
+  const id = randomUUID().slice(0, 8);
+  const player = (cell: number, name: { en: string; ar: string }) => ({
+    externalRef: `test:hex-${String(cell)}-${name.en.split(' ')[0] ?? ''}-${id}`,
+    kind: 'PLAYER',
+    names: name,
+    aliases: { en: [], ar: [] },
+    popularity: 1,
+    search: [name.en, name.ar],
+  });
+  const lists = Array.from({ length: 9 }, (_, cell) => [
+    player(cell, { en: `Mido ${String(cell)} ${id}`, ar: `ميدو ${String(cell)} ${id}` }),
+    player(cell, { en: `Miro ${String(cell)} ${id}`, ar: `ميرو ${String(cell)} ${id}` }),
+    player(cell, { en: `Zico ${String(cell)} ${id}`, ar: `زيكو ${String(cell)} ${id}` }),
+  ]);
+  const line = (key: string) => ({
+    ...common(key),
+    gameType: 'HEX',
+    content: {
+      size: 3,
+      cells: lists.map((_, cell) => ({
+        letter: { en: 'M', ar: 'م' },
+        questions: [
+          { kind: 'SCORERS', title: { en: `List ${String(cell)} ${id}`, ar: `قائمة ${String(cell)} ${id}` } },
+        ],
+      })),
+    },
+    answers: lists.map((names, slot) => ({ slot, entities: names.map((entry) => entry.externalRef) })),
+  });
+  return { entities: lists.flat(), line, lists };
+};

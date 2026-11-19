@@ -332,6 +332,20 @@ export class BattleEngine implements OnApplicationBootstrap, BeforeApplicationSh
     );
   }
 
+  /** `hex:pick`, `hex:answer` (08 §13.4). */
+  sendHexCommand(
+    battleId: string,
+    userId: string,
+    socketId: string,
+    roundNo: number,
+    command: Extract<PlayerCommand, { type: 'HEX_PICK' | 'HEX_ANSWER' }>,
+    clientMsgId: string,
+  ): Promise<Ack> {
+    return this.withBattle(battleId, clientMsgId, (battle) =>
+      battle.roundCommand(userId, socketId, roundNo, command, clientMsgId),
+    );
+  }
+
   /** `vault:try` (08 §12.3). */
   sendVaultTry(
     battleId: string,
