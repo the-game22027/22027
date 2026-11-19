@@ -26,6 +26,9 @@ export const MAX_CLUE_TEXT_LENGTH = 200;
 export const GRID_SIZE = 3;
 export const AUCTION_LISTS_PER_ROUND = 3;
 export const MAX_AUCTION_TITLE_LENGTH = 200;
+export const MIN_VAULT_QUESTIONS = 2;
+export const MAX_VAULT_QUESTIONS = 9;
+export const MAX_VAULT_QUESTION_LENGTH = 300;
 
 const checkText = (problems: string[], field: string, value: string, maxLength: number): void => {
   if (value.trim() === '') problems.push(`${field} is empty`);
@@ -197,6 +200,27 @@ function findGameShapeProblems(content: GameContent): string[] {
       if (answers.some((answer) => answer.slot < 0 || answer.slot >= AUCTION_LISTS_PER_ROUND)) {
         problems.push(`auction answer slots must be 0 to ${AUCTION_LISTS_PER_ROUND - 1}`);
       }
+      break;
+    }
+    case 'VAULT': {
+      if (body.questions.length < MIN_VAULT_QUESTIONS || body.questions.length > MAX_VAULT_QUESTIONS) {
+        problems.push(`a vault has ${MIN_VAULT_QUESTIONS} to ${MAX_VAULT_QUESTIONS} questions`);
+      }
+      const locales = Object.keys(body.questions[0]?.text ?? {})
+        .sort()
+        .join();
+      body.questions.forEach((question, index) => {
+        if (Object.keys(question.text).sort().join() !== locales) {
+          problems.push(`vault question ${index + 1} must have text in exactly the locales of question 1`);
+        }
+        for (const [locale, text] of Object.entries(question.text)) {
+          checkText(problems, `vault question ${index + 1} ${locale} text`, text, MAX_VAULT_QUESTION_LENGTH);
+        }
+        if (question.answerNumber < 0 || question.answerNumber > 9) {
+          problems.push(`vault question ${index + 1} answer must be a digit 0-9`);
+        }
+      });
+      if (answers.length > 0) problems.push('a vault has no answer slots: its digits are in the questions');
       break;
     }
     case 'MINES': {

@@ -1,5 +1,6 @@
 import type { KnownEntity } from './answer-catalog';
 import {
+  type AnswerSlot,
   type AuctionList,
   type BundleQuestion,
   computeContentHash,
@@ -89,6 +90,26 @@ describe('game content shape', () => {
       'list 3 must have a title in exactly the locales of list 1',
     );
     expect(localesOfQuestion(auction().content)).toEqual(['ar', 'en']);
+  });
+
+  it('accepts a vault of digit questions with no answer slots', () => {
+    const digit = (answerNumber: number, text: Record<string, string> = { en: 'How many?', ar: 'كم؟' }) => ({
+      template: 'TEAM_GOALS',
+      text,
+      answerNumber,
+    });
+    const vault = (questions = [digit(7), digit(6), digit(5), digit(3)], answers: AnswerSlot[] = []) =>
+      question({ body: { gameType: 'VAULT', questions }, answers });
+    expect(problemsOf(vault())).toBe('');
+    expect(problemsOf(vault([digit(7)]))).toContain('a vault has 2 to 9 questions');
+    expect(problemsOf(vault([digit(7), digit(10)]))).toContain('vault question 2 answer must be a digit 0-9');
+    expect(problemsOf(vault([digit(7), digit(1, { en: 'only english' })]))).toContain(
+      'vault question 2 must have text in exactly the locales of question 1',
+    );
+    expect(problemsOf(vault(undefined, [{ slot: 0, entities: ['wd:ronaldo'] }]))).toContain(
+      'a vault has no answer slots',
+    );
+    expect(localesOfQuestion(vault().content)).toEqual(['ar', 'en']);
   });
 
   it('accepts a valid buzzer, career and grid', () => {

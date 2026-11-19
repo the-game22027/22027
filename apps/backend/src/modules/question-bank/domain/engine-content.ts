@@ -26,7 +26,8 @@ export type EngineGameBody =
   | { gameType: 'WHO_IS_PLAYER'; playerEntityId: string; clues: { kind: string; text: LocalizedText }[] }
   | { gameType: 'GRID'; rows: EngineGridCriterion[]; cols: EngineGridCriterion[] }
   | { gameType: 'MINES'; criteria: EngineMinesCriterion[] }
-  | { gameType: 'AUCTION'; lists: { kind: string; title: LocalizedText }[] };
+  | { gameType: 'AUCTION'; lists: { kind: string; title: LocalizedText }[] }
+  | { gameType: 'VAULT'; questions: { template: string; text: LocalizedText; answerNumber: number }[] };
 
 /** Everything the engine needs to play one round. Server side only: never sent to a client as is. */
 export interface EngineContent {
@@ -44,6 +45,7 @@ export function listEntityReferencesOfBody(body: GameBody): string[] {
   switch (body.gameType) {
     case 'BUZZER':
     case 'AUCTION':
+    case 'VAULT':
       return [];
     case 'CAREER':
       return [body.player, ...body.spells.map((spell) => spell.club)];
@@ -115,6 +117,11 @@ export function toEngineBody(
       return {
         gameType: 'AUCTION',
         lists: body.lists.map((list) => ({ kind: list.kind, title: keepLocales(list.title, locales) })),
+      };
+    case 'VAULT':
+      return {
+        gameType: 'VAULT',
+        questions: body.questions.map((question) => ({ ...question, text: keepLocales(question.text, locales) })),
       };
     case 'MINES': {
       const criterionOf = (criterion: MinesCriterion): EngineMinesCriterion =>

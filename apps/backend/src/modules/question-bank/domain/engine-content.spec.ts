@@ -102,6 +102,18 @@ describe('the engine view of stored content', () => {
     expect(listEntityReferencesOfBody(auction)).toEqual([]);
   });
 
+  it('keeps vault questions with their digits for the engine, in the battle locales only', () => {
+    const vault: GameBody = {
+      gameType: 'VAULT',
+      questions: [{ template: 'TEAM_GOALS', text: { en: 'How many?', ar: 'كم؟' }, answerNumber: 7 }],
+    };
+    expect(toEngineBody(vault, idOf, ['en'])).toEqual({
+      gameType: 'VAULT',
+      questions: [{ template: 'TEAM_GOALS', text: { en: 'How many?' }, answerNumber: 7 }],
+    });
+    expect(listEntityReferencesOfBody(vault)).toEqual([]);
+  });
+
   it('lists the references a body points at, so they load in one query', () => {
     expect(listEntityReferencesOfBody(career)).toEqual(['wd:ronaldo', 'wd:sporting', 'wd:united']);
     expect(listEntityReferencesOfBody(buzzer)).toEqual([]);

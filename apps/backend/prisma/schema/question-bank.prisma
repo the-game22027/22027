@@ -17,6 +17,7 @@ enum BattleGameType {
   GRID
   MINES
   AUCTION
+  VAULT
 
   @@map("battle_game_type")
 }
