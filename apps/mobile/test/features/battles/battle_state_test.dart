@@ -178,6 +178,141 @@ void main() {
     expect((next.currentRound! as RevealRound).revealedClues, hasLength(3));
   });
 
+  group('a mines round', () {
+    final criteria = [
+      {
+        'kind': 'CLUB',
+        'entity': {'entityId': 'arsenal', 'name': 'Arsenal'},
+      },
+      {'kind': 'DECADE', 'fromYear': 2000},
+    ];
+    Map<String, Object?> mine(String id, {bool auto = false}) => {
+      'player': {'entityId': id, 'name': id},
+      'auto': auto,
+      'exploded': false,
+    };
+    List<Map<String, Object?>> counts(String field, int human, int bot) => [
+      {'participantId': 'p-human', field: human},
+      {'participantId': 'p-bot', field: bot},
+    ];
+
+    BattleState playMinesRound() => applyAll(foundBattle(), [
+      event('round:start', 2, {
+        'roundNo': 1,
+        'gameType': 'MINES',
+        'criteria': criteria,
+        'answerCount': 30,
+        'minesPerPlayer': 3,
+        'hearts': 3,
+        'buryDeadlineAt': '2026-11-12T10:00:30.000Z',
+        'firstTurnParticipantId': 'p-bot',
+      }),
+      event('mines:turn', 3, {
+        'roundNo': 1,
+        'participantId': 'p-bot',
+        'turnNo': 1,
+        'turnDeadlineAt': '2026-11-12T10:00:40.000Z',
+        'yourMines': [mine('henry'), mine('pires', auto: true)],
+      }),
+      event('mines:answered', 4, {
+        'roundNo': 1,
+        'participantId': 'p-bot',
+        'outcome': 'MINE',
+        'player': {'entityId': 'henry', 'name': 'henry'},
+        'buriedBy': 'p-human',
+        'hearts': counts('hearts', 3, 2),
+        'answersLeft': 29,
+        'minesLeft': counts('minesLeft', 2, 3),
+      }),
+      event('mines:turn', 5, {
+        'roundNo': 1,
+        'participantId': 'p-human',
+        'turnNo': 2,
+        'turnDeadlineAt': '2026-11-12T10:00:50.000Z',
+      }),
+      event('mines:scanned', 6, {
+        'roundNo': 1,
+        'participantId': 'p-human',
+        'turnDeadlineAt': '2026-11-12T10:00:47.000Z',
+        'result': 'CLEAR',
+      }),
+    ]);
+
+    test(
+      'burying, the first turn with your mines, an explosion and a scan',
+      () {
+        final state = playMinesRound();
+        expect(state.phase, BattlePhase.inProgress);
+        final round = state.currentRound! as MinesRound;
+        expect(round.phase, MinesPhase.turns);
+        expect(round.criteria.last.kind, MinesCriterionKind.decade);
+        expect(round.criteria.last.fromYear, 2000);
+        expect(round.yourMines.map((m) => m.player.entityId), [
+          'henry',
+          'pires',
+        ]);
+        expect(round.yourMines.first.hasExploded, isTrue);
+        expect(round.yourMines.last.wasBuriedByServer, isTrue);
+        expect(round.explodedMines.single.buriedByParticipantId, 'p-human');
+        expect(round.heartsByParticipant, {'p-human': 3, 'p-bot': 2});
+        expect(round.answersLeft, 29);
+        expect(round.turnParticipantId, 'p-human');
+        expect(round.turnDeadlineAt, DateTime.utc(2026, 11, 12, 10, 0, 47));
+        expect(round.lastScanResult, MineScanResult.clear);
+      },
+    );
+
+    test('a snapshot restores the round without the other player\'s mines', () {
+      final restored = applyBattleSnapshot(playMinesRound(), {
+        'status': 'IN_PROGRESS',
+        'gameType': 'MINES',
+        'mode': 'MATCHMAKING',
+        'players': [humanPlayerJson, botPlayerJson],
+        'currentRound': {
+          'roundNo': 1,
+          'criteria': criteria,
+          'answerCount': 30,
+          'phase': 'TURNS',
+          'buryDeadlineAt': '2026-11-12T10:00:30.000Z',
+          'yourMines': [mine('henry'), mine('pires')],
+          'wrongTriesLeft': 2,
+          'exploded': [
+            {
+              'buriedBy': 'p-human',
+              'player': {'entityId': 'henry', 'name': 'henry'},
+            },
+          ],
+          'said': [
+            {
+              'participantId': 'p-bot',
+              'outcome': 'MINE',
+              'player': {'entityId': 'henry', 'name': 'henry'},
+            },
+            {'participantId': 'p-human', 'outcome': 'TIMEOUT'},
+          ],
+          'hearts': counts('hearts', 2, 2),
+          'answersLeft': 29,
+          'minesLeft': counts('minesLeft', 2, 3),
+          'turnOf': 'p-bot',
+          'turnNo': 3,
+          'detectorUsesLeft': 0,
+          'deadlines': {'turnDeadlineAt': '2026-11-12T10:01:00.000Z'},
+        },
+        'rounds': <Object>[],
+        'scores': <Object>[],
+        'seq': 9,
+      });
+      final round = restored.currentRound! as MinesRound;
+      expect(round.phase, MinesPhase.turns);
+      expect(round.saidAnswers.last.outcome, MinesAnswerOutcome.timeout);
+      expect(round.saidAnswers.last.player, isNull);
+      expect(round.wrongTriesLeft, 2);
+      expect(round.detectorUsesLeft, 0);
+      expect(round.turnNo, 3);
+      expect(round.heartsByParticipant['p-human'], 2);
+    });
+  });
+
   test('a grid round: turns, claims and a board from a snapshot', () {
     Map<String, Object?> criterion(String kind, String id) => {
       'kind': kind,

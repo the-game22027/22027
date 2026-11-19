@@ -155,6 +155,53 @@ class BattleSessionController extends Notifier<BattleSessionState> {
   Future<BattleCommandResult> skipGridTurn() =>
       _sendRoundCommand('grid:skip', const {});
 
+  /// `mines:bury`: buries one mine in secret (`08` §10.1). The ack carries your mines so far,
+  /// which only you ever see; a name outside the category uses one of your wrong tries.
+  Future<BattleCommandResult> buryMine(String text) async {
+    final result = await _sendRoundCommand('mines:bury', {
+      'answer': {'text': text},
+    });
+    final battle = state.battle;
+    final round = battle?.currentRound;
+    if (!ref.mounted || battle == null || round is! MinesRound) return result;
+    final MinesRound? updated = switch (result) {
+      BattleCommandAccepted(:final ack) => switch (ack['data']) {
+        final Map<Object?, Object?> data => () {
+          final reader = JsonObjectReader(data, 'mines:bury ack');
+          return round.copyWith(
+            yourMines: readMines(reader.readObjectList('mines')),
+            wrongTriesLeft: reader.readInt('wrongTriesLeft'),
+          );
+        }(),
+        _ => null,
+      },
+      BattleCommandRejected(code: 'NOT_IN_CATEGORY')
+          when round.wrongTriesLeft != null =>
+        round.copyWith(wrongTriesLeft: round.wrongTriesLeft! - 1),
+      _ => null,
+    };
+    if (updated != null) {
+      state = state.copyWith(
+        battle: () => battle.copyWith(currentRound: () => updated),
+      );
+    }
+    return result;
+  }
+
+  /// `mines:answer`: your turn's name. The outcome arrives as `mines:answered`; your own live
+  /// mine comes back as `OWN_MINE` and the turn goes on.
+  Future<BattleCommandResult> answerMines(String text) =>
+      _sendRoundCommand('mines:answer', {
+        'answer': {'text': text},
+      });
+
+  /// `mines:scan`: asks the detector whether a name is the other player's mine. The answer
+  /// arrives in your copy of `mines:scanned`.
+  Future<BattleCommandResult> scanForMine(String text) =>
+      _sendRoundCommand('mines:scan', {
+        'answer': {'text': text},
+      });
+
   /// Leaves the battle for good (last place, DEC-33).
   Future<BattleCommandResult> forfeitBattle() =>
       _sendBattleCommand('battle:forfeit');

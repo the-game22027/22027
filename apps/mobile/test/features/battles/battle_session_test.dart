@@ -196,6 +196,75 @@ void main() {
   });
 
   test(
+    'a mine bury keeps the mines from the ack and counts wrong tries',
+    () async {
+      final container = await createContainer();
+      final controller = controllerOf(container);
+
+      await receiveBattleFound(container);
+      socket.receive(
+        'round:start',
+        battleEnvelope('round:start', 2, {
+          'roundNo': 1,
+          'gameType': 'MINES',
+          'criteria': [
+            {
+              'kind': 'CLUB',
+              'entity': {'entityId': 'arsenal', 'name': 'Arsenal'},
+            },
+            {
+              'kind': 'NATIONALITY',
+              'entity': {'entityId': 'france', 'name': 'France'},
+            },
+          ],
+          'answerCount': 25,
+          'minesPerPlayer': 3,
+          'hearts': 3,
+          'buryDeadlineAt': '2026-11-12T10:00:30.000Z',
+          'firstTurnParticipantId': 'p-human',
+        }),
+      );
+      await pumpEventQueue();
+      socket.answerCommand = (_, payload) => BattleCommandAccepted({
+        ...payload,
+        'accepted': true,
+        'data': {
+          'mines': [
+            {
+              'player': {'entityId': 'henry', 'name': 'Thierry Henry'},
+              'auto': false,
+            },
+          ],
+          'wrongTriesLeft': 3,
+        },
+      });
+      await controller.buryMine('هنري');
+
+      final (event, payload) = socket.sentCommands.last;
+      expect(event, 'mines:bury');
+      expect(payload['roundNo'], 1);
+      expect(payload['answer'], {'text': 'هنري'});
+      MinesRound round() =>
+          container.read(battleSessionProvider).battle!.currentRound!
+              as MinesRound;
+      expect(round().yourMines.single.player.name, 'Thierry Henry');
+      expect(round().wrongTriesLeft, 3);
+
+      socket.answerCommand = (_, _) =>
+          const BattleCommandRejected('NOT_IN_CATEGORY');
+      await controller.buryMine('دروجبا');
+      expect(round().wrongTriesLeft, 2);
+
+      await controller.scanForMine('بيريس');
+      await controller.answerMines('بيريس');
+      expect(socket.sentEventNames.reversed.take(2), [
+        'mines:answer',
+        'mines:scan',
+      ]);
+    },
+  );
+
+  test(
     'a rock-paper-scissors pick names the current attempt and is remembered',
     () async {
       final container = await createContainer();

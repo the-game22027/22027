@@ -2,13 +2,14 @@
 /// their envelope. Screens and the battle state reducer use these, never raw maps.
 library;
 
-enum GameType { buzzer, career, whoIsPlayer, grid, unknown }
+enum GameType { buzzer, career, whoIsPlayer, grid, mines, unknown }
 
 GameType findGameTypeByCode(String code) => switch (code) {
   'BUZZER' => GameType.buzzer,
   'CAREER' => GameType.career,
   'WHO_IS_PLAYER' => GameType.whoIsPlayer,
   'GRID' => GameType.grid,
+  'MINES' => GameType.mines,
   _ => GameType.unknown,
 };
 
@@ -17,6 +18,7 @@ String convertGameTypeToCode(GameType gameType) => switch (gameType) {
   GameType.career => 'CAREER',
   GameType.whoIsPlayer => 'WHO_IS_PLAYER',
   GameType.grid => 'GRID',
+  GameType.mines => 'MINES',
   GameType.unknown => throw ArgumentError('unknown game type has no code'),
 };
 
@@ -84,6 +86,58 @@ class GridCriterion {
   final GridCriterionKind kind;
   final EntityRef entity;
 }
+
+enum MinesCriterionKind { club, nationality, decade, unknown }
+
+/// Half of a `MINES` category (`08` §10.4): a club, a citizenship, or a decade.
+class MinesCriterion {
+  const MinesCriterion({required this.kind, this.entity, this.fromYear});
+
+  final MinesCriterionKind kind;
+
+  /// The club or country; `null` for a decade.
+  final EntityRef? entity;
+
+  /// The first year of a decade, for example 2000 for the 2000s.
+  final int? fromYear;
+}
+
+/// One of your mines, or a mine shown when the round ends.
+class MineRef {
+  const MineRef({
+    required this.player,
+    required this.wasBuriedByServer,
+    this.hasExploded = false,
+  });
+
+  final EntityRef player;
+
+  /// The player did not bury in time, so the server picked this mine (`auto`).
+  final bool wasBuriedByServer;
+  final bool hasExploded;
+}
+
+enum MinesAnswerOutcome {
+  safe,
+  mine,
+  wrong,
+  repeated,
+  ownMine,
+  timeout,
+  unknown,
+}
+
+MinesAnswerOutcome findMinesAnswerOutcomeByCode(String code) => switch (code) {
+  'SAFE' => MinesAnswerOutcome.safe,
+  'MINE' => MinesAnswerOutcome.mine,
+  'WRONG' => MinesAnswerOutcome.wrong,
+  'REPEATED' => MinesAnswerOutcome.repeated,
+  'OWN_MINE' => MinesAnswerOutcome.ownMine,
+  'TIMEOUT' => MinesAnswerOutcome.timeout,
+  _ => MinesAnswerOutcome.unknown,
+};
+
+enum MineScanResult { mine, clear }
 
 /// What the round expects: a name of one kind (`PLAYER`, `CLUB`, …), typed as text, or a
 /// number. Screens use it for the hint and the keyboard.
@@ -298,6 +352,104 @@ class GridRoundStarted extends BattleServerEvent {
   final List<GridCriterion> rows;
   final List<GridCriterion> cols;
   final String firstTurnParticipantId;
+}
+
+/// `round:start` of a `MINES` round: the burying phase begins (`08` §10.1).
+class MinesRoundStarted extends BattleServerEvent {
+  const MinesRoundStarted({
+    required super.serverTime,
+    required super.battleId,
+    required super.seq,
+    required this.roundNo,
+    required this.criteria,
+    required this.answerCount,
+    required this.minesPerPlayer,
+    required this.hearts,
+    required this.buryDeadlineAt,
+    required this.firstTurnParticipantId,
+  });
+
+  final int roundNo;
+  final List<MinesCriterion> criteria;
+
+  /// How many players fit the category, mines included.
+  final int answerCount;
+  final int minesPerPlayer;
+
+  /// Hearts each player starts the round with.
+  final int hearts;
+  final DateTime buryDeadlineAt;
+  final String firstTurnParticipantId;
+}
+
+/// `mines:turn`. The first one (`turnNo` 1) ends burying and carries your own final mines.
+class MinesTurnStarted extends BattleServerEvent {
+  const MinesTurnStarted({
+    required super.serverTime,
+    required super.battleId,
+    required super.seq,
+    required this.roundNo,
+    required this.participantId,
+    required this.turnNo,
+    required this.turnDeadlineAt,
+    this.yourMines,
+  });
+
+  final int roundNo;
+  final String participantId;
+  final int turnNo;
+  final DateTime turnDeadlineAt;
+  final List<MineRef>? yourMines;
+}
+
+/// `mines:answered`: a judged answer or a timeout, with the public counts after it.
+class MinesAnswered extends BattleServerEvent {
+  const MinesAnswered({
+    required super.serverTime,
+    required super.battleId,
+    required super.seq,
+    required this.roundNo,
+    required this.participantId,
+    required this.outcome,
+    required this.heartsByParticipant,
+    required this.answersLeft,
+    required this.minesLeftByParticipant,
+    this.player,
+    this.buriedByParticipantId,
+  });
+
+  final int roundNo;
+  final String participantId;
+  final MinesAnswerOutcome outcome;
+
+  /// Missing for a timeout, for your own mine, and for a wrong name when wrong answers are hidden.
+  final EntityRef? player;
+
+  /// Who buried the mine, for [MinesAnswerOutcome.mine].
+  final String? buriedByParticipantId;
+  final Map<String, int> heartsByParticipant;
+
+  /// Unsaid players of the category, mines included.
+  final int answersLeft;
+  final Map<String, int> minesLeftByParticipant;
+}
+
+/// `mines:scanned`: someone used the detector. [result] is set only in the scanner's copy.
+class MinesScanned extends BattleServerEvent {
+  const MinesScanned({
+    required super.serverTime,
+    required super.battleId,
+    required super.seq,
+    required this.roundNo,
+    required this.participantId,
+    required this.turnDeadlineAt,
+    this.result,
+  });
+
+  final int roundNo;
+  final String participantId;
+  final DateTime turnDeadlineAt;
+  final MineScanResult? result;
 }
 
 class ClueRevealed extends BattleServerEvent {
@@ -613,6 +765,20 @@ BattleServerEvent parseBattleServerEvent(String eventName, Object? payload) {
         decidedBy: data.readOptionalString('decidedBy'),
       );
     case 'round:start':
+      if (data.json.containsKey('criteria')) {
+        return MinesRoundStarted(
+          serverTime: serverTime,
+          battleId: id,
+          seq: sequence,
+          roundNo: data.readInt('roundNo'),
+          criteria: readMinesCriteria(data.readObjectList('criteria')),
+          answerCount: data.readInt('answerCount'),
+          minesPerPlayer: data.readInt('minesPerPlayer'),
+          hearts: data.readInt('hearts'),
+          buryDeadlineAt: data.readTimestamp('buryDeadlineAt'),
+          firstTurnParticipantId: data.readString('firstTurnParticipantId'),
+        );
+      }
       if (data.json.containsKey('rows')) {
         return GridRoundStarted(
           serverTime: serverTime,
@@ -702,6 +868,54 @@ BattleServerEvent parseBattleServerEvent(String eventName, Object? payload) {
         answer: answer == null ? null : _readEntityRef(answer),
         hasTimedOut: data.readBool('timedOut'),
         wasSkipped: data.readBool('skipped'),
+      );
+    case 'mines:turn':
+      return MinesTurnStarted(
+        serverTime: serverTime,
+        battleId: id,
+        seq: sequence,
+        roundNo: data.readInt('roundNo'),
+        participantId: data.readString('participantId'),
+        turnNo: data.readInt('turnNo'),
+        turnDeadlineAt: data.readTimestamp('turnDeadlineAt'),
+        yourMines: data.json.containsKey('yourMines')
+            ? readMines(data.readObjectList('yourMines'))
+            : null,
+      );
+    case 'mines:answered':
+      final player = data.readOptionalObject('player');
+      return MinesAnswered(
+        serverTime: serverTime,
+        battleId: id,
+        seq: sequence,
+        roundNo: data.readInt('roundNo'),
+        participantId: data.readString('participantId'),
+        outcome: findMinesAnswerOutcomeByCode(data.readString('outcome')),
+        player: player == null ? null : _readEntityRef(player),
+        buriedByParticipantId: data.readOptionalString('buriedBy'),
+        heartsByParticipant: readCountsByParticipant(
+          data.readObjectList('hearts'),
+          'hearts',
+        ),
+        answersLeft: data.readInt('answersLeft'),
+        minesLeftByParticipant: readCountsByParticipant(
+          data.readObjectList('minesLeft'),
+          'minesLeft',
+        ),
+      );
+    case 'mines:scanned':
+      return MinesScanned(
+        serverTime: serverTime,
+        battleId: id,
+        seq: sequence,
+        roundNo: data.readInt('roundNo'),
+        participantId: data.readString('participantId'),
+        turnDeadlineAt: data.readTimestamp('turnDeadlineAt'),
+        result: switch (data.readOptionalString('result')) {
+          'MINE' => MineScanResult.mine,
+          'CLEAR' => MineScanResult.clear,
+          _ => null,
+        },
       );
     case 'round:result':
       return RoundEnded(
@@ -836,6 +1050,44 @@ List<GridCriterion> readGridCriteria(List<JsonObjectReader> criteria) => [
       entity: _readEntityRef(criterion.readObject('entity')),
     ),
 ];
+
+List<MinesCriterion> readMinesCriteria(List<JsonObjectReader> criteria) => [
+  for (final criterion in criteria)
+    MinesCriterion(
+      kind: switch (criterion.readString('kind')) {
+        'CLUB' => MinesCriterionKind.club,
+        'NATIONALITY' => MinesCriterionKind.nationality,
+        'DECADE' => MinesCriterionKind.decade,
+        _ => MinesCriterionKind.unknown,
+      },
+      entity: switch (criterion.readOptionalObject('entity')) {
+        final entity? => _readEntityRef(entity),
+        null => null,
+      },
+      fromYear: criterion.readOptionalInt('fromYear'),
+    ),
+];
+
+/// Mines as the server sends them in acks, events and snapshots (`exploded` may be missing).
+List<MineRef> readMines(List<JsonObjectReader> mines) => [
+  for (final mine in mines)
+    MineRef(
+      player: _readEntityRef(mine.readObject('player')),
+      wasBuriedByServer: mine.readBool('auto'),
+      hasExploded: mine.readOptionalBool('exploded') ?? false,
+    ),
+];
+
+/// `[{ participantId, <field> }]` → participant id → count.
+Map<String, int> readCountsByParticipant(
+  List<JsonObjectReader> counts,
+  String field,
+) => {
+  for (final count in counts)
+    count.readString('participantId'): count.readInt(field),
+};
+
+EntityRef readEntityRef(JsonObjectReader entity) => _readEntityRef(entity);
 
 GridCell readGridCell(JsonObjectReader cell) => _readCell(cell);
 
