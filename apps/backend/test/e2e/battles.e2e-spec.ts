@@ -21,6 +21,7 @@ import {
   minesFixture,
   auctionFixture,
   hexFixture,
+  lineupFixture,
   vaultLine,
   whoLine,
 } from '../support/question-bundles';
@@ -55,7 +56,15 @@ function writeBattleConfig(bot: { knows: number; guess: number }, botFallbackAft
         typingDelayMs: { min: 20, max: 20 },
       },
     };
-    const { GRID: grid, MINES: mines, AUCTION: auction, VAULT: vault, HEX: hex, ...revealGames } = config.gameTypes;
+    const {
+      GRID: grid,
+      MINES: mines,
+      AUCTION: auction,
+      VAULT: vault,
+      HEX: hex,
+      LINEUP: lineup,
+      ...revealGames
+    } = config.gameTypes;
     if (grid) {
       Object.assign(grid, {
         roundCount: 1,
@@ -104,6 +113,14 @@ function writeBattleConfig(bot: { knows: number; guess: number }, botFallbackAft
         rps: { pickMs: 600, maxReplays: 2, revealMs: 50, botPickDelayMs: { min: 200, max: 200 } },
       });
     }
+    if (lineup) {
+      Object.assign(lineup, {
+        roundCount: 1,
+        roundMs: 5_000,
+        lockoutMs: [200],
+        hints: { firstAtMs: 300, everyMs: 0, max: 1 },
+      });
+    }
     for (const game of Object.values(revealGames)) {
       Object.assign(game, {
         roundCount: 2,
@@ -123,6 +140,7 @@ describe('battles over WebSocket (e2e)', () => {
   const mines = minesFixture();
   const auction = auctionFixture();
   const hex = hexFixture();
+  const lineup = lineupFixture();
   const gridPlayerIds: string[] = [];
   let spainId: string;
   let naniId: string;
@@ -158,8 +176,16 @@ describe('battles over WebSocket (e2e)', () => {
             vaultLine(`test:${randomUUID()}`),
             vaultLine(`test:${randomUUID()}`),
             hex.line(`test:${randomUUID()}`),
+            lineup.line(`test:${randomUUID()}`),
           ],
-          [...Object.values(e), ...grid.entities, ...mines.entities, ...auction.entities, ...hex.entities],
+          [
+            ...Object.values(e),
+            ...grid.entities,
+            ...mines.entities,
+            ...auction.entities,
+            ...hex.entities,
+            ...lineup.entities,
+          ],
         ),
       );
     await moduleRef.get(QuestionBankFacade).publishQuestionsOfBundle(version);
@@ -732,6 +758,67 @@ describe('battles over WebSocket (e2e)', () => {
       expect((await player.waitFor('battle:completed')).data).toMatchObject({ you: { outcome: 'WIN', score: 1 } });
     });
 
+    it('plays LINEUP: hints, a wrong name locks me out, one accusation, the first right name takes a slot', async () => {
+      const player = await connectPlayer();
+      await player.send('matchmaking:join', { gameType: 'LINEUP' });
+      const found = await player.waitFor('battle:found');
+      const battleId = found.battleId as string;
+      const me = found.data['youParticipantId'] as string;
+      await player.send('battle:ready', { battleId });
+
+      const start = await player.waitFor('round:start');
+      const nameOf = (index: number) => lineup.starters[index]?.names.ar ?? '';
+      expect(start.data).toMatchObject({ gameType: 'LINEUP', title: expect.stringContaining('أمام المنافس') });
+      expect(start.data['slots']).toHaveLength(11);
+      expect((start.data['slots'] as { captain: boolean }[])[5]).toMatchObject({ slot: 5, line: 'MID', captain: true });
+      expect((start.data['shown'] as { name: string }[]).map((shown) => shown.name)).toEqual([
+        nameOf(1),
+        lineup.fake.names.ar,
+        nameOf(2),
+      ]);
+      // Names of empty slots and shirt numbers never leave the server before the reveal (08 §14.2).
+      expect(JSON.stringify(start.data)).not.toContain(nameOf(5));
+      expect(JSON.stringify(start.data)).not.toContain('shirtNumber');
+
+      const hint = await player.waitFor('lineup:hint');
+      expect(hint.data['letters']).toHaveLength(11);
+      expect((hint.data['letters'] as { letter: string }[])[0]?.letter).toBe('ل');
+
+      const type = (text: string) => player.send('lineup:answer', { battleId, roundNo: 1, answer: { text } });
+      const wrong = await type('Nobody At All');
+      expect(wrong).toMatchObject({ accepted: true, data: { result: 'WRONG', lockedUntil: expect.any(String) } });
+      expect(await type(nameOf(5))).toMatchObject({ accepted: false, code: 'LOCKED_OUT' });
+      await new Promise((resolve) => setTimeout(resolve, 250));
+
+      expect(await type(nameOf(1))).toMatchObject({
+        accepted: true,
+        data: { result: 'ACCUSED_WRONG' },
+      });
+      const accused = await player.waitFor('lineup:accused');
+      expect(accused.data).toEqual({ roundNo: 1, participantId: me, right: false });
+      expect(await type(lineup.fake.names.ar)).toMatchObject({ accepted: false, code: 'ACCUSATION_USED' });
+
+      expect(await type(nameOf(5))).toMatchObject({
+        accepted: true,
+        data: { result: 'PLACED', slot: 5 },
+      });
+      expect(await type(nameOf(5))).toMatchObject({ accepted: false, code: 'ALREADY_TAKEN' });
+      const placed = await player.waitFor('lineup:placed');
+      expect(placed.data).toMatchObject({ slot: 5, participantId: me, player: { name: nameOf(5) } });
+
+      for (const index of [0, 3, 4, 6, 7, 8, 9, 10]) {
+        expect(await type(nameOf(index))).toMatchObject({ data: { result: 'PLACED' } });
+      }
+      const result = await player.waitFor('round:result');
+      expect(result.data['winnerParticipantIds']).toEqual([me]);
+      expect(result.data['reveal']).toMatchObject({
+        slots: expect.arrayContaining([expect.objectContaining({ slot: 5, shirtNumber: 6, placedBy: me })]),
+        fake: { player: { name: lineup.fake.names.ar }, reason: 'BENCH', unmaskedBy: null },
+      });
+      // The captain 2, seven more names 7, a wrong accusation -2.
+      expect((await player.waitFor('battle:completed')).data).toMatchObject({ you: { outcome: 'WIN', score: 8 } });
+    });
+
     it('picks for a player who does not throw in time, and still starts the round', async () => {
       const player = await connectPlayer();
       await player.send('matchmaking:join', { gameType: 'GRID' });
@@ -866,6 +953,21 @@ describe('battles over WebSocket (e2e)', () => {
       }
       const result = await player.waitFor('round:result');
       expect(result.data['reveal']).toMatchObject({ outcome: 'CONNECTED' });
+      expect(result.data['winnerParticipantIds']).not.toContain(me);
+      expect((await player.waitFor('battle:completed')).data).toMatchObject({ you: { outcome: 'LOSS', score: 0 } });
+    });
+
+    it('a bot that knows every name unmasks the fake and fills the XI first', async () => {
+      const player = await connectPlayer();
+      await player.send('matchmaking:join', { gameType: 'LINEUP' });
+      const found = await player.waitFor('battle:found');
+      const me = found.data['youParticipantId'];
+      await player.send('battle:ready', { battleId: found.battleId });
+
+      const accused = await player.waitFor('lineup:accused');
+      expect(accused.data).toMatchObject({ right: true, player: { entityId: expect.any(String) } });
+      const result = await player.waitFor('round:result');
+      expect(result.data['reveal']).toMatchObject({ fake: { unmaskedBy: accused.data['participantId'] } });
       expect(result.data['winnerParticipantIds']).not.toContain(me);
       expect((await player.waitFor('battle:completed')).data).toMatchObject({ you: { outcome: 'LOSS', score: 0 } });
     });

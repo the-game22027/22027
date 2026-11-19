@@ -196,6 +196,48 @@ export const vaultLine = (key: string, code = '7653') => ({
   },
 });
 
+/**
+ * A LINEUP round: 11 starters in a 4-3-3 (slot 0 the goalkeeper, slot 5 the captain), shown names: starters 1 and 2
+ * and the fake, a bench player.
+ */
+export const lineupFixture = () => {
+  const id = randomUUID().slice(0, 8);
+  const player = (label: string, name: { en: string; ar: string }) => ({
+    externalRef: `test:lineup-${label}-${id}`,
+    kind: 'PLAYER',
+    names: { en: `${name.en} ${id}`, ar: `${name.ar} ${id}` },
+    aliases: { en: [], ar: [] },
+    popularity: 1,
+    search: [`${name.en} ${id}`, `${name.ar} ${id}`],
+  });
+  const starters = [
+    'Kepa', 'Lopez', 'Moreno', 'Navas', 'Ortiz', 'Pedro', 'Quintero', 'Ramos', 'Silva', 'Torres', 'Urrutia',
+  ].map((name, index) => player(`s${String(index)}`, { en: name, ar: `لاعب${String(index)}` })); // prettier-ignore
+  const fake = player('fake', { en: 'Benchman', ar: 'البديل' });
+  const lines = ['GK', 'DEF', 'DEF', 'DEF', 'DEF', 'MID', 'MID', 'MID', 'FWD', 'FWD', 'FWD'];
+  const line = (key: string) => ({
+    ...common(key),
+    gameType: 'LINEUP',
+    content: {
+      title: { en: `Team ${id} against Rivals, final`, ar: `فريق ${id} أمام المنافس، النهائي` },
+      slots: starters.map((starter, index) => ({
+        line: lines[index],
+        role: null,
+        shirtNumber: index + 1,
+        captain: index === 5,
+        player: starter.externalRef,
+      })),
+      shown: [starters[1]?.externalRef, fake.externalRef, starters[2]?.externalRef],
+      fake: fake.externalRef,
+    },
+    answers: [
+      { slot: 0, entities: starters.map((starter) => starter.externalRef) },
+      { slot: 1, entities: [fake.externalRef] },
+    ],
+  });
+  return { entities: [...starters, fake], starters, fake, line };
+};
+
 /** A 3×3 HEX board, every cell م / m, one question per cell: two right names and one with another letter. */
 export const hexFixture = () => {
   const id = randomUUID().slice(0, 8);

@@ -87,6 +87,18 @@ export interface VaultGameSettings extends CommonGameSettings {
   points: { vaultOpened: number };
 }
 
+/** The `LINEUP` section of the battle config (08 §14.6). The XI and the shown names come with the content. */
+export interface LineupGameSettings extends CommonGameSettings {
+  roundMs: number;
+  /** DEC-80. */
+  lockoutMs: number[];
+  hints: { firstAtMs: number; everyMs: number; max: number };
+  /** DEC-80. */
+  accuse: { perPlayer: number };
+  showWrongAnswers: boolean;
+  points: { correct: number; captain: number; accuseRight: number; accuseWrong: number };
+}
+
 /** One reveal-and-buzz game type's section of the battle config (08 §6). */
 export interface RevealGameSettings extends CommonGameSettings, Omit<RevealAndBuzzConfig, 'latencyGraceMs'> {
   /** CAREER only: show the years of each spell (08 §3.1). */
@@ -109,11 +121,18 @@ export interface BattleSettings {
     AUCTION?: AuctionGameSettings;
     VAULT?: VaultGameSettings;
     HEX?: HexGameSettings;
+    LINEUP?: LineupGameSettings;
   };
 }
 
 export type GameSettings =
-  RevealGameSettings | GridGameSettings | MinesGameSettings | AuctionGameSettings | VaultGameSettings | HexGameSettings;
+  | RevealGameSettings
+  | GridGameSettings
+  | MinesGameSettings
+  | AuctionGameSettings
+  | VaultGameSettings
+  | HexGameSettings
+  | LineupGameSettings;
 
 /** The config of a game type, or undefined when it has none. */
 export function findGameSettings(settings: BattleSettings, gameType: string): GameSettings | undefined {

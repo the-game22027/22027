@@ -24,7 +24,8 @@ export type PlayerCommand =
   | { type: 'AUCTION_ANSWER'; answer: { text: string } | BotAnswer }
   | { type: 'VAULT_TRY'; code: string }
   | { type: 'HEX_PICK'; cell: number; clear: boolean }
-  | { type: 'HEX_ANSWER'; answer: { text: string } | BotAnswer };
+  | { type: 'HEX_ANSWER'; answer: { text: string } | BotAnswer }
+  | { type: 'LINEUP_ANSWER'; answer: { text: string } | BotAnswer };
 
 /** null when accepted, a string for the ack's error code, or an accepted ack that carries data (08 §10.3). */
 export type RoundCommandOutcome = string | null | { accepted: true; data: Record<string, unknown> };

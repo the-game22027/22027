@@ -288,6 +288,31 @@
       "selection": {
         "difficulties": null
       }
+    },
+    "LINEUP": {
+      "enabled": true,
+      "roundCount": 3,
+      "firstMover": "NONE",
+      "roundMs": 60000,
+      "lockoutMs": [2000],
+      "hints": {
+        "firstAtMs": 30000,
+        "everyMs": 0,
+        "max": 1
+      },
+      "accuse": {
+        "perPlayer": 1
+      },
+      "showWrongAnswers": true,
+      "points": {
+        "correct": 1,
+        "captain": 2,
+        "accuseRight": 3,
+        "accuseWrong": -2
+      },
+      "selection": {
+        "difficulties": null
+      }
     }
   }
 }

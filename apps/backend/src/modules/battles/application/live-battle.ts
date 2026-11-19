@@ -20,6 +20,7 @@ import type {
   AuctionGameSettings,
   VaultGameSettings,
   HexGameSettings,
+  LineupGameSettings,
   BattleConfigSnapshot,
   GridGameSettings,
   MinesGameSettings,
@@ -33,6 +34,7 @@ import { GridRoundRunner } from './rounds/grid-round-runner';
 import { AuctionRoundRunner } from './rounds/auction-round-runner';
 import { VaultRoundRunner } from './rounds/vault-round-runner';
 import { HexRoundRunner } from './rounds/hex-round-runner';
+import { LineupRoundRunner } from './rounds/lineup-round-runner';
 import { MinesRoundRunner } from './rounds/mines-round-runner';
 import { RevealRoundRunner } from './rounds/reveal-round-runner';
 import type {
@@ -535,6 +537,15 @@ export class LiveBattle {
         break;
       case 'HEX':
         this.runner = new HexRoundRunner(roundNo, content, this.config.game as HexGameSettings, latencyGraceMs, host);
+        break;
+      case 'LINEUP':
+        this.runner = new LineupRoundRunner(
+          roundNo,
+          content,
+          this.config.game as LineupGameSettings,
+          latencyGraceMs,
+          host,
+        );
         break;
       case 'VAULT':
         this.runner = new VaultRoundRunner(
