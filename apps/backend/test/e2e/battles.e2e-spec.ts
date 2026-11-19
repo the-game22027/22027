@@ -20,6 +20,7 @@ import {
   gridFixture,
   minesFixture,
   auctionFixture,
+  hexFixture,
   vaultLine,
   whoLine,
 } from '../support/question-bundles';
@@ -54,7 +55,7 @@ function writeBattleConfig(bot: { knows: number; guess: number }, botFallbackAft
         typingDelayMs: { min: 20, max: 20 },
       },
     };
-    const { GRID: grid, MINES: mines, AUCTION: auction, VAULT: vault, ...revealGames } = config.gameTypes;
+    const { GRID: grid, MINES: mines, AUCTION: auction, VAULT: vault, HEX: hex, ...revealGames } = config.gameTypes;
     if (grid) {
       Object.assign(grid, {
         roundCount: 1,
@@ -94,6 +95,15 @@ function writeBattleConfig(bot: { knows: number; guess: number }, botFallbackAft
         leaks: { firstAtMs: 300, everyMs: 300, max: 3 },
       });
     }
+    if (hex) {
+      Object.assign(hex, {
+        pickMs: 1_500,
+        answerMs: 3_000,
+        lockoutMs: [200],
+        maxPicks: 30,
+        rps: { pickMs: 600, maxReplays: 2, revealMs: 50, botPickDelayMs: { min: 200, max: 200 } },
+      });
+    }
     for (const game of Object.values(revealGames)) {
       Object.assign(game, {
         roundCount: 2,
@@ -112,6 +122,7 @@ describe('battles over WebSocket (e2e)', () => {
   const grid = gridFixture();
   const mines = minesFixture();
   const auction = auctionFixture();
+  const hex = hexFixture();
   const gridPlayerIds: string[] = [];
   let spainId: string;
   let naniId: string;
@@ -146,8 +157,9 @@ describe('battles over WebSocket (e2e)', () => {
             auction.line(`test:${randomUUID()}`),
             vaultLine(`test:${randomUUID()}`),
             vaultLine(`test:${randomUUID()}`),
+            hex.line(`test:${randomUUID()}`),
           ],
-          [...Object.values(e), ...grid.entities, ...mines.entities, ...auction.entities],
+          [...Object.values(e), ...grid.entities, ...mines.entities, ...auction.entities, ...hex.entities],
         ),
       );
     await moduleRef.get(QuestionBankFacade).publishQuestionsOfBundle(version);
@@ -656,6 +668,70 @@ describe('battles over WebSocket (e2e)', () => {
       expect((await player.waitFor('battle:completed')).data).toMatchObject({ you: { outcome: 'WIN', score: 2 } });
     });
 
+    it('plays HEX: pick along my side, a wrong letter is refused, a wrong name locks me out, connect to win', async () => {
+      const player = await connectPlayer();
+      await player.send('matchmaking:join', { gameType: 'HEX' });
+      const found = await player.waitFor('battle:found');
+      const battleId = found.battleId as string;
+      const me = found.data['youParticipantId'] as string;
+      await player.send('battle:ready', { battleId });
+      for (let attempt = 1; ; attempt += 1) {
+        await player.waitFor('battle:rps-start', (event) => event.data['attempt'] === attempt);
+        await player.send('battle:rps-pick', { battleId, attempt, choice: 'ROCK' });
+        const result = await player.waitFor('battle:rps-result', (event) => event.data['attempt'] === attempt);
+        if (result.data['winnerId'] !== null) break;
+      }
+
+      const start = await player.waitFor('round:start');
+      expect(start.data['board']).toEqual(Array.from({ length: 9 }, () => 'م'));
+      const sides = start.data['sides'] as Record<string, string>;
+      // Row 0 joins west to east; cells 0, 3, 6 join north to south on the offset rows.
+      const path = sides[me] === 'WEST_EAST' ? [0, 1, 2] : [0, 3, 6];
+      const taken = new Set<number>();
+      let picker = start.data['firstPickerParticipantId'] as string;
+      const nameIn = (cell: number, index: number) => hex.lists[cell]?.[index]?.names.ar ?? '';
+      const answer = (text: string) => player.send('hex:answer', { battleId, roundNo: 1, answer: { text } });
+
+      // Events are handled in order: the bot may clear one of my cells ("شيلها"), which races it again.
+      let lastSeen = player.events.indexOf(start);
+      const after = (event: { type: string }) => player.events.indexOf(event as never) > lastSeen;
+      for (let race = 1; ; race += 1) {
+        if (picker === me) {
+          const cell = path.find((c) => !taken.has(c)) ?? [...Array(9).keys()].find((c) => !taken.has(c));
+          expect(await player.send('hex:pick', { battleId, roundNo: 1, cell })).toMatchObject({ accepted: true });
+        }
+        const raced = await player.waitFor('hex:race', after);
+        lastSeen = player.events.indexOf(raced);
+        const cell = raced.data['cell'] as number;
+        if (raced.data['cleared'] === true) taken.delete(cell);
+        expect(raced.data).toMatchObject({ letter: 'م', question: expect.stringContaining('قائمة') });
+        if (race === 1) {
+          expect(await answer(nameIn(cell, 2))).toMatchObject({ accepted: false, code: 'WRONG_LETTER' });
+          expect(await answer('لاعب مش موجود')).toMatchObject({ accepted: true });
+          const wrong = await player.waitFor('hex:answered');
+          expect(wrong.data['participantId']).toBe(me);
+          expect(await answer(nameIn(cell, 0))).toMatchObject({ accepted: false, code: 'LOCKED_OUT' });
+          await new Promise((resolve) => setTimeout(resolve, 250));
+        }
+        expect(await answer(nameIn(cell, race % 2))).toMatchObject({ accepted: true });
+        const claimed = await player.waitFor('hex:claimed', (event) => after(event) && event.data['cell'] === cell);
+        lastSeen = player.events.indexOf(claimed);
+        expect(claimed.data['participantId']).toBe(me);
+        taken.add(cell);
+        if (path.every((c) => taken.has(c))) break;
+        const turn = await player.waitFor('hex:turn', after);
+        lastSeen = player.events.indexOf(turn);
+        picker = turn.data['participantId'] as string;
+      }
+      const result = await player.waitFor('round:result');
+      expect(result.data['winnerParticipantIds']).toEqual([me]);
+      const reveal = result.data['reveal'] as { outcome: string; path: number[] };
+      expect(reveal.outcome).toBe('CONNECTED');
+      expect(reveal.path.length).toBeGreaterThanOrEqual(3);
+      expect(reveal.path.every((cell) => taken.has(cell))).toBe(true);
+      expect((await player.waitFor('battle:completed')).data).toMatchObject({ you: { outcome: 'WIN', score: 1 } });
+    });
+
     it('picks for a player who does not throw in time, and still starts the round', async () => {
       const player = await connectPlayer();
       await player.send('matchmaking:join', { gameType: 'GRID' });
@@ -752,6 +828,46 @@ describe('battles over WebSocket (e2e)', () => {
       expect(buzzed.data['participantId']).not.toBe(found.data['youParticipantId']);
       const completed = await player.waitFor('battle:completed');
       expect(completed.data).toMatchObject({ you: { placement: 2, outcome: 'LOSS', score: 0 } });
+    });
+
+    it('a bot that knows every name takes every raced cell and connects its sides', async () => {
+      const player = await connectPlayer();
+      await player.send('matchmaking:join', { gameType: 'HEX' });
+      const found = await player.waitFor('battle:found');
+      const battleId = found.battleId as string;
+      const me = found.data['youParticipantId'];
+      await player.send('battle:ready', { battleId });
+      await player.waitFor('round:start');
+
+      const picked = new Set<number>();
+      for (let step = 0; step < 60 && !player.events.some((event) => event.type === 'round:result'); step += 1) {
+        const turns = player.events.filter(
+          (event) =>
+            (event.type === 'round:start' && event.data['firstPickerParticipantId'] !== undefined) ||
+            event.type === 'hex:turn',
+        );
+        const lastTurn = turns.at(-1);
+        const turnOwner = lastTurn?.data['firstPickerParticipantId'] ?? lastTurn?.data['participantId'];
+        const racedAfter = player.events.some(
+          (event) =>
+            event.type === 'hex:race' && player.events.indexOf(event) > player.events.indexOf(lastTurn ?? event),
+        );
+        if (turnOwner === me && !racedAfter) {
+          const taken = new Set(
+            player.events.filter((event) => event.type === 'hex:claimed').map((event) => event.data['cell'] as number),
+          );
+          const cell = [...Array(9).keys()].find((c) => !taken.has(c) && !picked.has(c));
+          if (cell !== undefined) {
+            picked.add(cell);
+            await player.send('hex:pick', { battleId, roundNo: 1, cell });
+          }
+        }
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+      const result = await player.waitFor('round:result');
+      expect(result.data['reveal']).toMatchObject({ outcome: 'CONNECTED' });
+      expect(result.data['winnerParticipantIds']).not.toContain(me);
+      expect((await player.waitFor('battle:completed')).data).toMatchObject({ you: { outcome: 'LOSS', score: 0 } });
     });
 
     it('a bot that knows every digit opens each vault first', async () => {

@@ -112,6 +112,24 @@ const auctionGame = z.strictObject({
   }),
 });
 
+const hexGame = z.strictObject({
+  ...firstMoverFields,
+  enabled: z.boolean(),
+  roundCount: z.number().int().positive(),
+  targetScore: z.number().int().positive(),
+  pickMs: positiveMs,
+  answerMs: positiveMs,
+  lockoutMs: z.array(z.number().int().nonnegative()).min(1),
+  clear: z.strictObject({ usesPerBattle: z.number().int().nonnegative() }),
+  maxPicks: z.number().int().positive(),
+  showWrongAnswers: z.boolean(),
+  points: z.strictObject({ boardWin: z.number().int() }),
+  selection: z.strictObject({
+    difficulties: z.array(z.number().int().min(1).max(5)).min(1).nullable(),
+    excludeLastBattles: z.number().int().nonnegative(),
+  }),
+});
+
 const vaultGame = z.strictObject({
   ...firstMoverFields,
   enabled: z.boolean(),
@@ -165,6 +183,7 @@ const settingsSchema = z
       MINES: minesGame.optional(),
       AUCTION: auctionGame.optional(),
       VAULT: vaultGame.optional(),
+      HEX: hexGame.optional(),
     }),
   })
   .superRefine((settings, context) => {

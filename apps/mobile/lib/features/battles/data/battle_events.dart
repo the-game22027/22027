@@ -10,6 +10,7 @@ enum GameType {
   mines,
   auction,
   vault,
+  hex,
   unknown,
 }
 
@@ -21,6 +22,7 @@ GameType findGameTypeByCode(String code) => switch (code) {
   'MINES' => GameType.mines,
   'AUCTION' => GameType.auction,
   'VAULT' => GameType.vault,
+  'HEX' => GameType.hex,
   _ => GameType.unknown,
 };
 
@@ -32,6 +34,7 @@ String convertGameTypeToCode(GameType gameType) => switch (gameType) {
   GameType.mines => 'MINES',
   GameType.auction => 'AUCTION',
   GameType.vault => 'VAULT',
+  GameType.hex => 'HEX',
   GameType.unknown => throw ArgumentError('unknown game type has no code'),
 };
 
@@ -637,6 +640,147 @@ class AuctionStealStarted extends BattleServerEvent {
   final DateTime stealDeadlineAt;
 }
 
+enum HexSide { westEast, northSouth }
+
+HexSide findHexSideByCode(String code) =>
+    code == 'NORTH_SOUTH' ? HexSide.northSouth : HexSide.westEast;
+
+/// `round:start` of a `HEX` board (`08` §13.1).
+class HexRoundStarted extends BattleServerEvent {
+  const HexRoundStarted({
+    required super.serverTime,
+    required super.battleId,
+    required super.seq,
+    required this.roundNo,
+    required this.size,
+    required this.board,
+    required this.sides,
+    required this.firstPickerParticipantId,
+    required this.pickDeadlineAt,
+    required this.clearsLeft,
+  });
+
+  final int roundNo;
+
+  /// Cells per row and per column.
+  final int size;
+
+  /// Each cell's letter in the viewer's language, row by row.
+  final List<String> board;
+  final Map<String, HexSide> sides;
+  final String firstPickerParticipantId;
+  final DateTime pickDeadlineAt;
+
+  /// "شيلها" uses left per participant.
+  final Map<String, int> clearsLeft;
+}
+
+/// `hex:turn`: whose pick it is.
+class HexTurnStarted extends BattleServerEvent {
+  const HexTurnStarted({
+    required super.serverTime,
+    required super.battleId,
+    required super.seq,
+    required this.roundNo,
+    required this.participantId,
+    required this.pickDeadlineAt,
+  });
+
+  final int roundNo;
+  final String participantId;
+  final DateTime pickDeadlineAt;
+}
+
+/// `hex:race`: a cell was picked; both players race on its question.
+class HexRaceStarted extends BattleServerEvent {
+  const HexRaceStarted({
+    required super.serverTime,
+    required super.battleId,
+    required super.seq,
+    required this.roundNo,
+    required this.cell,
+    required this.pickedBy,
+    required this.wasPickedByServer,
+    required this.wasCleared,
+    required this.question,
+    required this.letter,
+    required this.answerDeadlineAt,
+  });
+
+  final int roundNo;
+  final int cell;
+  final String pickedBy;
+
+  /// The picker ran out of time, so the server picked (`auto`).
+  final bool wasPickedByServer;
+
+  /// "شيلها": the cell was the opponent's and is open again.
+  final bool wasCleared;
+  final String question;
+
+  /// The letter the answer must start with, in the viewer's language.
+  final String letter;
+  final DateTime answerDeadlineAt;
+}
+
+/// `hex:answered`: a wrong name; that player is locked out of this race until [lockedUntil].
+class HexWrongAnswer extends BattleServerEvent {
+  const HexWrongAnswer({
+    required super.serverTime,
+    required super.battleId,
+    required super.seq,
+    required this.roundNo,
+    required this.participantId,
+    required this.lockedUntil,
+    this.player,
+  });
+
+  final int roundNo;
+  final String participantId;
+  final DateTime lockedUntil;
+
+  /// Only when `showWrongAnswers` is on.
+  final EntityRef? player;
+}
+
+/// `hex:claimed`: a right name took the cell.
+class HexCellClaimed extends BattleServerEvent {
+  const HexCellClaimed({
+    required super.serverTime,
+    required super.battleId,
+    required super.seq,
+    required this.roundNo,
+    required this.cell,
+    required this.participantId,
+    required this.player,
+    required this.rightNames,
+  });
+
+  final int roundNo;
+  final int cell;
+  final String participantId;
+  final EntityRef player;
+
+  /// Other right names for the viewer's letter.
+  final List<EntityRef> rightNames;
+}
+
+/// `hex:expired`: nobody answered; the cell stays open.
+class HexRaceExpired extends BattleServerEvent {
+  const HexRaceExpired({
+    required super.serverTime,
+    required super.battleId,
+    required super.seq,
+    required this.roundNo,
+    required this.cell,
+    required this.rightNames,
+  });
+
+  final int roundNo;
+  final int cell;
+  final List<EntityRef> rightNames;
+}
+
 /// `round:start` of a `VAULT` round: one question per digit of the code (`08` §12.1).
 class VaultRoundStarted extends BattleServerEvent {
   const VaultRoundStarted({
@@ -1022,6 +1166,20 @@ BattleServerEvent parseBattleServerEvent(String eventName, Object? payload) {
         decidedBy: data.readOptionalString('decidedBy'),
       );
     case 'round:start':
+      if (data.json.containsKey('sides')) {
+        return HexRoundStarted(
+          serverTime: serverTime,
+          battleId: id,
+          seq: sequence,
+          roundNo: data.readInt('roundNo'),
+          size: data.readInt('size'),
+          board: data.readStringList('board'),
+          sides: readHexSides(data.readObject('sides')),
+          firstPickerParticipantId: data.readString('firstPickerParticipantId'),
+          pickDeadlineAt: data.readTimestamp('pickDeadlineAt'),
+          clearsLeft: readIntMap(data.readObject('clearsLeft')),
+        );
+      }
       if (data.json.containsKey('questions')) {
         return VaultRoundStarted(
           serverTime: serverTime,
@@ -1220,6 +1378,66 @@ BattleServerEvent parseBattleServerEvent(String eventName, Object? payload) {
         player: answeredPlayer == null ? null : _readEntityRef(answeredPlayer),
         found: data.readInt('found'),
         strikes: data.readInt('strikes'),
+      );
+    case 'hex:turn':
+      return HexTurnStarted(
+        serverTime: serverTime,
+        battleId: id,
+        seq: sequence,
+        roundNo: data.readInt('roundNo'),
+        participantId: data.readString('participantId'),
+        pickDeadlineAt: data.readTimestamp('pickDeadlineAt'),
+      );
+    case 'hex:race':
+      return HexRaceStarted(
+        serverTime: serverTime,
+        battleId: id,
+        seq: sequence,
+        roundNo: data.readInt('roundNo'),
+        cell: data.readInt('cell'),
+        pickedBy: data.readString('pickedBy'),
+        wasPickedByServer: data.readBool('auto'),
+        wasCleared: data.readBool('cleared'),
+        question: data.readString('question'),
+        letter: data.readString('letter'),
+        answerDeadlineAt: data.readTimestamp('answerDeadlineAt'),
+      );
+    case 'hex:answered':
+      final wrongPlayer = data.readOptionalObject('player');
+      return HexWrongAnswer(
+        serverTime: serverTime,
+        battleId: id,
+        seq: sequence,
+        roundNo: data.readInt('roundNo'),
+        participantId: data.readString('participantId'),
+        lockedUntil: data.readTimestamp('lockedUntil'),
+        player: wrongPlayer == null ? null : _readEntityRef(wrongPlayer),
+      );
+    case 'hex:claimed':
+      return HexCellClaimed(
+        serverTime: serverTime,
+        battleId: id,
+        seq: sequence,
+        roundNo: data.readInt('roundNo'),
+        cell: data.readInt('cell'),
+        participantId: data.readString('participantId'),
+        player: _readEntityRef(data.readObject('player')),
+        rightNames: [
+          for (final name in data.readObjectList('rightNames'))
+            _readEntityRef(name),
+        ],
+      );
+    case 'hex:expired':
+      return HexRaceExpired(
+        serverTime: serverTime,
+        battleId: id,
+        seq: sequence,
+        roundNo: data.readInt('roundNo'),
+        cell: data.readInt('cell'),
+        rightNames: [
+          for (final name in data.readObjectList('rightNames'))
+            _readEntityRef(name),
+        ],
       );
     case 'vault:tried':
       return VaultTried(
@@ -1433,6 +1651,18 @@ List<GridCriterion> readGridCriteria(List<JsonObjectReader> criteria) => [
       entity: _readEntityRef(criterion.readObject('entity')),
     ),
 ];
+
+Map<String, HexSide> readHexSides(JsonObjectReader sides) => {
+  for (final participantId in sides.json.keys)
+    participantId.toString(): findHexSideByCode(
+      sides.readString(participantId.toString()),
+    ),
+};
+
+Map<String, int> readIntMap(JsonObjectReader values) => {
+  for (final key in values.json.keys)
+    key.toString(): values.readInt(key.toString()),
+};
 
 List<AuctionListOffer> readAuctionListOffers(List<JsonObjectReader> lists) => [
   for (final list in lists)

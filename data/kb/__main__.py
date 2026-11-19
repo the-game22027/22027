@@ -68,6 +68,16 @@ def main(argv: list[str] | None = None) -> int:
     bundle.add_argument(
         "--vault-max-per-template", type=int, default=2, help="most questions of one template in a VAULT"
     )
+    bundle.add_argument("--hexes", type=int, default=0, help="HEX (الهجمة) boards")
+    bundle.add_argument(
+        "--hex-questions-per-cell", type=int, default=3, help="questions behind each HEX cell"
+    )
+    bundle.add_argument(
+        "--hex-min-answers",
+        type=int,
+        default=1,
+        help="fewest right names per letter and language in a HEX question",
+    )
     bundle.add_argument(
         "--catalog-min-player-sitelinks",
         type=int,
@@ -144,6 +154,9 @@ def main(argv: list[str] | None = None) -> int:
                 vault_count=args.vaults,
                 vault_min_player_sitelinks=args.vault_min_player_sitelinks,
                 vault_max_per_template=args.vault_max_per_template,
+                hex_count=args.hexes,
+                hex_questions_per_cell=args.hex_questions_per_cell,
+                hex_min_answers=args.hex_min_answers,
             )
             print(
                 f"{args.version}: {summary.question_count} rounds {summary.by_game_type}, "

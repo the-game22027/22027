@@ -261,6 +261,82 @@ class AuctionRound extends CurrentRound {
   );
 }
 
+enum HexPhase { picking, racing, closed }
+
+/// A `HEX` board (`08` §13): pick a cell, race on its question, connect your two sides.
+class HexRound extends CurrentRound {
+  const HexRound({
+    required int roundNo,
+    required this.size,
+    required this.board,
+    required this.owners,
+    required this.sides,
+    required this.phase,
+    required this.turnParticipantId,
+    required this.deadline,
+    required this.clearsLeft,
+    this.racingCell,
+    this.question,
+    this.letter,
+    this.lockedUntil = const {},
+    this.lastRightNames = const [],
+  }) : super(roundNo);
+
+  final int size;
+
+  /// Each cell's letter in your language, row by row.
+  final List<String> board;
+
+  /// Owner of each cell; null when open.
+  final List<String?> owners;
+  final Map<String, HexSide> sides;
+  final HexPhase phase;
+
+  /// Whose pick it is, or who picked the cell being raced.
+  final String turnParticipantId;
+
+  /// The pick deadline or the answer deadline.
+  final DateTime deadline;
+  final Map<String, int> clearsLeft;
+  final int? racingCell;
+  final String? question;
+  final String? letter;
+
+  /// Lockouts of the current race, per participant.
+  final Map<String, DateTime> lockedUntil;
+
+  /// The other right names of the last race (for your letter).
+  final List<EntityRef> lastRightNames;
+
+  HexRound copyWith({
+    List<String?>? owners,
+    HexPhase? phase,
+    String? turnParticipantId,
+    DateTime? deadline,
+    Map<String, int>? clearsLeft,
+    int? Function()? racingCell,
+    String? Function()? question,
+    String? Function()? letter,
+    Map<String, DateTime>? lockedUntil,
+    List<EntityRef>? lastRightNames,
+  }) => HexRound(
+    roundNo: roundNo,
+    size: size,
+    board: board,
+    owners: owners ?? this.owners,
+    sides: sides,
+    phase: phase ?? this.phase,
+    turnParticipantId: turnParticipantId ?? this.turnParticipantId,
+    deadline: deadline ?? this.deadline,
+    clearsLeft: clearsLeft ?? this.clearsLeft,
+    racingCell: racingCell != null ? racingCell() : this.racingCell,
+    question: question != null ? question() : this.question,
+    letter: letter != null ? letter() : this.letter,
+    lockedUntil: lockedUntil ?? this.lockedUntil,
+    lastRightNames: lastRightNames ?? this.lastRightNames,
+  );
+}
+
 /// A digit of a `VAULT` code revealed to everyone.
 class VaultLeakedDigit {
   const VaultLeakedDigit({required this.position, required this.digit});
@@ -604,6 +680,82 @@ BattleState _applyInOrder(BattleState state, BattleServerEvent event) {
           rows: event.rows,
           cols: event.cols,
           turnParticipantId: event.firstTurnParticipantId,
+        ),
+      );
+    case HexRoundStarted():
+      return state.copyWith(
+        phase: BattlePhase.inProgress,
+        firstMoverDuel: () => null,
+        firstMoverParticipantId: event.firstPickerParticipantId,
+        currentRound: () => HexRound(
+          roundNo: event.roundNo,
+          size: event.size,
+          board: event.board,
+          owners: List<String?>.filled(event.board.length, null),
+          sides: event.sides,
+          phase: HexPhase.picking,
+          turnParticipantId: event.firstPickerParticipantId,
+          deadline: event.pickDeadlineAt,
+          clearsLeft: event.clearsLeft,
+        ),
+      );
+    case HexTurnStarted() when round is HexRound:
+      return state.copyWith(
+        currentRound: () => round.copyWith(
+          phase: HexPhase.picking,
+          turnParticipantId: event.participantId,
+          deadline: event.pickDeadlineAt,
+          racingCell: () => null,
+          question: () => null,
+          letter: () => null,
+          lockedUntil: const {},
+        ),
+      );
+    case HexRaceStarted() when round is HexRound:
+      final owners = [...round.owners];
+      if (event.wasCleared) owners[event.cell] = null;
+      return state.copyWith(
+        currentRound: () => round.copyWith(
+          owners: owners,
+          phase: HexPhase.racing,
+          turnParticipantId: event.pickedBy,
+          deadline: event.answerDeadlineAt,
+          clearsLeft: event.wasCleared
+              ? {
+                  ...round.clearsLeft,
+                  event.pickedBy: (round.clearsLeft[event.pickedBy] ?? 1) - 1,
+                }
+              : null,
+          racingCell: () => event.cell,
+          question: () => event.question,
+          letter: () => event.letter,
+          lockedUntil: const {},
+        ),
+      );
+    case HexWrongAnswer() when round is HexRound:
+      return state.copyWith(
+        currentRound: () => round.copyWith(
+          lockedUntil: {
+            ...round.lockedUntil,
+            event.participantId: event.lockedUntil,
+          },
+        ),
+      );
+    case HexCellClaimed() when round is HexRound:
+      final owners = [...round.owners];
+      owners[event.cell] = event.participantId;
+      return state.copyWith(
+        currentRound: () => round.copyWith(
+          owners: owners,
+          racingCell: () => null,
+          lastRightNames: event.rightNames,
+        ),
+      );
+    case HexRaceExpired() when round is HexRound:
+      return state.copyWith(
+        currentRound: () => round.copyWith(
+          racingCell: () => null,
+          lastRightNames: event.rightNames,
         ),
       );
     case VaultRoundStarted():
@@ -985,6 +1137,7 @@ CurrentRound? _readSnapshotRound(
   CurrentRound? previous,
 ) {
   final roundNo = round.readInt('roundNo');
+  if (round.json.containsKey('sides')) return _readSnapshotHexRound(round);
   if (round.json.containsKey('questions')) {
     return _readSnapshotVaultRound(round);
   }
@@ -1148,5 +1301,40 @@ VaultRound _readSnapshotVaultRound(JsonObjectReader round) {
     },
     yourLockedUntil: round.readOptionalTimestamp('lockedUntil'),
     nextLeakAt: round.readOptionalTimestamp('nextLeakAt'),
+  );
+}
+
+HexRound _readSnapshotHexRound(JsonObjectReader round) {
+  final lockouts = round.readOptionalObject('lockedUntil');
+  final clears = round.readOptionalObject('clearsLeft');
+  final sides = round.readOptionalObject('sides');
+  final board = round.readStringList('board');
+  final owners = round.json['owners'];
+  return HexRound(
+    roundNo: round.readInt('roundNo'),
+    size: round.readInt('size'),
+    board: board,
+    owners: owners is List
+        ? [for (final owner in owners) owner is String ? owner : null]
+        : List<String?>.filled(board.length, null),
+    sides: sides == null ? const {} : readHexSides(sides),
+    phase: switch (round.readOptionalString('phase')) {
+      'RACING' => HexPhase.racing,
+      'CLOSED' => HexPhase.closed,
+      _ => HexPhase.picking,
+    },
+    turnParticipantId: round.readOptionalString('turnOf') ?? '',
+    deadline: round.readTimestamp('deadline'),
+    clearsLeft: clears == null ? const {} : readIntMap(clears),
+    racingCell: round.readOptionalInt('racingCell'),
+    question: round.readOptionalString('question'),
+    letter: round.readOptionalString('letter'),
+    lockedUntil: {
+      if (lockouts != null)
+        for (final participantId in lockouts.json.keys)
+          participantId.toString(): ?lockouts.readOptionalTimestamp(
+            participantId.toString(),
+          ),
+    },
   );
 }

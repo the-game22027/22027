@@ -45,6 +45,7 @@ export function revealStepsForLocale(
     case 'MINES':
     case 'AUCTION':
     case 'VAULT':
+    case 'HEX':
       throw new Error(`A ${body.gameType} round has no reveal steps`);
   }
 }

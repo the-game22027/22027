@@ -265,6 +265,37 @@
         "difficulties": null,
         "excludeLastBattles": 20
       }
+    },
+    "HEX": {
+      "enabled": true,
+      "roundCount": 1,
+      "targetScore": 1,
+      "firstMover": "RPS",
+      "firstMoverAfterRound1": "ALTERNATE",
+      "rps": {
+        "pickMs": 5000,
+        "maxReplays": 2,
+        "revealMs": 2000,
+        "botPickDelayMs": {
+          "min": 800,
+          "max": 2500
+        }
+      },
+      "pickMs": 5000,
+      "answerMs": 15000,
+      "lockoutMs": [3000],
+      "clear": {
+        "usesPerBattle": 1
+      },
+      "maxPicks": 60,
+      "showWrongAnswers": true,
+      "points": {
+        "boardWin": 1
+      },
+      "selection": {
+        "difficulties": null,
+        "excludeLastBattles": 20
+      }
     }
   }
 }

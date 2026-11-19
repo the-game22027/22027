@@ -18,6 +18,7 @@ enum BattleGameType {
   MINES
   AUCTION
   VAULT
+  HEX
 
   @@map("battle_game_type")
 }

@@ -66,6 +66,18 @@ export interface AuctionGameSettings extends CommonGameSettings {
   points: { roundWin: number; allInWin: number };
 }
 
+/** The `HEX` section of the battle config (08 §13.7). The board size comes with the content. */
+export interface HexGameSettings extends CommonGameSettings {
+  pickMs: number;
+  answerMs: number;
+  lockoutMs: number[];
+  clear: { usesPerBattle: number };
+  /** DEC-79. */
+  maxPicks: number;
+  showWrongAnswers: boolean;
+  points: { boardWin: number };
+}
+
 /** The `VAULT` section of the battle config (08 §12.6). The code has one digit per question of the content. */
 export interface VaultGameSettings extends CommonGameSettings {
   roundMs: number;
@@ -96,11 +108,12 @@ export interface BattleSettings {
     MINES?: MinesGameSettings;
     AUCTION?: AuctionGameSettings;
     VAULT?: VaultGameSettings;
+    HEX?: HexGameSettings;
   };
 }
 
 export type GameSettings =
-  RevealGameSettings | GridGameSettings | MinesGameSettings | AuctionGameSettings | VaultGameSettings;
+  RevealGameSettings | GridGameSettings | MinesGameSettings | AuctionGameSettings | VaultGameSettings | HexGameSettings;
 
 /** The config of a game type, or undefined when it has none. */
 export function findGameSettings(settings: BattleSettings, gameType: string): GameSettings | undefined {

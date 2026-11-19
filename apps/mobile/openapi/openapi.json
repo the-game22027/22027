@@ -309,7 +309,8 @@
               "GRID",
               "MINES",
               "AUCTION",
-              "VAULT"
+              "VAULT",
+              "HEX"
             ],
             "type": "string"
           }
@@ -602,7 +603,8 @@
               "GRID",
               "MINES",
               "AUCTION",
-              "VAULT"
+              "VAULT",
+              "HEX"
             ],
             "type": "string"
           },

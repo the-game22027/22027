@@ -49,7 +49,10 @@ export interface RoundAction {
     | 'AUCTION_CALL'
     | 'AUCTION_ANSWER'
     | 'AUCTION_STEAL'
-    | 'VAULT_TRY';
+    | 'VAULT_TRY'
+    | 'HEX_PICK'
+    | 'HEX_CLEAR'
+    | 'HEX_ANSWER';
   answer?: JudgedAnswer;
   /** Grid only: row * 3 + col. */
   cell?: number;
@@ -83,6 +86,7 @@ export interface RoundResult {
     | 'STOLEN'
     | 'BUST'
     | 'OPENED'
+    | 'CONNECTED'
     | 'FORFEIT';
   /** Points earned in this round, by participant; missing means 0. */
   points: Record<ParticipantId, number>;

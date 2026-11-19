@@ -249,6 +249,7 @@ class LiveBattleRun {
             if (_startedVaultRounds.add(round.roundNo)) {
               unawaited(_tryVaultCodesUntilClosed(round.roundNo));
             }
+          case HexRound():
           case null:
             break;
         }
