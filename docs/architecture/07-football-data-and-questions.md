@@ -403,6 +403,8 @@ Not used: StatsBomb open data (non-commercial), FBref and SofaScore (scraping fo
 - Skipped: 22 martj42 team names with no linked national team (168 rows, `.out/link-review-martj42.csv`, e.g. Guinea, Kuwait); Transfermarkt 2,559 rows with an unlinked team; 3 rows whose shootout kicks exceed the stored goals.
 - **Open:** third-place matches and the UCL/EL knockout play-off round are kept (DEC-67's "play-offs" read as qualification and relegation play-offs, to be confirmed); the dated rule "Serbia before 2006-08 = Serbia and Montenegro" needs a review mark; competitions are not `core.entity` rows yet (the link step should add them).
 
+**D.3d first goals slice (N2, 2026-11-19 design):** `core.goal` from Transfermarkt goal events only, for usable matches (`core.usable_match`): match, team, scorer, minute, penalty, own goal, assist provider. Own goals are kept and flagged. An assist counts only when the assist provider is in the scoring team's lineup for that match (the quality gate of D.3f, applied here first); dropped assists are counted and listed in `.out/review-assists.csv`. Fjelstul and martj42 goals come with a later slice. `derived.game_auction_list` is the view `kb bundle --auctions` reads (`08` §11.4).
+
 **D.3d: typed match tables (resolved).**
 - `core.competition` (ref, kind `LEAGUE` | `CUP` | `INTERNATIONAL`, tier, country) and `core.edition` (competition, season label, final year, winner, runner-up, host).
 - `core.match`: edition, stage (`GROUP` … `FINAL`, `LEAGUE`), date, home and away team, goals, extra time, shootout score, venue.
@@ -485,6 +487,8 @@ The same career rules as `CAREER` apply (dated spells, at most one open spell). 
 - **Difficulty:** from the emptiest cell: many answers is easy, few is hard.
 - **Key:** `grid:<club qids>:<country qids>` in board order.
 - **Later:** club × club boards ("played for both"), and `COMPETITION_WON` once trophies are ingested.
+
+**`AUCTION` lots (N2):** 3 lists per round (a club's scorers or assist providers in one competition season, 6 to 30 names, every name in the catalog); `--auctions N`, rules in `08` §11.4.
 
 **`MINES` categories (N1):** a club plus a citizenship or a decade, with 20 to 40 players, from the 100 most popular clubs (`--mines N`, `--mines-min-answers`, `--mines-max-answers`, `--mines-clubs`); rules, keys and difficulty in `08` §10.4.
 
