@@ -307,7 +307,8 @@
               "CAREER",
               "WHO_IS_PLAYER",
               "GRID",
-              "MINES"
+              "MINES",
+              "AUCTION"
             ],
             "type": "string"
           }
@@ -598,7 +599,8 @@
               "CAREER",
               "WHO_IS_PLAYER",
               "GRID",
-              "MINES"
+              "MINES",
+              "AUCTION"
             ],
             "type": "string"
           },

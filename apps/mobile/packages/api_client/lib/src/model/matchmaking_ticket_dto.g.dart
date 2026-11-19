@@ -160,6 +160,7 @@ const _$MatchmakingTicketDtoGameTypeEnumEnumMap = {
   MatchmakingTicketDtoGameTypeEnum.WHO_IS_PLAYER: 'WHO_IS_PLAYER',
   MatchmakingTicketDtoGameTypeEnum.GRID: 'GRID',
   MatchmakingTicketDtoGameTypeEnum.MINES: 'MINES',
+  MatchmakingTicketDtoGameTypeEnum.AUCTION: 'AUCTION',
   MatchmakingTicketDtoGameTypeEnum.unknownDefaultOpenApi:
       'unknown_default_open_api',
 };
