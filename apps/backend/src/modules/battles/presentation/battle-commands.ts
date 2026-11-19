@@ -33,6 +33,13 @@ export const gridClaimCommand = z.object({
   answer: z.strictObject({ text: answerText }),
 });
 export const gridSkipCommand = z.object({ clientMsgId, battleId, roundNo });
+/** `mines:bury`, `mines:answer` and `mines:scan` share one shape (08 §10.3). */
+export const minesTextCommand = z.object({
+  clientMsgId,
+  battleId,
+  roundNo,
+  answer: z.strictObject({ text: answerText }),
+});
 export const resyncCommand = z.object({ clientMsgId, battleId, lastSeq: z.number().int().nonnegative().optional() });
 export const forfeitCommand = z.object({ clientMsgId, battleId });
 export const timeSyncCommand = z.object({ t0: z.number() });

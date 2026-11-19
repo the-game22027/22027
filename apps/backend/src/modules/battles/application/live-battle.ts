@@ -16,14 +16,22 @@ import type { ParticipantId, RoundAction, RoundResult } from '../domain/games/ga
 import { calculateLeaderboardPoints } from '../domain/leaderboard-points';
 import { placeParticipantsByScore } from '../domain/placements';
 import { type RandomSource, randomIntegerBetween } from '../domain/random-source';
-import type { BattleConfigSnapshot, GridGameSettings, RevealGameSettings } from './battle-settings';
+import type { BattleConfigSnapshot, GridGameSettings, MinesGameSettings, RevealGameSettings } from './battle-settings';
 import type { LiveParticipant } from './live-participant';
 import type { BattleNotifier } from './ports/battle-notifier';
 import type { BattleRepository } from './ports/battle-repository';
 import type { ScheduledTimer, TimerScheduler } from './ports/timer-scheduler';
 import { GridRoundRunner } from './rounds/grid-round-runner';
+import { MinesRoundRunner } from './rounds/mines-round-runner';
 import { RevealRoundRunner } from './rounds/reveal-round-runner';
-import type { PlayerAnswer, PlayerCommand, RoundHost, RoundRunner, ViewerData } from './rounds/round-runner';
+import type {
+  PlayerAnswer,
+  PlayerCommand,
+  RoundCommandOutcome,
+  RoundHost,
+  RoundRunner,
+  ViewerData,
+} from './rounds/round-runner';
 
 export type { LiveParticipant } from './live-participant';
 
@@ -33,6 +41,8 @@ export interface Ack {
   code?: string;
   /** battle:resync only: what the player missed (WEBSOCKET.md §6). */
   snapshot?: Record<string, unknown>;
+  /** A command whose result is private to the sender, such as `mines:bury` (08 §10.3). */
+  data?: Record<string, unknown>;
 }
 
 type ForfeitReason = 'FORFEIT' | 'GRACE_EXPIRED' | 'NOT_READY';
@@ -75,6 +85,8 @@ export class LiveBattle {
   /** Who moves first in the current or next round (08 §9.1); null for game types where everyone plays at once. */
   private firstMoverId: ParticipantId | null = null;
   private lastRoundWinnerId: ParticipantId | null = null;
+  /** What the last round handed to the next one (08 §10.7); the battle never reads it. */
+  private carryOver: unknown = undefined;
   /** The rock-paper-scissors duel while PICKING_FIRST, and the end of its current pick window. */
   private duel: RockPaperScissorsDuel | null = null;
   private duelPickDeadlineAt: Date | null = null;
@@ -249,7 +261,7 @@ export class LiveBattle {
   private handleCommand(
     userId: string,
     clientMsgId: string,
-    handle: (participant: LiveParticipant) => Promise<string | null>,
+    handle: (participant: LiveParticipant) => Promise<RoundCommandOutcome>,
   ): Promise<Ack> {
     return this.runInQueue(async () => {
       const participant = this.participants.find((candidate) => candidate.userId === userId);
@@ -259,8 +271,11 @@ export class LiveBattle {
       if (earlier) return earlier;
       this.handlingClientMsgId = clientMsgId;
       try {
-        const code = await handle(participant);
-        const ack: Ack = code ? { clientMsgId, accepted: false, code } : { clientMsgId, accepted: true };
+        const outcome = await handle(participant);
+        const ack: Ack =
+          typeof outcome === 'string'
+            ? { clientMsgId, accepted: false, code: outcome }
+            : { clientMsgId, accepted: true, ...(outcome ? { data: outcome.data } : {}) };
         this.acks.set(key, ack);
         return ack;
       } finally {
@@ -485,10 +500,28 @@ export class LiveBattle {
     const host = this.roundHost();
     const latencyGraceMs = this.config.engine.latencyGraceMs;
     // The registry of 08 §2.2: the one place that picks a mechanic from the game type.
-    this.runner =
-      content.body.gameType === 'GRID'
-        ? new GridRoundRunner(roundNo, content, this.config.game as GridGameSettings, latencyGraceMs, host)
-        : new RevealRoundRunner(roundNo, content, this.config.game as RevealGameSettings, latencyGraceMs, host);
+    switch (content.body.gameType) {
+      case 'GRID':
+        this.runner = new GridRoundRunner(roundNo, content, this.config.game as GridGameSettings, latencyGraceMs, host);
+        break;
+      case 'MINES':
+        this.runner = new MinesRoundRunner(
+          roundNo,
+          content,
+          this.config.game as MinesGameSettings,
+          latencyGraceMs,
+          host,
+        );
+        break;
+      default:
+        this.runner = new RevealRoundRunner(
+          roundNo,
+          content,
+          this.config.game as RevealGameSettings,
+          latencyGraceMs,
+          host,
+        );
+    }
     this.roundActionCount = 0;
     await this.deps.repository.markRoundStarted(this.id, roundNo, this.deps.clock.now());
     await this.runner.start();
@@ -498,6 +531,7 @@ export class LiveBattle {
     return {
       gameType: this.gameType,
       firstMoverId: this.firstMoverId,
+      carryOver: this.carryOver,
       random: this.deps.random,
       checker: this.deps.checker,
       catalog: this.deps.catalog,
@@ -536,6 +570,7 @@ export class LiveBattle {
       this.scores.set(participantId, (this.scores.get(participantId) ?? 0) + points);
     }
     this.lastRoundWinnerId = result.winnerParticipantId;
+    this.carryOver = result.carryOver;
     this.roundResults.push({
       roundNo: runner.roundNo,
       winnerParticipantIds: result.winnerParticipantId ? [result.winnerParticipantId] : [],
