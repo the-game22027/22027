@@ -523,7 +523,7 @@ Nothing is secret between the players: titles, counts, bids and every typed name
 The pipeline writes the titles in both languages: competitions are not catalog entities yet (07 §5.10), so titles cannot be built from catalog names at play time.
 
 Generator (`kb bundle --auctions N`, 07 §5.8):
-- **Source (N2):** Transfermarkt goal events in usable matches (`core.usable_match`) of tier 1 and 2 competitions, from 2012 (its coverage). This is the first slice of D.3d goals (07 §5.10).
+- **Source (N2):** built in Python from `core.goal` (no `derived` view yet). Transfermarkt goal events in usable matches (`core.usable_match`) of tier 1 and 2 competitions, from 2012 (its coverage). This is the first slice of D.3d goals (07 §5.10).
 - **List kinds (N2):**
   - `SCORERS`: a club's scorers in one competition season;
   - `ASSISTERS`: its assist providers.
@@ -543,6 +543,7 @@ Generator (`kb bundle --auctions N`, 07 §5.8):
   - tier 1: 1,671 scorer and 1,680 assister lists, of which 768 and 676 have every name in the catalog;
   - tier 2: 1,673 and 1,432, of which 420 and 352.
   - That is about 2,200 lists, or 730 lots.
+  - **After every filter (built 2026-11-19):** 990 lists in 330 lots (difficulty 1: 153, 2: 78, 3: 44, 4: 55); the 60% known-players rule removes the most. Team names in titles are trimmed to how fans say them ("Croatia", "آرسنال", not "Croatia men's national football team").
 
 ### 11.5 Bot
 
@@ -570,6 +571,7 @@ Generator (`kb bundle --auctions N`, 07 §5.8):
 - **Engine change (generic):** `targetScore` per game type, nullable. After each round the engine completes the battle when a score reaches it. No game-specific code.
 - **Judging:** `AnswerChecker` with the picked list's slot as the accepted answers.
 - **Actions:** `AUCTION_PICK`, `AUCTION_BID`, `AUCTION_CALL`, `AUCTION_ANSWER` (`is_correct`), `AUCTION_STEAL`, `TURN_TIMEOUT`. Question stats count a wrong `AUCTION_ANSWER` as a wrong answer.
+- **One timer per phase:** each phase sets a single `phase` deadline timer; moving to the next phase cancels it and sets the next one, so a late timer can never act on the wrong phase.
 - **Snapshot `currentRound`:**
   - `phase`, the 3 lists and the picked one;
   - the picker, the bids so far and whose turn;
