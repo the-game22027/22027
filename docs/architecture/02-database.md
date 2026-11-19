@@ -476,7 +476,7 @@ battle_participants (
       OR (kind = 'BOT'   AND user_id IS NULL     AND bot_profile IS NOT NULL))
 )
   UQ (battle_id, user_id) WHERE user_id IS NOT NULL
-  IX (user_id, battle_id) WHERE user_id IS NOT NULL   -- history + recent-exposure lookups (DEC-44)
+  IX (user_id, battle_id) WHERE user_id IS NOT NULL   -- history + seen-question lookups (DEC-44)
 battle_rounds (
   battle_id uuid FK → battles, round_no smallint, question_id uuid FK → questions,
   started_at timestamptz NULL, closed_at timestamptz NULL,
@@ -509,20 +509,19 @@ battle_round_actions (                  -- everything players did in a round, in
 
 Not in the database: the matchmaking queue and tickets (Redis `mm:*`) and the "one activity per user" guard (Redis `act:{userId}`, set with `NX`, holding `QUEUE:<ticketId>`, `ROOM:<roomId>` or `BATTLE:<battleId>`). Postgres stays the source of truth for rooms and battles; on boot the guard is rebuilt from open rooms and live battles.
 
-Recent-exposure lookup for question selection (DEC-44), using the participant index:
+Seen-questions lookup for question selection (DEC-44), using the participant index and the `battle_rounds` primary key:
 
 ```sql
-SELECT DISTINCT r.question_id
-FROM unnest($human_user_ids::uuid[]) AS u(user_id)
-CROSS JOIN LATERAL (
-  SELECT battle_id FROM battle_participants
-  WHERE user_id = u.user_id
-  ORDER BY battle_id DESC LIMIT $window       -- last N battles of this player (DEC-44)
-) recent
-JOIN battle_rounds r ON r.battle_id = recent.battle_id;
+SELECT r.question_id
+FROM battle_participants p
+JOIN battle_rounds r ON r.battle_id = p.battle_id
+WHERE p.user_id = ANY($human_user_ids::uuid[])
+  AND r.started_at IS NOT NULL                -- shown; a reserved round that never started is not seen
+GROUP BY r.question_id
+ORDER BY max(r.started_at) DESC;              -- most recently seen first; the engine refills from the end
 ```
 
-(UUID v7 ids are time-ordered, so `ORDER BY battle_id DESC` means "most recent battles". If this becomes hot, cache each user's recent question ids in Redis.)
+(It reads every round a player ever played: a few thousand rows for a heavy player. If it becomes hot, cache each user's seen question ids in Redis, `06` §3.)
 
 ### 4.9 `points`
 

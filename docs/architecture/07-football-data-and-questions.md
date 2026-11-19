@@ -279,7 +279,7 @@ Regeneration = new bundle version. Rollback = disable a batch.
 
 ### 5.6 How many questions the app needs
 
-Battles are the only quiz mode and can be played without limit (ADR-0010), so question volume is a product constraint, not a nice-to-have (risk K-09). A rough sizing rule: `active players' battles per week × roundCount` questions are consumed per player per week, and the exposure window (DEC-44) must not exhaust the bank for heavy players. The battle engine relaxes the window when it runs short and counts each relaxation (`question_selection_relaxed_total`). A rising count means the next bundle is due. Templates over large fact tables (match results, scorers, transfers, trophies) are the cheapest way to scale volume; LLM phrasing adds variety, not volume.
+Battles are the only quiz mode and can be played without limit (ADR-0010), so question volume is a product constraint, not a nice-to-have (risk K-09). A rough sizing rule: `active players' battles per week × roundCount` questions are consumed per player per week, and a player never sees a question twice while unseen ones remain (DEC-44), so a heavy player exhausts a small bank. When that happens the battle engine refills with the questions the players saw longest ago and logs a warning (`Seen questions repeated for <gameType>`). Frequent warnings mean the next bundle is due. Templates over large fact tables (match results, scorers, transfers, trophies) are the cheapest way to scale volume; LLM phrasing adds variety, not volume.
 
 ### 5.7 Name normalization (shared by the pipeline and the app)
 

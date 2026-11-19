@@ -84,7 +84,7 @@ Format per module: **Purpose · Responsibilities · Owned tables · Public inter
 - **Responsibilities:** Import validated bundles (idempotent by `external_key` + `content_hash`; catalog upsert by `external_ref`); status workflow `DRAFT → APPROVED → PUBLISHED → DISABLED`; selection queries per game type (difficulty, category, locale availability, exclusion lists); accepted answers; serving the answer catalog snapshot; usage statistics.
 - **Owned tables:** `questions`, `question_translations`, `question_options`, `question_option_translations` (legacy, unused by games), `question_answers`, `answer_entities`, `answer_entity_aliases`, `question_categories`, `question_import_batches`, `question_stats`, `question_stats_applied`.
 - **Public interface** (details in `08-battle-games.md` §5.4):
-  - `ContentSelector.pickContentIds(criteria) → contentIds`.
+  - `ContentSelector.pickContentIds(criteria) → contentIds`; `pickContentIdsInGivenOrder(criteria, candidateContentIds) → contentIds` (refill from seen questions, DEC-44).
   - `RoundContentQuery.getContentForEngine(id, locales)`: full content for the server-side engine only, never sent to clients as is.
   - `AnswerChecker.judgeTypedText(contentId, slot, text, rules) → { verdict: CORRECT | WRONG, entityId, match }` (`08` §5.3). Bots skip it: the round runner checks their entity ids against the accepted answers it already holds.
   - `AnswerCatalogQuery.findEntitiesByIds(ids)` (names for events).
@@ -102,7 +102,7 @@ Removed with the Daily Quiz (ADR-0010, 2026-11-07). The section number is kept s
 - **Responsibilities:**
   - **Matchmaking:** 1v1 Redis queue (strategy DEC-37), plus a bot fallback after a configured wait (DEC-39).
   - **Private rooms:** create a room with a unique code; join by code; lobby (members, host, leave, remove, host transfer); host starts (DEC-38); rematch and idle expiry (DEC-42).
-  - **Battle engine:** 2..N participants (`HUMAN` or `BOT`); one game type per battle, whose game rules run inside the engine (`08-battle-games.md` §2); content selection with per-player exposure exclusion (DEC-44); readiness; rounds; one battle's commands processed one at a time in arrival order (first buzz wins); idempotency by `clientMsgId`; scoring and placements with the active BATTLE rule set (DEC-33); disconnect grace, reconnection and snapshot resync; forfeits; completion; persistence of every state transition.
+  - **Battle engine:** 2..N participants (`HUMAN` or `BOT`); one game type per battle, whose game rules run inside the engine (`08-battle-games.md` §2); content selection that skips every question a player has seen (DEC-44); readiness; rounds; one battle's commands processed one at a time in arrival order (first buzz wins); idempotency by `clientMsgId`; scoring and placements with the active BATTLE rule set (DEC-33); disconnect grace, reconnection and snapshot resync; forfeits; completion; persistence of every state transition.
   - **Game rules:** `RevealAndBuzzRules` (`BUZZER`, `CAREER`, `WHO_IS_PLAYER`) and `GridRules` (`GRID`), pure domain code with their bot strategies.
   - **Bots:** server-side participants driven by bot profiles (DEC-43) and an injected random source. They answer through the same path as humans.
   - **One activity per user:** a user can be in the matchmaking queue, a room lobby, or a battle, never two at once.

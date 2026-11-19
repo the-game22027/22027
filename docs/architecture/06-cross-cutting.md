@@ -34,10 +34,10 @@ Battles are real-time with short round deadlines, which already limits searching
 | Risk | Mitigation |
 |---|---|
 | Searching answers during a round | Short round timers (DEC-32); server-measured answer times; flag statistically impossible speeds |
-| Sharing answers in a private room (players sitting together) | Option order shuffled per player (DEC-44); room battles earn no leaderboard points (Decided, DEC-41) |
+| Sharing answers in a private room (players sitting together) | Room battles earn no leaderboard points (Decided, DEC-41) |
 | Collusion: a friend throws the game, or one person plays their own second account | Room battles earn no leaderboard points (Decided, DEC-41); matchmaking pairs random people; detect account pairs that meet unusually often |
 | Farming easy bot wins | Bot battles earn no leaderboard points; bots always labeled (Decided, DEC-41/40) |
-| Memorizing a small bank | Per-player exposure exclusion (DEC-44); large bank (risk K-09) |
+| Memorizing a small bank | Seen questions are never repeated while unseen ones remain (DEC-44); large bank (risk K-09) |
 
 Do not promise "cheat-proof"; design so cheating is unrewarding for prizes (prize eligibility checks before awarding).
 
@@ -75,7 +75,7 @@ One API process (HTTP + WS), one worker process, one Postgres, one Redis, on one
 | User public profiles | Optional | In-memory LRU (60s) |
 | Predictions, votes, rooms, battles | **No** | Correctness first; always read the DB (live battle state is in the engine's memory anyway) |
 | Playable question payloads by (question id, locale) | Yes | Published question content is immutable per version: in-memory LRU of the localized payload (without correctness), invalidated on disable |
-| Recent question exposures per user | When measured | Redis list per user, refreshed on battle completion, if the exposure query (DEC-44) gets hot |
+| Seen question ids per user | When measured | Redis set per user, added to at round start, if the seen-questions query (DEC-44) gets hot |
 
 ### 2.5 Real-time state ownership
 

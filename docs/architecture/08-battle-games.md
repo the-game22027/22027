@@ -190,7 +190,8 @@ The interface is in `01-modules.md` §2.6. All of it is server side; the game ru
   - **`minAnswersPerSlot`, optional (`GRID`):** every cell has at least that many accepted answers.
   - **Always:** `PUBLISHED`, and not expired (`valid_until` checked with the database clock).
 
-  It returns fewer ids when the bank is short. The caller (`battles`) then relaxes its exposure window and asks again (DEC-44); the difficulty mix is also the caller's (one call per difficulty, `selection.*` config). The order is `ORDER BY random()`, which reads every matching row: fine for a bank of thousands. Revisit above about 100k rows per game type.
+  It returns fewer ids when the bank is short; the difficulty mix is the caller's (`selection.difficulties` config).
+- **`ContentSelector.pickContentIdsInGivenOrder(criteria, candidateContentIds)`** returns, in the candidates' order, the first `count` of them that pass the same checks (no `excludeContentIds`). `battles` uses it when the first call came back short: the candidates are the players' seen questions, longest ago first, so the refill repeats what they are least likely to remember (DEC-44). The order is `ORDER BY random()`, which reads every matching row: fine for a bank of thousands. Revisit above about 100k rows per game type.
 - **`RoundContentQuery.getContentForEngine(contentId, locales)`** returns the content with every catalog `externalRef` replaced by the entity id, texts only in the requested locales, and the accepted answers per slot (for the reveal at the end of a round). Any status: a battle keeps playing the content it picked at creation, even if that content is disabled later.
 - **`AnswerCatalogQuery.findEntitiesByIds(ids)`** returns names in both locales, because one battle can have players of both languages.
 - **`QuestionBankFacade.disableQuestion(id, reason)`** is used by the CLI now and by moderation later. Selection skips the content at once.
@@ -248,7 +249,7 @@ Stored in the battle config by game type, snapshotted on the battle row at creat
 | `latencyGraceMs`, `readyTimeoutMs`, `reconnectGraceMs`, `betweenRoundsMs` (pause after `round:result`) | engine | DEC-32 |
 | `matchmaking.botFallbackAfterMs`, `tickMs`, `queueDisconnectGraceMs` | matchmaking | DEC-39 |
 | `bots.profiles.*` (`knowsAnswerByDifficulty`, `guessChance`, `buzzAtShareOfSteps`, `reactionDelayMs`, `typingDelayMs`) | bots | DEC-43 |
-| `selection.*` (`excludeLastBattles`, `difficulties`) | all | DEC-44 |
+| `selection.difficulties` | all | DEC-44 |
 
 ### 6.1 Leaderboard points (the `BATTLE` rule set, P6.5)
 
@@ -279,7 +280,7 @@ The in-game `score` (`points.*` above) decides placements inside one battle. **L
 
 - **Topics:** every round carries `topics` (07 §5.9), separate from its `category`. "General" plays everything.
 - **Room setup:** in `LOBBY` the host sets `topics` (empty = General) and `difficultyLevel` (`MIXED`, `EASY`, `MEDIUM`, `HARD`; ranges in `room.difficultyLevels`). Members see them in `room:updated`. The battle snapshots them into `battles.config.selection`.
-- **Selection:** `ContentSelector.pickContentIds` gets `topics` (any of them) and the level's `difficulties`. The exposure window still applies inside the filter and relaxes as usual (DEC-44).
+- **Selection:** `ContentSelector.pickContentIds` gets `topics` (any of them) and the level's `difficulties`. Seen questions are still skipped inside the filter, and the refill takes seen questions that match the filter (DEC-44).
 - **Availability:** `GET /v1/battle-topics?gameType=` lists topics with published content in the caller's locale and counts per level, so the app only offers choices that can fill a battle. A room start that cannot fill `roundCount` rounds fails with `409 NOT_ENOUGH_CONTENT` and changes nothing.
 - **Random matchmaking** stays unfiltered (DEC-65).
 

@@ -94,7 +94,7 @@ Changes vs the original proposed order, and why:
 ### Track D (parallel, Python) — Knowledge base + templates
 - **Added by ADR-0015, now first in line:** the answer catalog (players, clubs, national teams, competitions with Arabic and English names and alternative names) and player careers, from Wikidata (CC0). Our local openfootball copy has about 32,000 players but no career history.
 - `football_kb` raw/staging/core for a first small slice: martj42 international results + openfootball top-5 + World Cup; entity crosswalk; facts with provenance; 10-20 bilingual templates; deterministic validation; bundle writer. Ollama phrasing optional and off by default.
-- **Exit:** a bundle of ≥ 1,000 validated questions with a 200-question human review sample ≥ 98% correct (Arabic reviewed by a native speaker). **Before public launch:** several thousand questions, sized from expected battles per active user per week × `roundCount` against the exposure window (DEC-44, risk K-09).
+- **Exit:** a bundle of ≥ 1,000 validated questions with a 200-question human review sample ≥ 98% correct (Arabic reviewed by a native speaker). **Before public launch:** several thousand questions, sized from expected battles per active user per week × `roundCount`, since a player never sees a question twice while unseen ones remain (DEC-44, risk K-09).
 
 ### G0 — Game types design (docs only, before P5.2 and P6)
 - Rewrite for ADR-0015: `WEBSOCKET.md` (reveal, buzz, typed answer, turns), `03-workflows.md` §4 (shared engine + game rules), `02-database.md` (rounds, buzzes, answers, answer catalog), `07` (catalog and content shapes in the bundle, Wikidata as the career source), `01-modules.md`. Data check for Tiki Taka Toe: enough players per club and country pair.
@@ -146,6 +146,7 @@ Changes vs the original proposed order, and why:
 | N6 `TIME_MACHINE` (آلة الزمن) | one tournament edition per year (finals, scorers, top scorers, knockout paths) | D.3e `edition_summary` | D.3e |
 | N7 `THREAD` (الخيط) | 5-hop chains where every hop has exactly one answer | the whole fact graph, coaches and venues | N6 (hardest generator) |
 
+- **Between N4 and N5: never repeat a question (DEC-44, decided 2026-11-19).** Battles skip every question a player was shown, not only those of their last 20 battles, and refill from the ones seen longest ago when the bank is short (03 §4.3, 08 §5.4). The same fact in two different questions waits for D.3e fact keys.
 - **Exit per phase:** the game can be walked through message by message from `08`; its bot plays it; a dev bundle with generated content imports and plays end to end; every open rule is config plus a Pending DEC.
 
 ### P8 — Private battle rooms
