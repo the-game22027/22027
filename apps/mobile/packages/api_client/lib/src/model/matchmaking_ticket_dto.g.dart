@@ -163,6 +163,7 @@ const _$MatchmakingTicketDtoGameTypeEnumEnumMap = {
   MatchmakingTicketDtoGameTypeEnum.AUCTION: 'AUCTION',
   MatchmakingTicketDtoGameTypeEnum.VAULT: 'VAULT',
   MatchmakingTicketDtoGameTypeEnum.HEX: 'HEX',
+  MatchmakingTicketDtoGameTypeEnum.LINEUP: 'LINEUP',
   MatchmakingTicketDtoGameTypeEnum.unknownDefaultOpenApi:
       'unknown_default_open_api',
 };
