@@ -6,11 +6,24 @@ from statistics import median_low
 from kb.generate import LICENSES, SOURCES, Names, PlayerFacts, difficulty_from_sitelinks
 from kb.grids import EXCLUDED_GRID_COUNTRIES
 
+# Wikidata often puts youth years on the senior club's item (Marc-André ter Stegen at Gladbach "1996-2010",
+# from age 4), so a decade counts a spell only from the year the player turned this age.
+SENIOR_FROM_AGE = 17
 
-def decades_of_spell(from_year: int | None, to_year: int | None, current_year: int) -> set[int]:
-    """The first years of the decades a dated spell overlaps (an open spell runs to `current_year`)."""
+
+def has_spell_ended_before_senior_age(to_year: int | None, birth_year: int | None) -> bool:
+    """A spell over before the player turned SENIOR_FROM_AGE is youth football: it does not put him in a category."""
+    return to_year is not None and birth_year is not None and to_year < birth_year + SENIOR_FROM_AGE
+
+
+def decades_of_spell(
+    from_year: int | None, to_year: int | None, current_year: int, birth_year: int | None = None
+) -> set[int]:
+    """The first years of the decades a dated spell overlaps as a senior (an open spell runs to `current_year`)."""
     if from_year is None:
         return set()
+    if birth_year is not None:
+        from_year = max(from_year, birth_year + SENIOR_FROM_AGE)
     last_year = to_year if to_year is not None else current_year
     if last_year < from_year:
         return set()
@@ -51,9 +64,11 @@ def mines_rounds(
                 allowed_clubs is not None and spell.team_ref not in allowed_clubs
             ):
                 continue
+            if has_spell_ended_before_senior_age(spell.to_year, player.birth_year):
+                continue
             for country in countries:
                 members.setdefault((spell.team_ref, "NATIONALITY", country), set()).add(player.external_ref)
-            for decade in decades_of_spell(spell.from_year, spell.to_year, current_year):
+            for decade in decades_of_spell(spell.from_year, spell.to_year, current_year, player.birth_year):
                 if decade >= first_decade:
                     members.setdefault((spell.team_ref, "DECADE", decade), set()).add(player.external_ref)
 

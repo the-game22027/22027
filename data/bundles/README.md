@@ -5,13 +5,21 @@ Each folder is one bundle: `manifest.json`, `questions.jsonl` and optionally `ca
 Import one into the app database (from `apps/backend`):
 
 ```bash
-npm run cli -- questions:import ../../data/bundles/dev-0005
-npm run cli -- questions:publish dev-0005 --include-drafts   # development only: the rounds are unreviewed
+npm run cli -- questions:import ../../data/bundles/dev-0006
+npm run cli -- questions:publish dev-0006 --include-drafts   # development only: the rounds are unreviewed
 ```
 
 Importing the same bundle twice changes nothing. A bundle version is never reused: a changed bundle gets a new folder and a new `bundleVersion`.
 
-## dev-0005 (use this one)
+## dev-0006 (use this one)
+
+Built from the knowledge base rebuilt on 2026-11-19 (`mul` names, cities out of careers): 60 `CAREER`, 60 `BUZZER`, 60 `WHO_IS_PLAYER`, 19 `GRID` and **40 `MINES`** categories (a club plus a citizenship or a decade, 20-40 players each, from the 100 most popular clubs; 08 §10.4). 239 rounds, catalog of 7,791 entities.
+
+```bash
+.venv/bin/python -m kb bundle --version dev-0006 --out bundles/dev-0006 --careers 60 --buzzers 60 --who 60 --grids 30 --mines 40 --catalog-min-player-sitelinks 40
+```
+
+## dev-0005
 
 The same 199 rounds as dev-0004; its catalog lines carry `nameWords` (ADR-0021), so a distinctive first or last name alone is accepted when typed (`ليونيل` for Messi). Importing it over dev-0004 keeps every round and moves them to dev-0005.
 

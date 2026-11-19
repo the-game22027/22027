@@ -414,7 +414,7 @@ stateDiagram-v2
 | `MINES` | `{ criteria: [{ kind: "CLUB", entityId }, { kind: "NATIONALITY", entityId } \| { kind: "DECADE", fromYear }] }` | Slot 0: every player of the category, most popular first |
 
 Generator (`kb bundle --mines N`, 07 §5.8):
-- **Category answers:** catalog players with a spell at the club and that citizenship, or with a dated spell at the club that overlaps `fromYear`..`fromYear + 9` (an open spell runs to today). Undated spells never count for a decade.
+- **Category answers:** catalog players with a spell at the club and that citizenship, or with a dated spell at the club that overlaps `fromYear`..`fromYear + 9` (an open spell runs to today). Undated spells never count for a decade. Years before the player turned 17 do not count, and a spell that ended before then puts him in no category: Wikidata often stores youth years on the senior club's item (Marc-André ter Stegen at Gladbach "1996–2010").
 - **Clubs:** only the `--mines-clubs` most popular clubs of the catalog (default 100), so players know the names. Without the limit most categories are small clubs nobody can name (1,076 categories, 764 of them difficulty 5).
 - **Size:** kept only with `--mines-min-answers` to `--mines-max-answers` answers (default 20 to 40). Measured on 2026-11-19: 123 categories (87 club × nationality, 36 club × decade; a big club has more than 40 players in a decade).
 - **Difficulty:** from the popularity of the category's answers (the median sitelinks band of §5.8): famous names make an easy round.
