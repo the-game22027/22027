@@ -90,8 +90,7 @@
         "wrong": 0
       },
       "selection": {
-        "difficulties": null,
-        "excludeLastBattles": 20
+        "difficulties": null
       }
     },
     "CAREER": {
@@ -110,8 +109,7 @@
         "wrong": 0
       },
       "selection": {
-        "difficulties": null,
-        "excludeLastBattles": 20
+        "difficulties": null
       },
       "showYears": true
     },
@@ -131,8 +129,7 @@
         "wrong": 0
       },
       "selection": {
-        "difficulties": null,
-        "excludeLastBattles": 20
+        "difficulties": null
       }
     },
     "GRID": {
@@ -162,8 +159,7 @@
         "perCell": 1
       },
       "selection": {
-        "difficulties": null,
-        "excludeLastBattles": 20
+        "difficulties": null
       }
     },
     "MINES": {
@@ -201,8 +197,7 @@
         "perSafeAnswer": 1
       },
       "selection": {
-        "difficulties": null,
-        "excludeLastBattles": 20
+        "difficulties": null
       }
     },
     "AUCTION": {
@@ -242,8 +237,7 @@
         "allInWin": 2
       },
       "selection": {
-        "difficulties": null,
-        "excludeLastBattles": 20
+        "difficulties": null
       }
     },
     "VAULT": {
@@ -262,8 +256,7 @@
         "vaultOpened": 1
       },
       "selection": {
-        "difficulties": null,
-        "excludeLastBattles": 20
+        "difficulties": null
       }
     },
     "HEX": {
@@ -293,8 +286,7 @@
         "boardWin": 1
       },
       "selection": {
-        "difficulties": null,
-        "excludeLastBattles": 20
+        "difficulties": null
       }
     }
   }

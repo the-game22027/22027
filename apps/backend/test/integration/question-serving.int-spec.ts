@@ -174,6 +174,29 @@ describe('serving content to battles', () => {
       await expect(pickAll({ gameType: 'CAREER', count: 1 })).resolves.toHaveLength(1);
     });
 
+    it('keeps the given order of candidates that still match, and drops the rest (DEC-44 refill)', async () => {
+      const filter = { gameType: 'CAREER' as const, count: 10, locales: ['ar', 'en'] as const };
+      const candidates = [
+        contentId.hardCareer,
+        contentId.expiredCareer,
+        contentId.buzzer,
+        contentId.career,
+        contentId.draftBuzzer,
+      ];
+
+      await expect(selector.pickContentIdsInGivenOrder(filter, candidates)).resolves.toEqual([
+        contentId.hardCareer,
+        contentId.career,
+      ]);
+      await expect(selector.pickContentIdsInGivenOrder({ ...filter, count: 1 }, candidates)).resolves.toEqual([
+        contentId.hardCareer,
+      ]);
+      await expect(selector.pickContentIdsInGivenOrder({ ...filter, difficulties: [2] }, candidates)).resolves.toEqual([
+        contentId.career,
+      ]);
+      await expect(selector.pickContentIdsInGivenOrder(filter, [])).resolves.toEqual([]);
+    });
+
     it('skips a grid whose emptiest cell has fewer answers than the game wants', async () => {
       await expect(pickAll({ gameType: 'GRID', minAnswersPerSlot: 1 })).resolves.toContain(contentId.grid);
       await expect(pickAll({ gameType: 'GRID', minAnswersPerSlot: 2 })).resolves.not.toContain(contentId.grid);

@@ -49,7 +49,6 @@ const revealGame = z.strictObject({
   points: z.strictObject({ correct: z.number().int(), perUnrevealedStep: z.number().int(), wrong: z.number().int() }),
   selection: z.strictObject({
     difficulties: z.array(z.number().int().min(1).max(5)).min(1).nullable(),
-    excludeLastBattles: z.number().int().nonnegative(),
   }),
 });
 
@@ -67,7 +66,6 @@ const gridGame = z.strictObject({
   points: z.strictObject({ roundWin: z.number().int(), roundDraw: z.number().int(), perCell: z.number().int() }),
   selection: z.strictObject({
     difficulties: z.array(z.number().int().min(1).max(5)).min(1).nullable(),
-    excludeLastBattles: z.number().int().nonnegative(),
   }),
 });
 
@@ -90,7 +88,6 @@ const minesGame = z.strictObject({
   points: z.strictObject({ roundWin: z.number().int(), roundDraw: z.number().int(), perSafeAnswer: z.number().int() }),
   selection: z.strictObject({
     difficulties: z.array(z.number().int().min(1).max(5)).min(1).nullable(),
-    excludeLastBattles: z.number().int().nonnegative(),
   }),
 });
 
@@ -108,7 +105,6 @@ const auctionGame = z.strictObject({
   points: z.strictObject({ roundWin: z.number().int(), allInWin: z.number().int() }),
   selection: z.strictObject({
     difficulties: z.array(z.number().int().min(1).max(5)).min(1).nullable(),
-    excludeLastBattles: z.number().int().nonnegative(),
   }),
 });
 
@@ -126,7 +122,6 @@ const hexGame = z.strictObject({
   points: z.strictObject({ boardWin: z.number().int() }),
   selection: z.strictObject({
     difficulties: z.array(z.number().int().min(1).max(5)).min(1).nullable(),
-    excludeLastBattles: z.number().int().nonnegative(),
   }),
 });
 
@@ -141,7 +136,6 @@ const vaultGame = z.strictObject({
   points: z.strictObject({ vaultOpened: z.number().int() }),
   selection: z.strictObject({
     difficulties: z.array(z.number().int().min(1).max(5)).min(1).nullable(),
-    excludeLastBattles: z.number().int().nonnegative(),
   }),
 });
 

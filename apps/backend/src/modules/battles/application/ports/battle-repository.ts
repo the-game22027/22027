@@ -68,8 +68,11 @@ export interface BattleRepository {
   markParticipantForfeited(participantId: string, at: Date): Promise<void>;
   /** After a restart nothing runs the unfinished battles any more (WEBSOCKET.md §6.5). Returns their human players. */
   abandonUnfinishedBattles(at: Date): Promise<{ battleIds: string[]; userIds: string[] }>;
-  /** Content of the user's last `battleCount` battles (DEC-44). */
-  findRecentlyPlayedQuestionIds(userId: string, battleCount: number): Promise<string[]>;
+  /**
+   * Every question these users were shown (a round that started), most recently seen first (DEC-44).
+   * Reserved rounds that never started are not counted.
+   */
+  findSeenQuestionIdsMostRecentFirst(userIds: readonly string[]): Promise<string[]>;
   /** A round with this question started in a battle the user took part in (08 §5.7). */
   wasQuestionServedToUser(questionId: string, userId: string): Promise<boolean>;
 }

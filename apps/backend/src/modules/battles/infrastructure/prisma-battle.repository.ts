@@ -200,14 +200,16 @@ export class PrismaBattleRepository implements BattleRepository {
     });
   }
 
-  async findRecentlyPlayedQuestionIds(userId: string, battleCount: number): Promise<string[]> {
-    if (battleCount === 0) return [];
-    // UUID v7 ids are time-ordered, so the highest battle ids are the most recent battles (02 §4.8).
+  async findSeenQuestionIdsMostRecentFirst(userIds: readonly string[]): Promise<string[]> {
+    if (userIds.length === 0) return [];
+    // A question two players both saw counts at the later of their two rounds (02 §4.8).
     const rows = await this.txHost.tx.$queryRaw<{ question_id: string }[]>`
-      SELECT DISTINCT r.question_id
-      FROM (SELECT battle_id FROM battle_participants
-            WHERE user_id = ${userId}::uuid ORDER BY battle_id DESC LIMIT ${battleCount}) recent
-      JOIN battle_rounds r ON r.battle_id = recent.battle_id`;
+      SELECT r.question_id
+      FROM battle_participants p
+      JOIN battle_rounds r ON r.battle_id = p.battle_id
+      WHERE p.user_id = ANY(${[...userIds]}::uuid[]) AND r.started_at IS NOT NULL
+      GROUP BY r.question_id
+      ORDER BY max(r.started_at) DESC, r.question_id`;
     return rows.map((row) => row.question_id);
   }
 

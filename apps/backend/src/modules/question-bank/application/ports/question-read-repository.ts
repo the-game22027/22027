@@ -4,15 +4,19 @@ import type { AnswerCandidate } from '../../domain/typed-text-judgement';
 
 export const QUESTION_READ_REPOSITORY = Symbol('QUESTION_READ_REPOSITORY');
 
-export interface ContentSelectionCriteria {
+/** What every picked content id must match, whichever way it is picked. */
+export interface ContentFilter {
   gameType: GameType;
   count: number;
   /** The content must be playable in every one of these locales. */
   locales: readonly Locale[];
-  excludeContentIds: readonly string[];
   difficulties?: readonly number[];
   /** Grid only: every cell needs at least this many accepted answers (game config `minAnswersPerCell`). */
   minAnswersPerSlot?: number;
+}
+
+export interface ContentSelectionCriteria extends ContentFilter {
+  excludeContentIds: readonly string[];
 }
 
 export interface StoredGameContent {
@@ -39,6 +43,8 @@ export interface CatalogEntityView {
 export interface QuestionReadRepository {
   /** Random ids of published, unexpired content matching the criteria; fewer when the bank is short. */
   pickRandomContentIds(criteria: ContentSelectionCriteria): Promise<string[]>;
+  /** The first `filter.count` candidates, in the given order, that are published, unexpired and match the filter. */
+  pickMatchingContentIdsInGivenOrder(filter: ContentFilter, candidateContentIds: readonly string[]): Promise<string[]>;
   findGameContent(contentId: string): Promise<StoredGameContent | null>;
   /** Entity ids by external ref, hidden entities included (old content may still point at them). */
   findEntityIdsByExternalRefs(externalRefs: readonly string[]): Promise<Map<string, string>>;

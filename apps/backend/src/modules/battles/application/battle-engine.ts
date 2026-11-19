@@ -22,6 +22,7 @@ import { SeededRandom } from '../domain/random-source';
 import { parseBattlePointsRuleSet } from './battle-points-rule-set';
 import { BATTLE_SETTINGS, type BattleConfigSnapshot, type BattleSettings, findGameSettings } from './battle-settings';
 import { type Ack, LiveBattle, type LiveParticipant } from './live-battle';
+import { pickContentSkippingSeen } from './pick-content-skipping-seen';
 import { ACTIVITY_GUARD, type Activity, type ActivityGuard } from './ports/activity-guard';
 import { BATTLE_NOTIFIER, type BattleNotifier } from './ports/battle-notifier';
 import { BATTLE_REPOSITORY, type BattleRepository } from './ports/battle-repository';
@@ -396,10 +397,7 @@ export class BattleEngine implements OnApplicationBootstrap, BeforeApplicationSh
     return run(battle);
   }
 
-  /**
-   * DEC-44: skip what the players saw in their last battles, in every player's language. When the bank is
-   * too small for that, play what there is rather than nothing (the window relaxes).
-   */
+  /** DEC-44: what none of the players has seen; seen questions only when the bank is short. */
   private async pickContent(
     userIds: string[],
     gameType: GameType,
@@ -407,13 +405,7 @@ export class BattleEngine implements OnApplicationBootstrap, BeforeApplicationSh
     roundCount: number,
   ): Promise<string[]> {
     const game = findGameSettings(this.settings, gameType);
-    const window = game?.selection.excludeLastBattles ?? 0;
-    const recent = [
-      ...new Set(
-        (await Promise.all(userIds.map((id) => this.battles.findRecentlyPlayedQuestionIds(id, window)))).flat(),
-      ),
-    ];
-    const criteria = {
+    const filter = {
       gameType,
       count: roundCount,
       locales,
@@ -421,17 +413,15 @@ export class BattleEngine implements OnApplicationBootstrap, BeforeApplicationSh
       // A grid is picked only when every cell has enough valid players (08 §6).
       ...(game && 'minAnswersPerCell' in game ? { minAnswersPerSlot: game.minAnswersPerCell } : {}),
     };
-    const fresh = await this.selector.pickContentIds({ ...criteria, excludeContentIds: recent });
-    if (fresh.length === roundCount || recent.length === 0) {
-      if (fresh.length === 0) throw new NoPlayableContentError(gameType, locales);
-      return fresh;
+    const seen = await this.battles.findSeenQuestionIdsMostRecentFirst(userIds);
+    const { contentIds, repeatedCount } = await pickContentSkippingSeen(this.selector, filter, seen);
+    if (contentIds.length === 0) throw new NoPlayableContentError(gameType, locales);
+    if (repeatedCount > 0) {
+      this.logger.warn(
+        `Seen questions repeated for ${gameType}: ${String(repeatedCount)}/${String(roundCount)} rounds`,
+      );
     }
-    this.logger.warn(
-      `Exposure window relaxed for ${gameType}: ${String(fresh.length)}/${String(roundCount)} fresh rounds`,
-    );
-    const any = await this.selector.pickContentIds({ ...criteria, excludeContentIds: [] });
-    if (any.length === 0) throw new NoPlayableContentError(gameType, locales);
-    return any;
+    return contentIds;
   }
 
   private async forgetBattle(battle: LiveBattle): Promise<void> {
