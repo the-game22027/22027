@@ -173,3 +173,4 @@ About 35 minutes in total. Cards marked *later* explain tools we have not needed
 | [database/raw-landing-zone](database/raw-landing-zone.md) | D.3a | Keep outside files exactly as they arrived, with a checksum; clean in a later step |
 | [database/copy-for-bulk-loads](database/copy-for-bulk-loads.md) | D.3a | `COPY … FROM STDIN` streams millions of rows; build names with `sql.Identifier` |
 | [database/id-crosswalk](database/id-crosswalk.md) | D.3b | Map every outside id to our one id; exact ids first, names only with review |
+| [database/wikidata-mul-labels](database/wikidata-mul-labels.md) | D.1 fix | `mul` = one name for all languages; use it as English only when `en` is missing |
