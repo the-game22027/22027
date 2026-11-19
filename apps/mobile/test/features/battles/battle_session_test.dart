@@ -231,6 +231,42 @@ void main() {
     expect(payloads.every((payload) => payload['roundNo'] == 1), isTrue);
   });
 
+  test('hex commands name the current round', () async {
+    final container = await createContainer();
+    final controller = controllerOf(container);
+
+    await receiveBattleFound(container);
+    socket.receive(
+      'round:start',
+      battleEnvelope('round:start', 2, {
+        'roundNo': 1,
+        'gameType': 'HEX',
+        'size': 3,
+        'board': List.filled(9, 'م'),
+        'sides': {'p-human': 'WEST_EAST', 'p-bot': 'NORTH_SOUTH'},
+        'firstPickerParticipantId': 'p-human',
+        'pickDeadlineAt': '2026-11-12T10:00:05.000Z',
+        'clearsLeft': {'p-human': 1, 'p-bot': 1},
+      }),
+    );
+    await pumpEventQueue();
+    await controller.pickHexCell(4);
+    await controller.pickHexCell(2, clear: true);
+    await controller.answerInHex('ماني');
+
+    final lastThree = socket.sentCommands.reversed.take(3).toList().reversed;
+    expect(
+      [for (final (event, _) in lastThree) event],
+      ['hex:pick', 'hex:pick', 'hex:answer'],
+    );
+    final payloads = [for (final (_, payload) in lastThree) payload];
+    expect(payloads[0]['cell'], 4);
+    expect(payloads[0].containsKey('clear'), isFalse);
+    expect(payloads[1]['clear'], isTrue);
+    expect(payloads[2]['answer'], {'text': 'ماني'});
+    expect(payloads.every((payload) => payload['roundNo'] == 1), isTrue);
+  });
+
   test(
     'a wrong vault try keeps your lockout and try count from the ack',
     () async {

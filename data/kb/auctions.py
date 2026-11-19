@@ -97,6 +97,42 @@ def auction_rounds(
     The output is deterministic: lists and lots are ordered by key.
     """
     kept: dict[int, list[tuple[GoalList, Names]]] = {}
+    for goal_list, team_names, share in eligible_goal_lists(
+        goal_lists,
+        player_popularity_of,
+        team_names_of,
+        min_answers=min_answers,
+        max_answers=max_answers,
+        known_share=known_share,
+    ):
+        kept.setdefault(difficulty_of_list(share, len(goal_list.answers)), []).append((goal_list, team_names))
+
+    lots_by_difficulty = {
+        difficulty: group_into_lots(lists)
+        for difficulty, lists in sorted(kept.items())
+        if len(lists) >= LOT_SIZE
+    }
+    picked: list[dict] = []
+    queues = [list(lots) for _, lots in sorted(lots_by_difficulty.items())]
+    while len(picked) < count and any(queues):
+        for difficulty, queue in zip(sorted(lots_by_difficulty), queues, strict=True):
+            if queue and len(picked) < count:
+                picked.append(_auction_line(queue.pop(0), difficulty, player_popularity_of, kb_version))
+    return picked
+
+
+def eligible_goal_lists(
+    goal_lists: Iterable[GoalList],
+    player_popularity_of: Callable[[str], int | None],
+    team_names_of: Callable[[str], Names | None],
+    *,
+    min_answers: int,
+    max_answers: int,
+    known_share: float,
+) -> list[tuple[GoalList, Names, float]]:
+    """Lists a game can ask, with their team names and share of known players, ordered by key: complete, every
+    name a catalog player (DEC-69 (a)), enough known players, and no two with the same names."""
+    eligible = []
     seen_answer_sets: set[frozenset[str]] = set()
     for goal_list in sorted(goal_lists, key=lambda item: item.key):
         team_names = team_names_of(goal_list.team_ref)
@@ -115,20 +151,8 @@ def auction_rounds(
         if share < known_share or answer_set in seen_answer_sets:
             continue
         seen_answer_sets.add(answer_set)
-        kept.setdefault(difficulty_of_list(share, len(goal_list.answers)), []).append((goal_list, team_names))
-
-    lots_by_difficulty = {
-        difficulty: group_into_lots(lists)
-        for difficulty, lists in sorted(kept.items())
-        if len(lists) >= LOT_SIZE
-    }
-    picked: list[dict] = []
-    queues = [list(lots) for _, lots in sorted(lots_by_difficulty.items())]
-    while len(picked) < count and any(queues):
-        for difficulty, queue in zip(sorted(lots_by_difficulty), queues, strict=True):
-            if queue and len(picked) < count:
-                picked.append(_auction_line(queue.pop(0), difficulty, player_popularity_of, kb_version))
-    return picked
+        eligible.append((goal_list, team_names, share))
+    return eligible
 
 
 def difficulty_of_list(known_share: float, size: int) -> int:

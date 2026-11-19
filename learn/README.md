@@ -113,6 +113,7 @@ About 35 minutes in total. Cards marked *later* explain tools we have not needed
 | [backend/private-results-in-acks](backend/private-results-in-acks.md) | N1 | One player's private result goes in their ack or their copy of a shared event, never in a lone event that leaves a `seq` gap |
 | [backend/one-timer-per-phase](backend/one-timer-per-phase.md) | N2 | One deadline timer replaced on each phase change; the handler acts on the phase at firing time |
 | [backend/lockout-instead-of-a-timer](backend/lockout-instead-of-a-timer.md) | N3 | A lockout is a `lockedUntil` timestamp checked on the next command; only things that must happen on their own get a timer |
+| [backend/zero-one-breadth-first-search](backend/zero-one-breadth-first-search.md) | N4 | Cheapest path when steps cost 0 or 1: free steps to the front of the queue; HEX connection and the bot's aim |
 | [database/wikidata-truthy-vs-full-statements](database/wikidata-truthy-vs-full-statements.md) | G0 | `wdt:` hides former clubs; read `p:/ps:/pq:` |
 | [database/cache-external-responses](database/cache-external-responses.md) | D.1 | Keep raw answers keyed by the request; re-runs are offline |
 | [database/bulk-upsert-with-unnest](database/bulk-upsert-with-unnest.md) | P5.2 | Columns as arrays, one statement for thousands of rows |

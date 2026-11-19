@@ -29,6 +29,8 @@ export const MAX_AUCTION_TITLE_LENGTH = 200;
 export const MIN_VAULT_QUESTIONS = 2;
 export const MAX_VAULT_QUESTIONS = 9;
 export const MAX_VAULT_QUESTION_LENGTH = 300;
+export const MIN_HEX_SIZE = 3;
+export const MAX_HEX_SIZE = 7;
 
 const checkText = (problems: string[], field: string, value: string, maxLength: number): void => {
   if (value.trim() === '') problems.push(`${field} is empty`);
@@ -199,6 +201,46 @@ function findGameShapeProblems(content: GameContent): string[] {
       });
       if (answers.some((answer) => answer.slot < 0 || answer.slot >= AUCTION_LISTS_PER_ROUND)) {
         problems.push(`auction answer slots must be 0 to ${AUCTION_LISTS_PER_ROUND - 1}`);
+      }
+      break;
+    }
+    case 'HEX': {
+      if (!Number.isInteger(body.size) || body.size < MIN_HEX_SIZE || body.size > MAX_HEX_SIZE) {
+        problems.push(`a hex board is ${MIN_HEX_SIZE} to ${MAX_HEX_SIZE} cells wide`);
+        break;
+      }
+      if (body.cells.length !== body.size * body.size)
+        problems.push(`a hex board of size ${body.size} has ${body.size ** 2} cells`);
+      const perCell = body.cells[0]?.questions.length ?? 0;
+      const locales = Object.keys(body.cells[0]?.letter ?? {})
+        .sort()
+        .join();
+      body.cells.forEach((cell, index) => {
+        if (cell.questions.length === 0 || cell.questions.length !== perCell) {
+          problems.push(`hex cell ${index + 1} must have ${perCell || 'at least one'} questions, like cell 1`);
+        }
+        if (Object.keys(cell.letter).sort().join() !== locales) {
+          problems.push(`hex cell ${index + 1} must have a letter in exactly the locales of cell 1`);
+        }
+        for (const [locale, letter] of Object.entries(cell.letter)) {
+          if ([...letter].length !== 1) problems.push(`hex cell ${index + 1} ${locale} letter must be one character`);
+        }
+        cell.questions.forEach((question, questionIndex) => {
+          for (const [locale, title] of Object.entries(question.title)) {
+            checkText(
+              problems,
+              `hex cell ${index + 1} question ${questionIndex + 1} ${locale} title`,
+              title,
+              MAX_AUCTION_TITLE_LENGTH,
+            );
+          }
+          const slot = index * perCell + questionIndex;
+          const answer = answers.find((candidate) => candidate.slot === slot);
+          if (!answer || answer.entities.length === 0) problems.push(`hex slot ${slot} has no names`);
+        });
+      });
+      if (answers.some((answer) => answer.slot < 0 || answer.slot >= body.cells.length * perCell)) {
+        problems.push(`hex answer slots must be 0 to ${body.cells.length * perCell - 1}`);
       }
       break;
     }

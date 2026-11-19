@@ -705,9 +705,9 @@ stateDiagram-v2
    - Nobody right by `answerDeadlineAt`: the cell stays open and moves to its next question, so a later pick of it asks something new.
 5. **Next pick:** the turn alternates after every race, whoever took the cell (DEC-79).
 6. **"شيلها" (clear):** once per battle (`clear.usesPerBattle`), on your pick you may send `hex:pick { cell, clear: true }` for one of the opponent's cells. It becomes open with its next question, and that question is raced at once.
-7. **Board end:** a taken cell that links its owner's two sides ends the board (`CONNECTED`, `points.boardWin`). If `maxPicks` picks pass first, the board ends with no winner (DEC-79), so a board of open cells nobody can answer does not run forever.
+7. **Board end:** a taken cell that links its owner's two sides ends the board (`CONNECTED`, `points.boardWin`). If `maxPicks` picks pass first, the board ends with no winner (DEC-79; reveal outcome `MAX_PICKS`, round end reason `MAX_TURNS`), so a board of open cells nobody can answer does not run forever. `clearsLeft` is handed to the next board with the round's `carryOver`.
 8. **Battle:** `roundCount` boards with `targetScore` (DEC-79: one board, about 4 minutes). With several boards, `firstMoverAfterRound1` decides who picks first and plays `WEST_EAST`.
-9. **Reveal:** at the end of every race, the question's other right names for that letter (both languages); at the end of the board, the winning path.
+9. **Reveal:** at the end of every race, up to 5 other right names for each viewer's letter (a name counts when one of its words starts with the letter; aliases are not loaded for this); at the end of the board, the winning path and the owners.
 10. **Players:** exactly 2.
 
 ### 13.2 Letters in two languages
@@ -749,12 +749,13 @@ Generator (`kb bundle --hexes N`, 07 §5.8):
 - **A board:** `size²` cells. Letter pairs are drawn from letters with enough lists in both languages; a letter repeats only when the board needs more cells than there are such letters (each at most `--hex-max-letter-repeats`, default 2). Each cell gets `--hex-questions-per-cell` (default 3) lists with at least `--hex-min-answers` (default 1) right names for both of its letters; a list appears once per board.
 - **Difficulty:** from the known share of the right names for each cell's letters.
 - **Keys:** a board, `hex:` plus a hash of its cell list keys and letters.
+- **Built 2026-11-20:** `kb bundle --hexes 30` gives 30 boards (difficulty 2 mostly: the AUCTION lists are well known), each a list used at most once; the 60% known-players rule and the both-letters rule leave every common letter with dozens of lists. Board letters include `x` and `z` in English (Xavi, Xabi, Zidane), which pass the 20-list bar.
 - **Measured on 2026-11-20 (dev):** 1,026 lists after the AUCTION filters. Arabic letters that start a name in at least 20 lists: 23 (`ا م ك د ج ف ب ر ل س ت ي ن خ غ ه و ش ع ز ص ح ث`; never `ط ق ض ظ ذ`), English: 22. About 8,500 list-and-letter questions per language. So a 25-cell board repeats two or three letters.
 
 ### 13.6 Bot
 
-- **Pick:** the open cell on the shortest path to joining its sides (a breadth-first search counting open cells), ties at random; it clears an opponent cell once, when that cell is on the opponent's shortest path and the opponent needs at most 2 more cells.
-- **Race:** it knows a right name with its chance at the question's difficulty; it answers with a right name for its letter after `typingDelayMs`, otherwise a wrong name or silence.
+- **Pick:** the first open cell of its own shortest path (`findShortestPathFor`: a 0-1 breadth-first search where its cells cost 0, open cells 1 and the opponent's are blocked); it clears an opponent cell once, when that cell is on the opponent's shortest path and the opponent needs at most 2 more open cells (a runner constant). On a 3×3 board that is almost at once.
+- **Race:** it knows a right name with its chance at the question's difficulty; it answers with a right name for its letter after `typingDelayMs`, otherwise it stays silent.
 
 ### 13.7 Configuration
 
@@ -762,7 +763,7 @@ Generator (`kb bundle --hexes N`, 07 §5.8):
 |---|---|---|
 | `roundCount`, `targetScore` | 1, 1 | DEC-79 |
 | `firstMover`, `firstMoverAfterRound1`, `rps.*` | `RPS`, `ALTERNATE` | §9.1 |
-| `size` | 5 | owner, 2026-11-18 (content carries it; must match) |
+| Board size | 5, from the content (the generator's `size`) | owner, 2026-11-18 (content, not config) |
 | `pickMs`, `answerMs` | 5000, 15000 | owner, 2026-11-18 |
 | `lockoutMs` | `[3000]` | owner, 2026-11-18 |
 | `clear.usesPerBattle` | 1 | owner, 2026-11-18 |

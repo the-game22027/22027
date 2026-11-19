@@ -27,7 +27,12 @@ export type EngineGameBody =
   | { gameType: 'GRID'; rows: EngineGridCriterion[]; cols: EngineGridCriterion[] }
   | { gameType: 'MINES'; criteria: EngineMinesCriterion[] }
   | { gameType: 'AUCTION'; lists: { kind: string; title: LocalizedText }[] }
-  | { gameType: 'VAULT'; questions: { template: string; text: LocalizedText; answerNumber: number }[] };
+  | { gameType: 'VAULT'; questions: { template: string; text: LocalizedText; answerNumber: number }[] }
+  | {
+      gameType: 'HEX';
+      size: number;
+      cells: { letter: LocalizedText; questions: { kind: string; title: LocalizedText }[] }[];
+    };
 
 /** Everything the engine needs to play one round. Server side only: never sent to a client as is. */
 export interface EngineContent {
@@ -46,6 +51,7 @@ export function listEntityReferencesOfBody(body: GameBody): string[] {
     case 'BUZZER':
     case 'AUCTION':
     case 'VAULT':
+    case 'HEX':
       return [];
     case 'CAREER':
       return [body.player, ...body.spells.map((spell) => spell.club)];
@@ -117,6 +123,18 @@ export function toEngineBody(
       return {
         gameType: 'AUCTION',
         lists: body.lists.map((list) => ({ kind: list.kind, title: keepLocales(list.title, locales) })),
+      };
+    case 'HEX':
+      return {
+        gameType: 'HEX',
+        size: body.size,
+        cells: body.cells.map((cell) => ({
+          letter: keepLocales(cell.letter, locales),
+          questions: cell.questions.map((question) => ({
+            kind: question.kind,
+            title: keepLocales(question.title, locales),
+          })),
+        })),
       };
     case 'VAULT':
       return {

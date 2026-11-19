@@ -28,6 +28,7 @@ import {
   readyCommand,
   resyncCommand,
   vaultTryCommand,
+  hexPickCommand,
   rockPaperScissorsPickCommand,
   timeSyncCommand,
 } from './battle-commands';
@@ -229,6 +230,35 @@ export class BattlesGateway
       socket.id,
       command.roundNo,
       auctionCommand,
+      command.clientMsgId,
+    );
+  }
+
+  @SubscribeMessage('hex:pick')
+  pickHexCell(socket: Socket, body: unknown): Promise<Ack> {
+    return this.withPayload(hexPickCommand, body, (command) =>
+      this.sendHex(socket, command, { type: 'HEX_PICK', cell: command.cell, clear: command.clear ?? false }),
+    );
+  }
+
+  @SubscribeMessage('hex:answer')
+  answerInHex(socket: Socket, body: unknown): Promise<Ack> {
+    return this.withPayload(minesTextCommand, body, (command) =>
+      this.sendHex(socket, command, { type: 'HEX_ANSWER', answer: { text: command.answer.text } }),
+    );
+  }
+
+  private sendHex(
+    socket: Socket,
+    command: { battleId: string; roundNo: number; clientMsgId: string },
+    hexCommand: Parameters<BattleEngine['sendHexCommand']>[4],
+  ): Promise<Ack> {
+    return this.engine.sendHexCommand(
+      command.battleId,
+      userIdOf(socket),
+      socket.id,
+      command.roundNo,
+      hexCommand,
       command.clientMsgId,
     );
   }

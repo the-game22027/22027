@@ -92,6 +92,40 @@ describe('game content shape', () => {
     expect(localesOfQuestion(auction().content)).toEqual(['ar', 'en']);
   });
 
+  it('accepts a hex board of size² cells with a letter pair and the same number of questions each', () => {
+    const cell = (letter = { en: 'm', ar: 'م' }, questions = 2) => ({
+      letter,
+      questions: Array.from({ length: questions }, (_, index) => ({
+        kind: 'SCORERS',
+        title: { en: `list ${String(index)}`, ar: `قائمة ${String(index)}` },
+      })),
+    });
+    const hex = (cells = Array.from({ length: 9 }, () => cell()), size = 3, slots = 18) =>
+      question({
+        body: { gameType: 'HEX', size, cells },
+        answers: Array.from({ length: slots }, (_, slot) => ({ slot, entities: ['wd:ronaldo'] })),
+      });
+    expect(problemsOf(hex())).toBe('');
+    expect(problemsOf(hex(undefined, 2))).toContain('a hex board is 3 to 7 cells wide');
+    expect(
+      problemsOf(
+        hex(
+          Array.from({ length: 8 }, () => cell()),
+          3,
+          16,
+        ),
+      ),
+    ).toContain('a hex board of size 3 has 9 cells');
+    expect(problemsOf(hex([...Array.from({ length: 8 }, () => cell()), cell(undefined, 1)], 3, 17))).toContain(
+      'hex cell 9 must have 2 questions, like cell 1',
+    );
+    expect(problemsOf(hex([...Array.from({ length: 8 }, () => cell()), cell({ en: 'mo', ar: 'م' })]))).toContain(
+      'hex cell 9 en letter must be one character',
+    );
+    expect(problemsOf(hex(undefined, 3, 17))).toContain('hex slot 17 has no names');
+    expect(localesOfQuestion(hex().content)).toEqual(['ar', 'en']);
+  });
+
   it('accepts a vault of digit questions with no answer slots', () => {
     const digit = (answerNumber: number, text: Record<string, string> = { en: 'How many?', ar: 'كم؟' }) => ({
       template: 'TEAM_GOALS',

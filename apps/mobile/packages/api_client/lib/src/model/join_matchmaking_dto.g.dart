@@ -85,6 +85,7 @@ const _$JoinMatchmakingDtoGameTypeEnumEnumMap = {
   JoinMatchmakingDtoGameTypeEnum.MINES: 'MINES',
   JoinMatchmakingDtoGameTypeEnum.AUCTION: 'AUCTION',
   JoinMatchmakingDtoGameTypeEnum.VAULT: 'VAULT',
+  JoinMatchmakingDtoGameTypeEnum.HEX: 'HEX',
   JoinMatchmakingDtoGameTypeEnum.unknownDefaultOpenApi:
       'unknown_default_open_api',
 };

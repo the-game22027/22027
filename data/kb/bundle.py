@@ -21,6 +21,7 @@ from kb.generate import (
     who_is_player_round,
 )
 from kb.grids import grid_rounds
+from kb.hexes import hex_rounds, letter_lists
 from kb.mines import mines_rounds
 from kb.vaults import KNOCKOUT_STAGES, VaultMatch, vault_facts, vault_rounds
 
@@ -34,6 +35,7 @@ CATEGORIES = [
     {"slug": "mines", "names": {"en": "Mines", "ar": "لغم"}},
     {"slug": "auctions", "names": {"en": "Auctions", "ar": "المزاد"}},
     {"slug": "vaults", "names": {"en": "Vaults", "ar": "الخزنة"}},
+    {"slug": "hexes", "names": {"en": "Hex boards", "ar": "الهجمة"}},
 ]
 
 
@@ -67,6 +69,9 @@ def build_bundle(
     vault_count: int = 0,
     vault_min_player_sitelinks: int = 40,
     vault_max_per_template: int = 2,
+    hex_count: int = 0,
+    hex_questions_per_cell: int = 3,
+    hex_min_answers: int = 1,
 ) -> BundleSummary:
     catalog = {entry["externalRef"]: entry for entry in load_catalog_entries(connection)}
     kb_version = _kb_version(connection)
@@ -76,6 +81,10 @@ def build_bundle(
         if catalog.get(player.external_ref, {}).get("kind") == "PLAYER"
     ]
     club_names_of = _names_lookup(catalog, "CLUB")
+
+    def player_popularity_of(ref: str) -> int | None:
+        return catalog[ref]["popularity"] if catalog.get(ref, {}).get("kind") == "PLAYER" else None
+
     careers = [
         line
         for player in players
@@ -113,7 +122,7 @@ def build_bundle(
         )
         + auction_rounds(
             build_goal_lists(load_goal_rows(connection)) if auction_count else [],
-            lambda ref: catalog[ref]["popularity"] if catalog.get(ref, {}).get("kind") == "PLAYER" else None,
+            player_popularity_of,
             load_label_lookup(connection),
             kb_version,
             count=auction_count,
@@ -130,9 +139,7 @@ def build_bundle(
                     load_covered_international_editions(connection),
                     load_label_lookup(connection),
                     _names_lookup(catalog, "PLAYER"),
-                    lambda ref: (
-                        catalog[ref]["popularity"] if catalog.get(ref, {}).get("kind") == "PLAYER" else None
-                    ),
+                    player_popularity_of,
                     min_player_sitelinks=vault_min_player_sitelinks,
                 ),
                 kb_version,
@@ -140,6 +147,26 @@ def build_bundle(
                 max_per_template=vault_max_per_template,
             )
             if vault_count
+            else []
+        )
+        + (
+            hex_rounds(
+                letter_lists(
+                    build_goal_lists(load_goal_rows(connection)),
+                    player_popularity_of,
+                    load_label_lookup(connection),
+                    lambda ref, locale: [catalog[ref]["names"][locale], *catalog[ref]["aliases"][locale]],
+                    min_answers=auction_min_answers,
+                    max_answers=auction_max_answers,
+                    known_share=auction_known_share,
+                ),
+                player_popularity_of,
+                kb_version,
+                count=hex_count,
+                questions_per_cell=hex_questions_per_cell,
+                min_answers_per_letter=hex_min_answers,
+            )
+            if hex_count
             else []
         ),
         key=lambda line: line["externalKey"],
@@ -305,7 +332,7 @@ def _references_of_line(line: dict) -> set[str]:
         refs.add(content["player"])
     if line["gameType"] == "GRID":
         refs.update(criterion["entity"] for criterion in [*content["rows"], *content["cols"]])
-    # AUCTION titles and VAULT questions are text: nothing else to keep.
+    # AUCTION and HEX titles and VAULT questions are text: nothing else to keep.
     if line["gameType"] == "MINES":
         refs.update(criterion["entity"] for criterion in content["criteria"] if "entity" in criterion)
     return refs

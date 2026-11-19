@@ -19,6 +19,7 @@ import { type RandomSource, randomIntegerBetween } from '../domain/random-source
 import type {
   AuctionGameSettings,
   VaultGameSettings,
+  HexGameSettings,
   BattleConfigSnapshot,
   GridGameSettings,
   MinesGameSettings,
@@ -31,6 +32,7 @@ import type { ScheduledTimer, TimerScheduler } from './ports/timer-scheduler';
 import { GridRoundRunner } from './rounds/grid-round-runner';
 import { AuctionRoundRunner } from './rounds/auction-round-runner';
 import { VaultRoundRunner } from './rounds/vault-round-runner';
+import { HexRoundRunner } from './rounds/hex-round-runner';
 import { MinesRoundRunner } from './rounds/mines-round-runner';
 import { RevealRoundRunner } from './rounds/reveal-round-runner';
 import type {
@@ -530,6 +532,9 @@ export class LiveBattle {
           latencyGraceMs,
           host,
         );
+        break;
+      case 'HEX':
+        this.runner = new HexRoundRunner(roundNo, content, this.config.game as HexGameSettings, latencyGraceMs, host);
         break;
       case 'VAULT':
         this.runner = new VaultRoundRunner(
