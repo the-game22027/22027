@@ -50,6 +50,22 @@ const grid = () =>
 const problemsOf = (q: GameQuestion) => findQuestionProblems(q, CATEGORIES).join('\n');
 
 describe('game content shape', () => {
+  it('accepts a mines category of a club plus a citizenship or a decade, with one slot of players', () => {
+    const mines = (second: object, entities = ['wd:ronaldo', 'wd:nani']) =>
+      question({
+        body: { gameType: 'MINES', criteria: [{ kind: 'CLUB', entity: 'wd:united' }, second] } as GameContent['body'],
+        answers: [{ slot: 0, entities }],
+      });
+    expect(problemsOf(mines({ kind: 'NATIONALITY', entity: 'wd:portugal' }))).toBe('');
+    expect(problemsOf(mines({ kind: 'DECADE', fromYear: 2000 }))).toBe('');
+    expect(problemsOf(mines({ kind: 'DECADE', fromYear: 2005 }))).toContain(
+      'a DECADE criterion starts at a year ending in 0',
+    );
+    expect(problemsOf(mines({ kind: 'CLUB', entity: 'wd:city' }))).toContain('a mines category is a CLUB criterion');
+    expect(problemsOf(mines({ kind: 'DECADE', fromYear: 2000 }, []))).toContain('exactly one slot 0');
+    expect(localesOfQuestion(mines({ kind: 'DECADE', fromYear: 2000 }).content)).toEqual(['ar', 'en']);
+  });
+
   it('accepts a valid buzzer, career and grid', () => {
     expect([buzzer(), career(), grid()].map((q) => findQuestionProblems(q, CATEGORIES))).toEqual([[], [], []]);
   });

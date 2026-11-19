@@ -12,7 +12,15 @@ import { QuestionBankCliModule } from '../../src/modules/question-bank/question-
 import { CoreModule } from '../../src/shared/infrastructure/core.module';
 import { PrismaService } from '../../src/shared/infrastructure/persistence';
 import { writeBattleConfigFile } from '../support/battle-config';
-import { bundle, buzzerLine, careerLine, entitySet, gridFixture, whoLine } from '../support/question-bundles';
+import {
+  bundle,
+  buzzerLine,
+  careerLine,
+  entitySet,
+  gridFixture,
+  minesFixture,
+  whoLine,
+} from '../support/question-bundles';
 import { devSignIn } from '../support/sign-in';
 import { createApiTestApp, testConfig } from '../support/test-app';
 
@@ -44,7 +52,7 @@ function writeBattleConfig(bot: { knows: number; guess: number }, botFallbackAft
         typingDelayMs: { min: 20, max: 20 },
       },
     };
-    const { GRID: grid, ...revealGames } = config.gameTypes;
+    const { GRID: grid, MINES: mines, ...revealGames } = config.gameTypes;
     if (grid) {
       Object.assign(grid, {
         roundCount: 1,
@@ -52,6 +60,16 @@ function writeBattleConfig(bot: { knows: number; guess: number }, botFallbackAft
         maxTurns: 20,
         minAnswersPerCell: 1,
         // The bot picks late enough for a second pick of ours to reach the open attempt.
+        rps: { pickMs: 600, maxReplays: 2, revealMs: 50, botPickDelayMs: { min: 200, max: 200 } },
+      });
+    }
+    if (mines) {
+      Object.assign(mines, {
+        roundCount: 1,
+        burying: { minesPerPlayer: 2, ms: 3_000, maxWrongTries: 2 },
+        turnMs: 700,
+        hearts: 2,
+        detector: { usesPerBattle: 1, costMs: 100 },
         rps: { pickMs: 600, maxReplays: 2, revealMs: 50, botPickDelayMs: { min: 200, max: 200 } },
       });
     }
@@ -71,6 +89,7 @@ function writeBattleConfig(bot: { knows: number; guess: number }, botFallbackAft
 describe('battles over WebSocket (e2e)', () => {
   const e = entitySet();
   const grid = gridFixture();
+  const mines = minesFixture();
   const gridPlayerIds: string[] = [];
   let spainId: string;
   let naniId: string;
@@ -99,8 +118,9 @@ describe('battles over WebSocket (e2e)', () => {
             whoLine(`test:${randomUUID()}`, e),
             whoLine(`test:${randomUUID()}`, e),
             grid.line(`test:${randomUUID()}`),
+            mines.line(`test:${randomUUID()}`),
           ],
-          [...Object.values(e), ...grid.entities],
+          [...Object.values(e), ...grid.entities, ...mines.entities],
         ),
       );
     await moduleRef.get(QuestionBankFacade).publishQuestionsOfBundle(version);
@@ -410,6 +430,101 @@ describe('battles over WebSocket (e2e)', () => {
         { row: 0, col: 1 },
         { row: 0, col: 2 },
       ]);
+      expect((await player.waitFor('battle:completed')).data).toMatchObject({ you: { outcome: 'WIN' } });
+    });
+
+    it('plays MINES: burying in secret, own mine refused, the detector, an explosion, and the bot runs out of hearts', async () => {
+      const player = await connectPlayer();
+      await player.send('matchmaking:join', { gameType: 'MINES' });
+      const found = await player.waitFor('battle:found');
+      const battleId = found.battleId as string;
+      const me = found.data['youParticipantId'] as string;
+      await player.send('battle:ready', { battleId });
+      for (let attempt = 1; ; attempt += 1) {
+        await player.waitFor('battle:rps-start', (event) => event.data['attempt'] === attempt);
+        await player.send('battle:rps-pick', { battleId, attempt, choice: 'ROCK' });
+        const result = await player.waitFor('battle:rps-result', (event) => event.data['attempt'] === attempt);
+        if (result.data['winnerId'] !== null) break;
+      }
+
+      const start = await player.waitFor('round:start');
+      expect(start.data).toMatchObject({ gameType: 'MINES', answerCount: 8, minesPerPlayer: 2, hearts: 2 });
+      expect((start.data['criteria'] as { entity: { name: string } }[]).map((c) => c.entity.name)).toEqual([
+        mines.entities[0]?.names.ar,
+        mines.entities[1]?.names.ar,
+      ]);
+      const nameOf = (index: number) => mines.players[index]?.names.en ?? '';
+      const send = (event: string, text: string) => player.send(event, { battleId, roundNo: 1, answer: { text } });
+
+      // The bot buries first (after its typing delay); we read its mines from the database and bury others,
+      // so the two sets never overlap and an explosion is always possible.
+      const entityIds = await Promise.all(
+        mines.players.map(
+          async (p) =>
+            (await player.prisma().answerEntity.findUniqueOrThrow({ where: { externalRef: p.externalRef } })).id,
+        ),
+      );
+      let botMineIndexes: number[] = [];
+      for (const deadline = Date.now() + 2_000; botMineIndexes.length < 2 && Date.now() < deadline;) {
+        const botBuries = await player.prisma().battleRoundAction.findMany({
+          where: { battleId, kind: 'MINE_BURY', NOT: { participantId: me } },
+        });
+        botMineIndexes = botBuries.map((action) => entityIds.indexOf(action.entityId ?? ''));
+        if (botMineIndexes.length < 2) await new Promise((resolve) => setTimeout(resolve, 20));
+      }
+      expect(botMineIndexes).toHaveLength(2);
+      const botMineIds = botMineIndexes.map((index) => entityIds[index]);
+      const [myFirst, mySecond, safeIndex] = [0, 1, 2, 3, 4, 5, 6, 7].filter(
+        (index) => !botMineIndexes.includes(index),
+      );
+
+      expect(await send('mines:bury', 'nobody at all')).toMatchObject({ accepted: false, code: 'NOT_IN_CATEGORY' });
+      const buried = await send('mines:bury', nameOf(myFirst ?? 0));
+      expect(buried).toMatchObject({ accepted: true, data: { mines: [{ auto: false }], wrongTriesLeft: 1 } });
+      expect(await send('mines:bury', nameOf(myFirst ?? 0))).toMatchObject({ accepted: false, code: 'ALREADY_BURIED' });
+      expect(await send('mines:bury', nameOf(mySecond ?? 0))).toMatchObject({ accepted: true });
+
+      const firstTurn = await player.waitFor('mines:turn', (event) => event.data['turnNo'] === 1);
+      expect((firstTurn.data['yourMines'] as { player: { name: string } }[]).map((mine) => mine.player.name)).toEqual([
+        mines.players[myFirst ?? 0]?.names.ar,
+        mines.players[mySecond ?? 0]?.names.ar,
+      ]);
+      const beforeExplosion = JSON.stringify(player.events);
+      for (const id of botMineIds) expect(beforeExplosion).not.toContain(id);
+
+      const handled = new Set<number>();
+      const myTurn = async () => {
+        const turn = await player.waitFor(
+          'mines:turn',
+          (event) => event.data['participantId'] === me && !handled.has(event.seq ?? 0),
+        );
+        handled.add(turn.seq ?? 0);
+      };
+      await myTurn();
+      expect(await send('mines:answer', nameOf(myFirst ?? 0))).toMatchObject({ accepted: false, code: 'OWN_MINE' });
+      expect(await send('mines:scan', nameOf(botMineIndexes[0] ?? 0))).toMatchObject({ accepted: true });
+      expect((await player.waitFor('mines:scanned')).data).toMatchObject({ participantId: me, result: 'MINE' });
+      expect(await send('mines:scan', nameOf(safeIndex ?? 0))).toMatchObject({
+        accepted: false,
+        code: 'NO_DETECTOR_LEFT',
+      });
+      expect(await send('mines:answer', nameOf(botMineIndexes[0] ?? 0))).toMatchObject({ accepted: true });
+      const boom = await player.waitFor('mines:answered', (event) => event.data['participantId'] === me);
+      expect(boom.data).toMatchObject({ outcome: 'MINE', player: { entityId: botMineIds[0] } });
+      expect(boom.data['buriedBy']).not.toBe(me);
+
+      // When the bot moved first, its second timeout already ended the round.
+      if (firstTurn.data['participantId'] === me) {
+        await myTurn();
+        expect(await send('mines:answer', nameOf(safeIndex ?? 0))).toMatchObject({ accepted: true });
+      }
+      const result = await player.waitFor('round:result');
+      expect(result.data['winnerParticipantIds']).toEqual([me]);
+      const reveal = result.data['reveal'] as { reason: string; mines: { participantId: string; mines: unknown[] }[] };
+      expect(reveal.reason).toBe('LAST_HEART');
+      expect(reveal.mines.find((entry) => entry.participantId !== me)?.mines).toContainEqual(
+        expect.objectContaining({ player: expect.objectContaining({ entityId: botMineIds[0] }), exploded: true }),
+      );
       expect((await player.waitFor('battle:completed')).data).toMatchObject({ you: { outcome: 'WIN' } });
     });
 

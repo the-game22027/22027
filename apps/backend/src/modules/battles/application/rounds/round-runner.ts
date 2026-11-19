@@ -14,7 +14,13 @@ export type PlayerCommand =
   | { type: 'BUZZ' }
   | { type: 'ANSWER'; answer: PlayerAnswer | BotAnswer }
   | { type: 'GRID_CLAIM'; cell: number; answer: { text: string } | BotAnswer }
-  | { type: 'GRID_SKIP' };
+  | { type: 'GRID_SKIP' }
+  | { type: 'MINE_BURY'; answer: { text: string } | BotAnswer }
+  | { type: 'MINE_ANSWER'; answer: { text: string } | BotAnswer }
+  | { type: 'MINE_SCAN'; answer: { text: string } };
+
+/** null when accepted, a string for the ack's error code, or an accepted ack that carries data (08 §10.3). */
+export type RoundCommandOutcome = string | null | { accepted: true; data: Record<string, unknown> };
 
 export type ViewerData = (viewer: LiveParticipant) => Record<string, unknown>;
 
@@ -23,6 +29,8 @@ export interface RoundHost {
   readonly gameType: string;
   /** Who moves first in this round (08 §9.1); null when the game type has no first mover. */
   readonly firstMoverId: ParticipantId | null;
+  /** What the previous round of this battle handed on (`RoundResult.carryOver`); undefined in round 1. */
+  readonly carryOver: unknown;
   readonly random: RandomSource;
   readonly checker: AnswerChecker;
   readonly catalog: AnswerCatalogQuery;
@@ -42,8 +50,7 @@ export interface RoundHost {
 export interface RoundRunner {
   readonly roundNo: number;
   start(): Promise<void>;
-  /** null when accepted, otherwise the ack's error code. */
-  handleCommand(from: ParticipantId, command: PlayerCommand): Promise<string | null>;
+  handleCommand(from: ParticipantId, command: PlayerCommand): Promise<RoundCommandOutcome>;
   participantLeft(who: ParticipantId): Promise<void>;
   snapshotFor(viewer: LiveParticipant): Record<string, unknown>;
 }

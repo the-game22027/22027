@@ -389,7 +389,7 @@ stateDiagram-v2
 
 ### 10.2 Hidden information
 
-- A live mine reaches only the player who buried it (`mines:buried`, their snapshot) until it explodes or the round ends.
+- A live mine reaches only the player who buried it (the `mines:bury` ack, their own copy of the first `mines:turn`, their snapshot) until it explodes or the round ends. A private event would leave a `seq` gap for the other player and force a resync, so private results travel in acks or in per-viewer copies of a shared event.
 - No event tells the opponent how many mines you have buried so far, and a scan result goes only to the scanner.
 - The bot strategy never receives the human's mines; it can step on them like anyone.
 - Test (§9.3): render every event and snapshot of a round for the opponent and find no live mine's entity id or name.
@@ -398,12 +398,11 @@ stateDiagram-v2
 
 | Direction | Message | Purpose |
 |---|---|---|
-| C→S | `mines:bury { roundNo, answer: { text } }` | Bury one mine |
+| C→S | `mines:bury { roundNo, answer: { text } }` | Bury one mine; the ack carries your mines so far and `wrongTriesLeft` |
 | C→S | `mines:answer { roundNo, answer: { text } }` | Your turn's answer |
 | C→S | `mines:scan { roundNo, answer: { text } }` | Use the detector |
 | S→C | `round:start` | Category, `answerCount`, `minesPerPlayer`, `buryDeadlineAt` |
-| S→C | `mines:buried` | To the burier only: your mines so far, and the `auto` ones when the phase closes |
-| S→C | `mines:turn` | Whose turn, `turnDeadlineAt`, `turnNo` |
+| S→C | `mines:turn` | Whose turn, `turnDeadlineAt`, `turnNo`; the first one (burying closed) carries each viewer's own final mines, `auto` ones included |
 | S→C | `mines:answered` | Outcome, the player named (wrong text only with `showWrongAnswers`), who buried an exploded mine, hearts, `answersLeft`, `minesLeft` |
 | S→C | `mines:scanned` | Who scanned and the new deadline; `result` only for the scanner |
 | S→C | `round:result` | `reveal: { reason, mines, sampleAnswers }` |
@@ -416,7 +415,8 @@ stateDiagram-v2
 
 Generator (`kb bundle --mines N`, 07 §5.8):
 - **Category answers:** catalog players with a spell at the club and that citizenship, or with a dated spell at the club that overlaps `fromYear`..`fromYear + 9` (an open spell runs to today). Undated spells never count for a decade.
-- **Size:** kept only with `--mines-min-answers` to `--mines-max-answers` answers (default 20 to 40). Measured on 2026-11-17: about 124 club × nationality and 115 club × decade categories with 12–40 answers.
+- **Clubs:** only the `--mines-clubs` most popular clubs of the catalog (default 100), so players know the names. Without the limit most categories are small clubs nobody can name (1,076 categories, 764 of them difficulty 5).
+- **Size:** kept only with `--mines-min-answers` to `--mines-max-answers` answers (default 20 to 40). Measured on 2026-11-19: 123 categories (87 club × nationality, 36 club × decade; a big club has more than 40 players in a decade).
 - **Difficulty:** from the popularity of the category's answers (the median sitelinks band of §5.8): famous names make an easy round.
 - **Key:** `mines:<club qid>:nationality:<country qid>` or `mines:<club qid>:decade:<fromYear>`.
 - **Variety:** a club appears in at most a few categories of one bundle.
@@ -443,9 +443,10 @@ Generator (`kb bundle --mines N`, 07 §5.8):
 
 ### 10.7 How it fits the engine
 
-- **Rules:** pure `battles/domain/games/mines/mines-rules.ts`; `MinesRoundRunner` wraps them like `GridRoundRunner` (§2.4). The engine gets no `if (gameType === "MINES")`.
-- **Helpers (§9.2), written now:** `UsedAnswers` (entity ids said this round, `repeatCountsAsWrong`), `Hearts` (lives per player, `loseHeart`, `hasHeartsLeft`), `SecretChoices` (each player's hidden picks up to a count, `addChoice`, `fillMissingChoices` with the random source).
+- **Rules:** pure `battles/domain/games/mines-rules.ts`; `MinesRoundRunner` wraps them like `GridRoundRunner` (§2.4). The engine gets no `if (gameType === "MINES")`.
+- **Helpers (§9.2), in `battles/domain/games/shared/`:** `UsedAnswers` (entity ids said this round; for `MINES` a repeat always costs a heart, so no config), `Hearts` (`giveEveryoneHearts`, `loseHeart`, `hasHeartsLeft`), `SecretChoices` (`startSecretChoices`, `addSecretChoice`, `findSecretChoiceRejection`, `fillMissingSecretChoices` with the random source).
 - **Detector across rounds:** a round can hand opaque state to the next one (`carryOver` on the round result, given to the next runner). The engine stores it without reading it. `MINES` passes the detector uses left; `TIME_MACHINE` and `AUCTION` will need the same.
-- **Actions (`battle_round_actions.kind`):** `MINE_BURY` (entity, `auto` as `answer_match = 'AUTO'`), `MINE_ANSWER` (entity, outcome in `answer_match`), `MINE_SCAN`, `TURN_TIMEOUT`. `kind` is text, so no migration. Live mines are rebuilt from these actions on restart, like every other round state.
+- **Actions (`battle_round_actions.kind`):** `MINE_BURY` (the typed entity; `is_correct` = in the category), `MINE_AUTO_BURY`, `MINE_ANSWER` (`is_correct` = safe), `MINE_HIT` (stepped on a mine), `MINE_SCAN` (`is_correct` = a mine), `TURN_TIMEOUT`. `kind` is text, so no migration; question stats count a wrong `MINE_ANSWER` as a wrong answer.
+- **Acks with data:** a round command may return an accepted ack with `data` (`RoundCommandOutcome`); `mines:bury` uses it.
 - **Judging:** `AnswerChecker` with slot 0 as the accepted answers, as for a `GRID` cell.
-- **Snapshot `currentRound`:** `phase`, `buryDeadlineAt`, your mines (`exploded`, `auto`), the exploded mines of others, every said name with its outcome, hearts, the turn and its deadline, `detectorUsesLeft`, `answersLeft`, `minesLeft`.
+- **Snapshot `currentRound`:** `phase`, `buryDeadlineAt`, your mines (`exploded`, `auto`), `wrongTriesLeft`, the exploded mines of others, every said name with its outcome (names hidden as in `mines:answered`), hearts, the turn and its deadline, `detectorUsesLeft`, `answersLeft`, `minesLeft`.

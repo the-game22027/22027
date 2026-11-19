@@ -123,3 +123,31 @@ export const gridFixture = () => {
   });
   return { entities: [...clubs, ...countries, ...players], line, players };
 };
+
+/** A MINES category (08 §10.4): one club, one country and eight players who fit both. */
+export const minesFixture = () => {
+  const id = randomUUID().slice(0, 8);
+  const entity = (name: string, kind: string) => ({
+    externalRef: `test:mines-${name}-${id}`,
+    kind,
+    names: { en: `${name} ${id}`, ar: `${name} ${id}` },
+    aliases: { en: [], ar: [] },
+    popularity: 1,
+    search: [`${name} ${id}`],
+  });
+  const club = entity('club', 'CLUB');
+  const country = entity('land', 'COUNTRY');
+  const players = Array.from({ length: 8 }, (_, index) => entity(`miner-${String(index)}`, 'PLAYER'));
+  const line = (key: string) => ({
+    ...common(key),
+    gameType: 'MINES',
+    content: {
+      criteria: [
+        { kind: 'CLUB', entity: club.externalRef },
+        { kind: 'NATIONALITY', entity: country.externalRef },
+      ],
+    },
+    answers: [{ slot: 0, entities: players.map((player) => player.externalRef) }],
+  });
+  return { entities: [club, country, ...players], line, players };
+};

@@ -26,7 +26,7 @@ import { ACTIVITY_GUARD, type Activity, type ActivityGuard } from './ports/activ
 import { BATTLE_NOTIFIER, type BattleNotifier } from './ports/battle-notifier';
 import { BATTLE_REPOSITORY, type BattleRepository } from './ports/battle-repository';
 import { TIMER_SCHEDULER, type TimerScheduler } from './ports/timer-scheduler';
-import type { PlayerAnswer } from './rounds/round-runner';
+import type { PlayerAnswer, PlayerCommand } from './rounds/round-runner';
 
 export class NoPlayableContentError extends Error {
   constructor(gameType: GameType, locales: Locale[]) {
@@ -301,6 +301,20 @@ export class BattleEngine implements OnApplicationBootstrap, BeforeApplicationSh
   skipGridTurn(battleId: string, userId: string, socketId: string, roundNo: number, clientMsgId: string): Promise<Ack> {
     return this.withBattle(battleId, clientMsgId, (battle) =>
       battle.roundCommand(userId, socketId, roundNo, { type: 'GRID_SKIP' }, clientMsgId),
+    );
+  }
+
+  /** `mines:bury`, `mines:answer`, `mines:scan` (08 §10.3). */
+  sendMinesCommand(
+    battleId: string,
+    userId: string,
+    socketId: string,
+    roundNo: number,
+    command: Extract<PlayerCommand, { type: 'MINE_BURY' | 'MINE_ANSWER' | 'MINE_SCAN' }>,
+    clientMsgId: string,
+  ): Promise<Ack> {
+    return this.withBattle(battleId, clientMsgId, (battle) =>
+      battle.roundCommand(userId, socketId, roundNo, command, clientMsgId),
     );
   }
 

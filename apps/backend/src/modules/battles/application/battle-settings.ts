@@ -34,6 +34,22 @@ export interface GridGameSettings extends CommonGameSettings, Omit<GridConfig, '
   revealAnswersAtEnd: boolean;
 }
 
+/** The `MINES` section of the battle config (08 §10.6). */
+export interface MinesGameSettings extends CommonGameSettings {
+  burying: { minesPerPlayer: number; ms: number; maxWrongTries: number };
+  turnMs: number;
+  maxTurns: number;
+  hearts: number;
+  /** DEC-72. */
+  ownMine: 'REJECT' | 'COSTS_HEART';
+  /** DEC-75: uses per player for the whole battle, and the turn time one use costs. */
+  detector: { usesPerBattle: number; costMs: number };
+  /** How many unsaid players of the category the round result shows. */
+  revealAnswersAtEnd: number;
+  showWrongAnswers: boolean;
+  points: { roundWin: number; roundDraw: number; perSafeAnswer: number };
+}
+
 /** One reveal-and-buzz game type's section of the battle config (08 §6). */
 export interface RevealGameSettings extends CommonGameSettings, Omit<RevealAndBuzzConfig, 'latencyGraceMs'> {
   /** CAREER only: show the years of each spell (08 §3.1). */
@@ -50,10 +66,13 @@ export interface BattleSettings {
   bots: { profiles: Record<string, BotProfile> };
   /** How typed text is judged, for every game type (08 §5.3, DEC-55). */
   answers: TypedAnswerRules;
-  gameTypes: Partial<Record<RevealGameType, RevealGameSettings>> & { GRID?: GridGameSettings };
+  gameTypes: Partial<Record<RevealGameType, RevealGameSettings>> & {
+    GRID?: GridGameSettings;
+    MINES?: MinesGameSettings;
+  };
 }
 
-export type GameSettings = RevealGameSettings | GridGameSettings;
+export type GameSettings = RevealGameSettings | GridGameSettings | MinesGameSettings;
 
 /** The config of a game type, or undefined when it has none. */
 export function findGameSettings(settings: BattleSettings, gameType: string): GameSettings | undefined {

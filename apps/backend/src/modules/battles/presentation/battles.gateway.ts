@@ -21,6 +21,7 @@ import {
   gridSkipCommand,
   joinMatchmakingCommand,
   leaveMatchmakingCommand,
+  minesTextCommand,
   readyCommand,
   resyncCommand,
   rockPaperScissorsPickCommand,
@@ -154,6 +155,34 @@ export class BattlesGateway
   skipGridTurn(socket: Socket, body: unknown): Promise<Ack> {
     return this.withPayload(gridSkipCommand, body, (command) =>
       this.engine.skipGridTurn(command.battleId, userIdOf(socket), socket.id, command.roundNo, command.clientMsgId),
+    );
+  }
+
+  @SubscribeMessage('mines:bury')
+  buryMine(socket: Socket, body: unknown): Promise<Ack> {
+    return this.minesCommand(socket, body, 'MINE_BURY');
+  }
+
+  @SubscribeMessage('mines:answer')
+  answerMines(socket: Socket, body: unknown): Promise<Ack> {
+    return this.minesCommand(socket, body, 'MINE_ANSWER');
+  }
+
+  @SubscribeMessage('mines:scan')
+  scanForMine(socket: Socket, body: unknown): Promise<Ack> {
+    return this.minesCommand(socket, body, 'MINE_SCAN');
+  }
+
+  private minesCommand(socket: Socket, body: unknown, type: 'MINE_BURY' | 'MINE_ANSWER' | 'MINE_SCAN'): Promise<Ack> {
+    return this.withPayload(minesTextCommand, body, (command) =>
+      this.engine.sendMinesCommand(
+        command.battleId,
+        userIdOf(socket),
+        socket.id,
+        command.roundNo,
+        { type, answer: { text: command.answer.text } },
+        command.clientMsgId,
+      ),
     );
   }
 

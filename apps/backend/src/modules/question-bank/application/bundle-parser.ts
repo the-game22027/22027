@@ -63,10 +63,15 @@ const gridCriterion = z.strictObject({
   entity: externalRef,
 });
 
+const minesCriterion = z.union([
+  z.strictObject({ kind: z.enum(['CLUB', 'NATIONALITY']), entity: externalRef }),
+  z.strictObject({ kind: z.literal('DECADE'), fromYear: z.number().int() }),
+]);
+
 const gameLineSchema = z.strictObject({
   ...commonLineFields,
   type: z.literal('GAME'),
-  gameType: z.enum(['BUZZER', 'CAREER', 'WHO_IS_PLAYER', 'GRID']),
+  gameType: z.enum(['BUZZER', 'CAREER', 'WHO_IS_PLAYER', 'GRID', 'MINES']),
   content: z.record(z.string(), z.unknown()),
   answers: z.array(z.strictObject({ slot: z.number().int(), entities: z.array(externalRef) })).default([]),
 });
@@ -94,6 +99,7 @@ const gameBodySchemas = {
     clues: z.array(z.strictObject({ kind: nonEmpty, text: localizedText })),
   }),
   GRID: z.strictObject({ rows: z.array(gridCriterion), cols: z.array(gridCriterion) }),
+  MINES: z.strictObject({ criteria: z.array(minesCriterion) }),
 } as const;
 
 const catalogLineSchema = z.strictObject({
@@ -185,6 +191,10 @@ const toGameBody = (gameType: GameBody['gameType'], content: unknown): { body: G
     }
     case 'GRID': {
       const result = gameBodySchemas.GRID.safeParse(content);
+      return result.success ? { body: { gameType, ...result.data } } : { issues: describeIssues(result.error) };
+    }
+    case 'MINES': {
+      const result = gameBodySchemas.MINES.safeParse(content);
       return result.success ? { body: { gameType, ...result.data } } : { issues: describeIssues(result.error) };
     }
   }

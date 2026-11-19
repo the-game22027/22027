@@ -168,6 +168,115 @@ class GridRound extends CurrentRound {
   );
 }
 
+enum MinesPhase { burying, turns, closed }
+
+/// A name said in a `MINES` round; [player] is missing when the server hides it.
+class MinesSaidAnswer {
+  const MinesSaidAnswer({
+    required this.participantId,
+    required this.outcome,
+    this.player,
+  });
+
+  final String participantId;
+  final MinesAnswerOutcome outcome;
+  final EntityRef? player;
+}
+
+/// A mine that went off, and who buried it.
+class ExplodedMine {
+  const ExplodedMine({
+    required this.buriedByParticipantId,
+    required this.player,
+  });
+
+  final String buriedByParticipantId;
+  final EntityRef player;
+}
+
+/// A `MINES` round (`08` §10): secret burying, then turns with hearts.
+class MinesRound extends CurrentRound {
+  const MinesRound({
+    required int roundNo,
+    required this.criteria,
+    required this.answerCount,
+    required this.phase,
+    this.buryDeadlineAt,
+    this.yourMines = const [],
+    this.wrongTriesLeft,
+    this.explodedMines = const [],
+    this.saidAnswers = const [],
+    this.heartsByParticipant = const {},
+    this.answersLeft,
+    this.minesLeftByParticipant = const {},
+    this.turnParticipantId,
+    this.turnNo = 0,
+    this.turnDeadlineAt,
+    this.detectorUsesLeft,
+    this.lastScanResult,
+  }) : super(roundNo);
+
+  final List<MinesCriterion> criteria;
+  final int answerCount;
+  final MinesPhase phase;
+  final DateTime? buryDeadlineAt;
+
+  /// Only your own mines: the other player's stay on the server until they explode.
+  final List<MineRef> yourMines;
+
+  /// `null` until the server says (bury ack or snapshot).
+  final int? wrongTriesLeft;
+  final List<ExplodedMine> explodedMines;
+  final List<MinesSaidAnswer> saidAnswers;
+  final Map<String, int> heartsByParticipant;
+  final int? answersLeft;
+  final Map<String, int> minesLeftByParticipant;
+  final String? turnParticipantId;
+  final int turnNo;
+  final DateTime? turnDeadlineAt;
+
+  /// Your detector uses left; `null` until the server says (snapshot).
+  final int? detectorUsesLeft;
+
+  /// Your last detector answer in this round.
+  final MineScanResult? lastScanResult;
+
+  MinesRound copyWith({
+    MinesPhase? phase,
+    List<MineRef>? yourMines,
+    int? wrongTriesLeft,
+    List<ExplodedMine>? explodedMines,
+    List<MinesSaidAnswer>? saidAnswers,
+    Map<String, int>? heartsByParticipant,
+    int? answersLeft,
+    Map<String, int>? minesLeftByParticipant,
+    String? turnParticipantId,
+    int? turnNo,
+    DateTime? turnDeadlineAt,
+    int? detectorUsesLeft,
+    MineScanResult? lastScanResult,
+  }) => MinesRound(
+    roundNo: roundNo,
+    criteria: criteria,
+    answerCount: answerCount,
+    phase: phase ?? this.phase,
+    buryDeadlineAt: buryDeadlineAt,
+    yourMines: yourMines ?? this.yourMines,
+    wrongTriesLeft: wrongTriesLeft ?? this.wrongTriesLeft,
+    explodedMines: explodedMines ?? this.explodedMines,
+    saidAnswers: saidAnswers ?? this.saidAnswers,
+    heartsByParticipant: heartsByParticipant ?? this.heartsByParticipant,
+    answersLeft: answersLeft ?? this.answersLeft,
+    minesLeftByParticipant:
+        minesLeftByParticipant ?? this.minesLeftByParticipant,
+    turnParticipantId: turnParticipantId ?? this.turnParticipantId,
+    turnNo: turnNo ?? this.turnNo,
+    turnDeadlineAt: turnDeadlineAt ?? this.turnDeadlineAt,
+    detectorUsesLeft: detectorUsesLeft ?? this.detectorUsesLeft,
+    lastScanResult: lastScanResult ?? this.lastScanResult,
+  );
+}
+
 class BattleState {
   const BattleState({
     required this.battleId,
@@ -350,6 +459,85 @@ BattleState _applyInOrder(BattleState state, BattleServerEvent event) {
           rows: event.rows,
           cols: event.cols,
           turnParticipantId: event.firstTurnParticipantId,
+        ),
+      );
+    case MinesRoundStarted():
+      return state.copyWith(
+        phase: BattlePhase.inProgress,
+        firstMoverDuel: () => null,
+        firstMoverParticipantId: event.firstTurnParticipantId,
+        currentRound: () => MinesRound(
+          roundNo: event.roundNo,
+          criteria: event.criteria,
+          answerCount: event.answerCount,
+          phase: MinesPhase.burying,
+          buryDeadlineAt: event.buryDeadlineAt,
+          answersLeft: event.answerCount,
+          heartsByParticipant: {
+            for (final player in state.players)
+              if (!player.hasForfeited) player.participantId: event.hearts,
+          },
+          turnParticipantId: event.firstTurnParticipantId,
+        ),
+      );
+    case MinesTurnStarted() when round is MinesRound:
+      return state.copyWith(
+        currentRound: () => round.copyWith(
+          phase: MinesPhase.turns,
+          turnParticipantId: event.participantId,
+          turnNo: event.turnNo,
+          turnDeadlineAt: event.turnDeadlineAt,
+          yourMines: event.yourMines,
+        ),
+      );
+    case MinesAnswered() when round is MinesRound:
+      final player = event.player;
+      final buriedBy = event.buriedByParticipantId;
+      return state.copyWith(
+        currentRound: () => round.copyWith(
+          saidAnswers: [
+            ...round.saidAnswers,
+            MinesSaidAnswer(
+              participantId: event.participantId,
+              outcome: event.outcome,
+              player: player,
+            ),
+          ],
+          explodedMines:
+              event.outcome == MinesAnswerOutcome.mine &&
+                  player != null &&
+                  buriedBy != null
+              ? [
+                  ...round.explodedMines,
+                  ExplodedMine(buriedByParticipantId: buriedBy, player: player),
+                ]
+              : null,
+          yourMines: buriedBy == state.youParticipantId && player != null
+              ? [
+                  for (final mine in round.yourMines)
+                    mine.player.entityId == player.entityId
+                        ? MineRef(
+                            player: mine.player,
+                            wasBuriedByServer: mine.wasBuriedByServer,
+                            hasExploded: true,
+                          )
+                        : mine,
+                ]
+              : null,
+          heartsByParticipant: event.heartsByParticipant,
+          answersLeft: event.answersLeft,
+          minesLeftByParticipant: event.minesLeftByParticipant,
+        ),
+      );
+    case MinesScanned() when round is MinesRound:
+      final result = event.result;
+      return state.copyWith(
+        currentRound: () => round.copyWith(
+          turnDeadlineAt: event.turnDeadlineAt,
+          lastScanResult: result,
+          detectorUsesLeft: result != null && round.detectorUsesLeft != null
+              ? round.detectorUsesLeft! - 1
+              : null,
         ),
       );
     case ClueRevealed() when round is RevealRound:
@@ -546,6 +734,7 @@ CurrentRound? _readSnapshotRound(
   CurrentRound? previous,
 ) {
   final roundNo = round.readInt('roundNo');
+  if (round.json.containsKey('criteria')) return _readSnapshotMinesRound(round);
   if (round.json.containsKey('rows')) {
     final grid = GridRound(
       roundNo: roundNo,
@@ -582,5 +771,58 @@ CurrentRound? _readSnapshotRound(
     buzzHolderParticipantId: round.readOptionalString('buzzHolder'),
     answerDeadlineAt: deadlines?.readOptionalTimestamp('answerDeadlineAt'),
     lockedOutParticipantIds: round.readStringList('lockedOut').toSet(),
+  );
+}
+
+MinesRound _readSnapshotMinesRound(JsonObjectReader round) {
+  final deadlines = round.readOptionalObject('deadlines');
+  return MinesRound(
+    roundNo: round.readInt('roundNo'),
+    criteria: readMinesCriteria(round.readObjectList('criteria')),
+    answerCount: round.readInt('answerCount'),
+    phase: switch (round.readOptionalString('phase')) {
+      'TURNS' => MinesPhase.turns,
+      'CLOSED' => MinesPhase.closed,
+      _ => MinesPhase.burying,
+    },
+    buryDeadlineAt: round.readOptionalTimestamp('buryDeadlineAt'),
+    yourMines: round.json.containsKey('yourMines')
+        ? readMines(round.readObjectList('yourMines'))
+        : const [],
+    wrongTriesLeft: round.readOptionalInt('wrongTriesLeft'),
+    explodedMines: [
+      if (round.json.containsKey('exploded'))
+        for (final mine in round.readObjectList('exploded'))
+          ExplodedMine(
+            buriedByParticipantId: mine.readString('buriedBy'),
+            player: readEntityRef(mine.readObject('player')),
+          ),
+    ],
+    saidAnswers: [
+      if (round.json.containsKey('said'))
+        for (final said in round.readObjectList('said'))
+          MinesSaidAnswer(
+            participantId: said.readString('participantId'),
+            outcome: findMinesAnswerOutcomeByCode(said.readString('outcome')),
+            player: switch (said.readOptionalObject('player')) {
+              final player? => readEntityRef(player),
+              null => null,
+            },
+          ),
+    ],
+    heartsByParticipant: round.json.containsKey('hearts')
+        ? readCountsByParticipant(round.readObjectList('hearts'), 'hearts')
+        : const {},
+    answersLeft: round.readOptionalInt('answersLeft'),
+    minesLeftByParticipant: round.json.containsKey('minesLeft')
+        ? readCountsByParticipant(
+            round.readObjectList('minesLeft'),
+            'minesLeft',
+          )
+        : const {},
+    turnParticipantId: round.readOptionalString('turnOf'),
+    turnNo: round.readOptionalInt('turnNo') ?? 0,
+    turnDeadlineAt: deadlines?.readOptionalTimestamp('turnDeadlineAt'),
+    detectorUsesLeft: round.readOptionalInt('detectorUsesLeft'),
   );
 }

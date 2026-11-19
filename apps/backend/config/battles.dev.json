@@ -165,6 +165,45 @@
         "difficulties": null,
         "excludeLastBattles": 20
       }
+    },
+    "MINES": {
+      "enabled": true,
+      "roundCount": 1,
+      "firstMover": "RPS",
+      "firstMoverAfterRound1": "ALTERNATE",
+      "rps": {
+        "pickMs": 5000,
+        "maxReplays": 2,
+        "revealMs": 2000,
+        "botPickDelayMs": {
+          "min": 800,
+          "max": 2500
+        }
+      },
+      "burying": {
+        "minesPerPlayer": 3,
+        "ms": 20000,
+        "maxWrongTries": 3
+      },
+      "turnMs": 10000,
+      "maxTurns": 60,
+      "hearts": 3,
+      "ownMine": "REJECT",
+      "detector": {
+        "usesPerBattle": 1,
+        "costMs": 3000
+      },
+      "revealAnswersAtEnd": 5,
+      "showWrongAnswers": true,
+      "points": {
+        "roundWin": 3,
+        "roundDraw": 1,
+        "perSafeAnswer": 1
+      },
+      "selection": {
+        "difficulties": null,
+        "excludeLastBattles": 20
+      }
     }
   }
 }

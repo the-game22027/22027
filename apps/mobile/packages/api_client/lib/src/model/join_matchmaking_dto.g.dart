@@ -82,6 +82,7 @@ const _$JoinMatchmakingDtoGameTypeEnumEnumMap = {
   JoinMatchmakingDtoGameTypeEnum.CAREER: 'CAREER',
   JoinMatchmakingDtoGameTypeEnum.WHO_IS_PLAYER: 'WHO_IS_PLAYER',
   JoinMatchmakingDtoGameTypeEnum.GRID: 'GRID',
+  JoinMatchmakingDtoGameTypeEnum.MINES: 'MINES',
   JoinMatchmakingDtoGameTypeEnum.unknownDefaultOpenApi:
       'unknown_default_open_api',
 };

@@ -306,7 +306,8 @@
               "BUZZER",
               "CAREER",
               "WHO_IS_PLAYER",
-              "GRID"
+              "GRID",
+              "MINES"
             ],
             "type": "string"
           }
@@ -596,7 +597,8 @@
               "BUZZER",
               "CAREER",
               "WHO_IS_PLAYER",
-              "GRID"
+              "GRID",
+              "MINES"
             ],
             "type": "string"
           },

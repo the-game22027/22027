@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 import { type Locale, LOCALES } from '@shared/kernel';
 
-export const GAME_TYPES = ['BUZZER', 'CAREER', 'WHO_IS_PLAYER', 'GRID'] as const;
+export const GAME_TYPES = ['BUZZER', 'CAREER', 'WHO_IS_PLAYER', 'GRID', 'MINES'] as const;
 export type GameType = (typeof GAME_TYPES)[number];
 
 /** Kinds of answer catalog entities (08 §5). */
@@ -41,6 +41,9 @@ export interface GridCriterion {
   entity: string;
 }
 
+/** A MINES category: a club plus a citizenship or a decade (08 §10.4). */
+export type MinesCriterion = { kind: 'CLUB' | 'NATIONALITY'; entity: string } | { kind: 'DECADE'; fromYear: number };
+
 /** The game-specific part of a round (08 §4). Entities are referenced by catalog `externalRef`. */
 export type GameBody =
   | {
@@ -56,7 +59,8 @@ export type GameBody =
       spells: { club: string; fromYear: number; toYear: number | null; loan: boolean }[];
     }
   | { gameType: 'WHO_IS_PLAYER'; player: string; clues: { kind: string; text: LocalizedText }[] }
-  | { gameType: 'GRID'; rows: GridCriterion[]; cols: GridCriterion[] };
+  | { gameType: 'GRID'; rows: GridCriterion[]; cols: GridCriterion[] }
+  | { gameType: 'MINES'; criteria: MinesCriterion[] };
 
 /** Accepted answers of one slot: slot 0 for reveal games, 0..8 for grid cells (row * 3 + col). */
 export interface AnswerSlot {
@@ -93,7 +97,7 @@ export interface BundleQuestion {
 
 /**
  * The locales a question can be played in. Career and grid text is built from catalog names,
- * which always exist in every locale, so those games are available in all of them.
+ * which always exist in every locale, so those games (and mines) are available in all of them.
  */
 export function localesOfQuestion(content: QuestionContent): Locale[] {
   if (content.type === 'SINGLE_CHOICE') return (Object.keys(content.locales) as Locale[]).sort();
@@ -105,12 +109,13 @@ export function localesOfQuestion(content: QuestionContent): Locale[] {
       return (Object.keys(body.clues[0]?.text ?? {}) as Locale[]).sort();
     case 'CAREER':
     case 'GRID':
+    case 'MINES':
       return [...LOCALES].sort();
   }
 }
 
 /**
- * Plain text of a round in one locale, for moderation and reports. Career and grid rounds are built
+ * Plain text of a round in one locale, for moderation and reports. Career, grid and mines rounds are built
  * from catalog names at play time, so they have no text of their own.
  */
 export function summaryTextOfQuestion(content: QuestionContent, locale: Locale): string {
@@ -123,6 +128,7 @@ export function summaryTextOfQuestion(content: QuestionContent, locale: Locale):
       return body.clues.map((clue) => clue.text[locale] ?? '').join(' · ');
     case 'CAREER':
     case 'GRID':
+    case 'MINES':
       return '';
   }
 }

@@ -15,6 +15,7 @@ enum BattleGameType {
   CAREER
   WHO_IS_PLAYER
   GRID
+  MINES
 
   @@map("battle_game_type")
 }
