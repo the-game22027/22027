@@ -155,6 +155,26 @@ class BattleSessionController extends Notifier<BattleSessionState> {
   Future<BattleCommandResult> skipGridTurn() =>
       _sendRoundCommand('grid:skip', const {});
 
+  /// `auction:pick`: the picker chooses list 0, 1 or 2 (`08` §11.1).
+  Future<BattleCommandResult> pickAuctionList(int list) =>
+      _sendRoundCommand('auction:pick', {'list': list});
+
+  /// `auction:bid`: opens or raises. A bid of the whole list is the all-in; the server refuses
+  /// `BID_TOO_LOW` and `BID_TOO_HIGH`.
+  Future<BattleCommandResult> bidInAuction(int amount) =>
+      _sendRoundCommand('auction:bid', {'amount': amount});
+
+  /// `auction:call` ("اتفضل ورّيني"): the last bidder must now prove the bid.
+  Future<BattleCommandResult> callAuctionBid() =>
+      _sendRoundCommand('auction:call', const {});
+
+  /// `auction:answer`: a name during your proof or your steal. The verdict arrives as
+  /// `auction:answered`.
+  Future<BattleCommandResult> answerInAuction(String text) =>
+      _sendRoundCommand('auction:answer', {
+        'answer': {'text': text},
+      });
+
   /// `mines:bury`: buries one mine in secret (`08` §10.1). The ack carries your mines so far,
   /// which only you ever see; a name outside the category uses one of your wrong tries.
   Future<BattleCommandResult> buryMine(String text) async {

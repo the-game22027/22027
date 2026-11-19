@@ -195,6 +195,42 @@ void main() {
     expect(claim['answer'], {'text': 'زيدان'});
   });
 
+  test('auction commands name the current round', () async {
+    final container = await createContainer();
+    final controller = controllerOf(container);
+
+    await receiveBattleFound(container);
+    socket.receive(
+      'round:start',
+      battleEnvelope('round:start', 2, {
+        'roundNo': 1,
+        'gameType': 'AUCTION',
+        'lists': [
+          for (var i = 0; i < 3; i++)
+            {'title': 'list $i', 'answerCount': 6 + i},
+        ],
+        'pickerParticipantId': 'p-human',
+        'pickDeadlineAt': '2026-11-12T10:00:10.000Z',
+      }),
+    );
+    await pumpEventQueue();
+    await controller.pickAuctionList(2);
+    await controller.bidInAuction(5);
+    await controller.callAuctionBid();
+    await controller.answerInAuction('صلاح');
+
+    final lastFour = socket.sentCommands.reversed.take(4).toList().reversed;
+    expect(
+      [for (final (event, _) in lastFour) event],
+      ['auction:pick', 'auction:bid', 'auction:call', 'auction:answer'],
+    );
+    final payloads = [for (final (_, payload) in lastFour) payload];
+    expect(payloads[0]['list'], 2);
+    expect(payloads[1]['amount'], 5);
+    expect(payloads[3]['answer'], {'text': 'صلاح'});
+    expect(payloads.every((payload) => payload['roundNo'] == 1), isTrue);
+  });
+
   test(
     'a mine bury keeps the mines from the ack and counts wrong tries',
     () async {

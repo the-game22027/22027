@@ -2,7 +2,7 @@
 /// their envelope. Screens and the battle state reducer use these, never raw maps.
 library;
 
-enum GameType { buzzer, career, whoIsPlayer, grid, mines, unknown }
+enum GameType { buzzer, career, whoIsPlayer, grid, mines, auction, unknown }
 
 GameType findGameTypeByCode(String code) => switch (code) {
   'BUZZER' => GameType.buzzer,
@@ -10,6 +10,7 @@ GameType findGameTypeByCode(String code) => switch (code) {
   'WHO_IS_PLAYER' => GameType.whoIsPlayer,
   'GRID' => GameType.grid,
   'MINES' => GameType.mines,
+  'AUCTION' => GameType.auction,
   _ => GameType.unknown,
 };
 
@@ -19,6 +20,7 @@ String convertGameTypeToCode(GameType gameType) => switch (gameType) {
   GameType.whoIsPlayer => 'WHO_IS_PLAYER',
   GameType.grid => 'GRID',
   GameType.mines => 'MINES',
+  GameType.auction => 'AUCTION',
   GameType.unknown => throw ArgumentError('unknown game type has no code'),
 };
 
@@ -138,6 +140,22 @@ MinesAnswerOutcome findMinesAnswerOutcomeByCode(String code) => switch (code) {
 };
 
 enum MineScanResult { mine, clear }
+
+/// One AUCTION list offered at the start of a round (`08` §11): its title in the viewer's language.
+class AuctionListOffer {
+  const AuctionListOffer({required this.title, required this.answerCount});
+
+  final String title;
+
+  /// How many names the list has (DEC-76: shown).
+  final int answerCount;
+}
+
+enum AuctionAnswerPhase { proof, steal, unknown }
+
+enum AuctionAnswerOutcome { correct, wrong, repeated, unknown }
+
+enum AuctionProofReason { call, allIn, timeout, unknown }
 
 /// What the round expects: a name of one kind (`PLAYER`, `CLUB`, …), typed as text, or a
 /// number. Screens use it for the hint and the keyboard.
@@ -450,6 +468,162 @@ class MinesScanned extends BattleServerEvent {
   final String participantId;
   final DateTime turnDeadlineAt;
   final MineScanResult? result;
+}
+
+/// `round:start` of an `AUCTION` round: three lists to pick from (`08` §11.1).
+class AuctionRoundStarted extends BattleServerEvent {
+  const AuctionRoundStarted({
+    required super.serverTime,
+    required super.battleId,
+    required super.seq,
+    required this.roundNo,
+    required this.lists,
+    required this.pickerParticipantId,
+    required this.pickDeadlineAt,
+  });
+
+  final int roundNo;
+  final List<AuctionListOffer> lists;
+  final String pickerParticipantId;
+  final DateTime pickDeadlineAt;
+}
+
+/// `auction:picked`: the list this round plays.
+class AuctionListPicked extends BattleServerEvent {
+  const AuctionListPicked({
+    required super.serverTime,
+    required super.battleId,
+    required super.seq,
+    required this.roundNo,
+    required this.list,
+    required this.title,
+    required this.answerCount,
+    required this.wasPickedByServer,
+  });
+
+  final int roundNo;
+
+  /// 0, 1 or 2: the index in [AuctionRoundStarted.lists].
+  final int list;
+  final String title;
+  final int answerCount;
+
+  /// The picker ran out of time, so the server picked (`auto`).
+  final bool wasPickedByServer;
+}
+
+/// `auction:turn`: whose bidding turn it is.
+class AuctionTurnStarted extends BattleServerEvent {
+  const AuctionTurnStarted({
+    required super.serverTime,
+    required super.battleId,
+    required super.seq,
+    required this.roundNo,
+    required this.participantId,
+    required this.turnDeadlineAt,
+    this.currentBid,
+    this.currentBidderId,
+  });
+
+  final int roundNo;
+  final String participantId;
+  final DateTime turnDeadlineAt;
+
+  /// `null` before the opening bid.
+  final int? currentBid;
+  final String? currentBidderId;
+}
+
+/// `auction:bid`.
+class AuctionBidPlaced extends BattleServerEvent {
+  const AuctionBidPlaced({
+    required super.serverTime,
+    required super.battleId,
+    required super.seq,
+    required this.roundNo,
+    required this.participantId,
+    required this.amount,
+    required this.isAllIn,
+  });
+
+  final int roundNo;
+  final String participantId;
+  final int amount;
+
+  /// A bid of the whole list ("كله يا عم"): the proof starts at once.
+  final bool isAllIn;
+}
+
+/// `auction:proof`: the last bidder must now type that many names.
+class AuctionProofStarted extends BattleServerEvent {
+  const AuctionProofStarted({
+    required super.serverTime,
+    required super.battleId,
+    required super.seq,
+    required this.roundNo,
+    required this.proverParticipantId,
+    required this.amount,
+    required this.maxWrong,
+    required this.proofDeadlineAt,
+    required this.reason,
+  });
+
+  final int roundNo;
+  final String proverParticipantId;
+  final int amount;
+
+  /// Wrong or repeated names allowed before a bust.
+  final int maxWrong;
+  final DateTime proofDeadlineAt;
+  final AuctionProofReason reason;
+}
+
+/// `auction:answered`: a judged name during the proof or the steal.
+class AuctionAnswered extends BattleServerEvent {
+  const AuctionAnswered({
+    required super.serverTime,
+    required super.battleId,
+    required super.seq,
+    required this.roundNo,
+    required this.participantId,
+    required this.phase,
+    required this.outcome,
+    required this.found,
+    required this.strikes,
+    this.player,
+  });
+
+  final int roundNo;
+  final String participantId;
+  final AuctionAnswerPhase phase;
+  final AuctionAnswerOutcome outcome;
+
+  /// Missing for a wrong name when wrong answers are hidden.
+  final EntityRef? player;
+
+  /// Right names so far in this phase (the proof, or the steal).
+  final int found;
+  final int strikes;
+}
+
+/// `auction:steal`: the prover busted; the other player may steal the round.
+class AuctionStealStarted extends BattleServerEvent {
+  const AuctionStealStarted({
+    required super.serverTime,
+    required super.battleId,
+    required super.seq,
+    required this.roundNo,
+    required this.stealerParticipantId,
+    required this.names,
+    required this.stealDeadlineAt,
+  });
+
+  final int roundNo;
+  final String stealerParticipantId;
+
+  /// How many unsaid names the steal needs (DEC-76: 1).
+  final int names;
+  final DateTime stealDeadlineAt;
 }
 
 class ClueRevealed extends BattleServerEvent {
@@ -765,6 +939,17 @@ BattleServerEvent parseBattleServerEvent(String eventName, Object? payload) {
         decidedBy: data.readOptionalString('decidedBy'),
       );
     case 'round:start':
+      if (data.json.containsKey('lists')) {
+        return AuctionRoundStarted(
+          serverTime: serverTime,
+          battleId: id,
+          seq: sequence,
+          roundNo: data.readInt('roundNo'),
+          lists: readAuctionListOffers(data.readObjectList('lists')),
+          pickerParticipantId: data.readString('pickerParticipantId'),
+          pickDeadlineAt: data.readTimestamp('pickDeadlineAt'),
+        );
+      }
       if (data.json.containsKey('criteria')) {
         return MinesRoundStarted(
           serverTime: serverTime,
@@ -868,6 +1053,88 @@ BattleServerEvent parseBattleServerEvent(String eventName, Object? payload) {
         answer: answer == null ? null : _readEntityRef(answer),
         hasTimedOut: data.readBool('timedOut'),
         wasSkipped: data.readBool('skipped'),
+      );
+    case 'auction:picked':
+      return AuctionListPicked(
+        serverTime: serverTime,
+        battleId: id,
+        seq: sequence,
+        roundNo: data.readInt('roundNo'),
+        list: data.readInt('list'),
+        title: data.readString('title'),
+        answerCount: data.readInt('answerCount'),
+        wasPickedByServer: data.readBool('auto'),
+      );
+    case 'auction:turn':
+      return AuctionTurnStarted(
+        serverTime: serverTime,
+        battleId: id,
+        seq: sequence,
+        roundNo: data.readInt('roundNo'),
+        participantId: data.readString('participantId'),
+        turnDeadlineAt: data.readTimestamp('turnDeadlineAt'),
+        currentBid: data.readOptionalInt('currentBid'),
+        currentBidderId: data.readOptionalString('currentBidderId'),
+      );
+    case 'auction:bid':
+      return AuctionBidPlaced(
+        serverTime: serverTime,
+        battleId: id,
+        seq: sequence,
+        roundNo: data.readInt('roundNo'),
+        participantId: data.readString('participantId'),
+        amount: data.readInt('amount'),
+        isAllIn: data.readBool('allIn'),
+      );
+    case 'auction:proof':
+      return AuctionProofStarted(
+        serverTime: serverTime,
+        battleId: id,
+        seq: sequence,
+        roundNo: data.readInt('roundNo'),
+        proverParticipantId: data.readString('proverParticipantId'),
+        amount: data.readInt('amount'),
+        maxWrong: data.readInt('maxWrong'),
+        proofDeadlineAt: data.readTimestamp('proofDeadlineAt'),
+        reason: switch (data.readString('reason')) {
+          'CALL' => AuctionProofReason.call,
+          'ALL_IN' => AuctionProofReason.allIn,
+          'TIMEOUT' => AuctionProofReason.timeout,
+          _ => AuctionProofReason.unknown,
+        },
+      );
+    case 'auction:answered':
+      final answeredPlayer = data.readOptionalObject('player');
+      return AuctionAnswered(
+        serverTime: serverTime,
+        battleId: id,
+        seq: sequence,
+        roundNo: data.readInt('roundNo'),
+        participantId: data.readString('participantId'),
+        phase: switch (data.readString('phase')) {
+          'PROOF' => AuctionAnswerPhase.proof,
+          'STEAL' => AuctionAnswerPhase.steal,
+          _ => AuctionAnswerPhase.unknown,
+        },
+        outcome: switch (data.readString('outcome')) {
+          'CORRECT' => AuctionAnswerOutcome.correct,
+          'WRONG' => AuctionAnswerOutcome.wrong,
+          'REPEATED' => AuctionAnswerOutcome.repeated,
+          _ => AuctionAnswerOutcome.unknown,
+        },
+        player: answeredPlayer == null ? null : _readEntityRef(answeredPlayer),
+        found: data.readInt('found'),
+        strikes: data.readInt('strikes'),
+      );
+    case 'auction:steal':
+      return AuctionStealStarted(
+        serverTime: serverTime,
+        battleId: id,
+        seq: sequence,
+        roundNo: data.readInt('roundNo'),
+        stealerParticipantId: data.readString('stealerParticipantId'),
+        names: data.readInt('names'),
+        stealDeadlineAt: data.readTimestamp('stealDeadlineAt'),
       );
     case 'mines:turn':
       return MinesTurnStarted(
@@ -1048,6 +1315,14 @@ List<GridCriterion> readGridCriteria(List<JsonObjectReader> criteria) => [
         _ => GridCriterionKind.unknown,
       },
       entity: _readEntityRef(criterion.readObject('entity')),
+    ),
+];
+
+List<AuctionListOffer> readAuctionListOffers(List<JsonObjectReader> lists) => [
+  for (final list in lists)
+    AuctionListOffer(
+      title: list.readString('title'),
+      answerCount: list.readInt('answerCount'),
     ),
 ];
 
