@@ -55,6 +55,8 @@ enum JoinMatchmakingDtoGameTypeEnum {
   WHO_IS_PLAYER(r'WHO_IS_PLAYER'),
   @JsonValue(r'GRID')
   GRID(r'GRID'),
+  @JsonValue(r'MINES')
+  MINES(r'MINES'),
   @JsonValue(r'unknown_default_open_api')
   unknownDefaultOpenApi(r'unknown_default_open_api');
 
