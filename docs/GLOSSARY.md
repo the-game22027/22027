@@ -39,7 +39,7 @@
 | **Activity guard** | Redis `act:{userId}`: a user is in at most one of queue, room, battle |
 | **Placement** | Final rank inside a battle (1 = best; ties share). `outcome` (WIN/LOSS/DRAW) is derived from it |
 | **Score vs points (battles)** | `score` = in-game number players see; `points` = what goes to the ledger, computed per battle mode from the rule set (DEC-41) |
-| **Exposure window** | How far back a player's already-seen questions are excluded from new battles (DEC-44) |
+| **Seen question** | A question a player was shown in a battle (its round started). New battles skip seen questions while the bank has unseen ones, then repeat the ones seen longest ago (DEC-44) |
 | **Active socket** | The single socket allowed to send answers for a user in a battle |
 | **seq** | Per-battle monotonically increasing event number used to detect gaps |
 | **clientMsgId** | Client-generated UUID per command; used for duplicate detection and acks |

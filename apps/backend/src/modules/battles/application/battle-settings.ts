@@ -22,8 +22,8 @@ export interface FirstMoverSettings {
 interface CommonGameSettings extends FirstMoverSettings {
   enabled: boolean;
   roundCount: number;
-  /** DEC-44: content of a player's last `excludeLastBattles` battles is skipped while the bank allows it. */
-  selection: { difficulties: number[] | null; excludeLastBattles: number };
+  /** null = any difficulty. Seen questions are skipped by the engine, not by config (DEC-44). */
+  selection: { difficulties: number[] | null };
   /** The battle ends as soon as a score reaches this (08 §11.7); `roundCount` is then only the most rounds. */
   targetScore?: number | null;
 }

@@ -1,12 +1,12 @@
 # Picking random rows in SQL
 > `ORDER BY random() LIMIT n` gives n random rows that pass the filters, in one query.
 
-**Problem:** a battle needs, say, 7 rounds of published Career content in both players' languages, not seen recently. Loading every id into Node to shuffle them moves the whole table over the network for 7 rows.
+**Problem:** a battle needs, say, 7 rounds of published Career content in both players' languages, not seen before. Loading every id into Node to shuffle them moves the whole table over the network for 7 rows.
 
 **How:**
 - Put every rule in `WHERE`: status, game type, `available_locales @> $locales`, `valid_until > now()`, `NOT (id = ANY($excluded))`.
 - `ORDER BY random() LIMIT $count` shuffles only the rows that passed and keeps the first n.
-- Fewer rows than asked is an answer too: the bank is short, so the caller relaxes its exposure window and asks again.
+- Fewer rows than asked is an answer too: the bank is short, so the caller refills with the questions the players saw longest ago ([keep-array-order-with-ordinality](keep-array-order-with-ordinality.md)).
 
 **In our code:** `pickRandomContentIds` in [prisma-question-read.repository.ts](../../apps/backend/src/modules/question-bank/infrastructure/prisma-question-read.repository.ts).
 

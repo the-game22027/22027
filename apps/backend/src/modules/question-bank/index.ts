@@ -8,7 +8,11 @@ export { ContentSelector } from './application/content-selector';
 export { RoundContentQuery } from './application/round-content.query';
 export { AnswerChecker } from './application/answer-checker';
 export { AnswerCatalogQuery } from './application/answer-catalog.query';
-export type { CatalogEntityView, ContentSelectionCriteria } from './application/ports/question-read-repository';
+export type {
+  CatalogEntityView,
+  ContentFilter,
+  ContentSelectionCriteria,
+} from './application/ports/question-read-repository';
 export type { EngineContent, EngineGameBody } from './domain/engine-content';
 export type { TextMatch, TypedAnswerRules, TypedTextJudgement } from './domain/typed-text-judgement';
 export { convertToMatchingForm } from './domain/name-normalizer';

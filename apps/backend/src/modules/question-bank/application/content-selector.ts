@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { isSupportedLocale } from '@shared/kernel';
 import {
+  type ContentFilter,
   type ContentSelectionCriteria,
   QUESTION_READ_REPOSITORY,
   type QuestionReadRepository,
@@ -13,18 +14,26 @@ const isPositiveInteger = (value: number): boolean => Number.isInteger(value) &&
 export class ContentSelector {
   constructor(@Inject(QUESTION_READ_REPOSITORY) private readonly questions: QuestionReadRepository) {}
 
-  /**
-   * Up to `count` random content ids. Fewer means the bank is short: the caller relaxes its exposure
-   * window and asks again (DEC-44).
-   */
+  /** Up to `count` random content ids. Fewer means the bank is short (the caller refills, DEC-44). */
   async pickContentIds(criteria: ContentSelectionCriteria): Promise<string[]> {
-    const problem = findCriteriaProblem(criteria);
+    const problem = findFilterProblem(criteria);
     if (problem) throw new Error(`Invalid content selection criteria: ${problem}`);
     return this.questions.pickRandomContentIds(criteria);
   }
+
+  /**
+   * Up to `count` of the candidates that are still playable with this filter, in the candidates' order.
+   * `battles` passes the players' seen questions, longest ago first, to refill a short bank (DEC-44).
+   */
+  async pickContentIdsInGivenOrder(filter: ContentFilter, candidateContentIds: readonly string[]): Promise<string[]> {
+    const problem = findFilterProblem(filter);
+    if (problem) throw new Error(`Invalid content selection criteria: ${problem}`);
+    if (candidateContentIds.length === 0) return [];
+    return this.questions.pickMatchingContentIdsInGivenOrder(filter, candidateContentIds);
+  }
 }
 
-function findCriteriaProblem(criteria: ContentSelectionCriteria): string | undefined {
+function findFilterProblem(criteria: ContentFilter): string | undefined {
   if (!isPositiveInteger(criteria.count)) return 'count must be a positive integer';
   if (criteria.locales.length === 0) return 'at least one locale is needed';
   if (criteria.locales.some((locale) => !isSupportedLocale(locale))) {

@@ -258,7 +258,7 @@ In a 1v1, "≥ 2 ready" means both, so a missing player cancels the battle. A bo
 1. **Battle creation:** in one transaction, insert `battles` (`mode`, `game_type`, `has_bot`, `room_id`, config snapshot of that game type, active BATTLE rule set), all `battle_participants` (humans + optional bot), and `battle_rounds` with **pre-selected content ids** of that game type. Every participant gets the same content in the same order. Selection uses `ContentSelector.pick`:
    - `gameType` and `count = roundCount` of that game type (DEC-31);
    - only questions available in every participant's locale;
-   - excluding recent exposures of every human participant (DEC-44, query in `02-database.md` §4.8), relaxing the window step by step when the bank cannot supply enough;
+   - skipping every question any human participant has already been shown (DEC-44, query in `02-database.md` §4.8). When the bank cannot supply enough unseen ones, the missing rounds are the questions they saw longest ago (`ContentSelector.pickContentIdsInGivenOrder`), played after the fresh rounds, and a warning is logged;
    - balancing difficulty and category per config.
 
    The engine registers the battle in memory and sets `owner_instance_id`. Each human's guard becomes `BATTLE:<id>` (room members keep `ROOM`).
