@@ -44,6 +44,24 @@ describe('summarizeRoundForQuestionStats', () => {
     expect(result).toMatchObject({ solved: false, wrongAnswers: 0 });
   });
 
+  it('counts wrong vault tries, hex names, lineup names and lineup accusations, but not picks', () => {
+    const result = summarizeRoundForQuestionStats(
+      round({
+        winnerParticipantId: null,
+        actions: [
+          { participantId: 'human', kind: 'VAULT_TRY', isCorrect: false },
+          { participantId: 'human', kind: 'HEX_PICK', isCorrect: null },
+          { participantId: 'human', kind: 'HEX_ANSWER', isCorrect: false },
+          { participantId: 'human', kind: 'LINEUP_ANSWER', isCorrect: false },
+          { participantId: 'human', kind: 'LINEUP_ANSWER', isCorrect: true },
+          { participantId: 'human', kind: 'LINEUP_ACCUSE', isCorrect: false },
+        ],
+      }),
+      humans,
+    );
+    expect(result.wrongAnswers).toBe(4);
+  });
+
   it('marks a round that never started as not served', () => {
     expect(summarizeRoundForQuestionStats(round({ startedAt: null, winnerParticipantId: null }), humans)).toMatchObject(
       {
