@@ -456,29 +456,39 @@ describe('battles over WebSocket (e2e)', () => {
       const nameOf = (index: number) => mines.players[index]?.names.en ?? '';
       const send = (event: string, text: string) => player.send(event, { battleId, roundNo: 1, answer: { text } });
 
-      expect(await send('mines:bury', 'nobody at all')).toMatchObject({ accepted: false, code: 'NOT_IN_CATEGORY' });
-      const buried = await send('mines:bury', nameOf(0));
-      expect(buried).toMatchObject({ accepted: true, data: { mines: [{ auto: false }], wrongTriesLeft: 1 } });
-      expect(await send('mines:bury', nameOf(0))).toMatchObject({ accepted: false, code: 'ALREADY_BURIED' });
-      expect(await send('mines:bury', nameOf(1))).toMatchObject({ accepted: true });
-
-      const firstTurn = await player.waitFor('mines:turn', (event) => event.data['turnNo'] === 1);
-      expect((firstTurn.data['yourMines'] as { player: { name: string } }[]).map((mine) => mine.player.name)).toEqual([
-        mines.players[0]?.names.ar,
-        mines.players[1]?.names.ar,
-      ]);
-      const botBuries = await player.prisma().battleRoundAction.findMany({
-        where: { battleId, kind: 'MINE_BURY', NOT: { participantId: me } },
-      });
+      // The bot buries first (after its typing delay); we read its mines from the database and bury others,
+      // so the two sets never overlap and an explosion is always possible.
       const entityIds = await Promise.all(
         mines.players.map(
           async (p) =>
             (await player.prisma().answerEntity.findUniqueOrThrow({ where: { externalRef: p.externalRef } })).id,
         ),
       );
-      const botMineIndexes = botBuries.map((action) => entityIds.indexOf(action.entityId ?? ''));
+      let botMineIndexes: number[] = [];
+      for (const deadline = Date.now() + 2_000; botMineIndexes.length < 2 && Date.now() < deadline;) {
+        const botBuries = await player.prisma().battleRoundAction.findMany({
+          where: { battleId, kind: 'MINE_BURY', NOT: { participantId: me } },
+        });
+        botMineIndexes = botBuries.map((action) => entityIds.indexOf(action.entityId ?? ''));
+        if (botMineIndexes.length < 2) await new Promise((resolve) => setTimeout(resolve, 20));
+      }
       expect(botMineIndexes).toHaveLength(2);
       const botMineIds = botMineIndexes.map((index) => entityIds[index]);
+      const [myFirst, mySecond, safeIndex] = [0, 1, 2, 3, 4, 5, 6, 7].filter(
+        (index) => !botMineIndexes.includes(index),
+      );
+
+      expect(await send('mines:bury', 'nobody at all')).toMatchObject({ accepted: false, code: 'NOT_IN_CATEGORY' });
+      const buried = await send('mines:bury', nameOf(myFirst ?? 0));
+      expect(buried).toMatchObject({ accepted: true, data: { mines: [{ auto: false }], wrongTriesLeft: 1 } });
+      expect(await send('mines:bury', nameOf(myFirst ?? 0))).toMatchObject({ accepted: false, code: 'ALREADY_BURIED' });
+      expect(await send('mines:bury', nameOf(mySecond ?? 0))).toMatchObject({ accepted: true });
+
+      const firstTurn = await player.waitFor('mines:turn', (event) => event.data['turnNo'] === 1);
+      expect((firstTurn.data['yourMines'] as { player: { name: string } }[]).map((mine) => mine.player.name)).toEqual([
+        mines.players[myFirst ?? 0]?.names.ar,
+        mines.players[mySecond ?? 0]?.names.ar,
+      ]);
       const beforeExplosion = JSON.stringify(player.events);
       for (const id of botMineIds) expect(beforeExplosion).not.toContain(id);
 
@@ -491,20 +501,22 @@ describe('battles over WebSocket (e2e)', () => {
         handled.add(turn.seq ?? 0);
       };
       await myTurn();
-      expect(await send('mines:answer', nameOf(0))).toMatchObject({ accepted: false, code: 'OWN_MINE' });
+      expect(await send('mines:answer', nameOf(myFirst ?? 0))).toMatchObject({ accepted: false, code: 'OWN_MINE' });
       expect(await send('mines:scan', nameOf(botMineIndexes[0] ?? 0))).toMatchObject({ accepted: true });
       expect((await player.waitFor('mines:scanned')).data).toMatchObject({ participantId: me, result: 'MINE' });
-      expect(await send('mines:scan', nameOf(2))).toMatchObject({ accepted: false, code: 'NO_DETECTOR_LEFT' });
+      expect(await send('mines:scan', nameOf(safeIndex ?? 0))).toMatchObject({
+        accepted: false,
+        code: 'NO_DETECTOR_LEFT',
+      });
       expect(await send('mines:answer', nameOf(botMineIndexes[0] ?? 0))).toMatchObject({ accepted: true });
       const boom = await player.waitFor('mines:answered', (event) => event.data['participantId'] === me);
       expect(boom.data).toMatchObject({ outcome: 'MINE', player: { entityId: botMineIds[0] } });
       expect(boom.data['buriedBy']).not.toBe(me);
 
-      const safeIndex = [2, 3, 4, 5, 6, 7].find((index) => !botMineIndexes.includes(index)) ?? 2;
       // When the bot moved first, its second timeout already ended the round.
       if (firstTurn.data['participantId'] === me) {
         await myTurn();
-        expect(await send('mines:answer', nameOf(safeIndex))).toMatchObject({ accepted: true });
+        expect(await send('mines:answer', nameOf(safeIndex ?? 0))).toMatchObject({ accepted: true });
       }
       const result = await player.waitFor('round:result');
       expect(result.data['winnerParticipantIds']).toEqual([me]);
