@@ -308,7 +308,8 @@
               "WHO_IS_PLAYER",
               "GRID",
               "MINES",
-              "AUCTION"
+              "AUCTION",
+              "VAULT"
             ],
             "type": "string"
           }
@@ -600,7 +601,8 @@
               "WHO_IS_PLAYER",
               "GRID",
               "MINES",
-              "AUCTION"
+              "AUCTION",
+              "VAULT"
             ],
             "type": "string"
           },
