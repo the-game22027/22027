@@ -17,6 +17,7 @@ import { ScoringRuleSets } from '@modules/points';
 import { UsersFacade } from '@modules/users';
 import { CLOCK, type Clock, ID_GENERATOR, type IdGenerator, type Locale } from '@shared/kernel';
 import { type BattlePointsRuleSet, selectRuleForBattleMode } from '../domain/leaderboard-points';
+import type { RockPaperScissorsChoice } from '../domain/first-mover/rock-paper-scissors-duel';
 import { SeededRandom } from '../domain/random-source';
 import { parseBattlePointsRuleSet } from './battle-points-rule-set';
 import { BATTLE_SETTINGS, type BattleConfigSnapshot, type BattleSettings, findGameSettings } from './battle-settings';
@@ -262,6 +263,19 @@ export class BattleEngine implements OnApplicationBootstrap, BeforeApplicationSh
   ): Promise<Ack> {
     return this.withBattle(battleId, clientMsgId, (battle) =>
       battle.answer(userId, socketId, roundNo, answer, clientMsgId),
+    );
+  }
+
+  pickRockPaperScissors(
+    battleId: string,
+    userId: string,
+    socketId: string,
+    attempt: number,
+    choice: RockPaperScissorsChoice,
+    clientMsgId: string,
+  ): Promise<Ack> {
+    return this.withBattle(battleId, clientMsgId, (battle) =>
+      battle.pickRockPaperScissors(userId, socketId, attempt, choice, clientMsgId),
     );
   }
 

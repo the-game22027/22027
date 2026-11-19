@@ -1,10 +1,21 @@
 import type { Logger } from '@nestjs/common';
 import type { AnswerCatalogQuery, AnswerChecker, GameType, RoundContentQuery } from '@modules/question-bank';
 import type { Clock } from '@shared/kernel';
+import { chooseNextFirstMover, type FirstMoverOutcome } from '../domain/first-mover/next-first-mover';
+import {
+  addPick,
+  closeAttempt,
+  drawRandomChoice,
+  findPickRejection,
+  hasEveryonePicked,
+  type RockPaperScissorsChoice,
+  type RockPaperScissorsDuel,
+  startRockPaperScissorsDuel,
+} from '../domain/first-mover/rock-paper-scissors-duel';
 import type { ParticipantId, RoundAction, RoundResult } from '../domain/games/game-rules';
 import { calculateLeaderboardPoints } from '../domain/leaderboard-points';
 import { placeParticipantsByScore } from '../domain/placements';
-import type { RandomSource } from '../domain/random-source';
+import { type RandomSource, randomIntegerBetween } from '../domain/random-source';
 import type { BattleConfigSnapshot, GridGameSettings, RevealGameSettings } from './battle-settings';
 import type { LiveParticipant } from './live-participant';
 import type { BattleNotifier } from './ports/battle-notifier';
@@ -46,7 +57,7 @@ export interface LiveBattleDependencies {
  * "first buzz wins" exact (learn/backend/one-at-a-time-per-game.md).
  */
 export class LiveBattle {
-  status: 'WAITING_READY' | 'IN_PROGRESS' | 'FINISHED' = 'WAITING_READY';
+  status: 'WAITING_READY' | 'PICKING_FIRST' | 'IN_PROGRESS' | 'FINISHED' = 'WAITING_READY';
   private seq = 0;
   /** Set at shutdown: no new timers. */
   private stopped = false;
@@ -61,6 +72,13 @@ export class LiveBattle {
   private handlingClientMsgId: string | null = null;
   /** Results of finished rounds, for snapshots. */
   private readonly roundResults: { roundNo: number; winnerParticipantIds: string[] }[] = [];
+  /** Who moves first in the current or next round (08 §9.1); null for game types where everyone plays at once. */
+  private firstMoverId: ParticipantId | null = null;
+  private lastRoundWinnerId: ParticipantId | null = null;
+  /** The rock-paper-scissors duel while PICKING_FIRST, and the end of its current pick window. */
+  private duel: RockPaperScissorsDuel | null = null;
+  private duelPickDeadlineAt: Date | null = null;
+  private readonly firstMoverOutcomes: FirstMoverOutcome[] = [];
 
   constructor(
     readonly id: string,
@@ -120,6 +138,21 @@ export class LiveBattle {
       const problem = this.findRoundCommandProblem(participant, socketId, roundNo);
       if (problem) return problem;
       return this.runner ? this.runner.handleCommand(participant.id, command) : 'INVALID_STATE';
+    });
+  }
+
+  /** `battle:rps-pick` (WEBSOCKET.md §3): one throw per attempt, kept secret until both are in. */
+  pickRockPaperScissors(
+    userId: string,
+    socketId: string,
+    attempt: number,
+    choice: RockPaperScissorsChoice,
+    clientMsgId: string,
+  ): Promise<Ack> {
+    return this.handleCommand(userId, clientMsgId, async (participant) => {
+      if (this.status !== 'PICKING_FIRST' || !this.duel) return 'INVALID_STATE';
+      if (participant.activeSocketId !== socketId) return 'NOT_ACTIVE_SOCKET';
+      return this.takeRockPaperScissorsPick(participant.id, attempt, choice);
     });
   }
 
@@ -302,7 +335,7 @@ export class LiveBattle {
       return;
     }
     await this.runner?.participantLeft(participant.id);
-    if (this.status !== 'IN_PROGRESS') return;
+    if (!this.isBeingPlayed()) return;
     const active = this.activeParticipants;
     if (!active.some((candidate) => candidate.kind === 'HUMAN')) await this.abandon();
     else if (active.length < 2) await this.completeBattle('FORFEIT');
@@ -320,7 +353,128 @@ export class LiveBattle {
     const now = this.deps.clock.now();
     await this.deps.repository.markBattleStarted(this.id, now);
     await this.emit('battle:started', (viewer) => ({ startedAt: now.toISOString(), players: this.playersFor(viewer) }));
+    await this.decideFirstMoverThenStartRound();
+  }
+
+  /** Not read through a narrowed `this.status`: awaited work may have finished the battle. */
+  private isBeingPlayed(): boolean {
+    return this.status === 'IN_PROGRESS' || this.status === 'PICKING_FIRST';
+  }
+
+  // ---- first mover (08 §9.1, ADR-0023) ----
+
+  /** Decides who moves first in the next round, then starts it. A rock-paper-scissors duel starts it once decided. */
+  private async decideFirstMoverThenStartRound(): Promise<void> {
+    const { firstMover, firstMoverAfterRound1 = 'ALTERNATE', rps } = this.config.game;
+    const roundNo = this.roundIndex + 2;
+    const active = this.activeParticipants.map((participant) => participant.id);
+    if (firstMover === 'NONE') {
+      this.firstMoverId = null;
+      await this.startNextRound();
+      return;
+    }
+    if (this.firstMoverId && firstMoverAfterRound1 !== 'RPS_EACH_ROUND') {
+      const seatOrder = [...this.participants].sort((a, b) => a.seat - b.seat).map((participant) => participant.id);
+      this.firstMoverId = chooseNextFirstMover(
+        firstMoverAfterRound1,
+        seatOrder,
+        active,
+        this.firstMoverId,
+        this.lastRoundWinnerId,
+      );
+      await this.recordFirstMover({
+        beforeRound: roundNo,
+        winnerId: this.firstMoverId,
+        decidedBy: firstMoverAfterRound1,
+      });
+      await this.startNextRound();
+      return;
+    }
+    if (firstMover === 'RPS' && rps && active.length === 2) {
+      this.status = 'PICKING_FIRST';
+      this.duel = startRockPaperScissorsDuel([active[0], active[1]], rps.maxReplays);
+      await this.openDuelAttempt();
+      return;
+    }
+    // TODO(DEC-70): rooms with 3 or more players get a seeded random first mover instead of a duel.
+    this.firstMoverId = active[Math.floor(this.deps.random.next() * active.length)];
+    await this.recordFirstMover({ beforeRound: roundNo, winnerId: this.firstMoverId, decidedBy: 'RANDOM' });
     await this.startNextRound();
+  }
+
+  private async openDuelAttempt(): Promise<void> {
+    const duel = this.duel;
+    const rps = this.config.game.rps;
+    if (!duel || !rps) return;
+    const now = this.deps.clock.now();
+    const deadline = new Date(now.getTime() + rps.pickMs);
+    this.duelPickDeadlineAt = deadline;
+    await this.emit('battle:rps-start', () => ({ attempt: duel.attempt, pickDeadlineAt: deadline.toISOString() }));
+    this.schedule('rps-close', new Date(deadline.getTime() + this.config.engine.latencyGraceMs), () =>
+      this.closeDuelAttempt(),
+    );
+    for (const bot of this.activeParticipants.filter((participant) => participant.kind === 'BOT')) {
+      const delayMs = randomIntegerBetween(this.deps.random, rps.botPickDelayMs.min, rps.botPickDelayMs.max);
+      this.schedule(`rps-bot:${bot.id}`, new Date(now.getTime() + delayMs), async () => {
+        await this.takeRockPaperScissorsPick(bot.id, duel.attempt, drawRandomChoice(this.deps.random));
+      });
+    }
+  }
+
+  /** null when the pick is taken, otherwise the ack's error code. The attempt closes as soon as both have picked. */
+  private async takeRockPaperScissorsPick(
+    from: ParticipantId,
+    attempt: number,
+    choice: RockPaperScissorsChoice,
+  ): Promise<string | null> {
+    if (this.status !== 'PICKING_FIRST' || !this.duel) return 'INVALID_STATE';
+    const rejection = findPickRejection(this.duel, from, attempt);
+    if (rejection) return rejection;
+    const deadline = this.duelPickDeadlineAt;
+    if (!deadline || this.deps.clock.now().getTime() > deadline.getTime() + this.config.engine.latencyGraceMs) {
+      return 'PICK_WINDOW_CLOSED';
+    }
+    this.duel = addPick(this.duel, from, choice);
+    if (hasEveryonePicked(this.duel)) await this.closeDuelAttempt();
+    return null;
+  }
+
+  /** Reveals both throws together; then the next attempt, or round 1 with the winner moving first. */
+  private async closeDuelAttempt(): Promise<void> {
+    const rps = this.config.game.rps;
+    if (this.status !== 'PICKING_FIRST' || !this.duel || !rps) return;
+    for (const key of [...this.timers.keys()]) if (key.startsWith('rps-')) this.cancel(key);
+    const { duel, closed, decision } = closeAttempt(this.duel, this.deps.random);
+    this.duelPickDeadlineAt = null;
+    await this.emit('battle:rps-result', () => ({
+      attempt: closed.attempt,
+      picks: closed.picks,
+      winnerId: decision?.winnerId ?? null,
+      decidedBy: decision?.decidedBy ?? null,
+    }));
+    const nextAt = new Date(this.deps.clock.now().getTime() + rps.revealMs);
+    if (!decision) {
+      this.duel = duel;
+      this.schedule('rps-next', nextAt, () => this.openDuelAttempt());
+      return;
+    }
+    this.duel = null;
+    this.firstMoverId = decision.winnerId;
+    await this.recordFirstMover({
+      beforeRound: this.roundIndex + 2,
+      winnerId: decision.winnerId,
+      decidedBy: decision.decidedBy,
+      attempts: duel.closedAttempts.map(({ attempt, picks }) => ({ attempt, picks })),
+    });
+    this.schedule('rps-next', nextAt, async () => {
+      this.status = 'IN_PROGRESS';
+      await this.startNextRound();
+    });
+  }
+
+  private async recordFirstMover(outcome: FirstMoverOutcome): Promise<void> {
+    this.firstMoverOutcomes.push(outcome);
+    await this.deps.repository.saveFirstMoverOutcomes(this.id, this.firstMoverOutcomes);
   }
 
   private async startNextRound(): Promise<void> {
@@ -343,6 +497,7 @@ export class LiveBattle {
   private roundHost(): RoundHost {
     return {
       gameType: this.gameType,
+      firstMoverId: this.firstMoverId,
       random: this.deps.random,
       checker: this.deps.checker,
       catalog: this.deps.catalog,
@@ -380,6 +535,7 @@ export class LiveBattle {
     for (const [participantId, points] of Object.entries(result.points)) {
       this.scores.set(participantId, (this.scores.get(participantId) ?? 0) + points);
     }
+    this.lastRoundWinnerId = result.winnerParticipantId;
     this.roundResults.push({
       roundNo: runner.roundNo,
       winnerParticipantIds: result.winnerParticipantId ? [result.winnerParticipantId] : [],
@@ -402,7 +558,7 @@ export class LiveBattle {
     if (this.status !== 'IN_PROGRESS') return;
     if (this.roundIndex + 1 < this.questionIds.length) {
       this.schedule('next-round', new Date(now.getTime() + this.config.engine.betweenRoundsMs), () =>
-        this.startNextRound(),
+        this.decideFirstMoverThenStartRound(),
       );
     } else {
       await this.completeBattle();
@@ -485,6 +641,7 @@ export class LiveBattle {
       gameType: this.gameType,
       mode: 'MATCHMAKING',
       players: this.playersFor(viewer),
+      ...this.firstMoverSnapshotFor(viewer),
       ...(this.runner ? { currentRound: this.runner.snapshotFor(viewer) } : {}),
       rounds: this.roundResults,
       scores: this.participants.map((participant) => ({
@@ -493,6 +650,22 @@ export class LiveBattle {
       })),
       seq: this.seq,
     };
+  }
+
+  /** The duel as far as it was revealed: the viewer learns only whether they picked themselves (08 §9.1). */
+  private firstMoverSnapshotFor(viewer: LiveParticipant): Record<string, unknown> {
+    const duel = this.duel;
+    if (this.status === 'PICKING_FIRST' && duel) {
+      return {
+        firstMover: {
+          attempt: duel.attempt,
+          pickDeadlineAt: this.duelPickDeadlineAt?.toISOString() ?? null,
+          youPicked: duel.picks.some((pick) => pick.participantId === viewer.id),
+          attempts: duel.closedAttempts,
+        },
+      };
+    }
+    return this.firstMoverId ? { firstMover: { participantId: this.firstMoverId } } : {};
   }
 
   private playersFor(viewer: LiveParticipant): Record<string, unknown>[] {
@@ -510,6 +683,11 @@ export class LiveBattle {
   private publicConfig(): Record<string, unknown> {
     const hidden = new Set(['enabled', 'points', 'selection']);
     const rules = Object.fromEntries(Object.entries(this.config.game).filter(([key]) => !hidden.has(key)));
+    // Bot timing stays on the server: it would tell a player when the bot is about to pick.
+    if (this.config.game.rps) {
+      const { pickMs, maxReplays, revealMs } = this.config.game.rps;
+      rules['rps'] = { pickMs, maxReplays, revealMs };
+    }
     return {
       ...rules,
       roundCount: this.questionIds.length,

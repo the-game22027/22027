@@ -45,7 +45,16 @@ function writeBattleConfig(bot: { knows: number; guess: number }, botFallbackAft
       },
     };
     const { GRID: grid, ...revealGames } = config.gameTypes;
-    if (grid) Object.assign(grid, { roundCount: 1, turnMs: 1_000, maxTurns: 20, minAnswersPerCell: 1 });
+    if (grid) {
+      Object.assign(grid, {
+        roundCount: 1,
+        turnMs: 1_000,
+        maxTurns: 20,
+        minAnswersPerCell: 1,
+        // The bot picks late enough for a second pick of ours to reach the open attempt.
+        rps: { pickMs: 600, maxReplays: 2, revealMs: 50, botPickDelayMs: { min: 200, max: 200 } },
+      });
+    }
     for (const game of Object.values(revealGames)) {
       Object.assign(game, {
         roundCount: 2,
@@ -319,7 +328,7 @@ describe('battles over WebSocket (e2e)', () => {
       },
     );
 
-    it('plays GRID: the board with names, turns, refused moves, and three in a row wins', async () => {
+    it('plays GRID: rock-paper-scissors, the board with names, turns, refused moves, and three in a row wins', async () => {
       const player = await connectPlayer();
       await player.send('matchmaking:join', { gameType: 'GRID' });
       const found = await player.waitFor('battle:found');
@@ -327,7 +336,26 @@ describe('battles over WebSocket (e2e)', () => {
       const me = found.data['youParticipantId'] as string;
       await player.send('battle:ready', { battleId });
 
+      // Rock-paper-scissors decides who starts (08 §9.1): throw until one attempt has a winner.
+      let winnerId: unknown = null;
+      for (let attempt = 1; winnerId === null; attempt += 1) {
+        await player.waitFor('battle:rps-start', (event) => event.data['attempt'] === attempt);
+        const pick = { battleId, attempt, choice: 'ROCK' };
+        expect(await player.send('battle:rps-pick', pick)).toMatchObject({ accepted: true });
+        expect(await player.send('battle:rps-pick', pick)).toMatchObject({ accepted: false, code: 'ALREADY_PICKED' });
+        const result = await player.waitFor('battle:rps-result', (event) => event.data['attempt'] === attempt);
+        expect(result.data['picks']).toContainEqual({ participantId: me, choice: 'ROCK', auto: false });
+        winnerId = result.data['winnerId'];
+      }
+      expect(await player.send('battle:rps-pick', { battleId, attempt: 1, choice: 'PAPER' })).toMatchObject({
+        accepted: false,
+        code: 'INVALID_STATE',
+      });
+
       const start = await player.waitFor('round:start');
+      expect(start.data['firstTurnParticipantId']).toBe(winnerId);
+      const stored = await player.prisma().battle.findUniqueOrThrow({ where: { id: battleId } });
+      expect(stored.firstMover).toEqual([expect.objectContaining({ beforeRound: 1, winnerId })]);
       const rows = start.data['rows'] as { kind: string; entity: { name: string } }[];
       expect(rows.map((row) => [row.kind, row.entity.name])).toEqual(
         grid.entities.slice(0, 3).map((club) => ['CLUB', club.names.ar]),
@@ -383,6 +411,19 @@ describe('battles over WebSocket (e2e)', () => {
         { row: 0, col: 2 },
       ]);
       expect((await player.waitFor('battle:completed')).data).toMatchObject({ you: { outcome: 'WIN' } });
+    });
+
+    it('picks for a player who does not throw in time, and still starts the round', async () => {
+      const player = await connectPlayer();
+      await player.send('matchmaking:join', { gameType: 'GRID' });
+      const found = await player.waitFor('battle:found');
+      const me = found.data['youParticipantId'] as string;
+      await player.send('battle:ready', { battleId: found.battleId as string });
+
+      const result = await player.waitFor('battle:rps-result', (event) => event.data['attempt'] === 1);
+      expect(result.data['picks']).toContainEqual(expect.objectContaining({ participantId: me, auto: true }));
+      const start = await player.waitFor('round:start');
+      expect(start.data['firstTurnParticipantId']).toBeTruthy();
     });
 
     it('refuses a second queue for a busy player, and frees them when they leave', async () => {

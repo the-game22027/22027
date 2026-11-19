@@ -21,6 +21,8 @@ export type ViewerData = (viewer: LiveParticipant) => Record<string, unknown>;
 /** What a round runner may ask of its battle (08 §2.4). Timer keys are scoped to the round by the battle. */
 export interface RoundHost {
   readonly gameType: string;
+  /** Who moves first in this round (08 §9.1); null when the game type has no first mover. */
+  readonly firstMoverId: ParticipantId | null;
   readonly random: RandomSource;
   readonly checker: AnswerChecker;
   readonly catalog: AnswerCatalogQuery;
