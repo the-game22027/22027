@@ -1,5 +1,11 @@
 import type { Logger } from '@nestjs/common';
-import type { AnswerCatalogQuery, AnswerChecker, GameType, RoundContentQuery } from '@modules/question-bank';
+import type {
+  AnswerCatalogQuery,
+  AnswerChecker,
+  GameType,
+  LinkGraphQuery,
+  RoundContentQuery,
+} from '@modules/question-bank';
 import type { Clock } from '@shared/kernel';
 import { chooseNextFirstMover, type FirstMoverOutcome } from '../domain/first-mover/next-first-mover';
 import {
@@ -21,6 +27,7 @@ import type {
   VaultGameSettings,
   HexGameSettings,
   LineupGameSettings,
+  OneTwoGameSettings,
   BattleConfigSnapshot,
   GridGameSettings,
   MinesGameSettings,
@@ -35,6 +42,7 @@ import { AuctionRoundRunner } from './rounds/auction-round-runner';
 import { VaultRoundRunner } from './rounds/vault-round-runner';
 import { HexRoundRunner } from './rounds/hex-round-runner';
 import { LineupRoundRunner } from './rounds/lineup-round-runner';
+import { OneTwoRoundRunner } from './rounds/one-two-round-runner';
 import { MinesRoundRunner } from './rounds/mines-round-runner';
 import { RevealRoundRunner } from './rounds/reveal-round-runner';
 import type {
@@ -68,6 +76,7 @@ export interface LiveBattleDependencies {
   rounds: RoundContentQuery;
   checker: AnswerChecker;
   catalog: AnswerCatalogQuery;
+  linkGraph: LinkGraphQuery;
   logger: Logger;
   random: RandomSource;
   /** Called once when the battle ends for any reason; the engine forgets it and frees its players. */
@@ -547,6 +556,15 @@ export class LiveBattle {
           host,
         );
         break;
+      case 'ONE_TWO':
+        this.runner = new OneTwoRoundRunner(
+          roundNo,
+          content,
+          this.config.game as OneTwoGameSettings,
+          latencyGraceMs,
+          host,
+        );
+        break;
       case 'VAULT':
         this.runner = new VaultRoundRunner(
           roundNo,
@@ -578,6 +596,7 @@ export class LiveBattle {
       random: this.deps.random,
       checker: this.deps.checker,
       catalog: this.deps.catalog,
+      linkGraph: this.deps.linkGraph,
       answerRules: this.config.answers,
       now: () => this.deps.clock.now(),
       participants: () => this.participants,

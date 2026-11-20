@@ -25,6 +25,7 @@ import {
   joinMatchmakingCommand,
   leaveMatchmakingCommand,
   minesTextCommand,
+  oneTwoPassCommand,
   readyCommand,
   resyncCommand,
   vaultTryCommand,
@@ -272,6 +273,34 @@ export class BattlesGateway
         socket.id,
         command.roundNo,
         command.answer.text,
+        command.clientMsgId,
+      ),
+    );
+  }
+
+  @SubscribeMessage('oneTwo:pass')
+  passInOneTwo(socket: Socket, body: unknown): Promise<Ack> {
+    return this.withPayload(oneTwoPassCommand, body, (command) =>
+      this.engine.sendOneTwoCommand(
+        command.battleId,
+        userIdOf(socket),
+        socket.id,
+        command.roundNo,
+        { type: 'ONE_TWO_PASS', passType: command.passType },
+        command.clientMsgId,
+      ),
+    );
+  }
+
+  @SubscribeMessage('oneTwo:answer')
+  answerInOneTwo(socket: Socket, body: unknown): Promise<Ack> {
+    return this.withPayload(minesTextCommand, body, (command) =>
+      this.engine.sendOneTwoCommand(
+        command.battleId,
+        userIdOf(socket),
+        socket.id,
+        command.roundNo,
+        { type: 'ONE_TWO_ANSWER', answer: { text: command.answer.text } },
         command.clientMsgId,
       ),
     );

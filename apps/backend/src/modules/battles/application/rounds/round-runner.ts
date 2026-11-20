@@ -1,4 +1,4 @@
-import type { AnswerCatalogQuery, AnswerChecker, TypedAnswerRules } from '@modules/question-bank';
+import type { AnswerCatalogQuery, AnswerChecker, LinkGraphQuery, TypedAnswerRules } from '@modules/question-bank';
 import type { ParticipantId, RoundAction, RoundResult } from '../../domain/games/game-rules';
 import type { RandomSource } from '../../domain/random-source';
 import type { LiveParticipant } from '../live-participant';
@@ -25,7 +25,9 @@ export type PlayerCommand =
   | { type: 'VAULT_TRY'; code: string }
   | { type: 'HEX_PICK'; cell: number; clear: boolean }
   | { type: 'HEX_ANSWER'; answer: { text: string } | BotAnswer }
-  | { type: 'LINEUP_ANSWER'; answer: { text: string } | BotAnswer };
+  | { type: 'LINEUP_ANSWER'; answer: { text: string } | BotAnswer }
+  | { type: 'ONE_TWO_PASS'; passType: string }
+  | { type: 'ONE_TWO_ANSWER'; answer: { text: string } | BotAnswer };
 
 /** null when accepted, a string for the ack's error code, or an accepted ack that carries data (08 §10.3). */
 export type RoundCommandOutcome = string | null | { accepted: true; data: Record<string, unknown> };
@@ -42,6 +44,7 @@ export interface RoundHost {
   readonly random: RandomSource;
   readonly checker: AnswerChecker;
   readonly catalog: AnswerCatalogQuery;
+  readonly linkGraph: LinkGraphQuery;
   readonly answerRules: TypedAnswerRules;
   now(): Date;
   participants(): LiveParticipant[];

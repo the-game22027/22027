@@ -22,6 +22,7 @@ import {
   auctionFixture,
   hexFixture,
   lineupFixture,
+  oneTwoFixture,
   vaultLine,
   whoLine,
 } from '../support/question-bundles';
@@ -63,6 +64,7 @@ function writeBattleConfig(bot: { knows: number; guess: number }, botFallbackAft
       VAULT: vault,
       HEX: hex,
       LINEUP: lineup,
+      ONE_TWO: oneTwo,
       ...revealGames
     } = config.gameTypes;
     if (grid) {
@@ -121,6 +123,15 @@ function writeBattleConfig(bot: { knows: number; guess: number }, botFallbackAft
         hints: { firstAtMs: 300, everyMs: 0, max: 1 },
       });
     }
+    if (oneTwo) {
+      Object.assign(oneTwo, {
+        roundCount: 5,
+        targetScore: 2,
+        pickMs: 1_500,
+        answerMs: 1_500,
+        rps: { pickMs: 600, maxReplays: 2, revealMs: 50, botPickDelayMs: { min: 200, max: 200 } },
+      });
+    }
     for (const game of Object.values(revealGames)) {
       Object.assign(game, {
         roundCount: 2,
@@ -141,6 +152,7 @@ describe('battles over WebSocket (e2e)', () => {
   const auction = auctionFixture();
   const hex = hexFixture();
   const lineup = lineupFixture();
+  const oneTwo = oneTwoFixture();
   const gridPlayerIds: string[] = [];
   let spainId: string;
   let naniId: string;
@@ -177,6 +189,9 @@ describe('battles over WebSocket (e2e)', () => {
             vaultLine(`test:${randomUUID()}`),
             hex.line(`test:${randomUUID()}`),
             lineup.line(`test:${randomUUID()}`),
+            oneTwo.line(`test:${randomUUID()}`),
+            oneTwo.line(`test:${randomUUID()}`),
+            oneTwo.line(`test:${randomUUID()}`),
           ],
           [
             ...Object.values(e),
@@ -185,7 +200,9 @@ describe('battles over WebSocket (e2e)', () => {
             ...auction.entities,
             ...hex.entities,
             ...lineup.entities,
+            ...oneTwo.entities,
           ],
+          { links: oneTwo.links, matches: oneTwo.matches },
         ),
       );
     await moduleRef.get(QuestionBankFacade).publishQuestionsOfBundle(version);
@@ -819,6 +836,95 @@ describe('battles over WebSocket (e2e)', () => {
       expect((await player.waitFor('battle:completed')).data).toMatchObject({ you: { outcome: 'WIN', score: 8 } });
     });
 
+    it('plays ONE_TWO: refused passes, a return that becomes my ball, a wrong name, burned names; first to 2 rallies', async () => {
+      const player = await connectPlayer();
+      await player.send('matchmaking:join', { gameType: 'ONE_TWO' });
+      const found = await player.waitFor('battle:found');
+      const battleId = found.battleId as string;
+      const me = found.data['youParticipantId'] as string;
+      await player.send('battle:ready', { battleId });
+      for (let attempt = 1; ; attempt += 1) {
+        await player.waitFor('battle:rps-start', (event) => event.data['attempt'] === attempt);
+        await player.send('battle:rps-pick', { battleId, attempt, choice: 'ROCK' });
+        const result = await player.waitFor('battle:rps-result', (event) => event.data['attempt'] === attempt);
+        if (result.data['winnerId'] !== null) break;
+      }
+
+      const nameOf = (entity: { names: { en: string } }) => entity.names.en;
+      const answersByPass: Record<string, (typeof oneTwo.first)[]> = {
+        FACED_IN_FINAL: [oneTwo.first, oneTwo.second, oneTwo.third],
+        SCORED_IN_SAME_MATCH: [oneTwo.first, oneTwo.second, oneTwo.fourth],
+        FACED_IN_KNOCKOUT: [oneTwo.first, oneTwo.second, oneTwo.third, oneTwo.fourth],
+      };
+      const said = new Set<string>([oneTwo.seed.externalRef]);
+      let returnedOnce = false;
+      let refusedOnce = false;
+      for (let roundNo = 1; roundNo <= 5; roundNo += 1) {
+        const inRound = (event: { data: Record<string, unknown> }) => event.data['roundNo'] === roundNo;
+        const deadline = Date.now() + 5_000;
+        while (
+          !player.events.some((event) => event.type === 'battle:completed') &&
+          !player.events.some((event) => event.type === 'round:start' && inRound(event))
+        ) {
+          if (Date.now() > deadline) throw new Error(`no round ${String(roundNo)} and no completion`);
+          await new Promise((resolve) => setTimeout(resolve, 10));
+        }
+        if (player.events.some((event) => event.type === 'battle:completed')) break;
+        const start = await player.waitFor('round:start', inRound);
+        expect(start.data['seed']).toMatchObject({ name: nameOf(oneTwo.seed) });
+        const offer = await player.waitFor('oneTwo:offer', inRound);
+        if (offer.data['passerId'] === me) {
+          // My pass: a type outside the offer is refused, then the silent bot runs out of time.
+          if (!refusedOnce) {
+            expect(await player.send('oneTwo:pass', { battleId, roundNo, passType: 'CONCEDED_TO' })).toMatchObject({
+              accepted: false,
+              code: 'NOT_OFFERED',
+            });
+            refusedOnce = true;
+          }
+          const passType = (offer.data['passTypes'] as string[])[0];
+          expect(await player.send('oneTwo:pass', { battleId, roundNo, passType })).toMatchObject({ accepted: true });
+          const result = await player.waitFor('round:result', inRound);
+          expect(result.data['winnerParticipantIds']).toEqual([me]);
+          expect(result.data['reveal']).toMatchObject({ endReason: 'MISSED', missed: { reason: 'TIME_UP' } });
+          continue;
+        }
+        const passed = await player.waitFor('oneTwo:passed', inRound);
+        expect(passed.data['receiverId']).toBe(me);
+        const answer = (text: string) => player.send('oneTwo:answer', { battleId, roundNo, answer: { text } });
+        if (!returnedOnce) {
+          // The first player of every list, so a later rally can name it again as a burned name.
+          const right = answersByPass[passed.data['passType'] as string]?.[0];
+          if (!right) throw new Error(`no unburned answer for ${String(passed.data['passType'])}`);
+          said.add(right.externalRef);
+          expect(await answer(nameOf(right))).toMatchObject({ accepted: true, data: { result: 'RETURNED' } });
+          const returned = await player.waitFor('oneTwo:returned', inRound);
+          expect(returned.data).toMatchObject({ entity: { name: nameOf(right) }, participantId: me });
+          expect(Object.values(oneTwo.matches[0]?.evidence ?? {})).toContain(returned.data['evidence']);
+          // My answer is the next ball: I pass it to the silent bot, which runs out of time.
+          const myOffer = await player.waitFor(
+            'oneTwo:offer',
+            (event) => inRound(event) && event.data['passerId'] === me,
+          );
+          expect(myOffer.data['ball']).toMatchObject({ name: nameOf(right) });
+          const passType = (myOffer.data['passTypes'] as string[])[0];
+          expect(await player.send('oneTwo:pass', { battleId, roundNo, passType })).toMatchObject({ accepted: true });
+          const result = await player.waitFor('round:result', inRound);
+          expect(result.data['winnerParticipantIds']).toEqual([me]);
+          expect((result.data['reveal'] as { chain: unknown[] }).chain).toHaveLength(1);
+          returnedOnce = true;
+          continue;
+        }
+        // The name I returned in an earlier rally is still burned: it is linked, but saying it again loses.
+        expect(await answer(nameOf(oneTwo.first))).toMatchObject({ accepted: true, data: { result: 'BURNED' } });
+        const result = await player.waitFor('round:result', inRound);
+        expect(result.data['winnerParticipantIds']).not.toContain(me);
+        expect(result.data['reveal']).toMatchObject({ missed: { reason: 'BURNED' } });
+        expect((result.data['reveal'] as { examples: unknown[] }).examples.length).toBeGreaterThan(0);
+      }
+      expect((await player.waitFor('battle:completed')).data).toMatchObject({ you: { outcome: 'WIN', score: 2 } });
+    });
+
     it('picks for a player who does not throw in time, and still starts the round', async () => {
       const player = await connectPlayer();
       await player.send('matchmaking:join', { gameType: 'GRID' });
@@ -970,6 +1076,28 @@ describe('battles over WebSocket (e2e)', () => {
       expect(result.data['reveal']).toMatchObject({ fake: { unmaskedBy: accused.data['participantId'] } });
       expect(result.data['winnerParticipantIds']).not.toContain(me);
       expect((await player.waitFor('battle:completed')).data).toMatchObject({ you: { outcome: 'LOSS', score: 0 } });
+    });
+
+    it('a bot that knows every link returns my passes, and a quiet player loses every rally', async () => {
+      const player = await connectPlayer();
+      await player.send('matchmaking:join', { gameType: 'ONE_TWO' });
+      const found = await player.waitFor('battle:found');
+      const me = found.data['youParticipantId'];
+      await player.send('battle:ready', { battleId: found.battleId });
+
+      // Several rallies of pick and answer deadlines: longer than one waitFor.
+      const deadline = Date.now() + 30_000;
+      while (!player.events.some((event) => event.type === 'battle:completed') && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+      const completed = await player.waitFor('battle:completed');
+      expect(completed.data).toMatchObject({ you: { outcome: 'LOSS', score: 0 } });
+      const returns = player.events.filter((event) => event.type === 'oneTwo:returned');
+      expect(returns.every((event) => event.data['participantId'] !== me)).toBe(true);
+      const misses = player.events.filter((event) => event.type === 'oneTwo:missed');
+      expect(misses.every((event) => event.data['participantId'] === me && event.data['reason'] === 'TIME_UP')).toBe(
+        true,
+      );
     });
 
     it('a bot that knows every digit opens each vault first', async () => {

@@ -1,5 +1,6 @@
 import type { Locale } from '@shared/kernel';
-import type { AnswerKind, EntityKind, GameBody, GameType } from '../../domain/question-content';
+import type { PassType } from '../../domain/link-graph';
+import type { AnswerKind, EntityKind, GameBody, GameType, LocalizedText } from '../../domain/question-content';
 import type { AnswerCandidate } from '../../domain/typed-text-judgement';
 
 export const QUESTION_READ_REPOSITORY = Symbol('QUESTION_READ_REPOSITORY');
@@ -40,6 +41,11 @@ export interface CatalogEntityView {
   popularity: number;
 }
 
+/** A neighbour of a ONE_TWO ball for one pass type, with what judging needs and the evidence match (08 §15.7). */
+export interface LinkedAnswer extends AnswerCandidate {
+  evidence: LocalizedText;
+}
+
 export interface QuestionReadRepository {
   /** Random ids of published, unexpired content matching the criteria; fewer when the bank is short. */
   pickRandomContentIds(criteria: ContentSelectionCriteria): Promise<string[]>;
@@ -55,4 +61,11 @@ export interface QuestionReadRepository {
   findEntitiesByIds(entityIds: readonly string[]): Promise<CatalogEntityView[]>;
   /** The most popular active entities of a kind, without the given ids: plausible wrong answers for bots. */
   findPopularEntityIdsOfKind(kind: EntityKind, excludeIds: readonly string[], limit: number): Promise<string[]>;
+  /** Every neighbour of the ball for this pass type (08 §15.8), the best known first. */
+  findLinkedAnswers(ballEntityId: string, passType: PassType): Promise<LinkedAnswer[]>;
+  /** Neighbours per pass type of the ball that are not among `burnedEntityIds`; pass types with none are left out. */
+  countUnusedLinks(
+    ballEntityId: string,
+    burnedEntityIds: readonly string[],
+  ): Promise<Partial<Record<PassType, number>>>;
 }

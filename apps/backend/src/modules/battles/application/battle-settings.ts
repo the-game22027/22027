@@ -3,6 +3,7 @@ import type { LeaderboardPointsRule } from '../domain/leaderboard-points';
 import type { BotProfile } from '../domain/bots/reveal-and-buzz-bot';
 import type { FirstMoverAfterRound1, FirstMoverMethod } from '../domain/first-mover/next-first-mover';
 import type { GridConfig } from '../domain/games/grid-rules';
+import type { OneTwoPassType } from '../domain/games/one-two-rules';
 import type { RevealAndBuzzConfig } from '../domain/games/reveal-and-buzz-rules';
 
 export const BATTLE_SETTINGS = Symbol('BATTLE_SETTINGS');
@@ -99,6 +100,19 @@ export interface LineupGameSettings extends CommonGameSettings {
   points: { correct: number; captain: number; accuseRight: number; accuseWrong: number };
 }
 
+/** The `ONE_TWO` section of the battle config (08 §15.6). The answers come from the link graph (ADR-0024). */
+export interface OneTwoGameSettings extends CommonGameSettings {
+  pickMs: number;
+  answerMs: number;
+  /** DEC-81. */
+  offerCount: number;
+  minAnswers: number;
+  maxPasses: number;
+  passTypes: OneTwoPassType[];
+  showWrongAnswers: boolean;
+  points: { rallyWin: number };
+}
+
 /** One reveal-and-buzz game type's section of the battle config (08 §6). */
 export interface RevealGameSettings extends CommonGameSettings, Omit<RevealAndBuzzConfig, 'latencyGraceMs'> {
   /** CAREER only: show the years of each spell (08 §3.1). */
@@ -122,6 +136,7 @@ export interface BattleSettings {
     VAULT?: VaultGameSettings;
     HEX?: HexGameSettings;
     LINEUP?: LineupGameSettings;
+    ONE_TWO?: OneTwoGameSettings;
   };
 }
 
@@ -132,7 +147,8 @@ export type GameSettings =
   | AuctionGameSettings
   | VaultGameSettings
   | HexGameSettings
-  | LineupGameSettings;
+  | LineupGameSettings
+  | OneTwoGameSettings;
 
 /** The config of a game type, or undefined when it has none. */
 export function findGameSettings(settings: BattleSettings, gameType: string): GameSettings | undefined {

@@ -8,6 +8,9 @@ export { ContentSelector } from './application/content-selector';
 export { RoundContentQuery } from './application/round-content.query';
 export { AnswerChecker } from './application/answer-checker';
 export { AnswerCatalogQuery } from './application/answer-catalog.query';
+export { LinkGraphQuery, type LinkedAnswers } from './application/link-graph.query';
+export type { LinkedAnswer } from './application/ports/question-read-repository';
+export { PASS_TYPES, type PassType } from './domain/link-graph';
 export type {
   CatalogEntityView,
   ContentFilter,

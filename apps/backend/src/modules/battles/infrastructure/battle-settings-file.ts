@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { z } from 'zod';
 import type { BattleSettings } from '../application/battle-settings';
+import { ONE_TWO_PASS_TYPES } from '../domain/games/one-two-rules';
 
 const positiveMs = z.number().int().positive();
 const share = z.number().min(0).max(1);
@@ -163,6 +164,24 @@ const lineupGame = z.strictObject({
   }),
 });
 
+const oneTwoGame = z.strictObject({
+  ...firstMoverFields,
+  enabled: z.boolean(),
+  roundCount: z.number().int().positive(),
+  targetScore: z.number().int().positive(),
+  pickMs: positiveMs,
+  answerMs: positiveMs,
+  offerCount: z.number().int().positive(),
+  minAnswers: z.number().int().positive(),
+  maxPasses: z.number().int().positive(),
+  passTypes: z.array(z.enum(ONE_TWO_PASS_TYPES)).min(1),
+  showWrongAnswers: z.boolean(),
+  points: z.strictObject({ rallyWin: z.number().int() }),
+  selection: z.strictObject({
+    difficulties: z.array(z.number().int().min(1).max(5)).min(1).nullable(),
+  }),
+});
+
 const answers = z.strictObject({
   maxLength: z.number().int().positive(),
   typoTolerance: z
@@ -203,6 +222,7 @@ const settingsSchema = z
       VAULT: vaultGame.optional(),
       HEX: hexGame.optional(),
       LINEUP: lineupGame.optional(),
+      ONE_TWO: oneTwoGame.optional(),
     }),
   })
   .superRefine((settings, context) => {

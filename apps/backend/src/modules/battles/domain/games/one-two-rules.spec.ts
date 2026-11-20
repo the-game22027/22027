@@ -46,7 +46,7 @@ const seedAvailability: PassAvailability = {
   FACED_IN_KNOCKOUT: 9,
   ASSIST_GIVEN: 1,
 };
-const start = (availability = seedAvailability, burned: string[] = [], rulesUsed = rules) =>
+const start = (availability = seedAvailability, burned: readonly string[] = [], rulesUsed = rules) =>
   rulesUsed.startRound(1, ['a', 'b'], 'ramos', 'a', burned, availability, T0, random());
 const send = (state: OneTwoRoundState, who: string, command: OneTwoCommand, ms = 1_000) =>
   rules.handleCommand(state, who, command, at(ms), random());
