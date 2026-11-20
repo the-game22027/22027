@@ -51,8 +51,9 @@ def bridge_rounds(
     min_answers: int = DEFAULT_MIN_ANSWERS,
 ) -> list[dict]:
     """Up to `count` boards from `clubs` (most popular first) where every line has at least `min_answers`
-    common scorers. Board `n` is a shuffle seeded with `n`, then repaired by swaps; a board that cannot be
-    repaired is dropped, and the same clubs in the same places are written once. Deterministic."""
+    common scorers. Attempt `n` is a shuffle seeded with `n`, then repaired by swaps; an attempt that cannot be
+    repaired is skipped, so board 1 is not always attempt 0, and the same clubs in the same places are written once.
+    Deterministic: the same graph and clubs give the same boards."""
     if count <= 0 or len(clubs) < size * size:
         return []
     scorers = scorers_by_club(graph)

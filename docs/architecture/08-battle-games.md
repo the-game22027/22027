@@ -1064,7 +1064,8 @@ Refusals: `NOT_YOUR_TURN`, `LINE_TAKEN`, `INVALID_LINE`, `PICK_WINDOW_CLOSED`, `
 | `BRIDGE` | `{ size, clubs: [entityRef × size²] }` (row by row) | none stored: the link graph (§16.7, ADR-0024) |
 
 - **Answers come from the `ONE_TWO` link graph:** the scorers of a line are the `CONCEDED_TO` neighbours both clubs have in common. Nothing new is stored per board, and every right answer has its evidence matches.
-- **Generator** (`kb bundle --bridges N`, 07 §5.10 N9 slice): boards of `--bridge-size` (default 4) well-known clubs per side (the `--bridge-clubs` most popular in the written catalog, default 60) placed so that every neighbouring pair has at least `--bridge-min-answers` (3) common scorers. Deterministic: board `n` comes from a shuffle seeded with `n` and a repair search (swap the club on a short line with a spare club or another cell, always the swap that leaves the fewest short lines; give up when no swap helps or after 40 swaps); boards with the same clubs in the same places are dropped. The import accepts boards of 3 to 5 clubs per side, `size²` different catalog clubs and no answer slots.
+- **Generator** (`kb bundle --bridges N`, 07 §5.10 N9 slice): boards of `--bridge-size` (default 4) well-known clubs per side (the `--bridge-clubs` most popular in the written catalog, default 60) placed so that every neighbouring pair has at least `--bridge-min-answers` (3) common scorers. Deterministic: attempt `n` is a shuffle seeded with `n`, then a repair search (swap the club on a short line with a spare club or another cell, always the swap that leaves the fewest short lines; give up when no swap helps or after 40 swaps); an attempt that cannot be repaired is skipped, so the first board kept is not always attempt 0, and boards with the same clubs in the same places are dropped. The same graph and clubs give the same boards.
+- **Import checks:** a board is 3 to 5 clubs per side, `size²` different catalog clubs and no answer slots, and every line has at least one active player who scored against both clubs in the link graph as it stands after the import (a line nobody can answer would make every answer on it grey). The 3-scorer minimum is the generator's rule, not the importer's. A later graph import does not re-check boards it does not carry.
 - **Difficulty:** from the hardest line: 15+ answers → 1, 10+ → 2, 6+ → 3, 4+ → 4, fewer → 5; one step harder when the median line has fewer than 15.
 - **Built 2026-11-21:** 200 boards from the full graph (281,231 links) in 24 s, spread over difficulties 1–5 (40, 39, 55, 36, 30), using 53 of the 60 clubs.
 - **Measured on 2026-11-20 (dev graph):** random 4 × 4 boards from the 60 most popular clubs already pass the 3-answer rule 71% of the time, with a median of 31 right answers per line and 7 on the hardest line (top 40: 59%, median 38; top 100: 39%, median 24). With 16 of 60 clubs in any order, the number of possible boards runs into the billions.
@@ -1072,7 +1073,7 @@ Refusals: `NOT_YOUR_TURN`, `LINE_TAKEN`, `INVALID_LINE`, `PICK_WINDOW_CLOSED`, `
 
 ### 16.5 Bot
 
-- **Picking:** it avoids a third side of a square when it can; when every line gives one away, it picks the line that gives away the fewest squares. It takes a closing line whenever one exists.
+- **Picking:** it takes the line that closes the most squares whenever one closes any; otherwise it avoids a third side of a square when it can; when every line gives one away, it picks the line that gives away the fewest squares.
 - **Answering:** it knows an answer with its chance at the board's difficulty, plus 0.15 on a line with 20 or more scorers; when it knows one, it names the best-known unused scorer after `typingDelayMs`, otherwise a wrong popular player with `guessChance`, or nothing (the line then times out grey).
 - **Picking** waits `typingDelayMs` too; among equally good lines it picks at random.
 
@@ -1083,6 +1084,7 @@ Refusals: `NOT_YOUR_TURN`, `LINE_TAKEN`, `INVALID_LINE`, `PICK_WINDOW_CLOSED`, `
 | `roundCount`, `targetScore` | 1, null | DEC-85 |
 | `size` | 4 | DEC-85: a generator flag (`--bridge-size`), not battle config: the board size comes with the content, as for `HEX` |
 | `firstMover` | `RPS` | owner, 2026-11-18 |
+| `firstMoverAfterRound1` | `LOSER_STARTS` | DEC-71: only with `roundCount` above 1 (one board by default). The loser of the last board picks first; after a drawn board (possible only on an even board) the shared first-mover rule passes it to the other seat |
 | `pickMs`, `answerMs` | 8000, 12000 | DEC-85 (the demo: 12 s answers) |
 | `wrongLine` | `GREY_GIVES_SQUARES` | owner, 2026-11-20 (the demo); `GREY_GIVES_NOTHING` is the other built option. DEC-85's "no line, turn lost" is not built (`TODO(DEC-85)`) |
 | `goalsSince` | `2012-13` | DEC-85: the first season of the goals behind the answers, shown on the board |
