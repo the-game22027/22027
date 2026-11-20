@@ -26,6 +26,9 @@ flowchart LR
   P10 --> P12
   P11 --> P12
   P9 --> P12
+  P4 --> P13[P13 Sponsored monthly cup - after launch]
+  P6 --> P13
+  P12 --> P13
 ```
 
 Changes vs the original proposed order, and why:
@@ -162,6 +165,15 @@ Changes vs the original proposed order, and why:
 ### P10 — Private leagues
 - Leagues, members, invites (code), competitions (PREDICTIONS first, then BATTLES), `LeaguePolicy`, league leaderboard from the ledger.
 - **Exit:** league ranking matches a manual ledger sum under both counting policies (DEC-20).
+
+### P13 — Sponsored monthly cup (after launch; ADR-0025, DEC-82, DEC-83)
+- **Why after launch:** a cup needs at least 32 active players a month, and a sponsor pays for an audience. Built once the monthly `BATTLES` board is full.
+- **P13a Leaderboard prize work:** closing jobs, `FINALIZED` after the grace window (DEC-28), `leaderboard_snapshots`, tie-breaks for prize ranks (DEC-23).
+- **P13b Push notifications:** module `notifications`, FCM behind a port (free), device tokens, opt-out; the app registers its token.
+- **P13c Cup:** module `tournaments` (qualifiers from the snapshot, entry confirmation, bracket, best-of-3 ties, evening windows, walkovers), battle mode `TOURNAMENT` (two given users, no queue, no bot, no leaderboard points), `BattleCompleted` → bracket advance (idempotent), admin commands.
+- **P13d Sponsors:** module `sponsorships` (name in both languages, logo, colours, prize text, dates), cup branding in the API, official rules page (K-07).
+- **Mobile M6:** cup screens (bracket, my next tie, winner screen with the sponsor), push handling.
+- **Exit:** a 32-player dev cup runs from a frozen snapshot to the final with simulated players, including no-shows on both sides and a disconnect mid-tie; nobody outside the snapshot can enter; cup battles leave the leaderboard unchanged; a cup without a sponsor still runs.
 
 ### P11 — Facebook + X sign-in
 - Adapters + account linking UX endpoints; verify current provider API constraints first.

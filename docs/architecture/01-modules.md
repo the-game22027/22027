@@ -153,6 +153,12 @@ Removed with the Daily Quiz (ADR-0010, 2026-11-07). The section number is kept s
 - **Consumes:** `UserDeleted`.
 - **Must not:** decide what friends may see (each owning module's policy decides, using `areFriends`).
 
+### 2.14 Planned for P13 (ADR-0025, not built)
+- **`tournaments`:** monthly cups. Owns `tournaments`, `tournament_entries`, `tournament_ties`, `tournament_battles`. Reads a finalized snapshot through `LeaderboardQuery`, asks `BattlesFacade` for `TOURNAMENT` battles between two given users, consumes `BattleCompleted` (idempotent) to advance the bracket. Publishes `TournamentTieScheduled`, `TournamentFinished`. Must not score games or change leaderboard points.
+- **`sponsorships`:** sponsors and what they brand. Owns `sponsors`, `sponsorships` (name en/ar, logo, colours, prize text, from/to). `tournaments` reads it through `SponsorshipQuery`. Created by admin commands only.
+- **`notifications`:** push messages. Owns `device_tokens`, `notification_preferences`; FCM behind a `PushSender` port. Consumes `TournamentTieScheduled` (and later other events).
+- **`battles` change:** a third mode `TOURNAMENT` next to `MATCHMAKING` and `ROOM`; created by `tournaments`, never by a queue, never with a bot; rule set `modes.TOURNAMENT` gives no points.
+
 ### 2.13 `shared` (not a business module)
 - `shared/kernel`: `Clock` (+ `SystemClock`, `FixedClock` for tests), `IdGenerator` (UUID v7), `DomainError` base with `code`, pagination types, `Locale` type.
 - `shared/infrastructure`: `PrismaService`, transaction host (`@nestjs-cls/transactional`), `RedisService`, BullMQ setup, **outbox writer + publisher**, logger, config (validated with a schema at boot), health indicators, problem+json exception filter, rate limiting.
