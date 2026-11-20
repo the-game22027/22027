@@ -1100,3 +1100,102 @@ Refusals: `NOT_YOUR_TURN`, `LINE_TAKEN`, `INVALID_LINE`, `PICK_WINDOW_CLOSED`, `
 - **Actions:** `BRIDGE_PICK` (`cell` = the line; `is_correct` false when the server picked), `BRIDGE_ANSWER` (`cell` = the line, `is_correct`; a timeout is an answer with no entity). `BRIDGE_ANSWER` is an answering action, so question stats count a wrong, used or late answer as wrong for the board.
 - **End:** `BOARD_COMPLETE` when the last line is drawn, `FORFEIT` when a player leaves. A used scorer counting as wrong is the DEC-85 default; "refused, try again" is not built.
 - **Snapshot `currentRound`:** the board, every line's owner (with scorer and evidence for right ones), square owners, the turn, its phase, the picked line and the deadline.
+
+## 17. `THREAD` (الخيط, N7)
+
+Chosen by the product owner on 2026-11-18 (demo page: https://claude.ai/artifact/S7aGkxim3RBeG3QwkE4ccD). One thread through five rooms. Both players race along the same thread at the same time. Each room's question points at the previous room's answer without naming it ("who set up that goal?"), so you cannot skip a link you do not know. First to the end of the thread wins it.
+
+### 17.1 A round (one thread)
+
+```mermaid
+stateDiagram-v2
+  [*] --> ROOM: round:start (room 1 for both)
+  ROOM --> ROOM: right answer (next room) · wrong answer (lockout, same room) · jump right (two rooms on)
+  ROOM --> [*]: someone answers the last room, or roundDeadlineAt
+```
+
+1. **The thread:** `roomCount` rooms (default 5). Room 1 names its subject in full ("the 2014 Champions League final"); every later room refers to the answer before it ("that player", "the club they beat"). Every room has exactly one right answer (§17.4).
+2. **Start:** both players get room 1 at `round:start`; nobody moves first (`firstMover: NONE`).
+3. **Answer:** typed text for your own current room, judged against that room's one answer (08 §5.3). **Right:** you move to the next room at once. **Wrong:** you are locked out of answering for the next step of `lockoutMs` (3, 6, 9 s; the last repeats), and you stay in the room. Tries are unlimited.
+4. **Hint:** after `hint.afterMs` (20 s) in the same room, you get the first letter of its answer in your language. One hint per room.
+5. **The jump (القفزة):** once per thread (`jump.perThread`), instead of your current room you may ask for its jump question: one harder question that combines this room and the next ("who set up the first goal of the club they beat?"). Right: you skip both rooms. Wrong: the normal lockout, and the jump is spent. Not offered in the last room.
+6. **End of a thread:** the first player to answer the last room wins it (`THREAD_COMPLETE`). At `roundDeadlineAt` (`roundMs`, default 150 s), the player in the higher room wins; the same room is a draw (DEC-86).
+7. **Battle:** best of 3 threads (`roundCount` 3, `targetScore` 2), about 4 minutes. Points: `points.thread` per thread won.
+8. **Players:** 2 now.
+
+### 17.2 Hidden information
+
+- You see only your own room's question. Of the opponent you see only their room number, their lockouts and whether they used the jump.
+- Wrong answers are never shown to the opponent (`showWrongAnswers: false`): both players may be in the same room, and a wrong name would help the other rule it out (DEC-86).
+- The answers stay on the server until the reveal, which shows the whole thread: each room's question, answer and the match it comes from.
+
+### 17.3 Protocol (details in `api/WEBSOCKET.md` with the build)
+
+| Direction | Message | Purpose |
+|---|---|---|
+| C→S | `thread:answer { roundNo, room, answer: { text } }` | An answer to your current room (or to its jump question after `thread:jump`) |
+| C→S | `thread:jump { roundNo, room }` | Swap your current room's question for its jump question |
+| S→C | ack of `thread:answer` | Only to the sender: `data: { result: RIGHT \| WRONG, lockedUntil? }` |
+| S→C | ack of `thread:jump` | Only to the sender: `data: { question }` |
+| S→C | `round:start` | `roomCount`, `room: { room: 1, question, hintAt }`, `roundDeadlineAt`, `jumpsLeft` (the same room 1 for both) |
+| S→C | `thread:progress` | `participantId`, `room`, `jumped`. To the mover it also carries their new `question` and `hintAt`; the opponent gets the room number only |
+| S→C | `thread:locked` | `participantId`, `lockedUntil` (both see lockouts, never the text) |
+| S→C | `thread:hint` | `participantId`, `room`; to that player also the `letter` |
+| S→C | `round:result` | `reveal: { rooms: [{ room, question, answer: EntityRef, source }], reached: { [participantId]: room } }` |
+
+- One event goes to every player with data per viewer, so private parts (your question, your letter) ride on events everyone receives and the `seq` stays continuous.
+- Refusals: `NOT_YOUR_ROOM`, `LOCKED_OUT`, `NO_JUMP_LEFT`, `JUMP_NOT_ALLOWED` (last room), `EMPTY_ANSWER`, `ROUND_CLOSED`.
+
+### 17.4 Content and generator
+
+| `gameType` | Content | Accepted answers |
+|---|---|---|
+| `THREAD` | `{ rooms: [{ hop, text: LocalizedText, jumpText: LocalizedText \| null }] }` | slot `r` = exactly one entity: room `r`'s answer |
+
+**Hops (v1, from the data we have today):** every hop goes from the previous answer to exactly one new answer.
+
+| Hop | From → answer | Example (English) | One answer because |
+|---|---|---|---|
+| `FINAL_WINNER` | a named final → its winner | "Who won the 2014 Champions League final?" | room 1 only |
+| `FINAL_OPPONENT` | a team in the current final → the other team | "Who did they beat in that final?" | two teams per match |
+| `FIRST_SCORER` / `LAST_SCORER` | a team in the current match → its first or last scorer by minute | "Who scored their first goal that night?" | ordered by minute; own goals left out |
+| `ASSIST` | the scorer of the current goal → who set it up | "Who set that goal up?" | one recorded assist |
+| `CAPTAIN` | a team in the current match → its captain | "Who wore their armband that night?" | one captain per lineup |
+| `SCORED_IN_FINAL_AGAINST` | a player → the team he scored against in a named final | "Which club did he score against in the 2018 Champions League final?" | one opponent per match |
+| `NATIONALITY` | a player → his country | "Which country is he from?" | one citizenship; last room only (a dead end) |
+
+- **Every hop names its match or stays in the current one.** No hop says "ever", "first" or "next" across seasons: our club goals and lineups start in 2012-13, and an all-time claim could be false outside our data (the DEC-85 lesson).
+- **No "played for" hops** (the owner's rule: no career or teammate links).
+- **A thread is valid when:** every room has exactly one answer given the room before it; the five answers are all different; every answer is a catalog entity with an English and an Arabic name; players are well known (`--thread-min-player-sitelinks`, default 30); no two rooms in a row use the same hop.
+- **Jump text:** each hop has a question form and a noun-phrase form ("the club they beat in that final"); the jump question is room `r + 1`'s question with room `r`'s noun phrase as its subject. Written by the generator in both languages.
+- **Difficulty:** from the least known answer of the thread.
+- **Coaches and venues:** the demo's "the coach of that team that night" needs coaches as catalog entities (Transfermarkt has 6,137 manager names as text, not linked yet) and stadiums as a new entity kind. They come as a later data slice with their own hops (DEC-86); v1 does without them.
+- **Measured on 2026-11-21 (dev knowledge base):** 2,266 tier-1 and tier-2 knockout matches (252 finals), 6,361 goals in them (3,945 with an assist), 3,571 team lineups with a captain, 46,709 players with one citizenship. A prototype walk over the v1 hops from the finals alone finds **7,740 five-room threads from 193 of 248 finals** (median 24 per final) with answers of 30+ sitelinks, and 5,867 from 166 finals at 50+.
+- **Variety:** threads of the same final share room 1, so the generator keeps at most `--threads-per-final` (default 3) per final, each different from room 2 on: about 580 threads from finals alone. Knockout rounds as room 1 ("the 2019 semi-final second leg") would multiply that, and are the first thing to add if the bank runs short.
+
+### 17.5 Bot
+
+- It knows each room's answer with its chance at the thread's difficulty and answers after `typingDelayMs`; when it does not, it sends a wrong popular name now and then (and serves the lockout) or waits for the hint, which raises its chance.
+- It never jumps in v1 (`TODO(DEC-86)`).
+
+### 17.6 Configuration
+
+| Key | Default (dev) | Decision |
+|---|---|---|
+| `roundCount`, `targetScore` | 3, 2 | DEC-86 |
+| `firstMover` | `NONE` | 08 §9.1: both race at once |
+| `roundMs` | 150000 | DEC-86 |
+| `lockoutMs` | [3000, 6000, 9000] | owner, 2026-11-18 (the demo) |
+| `hint` | `{ afterMs: 20000 }` | owner, 2026-11-18 (the demo) |
+| `jump.perThread` | 1 | owner, 2026-11-18 (the demo); a wrong jump spends it (DEC-86) |
+| `timeUp` | `HIGHER_ROOM_WINS` | DEC-86 |
+| `showWrongAnswers` | false | DEC-86 |
+| `points.thread` | 1 | DEC-86 |
+
+### 17.7 How it fits the engine
+
+- **Rules:** pure `battles/domain/games/thread-rules.ts`: each participant's room, lockout (`LockoutLadder`, §9.2), hint due time (`HintSchedule`), jump state; the round ends at the last room or the deadline. `ThreadRoundRunner` wraps them (§2.4).
+- **Judging:** the room's answer slot with `AnswerChecker.judgeTypedText` (08 §5.3), like any slot game; no link graph.
+- **Timers:** one round deadline, one hint timer per participant.
+- **Actions:** `THREAD_ANSWER` (`slot` = room, `is_correct`), `THREAD_JUMP`. `THREAD_ANSWER` is an answering action for question stats.
+- **Snapshot `currentRound`:** your room, its question (or its jump question), your lockout and hint, `jumpsLeft`, and the opponent's room.
