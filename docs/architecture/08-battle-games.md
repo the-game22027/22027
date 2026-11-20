@@ -1013,6 +1013,8 @@ Question-bank owns the graph, as it owns the catalog (§5):
 
 Chosen by the product owner on 2026-11-20 (demo page: https://claude.ai/artifact/MbWyGPfnbyKbCRUax1cdnX). Dots and boxes on a board of clubs. To draw the line between two neighbouring clubs, a player types someone who scored against both. A line that closes a square wins it and gives another turn; a wrong answer still draws the line, in grey, and a square it closes goes to the opponent. Most squares wins.
 
+**Built 2026-11-21** (as below; changes from the design are folded in: `goalsSince` in `round:start`, `result` in `bridge:drawn`, the board size in the content, the end reason `BOARD_COMPLETE`).
+
 ### 16.1 A round (one board)
 
 ```mermaid
@@ -1038,20 +1040,22 @@ stateDiagram-v2
 - The accepted scorers of every line stay on the server. After a right answer both players see the scorer and the two matches that make it true; after a grey line, nobody sees the answers until the reveal.
 - The board, the picks and the owners are public. Typed text is never shown; a wrong answer shows only the entity it matched (DEC-60).
 
-### 16.3 Protocol (details in `api/WEBSOCKET.md` with the build)
+### 16.3 Protocol (`api/WEBSOCKET.md`)
 
 | Direction | Message | Purpose |
 |---|---|---|
 | C→S | `bridge:pick { roundNo, line }` | The player on turn picks an open line |
 | C→S | `bridge:answer { roundNo, answer: { text } }` | The one try for that line |
 | S→C | ack of `bridge:answer` | Only to the sender: `data: { result: RIGHT \| WRONG \| USED }` |
-| S→C | `round:start` | `size`, `clubs: EntityRef[size × size]` (row by row), `lines: [{ line, from, to }]`, `firstPickerId` |
+| S→C | `round:start` | `size`, `clubs: EntityRef[size × size]` (row by row), `lines: [{ line, from, to }]`, `firstPickerId`, `goalsSince` (e.g. `2012-13`, from config) |
 | S→C | `bridge:turn` | `participantId`, `pickDeadlineAt` |
 | S→C | `bridge:question` | `line`, `clubs: [EntityRef, EntityRef]`, `auto`, `answerDeadlineAt` |
-| S→C | `bridge:drawn` | `line`, `participantId`, `right`, `scorer?: EntityRef` and `evidence?: string[2]` (right only), `entity?` (what a wrong text matched), `squares: [{ square, ownerId }]` closed by this line, `scores` |
+| S→C | `bridge:drawn` | `line`, `participantId`, `right`, `result: RIGHT \| WRONG \| USED \| TIME_UP`, `scorer?: EntityRef` and `evidence?: string[2]` (right only), `entity?` (what a wrong or used text matched), `squares: [{ square, ownerId }]` closed by this line, `scores` |
 | S→C | `round:result` | `reveal: { lines: [{ line, drawnBy, right, scorer?, examples: EntityRef[] }], squares: (participantId \| null)[] }` |
 
 Refusals: `NOT_YOUR_TURN`, `LINE_TAKEN`, `INVALID_LINE`, `PICK_WINDOW_CLOSED`, `ANSWER_WINDOW_CLOSED`, `EMPTY_ANSWER`, `ROUND_CLOSED`.
+
+**"Not in our records" (DEC-85):** the server sends no extra field. A `WRONG` line whose `entity` is set means the text named a known catalog player who is not linked to both clubs; the app words it as "not in our records (goals since `goalsSince`)", because the player may well have scored before our data starts. A `WRONG` line without `entity` named nobody.
 
 ### 16.4 Content and generator
 
@@ -1060,25 +1064,28 @@ Refusals: `NOT_YOUR_TURN`, `LINE_TAKEN`, `INVALID_LINE`, `PICK_WINDOW_CLOSED`, `
 | `BRIDGE` | `{ size, clubs: [entityRef × size²] }` (row by row) | none stored: the link graph (§16.7, ADR-0024) |
 
 - **Answers come from the `ONE_TWO` link graph:** the scorers of a line are the `CONCEDED_TO` neighbours both clubs have in common. Nothing new is stored per board, and every right answer has its evidence matches.
-- **Generator** (`kb bundle --bridges N`, 07 §5.10 N9 slice): boards of well-known clubs (the `--bridge-clubs` most popular, default 60) placed so that every neighbouring pair has at least `--bridge-min-answers` (3) common scorers. Deterministic: board `n` comes from a seeded shuffle and a repair search; boards with the same clubs in the same places are dropped.
-- **Difficulty:** from the smallest and median number of answers per line.
+- **Generator** (`kb bundle --bridges N`, 07 §5.10 N9 slice): boards of `--bridge-size` (default 4) well-known clubs per side (the `--bridge-clubs` most popular in the written catalog, default 60) placed so that every neighbouring pair has at least `--bridge-min-answers` (3) common scorers. Deterministic: board `n` comes from a shuffle seeded with `n` and a repair search (swap the club on a short line with a spare club or another cell, always the swap that leaves the fewest short lines; give up when no swap helps or after 40 swaps); boards with the same clubs in the same places are dropped. The import accepts boards of 3 to 5 clubs per side, `size²` different catalog clubs and no answer slots.
+- **Difficulty:** from the hardest line: 15+ answers → 1, 10+ → 2, 6+ → 3, 4+ → 4, fewer → 5; one step harder when the median line has fewer than 15.
+- **Built 2026-11-21:** 200 boards from the full graph (281,231 links) in 24 s, spread over difficulties 1–5 (40, 39, 55, 36, 30), using 53 of the 60 clubs.
 - **Measured on 2026-11-20 (dev graph):** random 4 × 4 boards from the 60 most popular clubs already pass the 3-answer rule 71% of the time, with a median of 31 right answers per line and 7 on the hardest line (top 40: 59%, median 38; top 100: 39%, median 24). With 16 of 60 clubs in any order, the number of possible boards runs into the billions.
 - **The data's era:** the graph holds goals of tier-1 and tier-2 club competitions since 2012-13 (Transfermarkt). A scorer from before that is true but not in our records, so the board says "goals since 2012-13" and the reveal says "not in our records" instead of "wrong" for a known player with no link (DEC-85).
 
 ### 16.5 Bot
 
 - **Picking:** it avoids a third side of a square when it can; when every line gives one away, it picks the line that gives away the fewest squares. It takes a closing line whenever one exists.
-- **Answering:** it knows an answer with its chance at the board's difficulty (more for lines with many answers); when it knows one, it types the best-known unused scorer after `typingDelayMs`, otherwise a wrong popular player now and then, or nothing.
+- **Answering:** it knows an answer with its chance at the board's difficulty, plus 0.15 on a line with 20 or more scorers; when it knows one, it names the best-known unused scorer after `typingDelayMs`, otherwise a wrong popular player with `guessChance`, or nothing (the line then times out grey).
+- **Picking** waits `typingDelayMs` too; among equally good lines it picks at random.
 
 ### 16.6 Configuration
 
 | Key | Default (dev) | Decision |
 |---|---|---|
 | `roundCount`, `targetScore` | 1, null | DEC-85 |
-| `size` | 4 | DEC-85 |
+| `size` | 4 | DEC-85: a generator flag (`--bridge-size`), not battle config: the board size comes with the content, as for `HEX` |
 | `firstMover` | `RPS` | owner, 2026-11-18 |
 | `pickMs`, `answerMs` | 8000, 12000 | DEC-85 (the demo: 12 s answers) |
-| `wrongLine` | `GREY_GIVES_SQUARES` | owner, 2026-11-20 (the demo) |
+| `wrongLine` | `GREY_GIVES_SQUARES` | owner, 2026-11-20 (the demo); `GREY_GIVES_NOTHING` is the other built option. DEC-85's "no line, turn lost" is not built (`TODO(DEC-85)`) |
+| `goalsSince` | `2012-13` | DEC-85: the first season of the goals behind the answers, shown on the board |
 | `showWrongAnswers` | true | DEC-60 |
 | `points.square` | 1 | DEC-85 |
 
@@ -1088,5 +1095,6 @@ Refusals: `NOT_YOUR_TURN`, `LINE_TAKEN`, `INVALID_LINE`, `PICK_WINDOW_CLOSED`, `
 - **Judging:** `LinkGraphQuery.findCommonNeighbours(clubA, clubB, CONCEDED_TO)` loads a line's scorers once, when it is picked (one query on the primary key of `entity_links`, run for both clubs); then `AnswerChecker.judgeTypedTextAgainstLinks` judges against them, used scorers losing ties, exactly as `ONE_TWO` does.
 - **Evidence:** the `link_matches` of the two `SCORED_AGAINST` rows of the scorer.
 - **Timers:** one phase timer: `pick`, then `answer`.
-- **Actions:** `BRIDGE_PICK` (`auto`), `BRIDGE_ANSWER` (`is_correct`; a timeout is an answer with no entity). Question stats count a wrong, used or late answer as wrong for the board.
+- **Actions:** `BRIDGE_PICK` (`cell` = the line; `is_correct` false when the server picked), `BRIDGE_ANSWER` (`cell` = the line, `is_correct`; a timeout is an answer with no entity). `BRIDGE_ANSWER` is an answering action, so question stats count a wrong, used or late answer as wrong for the board.
+- **End:** `BOARD_COMPLETE` when the last line is drawn, `FORFEIT` when a player leaves. A used scorer counting as wrong is the DEC-85 default; "refused, try again" is not built.
 - **Snapshot `currentRound`:** the board, every line's owner (with scorer and evidence for right ones), square owners, the turn, its phase, the picked line and the deadline.

@@ -147,7 +147,7 @@ Changes vs the original proposed order, and why:
 | N6 `TIME_MACHINE` (آلة الزمن) | one tournament edition per year (finals, scorers, top scorers, knockout paths) | D.3e `edition_summary` | D.3e |
 | N7 `THREAD` (الخيط) | 5-hop chains where every hop has exactly one answer | the whole fact graph, coaches and venues | N6 (hardest generator) |
 | N8 `ONE_TWO` (وان تو) (**design done 2026-11-20**: 08 §15, 07 §5.10 N8 slice, DEC-81; **link graph, generator, backend and mobile data layer built 2026-11-20**, before N6) | a rally on a link graph between catalog entities: faced in a final or a knockout, scored in the same match, assists, scored against a club | D.3d goals and lineups (built); no new source | N5 |
-| N9 `BRIDGE` (الكوبري) (**design done 2026-11-20**: 08 §16, 07 §5.10 N9 slice, DEC-85; **built next**) | dots and boxes on a board of clubs: a line needs a player who scored against both | the N8 link graph (`SCORED_AGAINST`); no new source | N8 |
+| N9 `BRIDGE` (الكوبري) (**built 2026-11-21**: 08 §16, 07 §5.10 N9 slice, DEC-85 Pending) | dots and boxes on a board of clubs: a line needs a player who scored against both | the N8 link graph (`SCORED_AGAINST`); no new source | N8 |
 
 - **Between N4 and N5: never repeat a question (DEC-44, decided 2026-11-19).** Battles skip every question a player was shown, not only those of their last 20 battles, and refill from the ones seen longest ago when the bank is short (03 §4.3, 08 §5.4). The same fact in two different questions waits for D.3e fact keys.
 - **Exit per phase:** the game can be walked through message by message from `08`; its bot plays it; a dev bundle with generated content imports and plays end to end; every open rule is config plus a Pending DEC.
