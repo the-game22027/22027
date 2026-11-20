@@ -32,6 +32,7 @@ const ANSWERING_ACTIONS = new Set([
   'LINEUP_ACCUSE',
   'ONE_TWO_ANSWER',
   'BRIDGE_ANSWER',
+  'THREAD_ANSWER',
 ]);
 
 /**
