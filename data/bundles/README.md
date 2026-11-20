@@ -5,13 +5,21 @@ Each folder is one bundle: `manifest.json`, `questions.jsonl` and optionally `ca
 Import one into the app database (from `apps/backend`):
 
 ```bash
-npm run cli -- questions:import ../../data/bundles/dev-0011
-npm run cli -- questions:publish dev-0011 --include-drafts   # development only: the rounds are unreviewed
+npm run cli -- questions:import ../../data/bundles/dev-0012
+npm run cli -- questions:publish dev-0012 --include-drafts   # development only: the rounds are unreviewed
 ```
 
 Importing the same bundle twice changes nothing. A bundle version is never reused: a changed bundle gets a new folder and a new `bundleVersion`.
 
-## dev-0011 (use this one)
+## dev-0012 (use this one)
+
+dev-0011 plus **40 `BRIDGE` boards** (08 §16.4): 4 × 4 boards of the 60 most popular catalog clubs, every neighbouring pair with at least 3 common scorers in the bundle's own link graph. 549 rounds; the catalog and the 22,876-link graph are the same as dev-0011. Because this graph links only players with 60+ sitelinks, the boards come out hard (difficulty 3–5: 6, 15, 19); boards from the full graph spread over 1–5.
+
+```bash
+.venv/bin/python -m kb bundle --version dev-0012 --out bundles/dev-0012 --careers 60 --buzzers 60 --who 60 --grids 30 --mines 40 --auctions 60 --vaults 60 --hexes 30 --lineups 60 --one-twos 60 --bridges 40 --links-min-player-sitelinks 60 --catalog-min-player-sitelinks 40
+```
+
+## dev-0011
 
 Every game type so far: 60 `CAREER`, 60 `BUZZER`, 60 `WHO_IS_PLAYER`, 19 `GRID`, 40 `MINES`, 60 `AUCTION`, 60 `VAULT`, 30 `HEX`, 60 `LINEUP` and 60 `ONE_TWO` seeds (509 rounds), a catalog of 8,187 entities, and a link graph of 22,876 links between players with 60+ sitelinks and clubs (08 §15.4). Importing it replaces the app's whole link graph. dev-0008 to dev-0010 are the same without the later game types.
 
