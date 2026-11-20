@@ -56,9 +56,11 @@ export interface RoundAction {
     | 'LINEUP_ANSWER'
     | 'LINEUP_ACCUSE'
     | 'ONE_TWO_PASS'
-    | 'ONE_TWO_ANSWER';
+    | 'ONE_TWO_ANSWER'
+    | 'BRIDGE_PICK'
+    | 'BRIDGE_ANSWER';
   answer?: JudgedAnswer;
-  /** Grid only: row * 3 + col. */
+  /** Grid: row * 3 + col; bridge: the line. */
   cell?: number;
   isCorrect?: boolean;
   points: number;
@@ -96,6 +98,7 @@ export interface RoundResult {
     | 'MISSED'
     | 'DEAD_END'
     | 'MAX_PASSES'
+    | 'BOARD_COMPLETE'
     | 'FORFEIT';
   /** Points earned in this round, by participant; missing means 0. */
   points: Record<ParticipantId, number>;

@@ -123,6 +123,7 @@ About 35 minutes in total. Cards marked *later* explain tools we have not needed
 | [database/keep-array-order-with-ordinality](database/keep-array-order-with-ordinality.md) | DEC-44 | `unnest ... WITH ORDINALITY` keeps a list's order; refill with what was seen longest ago |
 | [database/one-record-from-several-sources](database/one-record-from-several-sources.md) | N5 | Source priority plus a disagreement gate: one lineup per match and team |
 | [database/graph-in-a-table](database/graph-in-a-table.md) | N8 | Edges as rows keyed `(from, type, to)`: a one-hop lookup is one index range; counts kept at import |
+| [database/self-join-intersection](database/self-join-intersection.md) | N9 | Join a table to itself on the neighbour: "in both lists" is one query on two index ranges |
 | [mobile/generated-rest-client](mobile/generated-rest-client.md) | M0 | The contract generates the client; regenerate, never hand-edit |
 | [mobile/build-runner-part-files](mobile/build-runner-part-files.md) | M1.5 | What `.g.dart` files are: JSON and `copyWith` code written by `build_runner` |
 | [mobile/secure-token-storage](mobile/secure-token-storage.md) | M0 | Tokens in the OS keystore; the server's 401 decides expiry |

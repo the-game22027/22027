@@ -446,6 +446,7 @@ Not used: StatsBomb open data (non-commercial), FBref and SofaScore (scraping fo
 - **No new data:** a board's answers are the scorers two clubs have in common in the `ONE_TWO` link graph (`SCORED_AGAINST` links, N8 slice).
 - **`kb bundle --bridges N`** builds boards of `size × size` clubs (default 4) from the `--bridge-clubs` most popular catalog clubs (default 60): a seeded shuffle, then a repair search that swaps clubs until every neighbouring pair has `--bridge-min-answers` (default 3) common scorers; a board that cannot be repaired is dropped. Boards with the same clubs in the same places are written once. `--bridges` writes the link graph too, because the answers live there.
 - **Measured on 2026-11-20 (dev):** 71% of random 4 × 4 boards from the top 60 clubs pass without repair; median 31 answers per line, 7 on the hardest.
+- **Built 2026-11-21:** `kb/bridges.py`; flags `--bridges`, `--bridge-clubs`, `--bridge-size`, `--bridge-min-answers`. Board clubs are taken from the written catalog (with `--links-min-player-sitelinks`, the graph only links the kept players), so every board's answers are in the written graph. 200 boards from the full graph in 24 s.
 
 **D.3d: typed match tables (resolved).**
 - `core.competition` (ref, kind `LEAGUE` | `CUP` | `INTERNATIONAL`, tier, country) and `core.edition` (competition, season label, final year, winner, runner-up, host).

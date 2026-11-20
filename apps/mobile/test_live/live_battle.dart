@@ -137,6 +137,7 @@ class LiveBattleRun {
   bool _hasTriedWhileLockedOut = false;
   final _playedHexPicks = <DateTime>{};
   final _answeredHexRaces = <DateTime>{};
+  final _playedBridgeMoves = <DateTime>{};
   bool _hasAnsweredHexWhileLockedOut = false;
   bool _hasStartedBurying = false;
   bool _isMoving = true;
@@ -294,6 +295,8 @@ class LiveBattleRun {
             }
           case final HexRound round:
             await _pickOrAnswerHex(battle, round);
+          case final BridgeRound round:
+            await _pickOrAnswerBridge(battle, round);
           case LineupRound():
           case OneTwoRound():
           case null:
@@ -536,6 +539,40 @@ class LiveBattleRun {
         _hasAnsweredHexWhileLockedOut = true;
         await _answerHex(round, guess);
       case HexPhase.closed:
+        break;
+    }
+  }
+
+  /// BRIDGE: the first open line on my turn, then a guess that is probably wrong (a grey line).
+  Future<void> _pickOrAnswerBridge(
+    BattleState battle,
+    BridgeRound round,
+  ) async {
+    final deadline = round.deadline;
+    if (round.turnId != battle.youParticipantId ||
+        deadline == null ||
+        !_playedBridgeMoves.add(deadline)) {
+      return;
+    }
+    switch (round.phase) {
+      case BridgePhase.picking:
+        final open = round.lines.firstWhere(
+          (line) => !round.drawn.containsKey(line.line),
+          orElse: () => const BridgeLine(line: -1, from: 0, to: 0),
+        );
+        if (open.line < 0) return;
+        final pick = await controller.pickBridgeLine(open.line);
+        log.add(
+          'bridge pick ${open.line} round ${round.roundNo}: '
+          '${describeCommandResult(pick)}',
+        );
+      case BridgePhase.answering:
+        final answer = await controller.answerOnBridge(_guess);
+        log.add(
+          'bridge answer $_guess line ${round.line}: '
+          '${describeCommandResult(answer)}',
+        );
+      case BridgePhase.closed:
         break;
     }
   }

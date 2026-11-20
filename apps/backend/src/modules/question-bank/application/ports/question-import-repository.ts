@@ -92,6 +92,11 @@ export interface QuestionImportRepository {
    */
   pruneLinkGraphToActiveCatalog(): Promise<void>;
   /**
+   * Positions (0-based) of the club pairs with no active player linked to both by `CONCEDED_TO`: a BRIDGE line
+   * nobody can answer (08 §16.4). Reads the graph as this transaction sees it.
+   */
+  findClubPairsWithoutCommonScorer(pairs: readonly (readonly [string, string])[]): Promise<number[]>;
+  /**
    * Makes the ONE_TWO link graph exactly these readings (08 §15.8): every old link, count and match is removed.
    * Every reference must be an active catalog entity and every match key one of `matches` (checked before).
    */

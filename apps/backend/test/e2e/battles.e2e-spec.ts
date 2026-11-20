@@ -23,6 +23,7 @@ import {
   hexFixture,
   lineupFixture,
   oneTwoFixture,
+  bridgeFixture,
   vaultLine,
   whoLine,
 } from '../support/question-bundles';
@@ -65,6 +66,7 @@ function writeBattleConfig(bot: { knows: number; guess: number }, botFallbackAft
       HEX: hex,
       LINEUP: lineup,
       ONE_TWO: oneTwo,
+      BRIDGE: bridge,
       ...revealGames
     } = config.gameTypes;
     if (grid) {
@@ -132,6 +134,13 @@ function writeBattleConfig(bot: { knows: number; guess: number }, botFallbackAft
         rps: { pickMs: 600, maxReplays: 2, revealMs: 50, botPickDelayMs: { min: 200, max: 200 } },
       });
     }
+    if (bridge) {
+      Object.assign(bridge, {
+        pickMs: 800,
+        answerMs: 800,
+        rps: { pickMs: 600, maxReplays: 2, revealMs: 50, botPickDelayMs: { min: 200, max: 200 } },
+      });
+    }
     for (const game of Object.values(revealGames)) {
       Object.assign(game, {
         roundCount: 2,
@@ -153,6 +162,7 @@ describe('battles over WebSocket (e2e)', () => {
   const hex = hexFixture();
   const lineup = lineupFixture();
   const oneTwo = oneTwoFixture();
+  const bridge = bridgeFixture();
   const gridPlayerIds: string[] = [];
   let spainId: string;
   let naniId: string;
@@ -192,6 +202,8 @@ describe('battles over WebSocket (e2e)', () => {
             oneTwo.line(`test:${randomUUID()}`),
             oneTwo.line(`test:${randomUUID()}`),
             oneTwo.line(`test:${randomUUID()}`),
+            bridge.line(`test:${randomUUID()}`),
+            bridge.line(`test:${randomUUID()}`, 'REVERSED'),
           ],
           [
             ...Object.values(e),
@@ -201,8 +213,9 @@ describe('battles over WebSocket (e2e)', () => {
             ...hex.entities,
             ...lineup.entities,
             ...oneTwo.entities,
+            ...bridge.entities,
           ],
-          { links: oneTwo.links, matches: oneTwo.matches },
+          { links: [...oneTwo.links, ...bridge.links], matches: [...oneTwo.matches, ...bridge.matches] },
         ),
       );
     await moduleRef.get(QuestionBankFacade).publishQuestionsOfBundle(version);
@@ -925,6 +938,99 @@ describe('battles over WebSocket (e2e)', () => {
       expect((await player.waitFor('battle:completed')).data).toMatchObject({ you: { outcome: 'WIN', score: 2 } });
     });
 
+    it('plays BRIDGE: refused picks, right lines with their two matches, a wrong and a used scorer drawn grey', async () => {
+      const player = await connectPlayer();
+      await player.send('matchmaking:join', { gameType: 'BRIDGE' });
+      const found = await player.waitFor('battle:found');
+      const battleId = found.battleId as string;
+      const me = found.data['youParticipantId'] as string;
+      await player.send('battle:ready', { battleId });
+      const start = await player.waitFor('round:start');
+      expect(start.data).toMatchObject({ size: 3, goalsSince: '2012-13' });
+      expect((start.data['clubs'] as unknown[]).length).toBe(9);
+      expect((start.data['lines'] as unknown[]).length).toBe(12);
+
+      // Reads events in order: the silent bot's turns are skipped, its answers time out and draw grey lines.
+      let cursor = 0;
+      const next = async (types: string[]) => {
+        const deadline = Date.now() + 20_000;
+        for (;;) {
+          const index = player.events.findIndex((event, at) => at >= cursor && types.includes(event.type));
+          if (index >= 0) {
+            cursor = index + 1;
+            return player.events[index];
+          }
+          if (Date.now() > deadline) throw new Error(`no ${types.join(' or ')}`);
+          await new Promise((resolve) => setTimeout(resolve, 10));
+        }
+      };
+      const drawnLines = () =>
+        new Set(player.events.filter((event) => event.type === 'bridge:drawn').map((event) => event.data['line']));
+      const scorers = [...bridge.scorers];
+      let firstRight: string | null = null;
+      let triedWrong = false;
+      let triedUsed = false;
+      for (;;) {
+        const turn = await next(['bridge:turn', 'round:result']);
+        if (turn.type === 'round:result') break;
+        if (turn.data['participantId'] !== me) continue;
+        const roundNo = turn.data['roundNo'];
+        const drawn = drawnLines();
+        expect(await player.send('bridge:pick', { battleId, roundNo, line: 12 })).toMatchObject({
+          accepted: false,
+          code: 'INVALID_LINE',
+        });
+        const [taken] = drawn;
+        if (taken !== undefined) {
+          expect(await player.send('bridge:pick', { battleId, roundNo, line: taken })).toMatchObject({
+            accepted: false,
+            code: 'LINE_TAKEN',
+          });
+        }
+        const line = Array.from({ length: 12 }, (_, index) => index).find((index) => !drawn.has(index));
+        expect(await player.send('bridge:pick', { battleId, roundNo, line })).toMatchObject({ accepted: true });
+        const question = await next(['bridge:question']);
+        expect(question.data).toMatchObject({ line, auto: false });
+        const answer = (text: string) => player.send('bridge:answer', { battleId, roundNo, answer: { text } });
+        if (!triedWrong) {
+          // A known player with no link: drawn grey, and the client says "not in our records" (DEC-85).
+          expect(await answer(bridge.outsider.names.en)).toMatchObject({ accepted: true, data: { result: 'WRONG' } });
+          const grey = await next(['bridge:drawn']);
+          expect(grey.data).toMatchObject({ line, right: false, entity: { name: bridge.outsider.names.en } });
+          triedWrong = true;
+        } else if (firstRight !== null && !triedUsed) {
+          expect(await answer(firstRight)).toMatchObject({ accepted: true, data: { result: 'USED' } });
+          expect((await next(['bridge:drawn'])).data).toMatchObject({ right: false, result: 'USED' });
+          triedUsed = true;
+        } else {
+          const scorer = scorers.shift();
+          if (!scorer) throw new Error('out of scorers');
+          expect(await answer(scorer.names.en)).toMatchObject({ accepted: true, data: { result: 'RIGHT' } });
+          const right = await next(['bridge:drawn']);
+          const evidence = Object.values(bridge.matches[0]?.evidence ?? {});
+          expect(right.data).toMatchObject({ line, right: true, participantId: me, scorer: { name: scorer.names.en } });
+          expect(evidence).toContain((right.data['evidence'] as string[])[0]);
+          expect(evidence).toContain((right.data['evidence'] as string[])[1]);
+          firstRight ??= scorer.names.en;
+        }
+      }
+      expect(triedWrong && triedUsed).toBe(true);
+
+      // A right line that closed a square kept my turn; every other line passed it.
+      const ordered = player.events.filter((event) => ['bridge:drawn', 'bridge:turn'].includes(event.type));
+      ordered.forEach((event, index) => {
+        const following = ordered[index + 1];
+        if (event.type !== 'bridge:drawn' || following?.type !== 'bridge:turn') return;
+        const keeps = event.data['right'] === true && (event.data['squares'] as unknown[]).length > 0;
+        expect(following.data['participantId'] === event.data['participantId']).toBe(keeps);
+      });
+      const result = await player.waitFor('round:result');
+      const reveal = result.data['reveal'] as { lines: unknown[]; squares: (string | null)[] };
+      expect(reveal.lines).toHaveLength(12);
+      const mySquares = reveal.squares.filter((owner) => owner === me).length;
+      expect((await player.waitFor('battle:completed')).data).toMatchObject({ you: { score: mySquares } });
+    });
+
     it('picks for a player who does not throw in time, and still starts the round', async () => {
       const player = await connectPlayer();
       await player.send('matchmaking:join', { gameType: 'GRID' });
@@ -1098,6 +1204,29 @@ describe('battles over WebSocket (e2e)', () => {
       expect(misses.every((event) => event.data['participantId'] === me && event.data['reason'] === 'TIME_UP')).toBe(
         true,
       );
+    });
+
+    it('a bot that knows every scorer draws only right lines, and a quiet player’s lines go grey', async () => {
+      const player = await connectPlayer();
+      await player.send('matchmaking:join', { gameType: 'BRIDGE' });
+      const found = await player.waitFor('battle:found');
+      const me = found.data['youParticipantId'];
+      await player.send('battle:ready', { battleId: found.battleId });
+
+      // Twelve lines of picks and deadlines: longer than one waitFor.
+      const deadline = Date.now() + 40_000;
+      while (!player.events.some((event) => event.type === 'battle:completed') && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+      expect((await player.waitFor('battle:completed')).data).toMatchObject({ you: { outcome: 'LOSS', score: 0 } });
+      const drawn = player.events.filter((event) => event.type === 'bridge:drawn');
+      expect(drawn).toHaveLength(12);
+      const botLines = drawn.filter((event) => event.data['participantId'] !== me);
+      expect(botLines.every((event) => event.data['right'] === true)).toBe(true);
+      const scorers = botLines.map((event) => (event.data['scorer'] as { entityId: string }).entityId);
+      expect(new Set(scorers).size).toBe(scorers.length);
+      const mine = drawn.filter((event) => event.data['participantId'] === me);
+      expect(mine.every((event) => event.data['result'] === 'TIME_UP')).toBe(true);
     });
 
     it('a bot that knows every digit opens each vault first', async () => {

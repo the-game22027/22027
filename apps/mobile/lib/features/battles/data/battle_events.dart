@@ -13,6 +13,7 @@ enum GameType {
   hex,
   lineup,
   oneTwo,
+  bridge,
   unknown,
 }
 
@@ -27,6 +28,7 @@ GameType findGameTypeByCode(String code) => switch (code) {
   'HEX' => GameType.hex,
   'LINEUP' => GameType.lineup,
   'ONE_TWO' => GameType.oneTwo,
+  'BRIDGE' => GameType.bridge,
   _ => GameType.unknown,
 };
 
@@ -41,6 +43,7 @@ String convertGameTypeToCode(GameType gameType) => switch (gameType) {
   GameType.hex => 'HEX',
   GameType.lineup => 'LINEUP',
   GameType.oneTwo => 'ONE_TWO',
+  GameType.bridge => 'BRIDGE',
   GameType.unknown => throw ArgumentError('unknown game type has no code'),
 };
 
@@ -1011,6 +1014,127 @@ class OneTwoMissed extends BattleServerEvent {
   final EntityRef? entity;
 }
 
+/// A line of a `BRIDGE` board: the two clubs it joins, as indexes into the board's clubs.
+class BridgeLine {
+  const BridgeLine({required this.line, required this.from, required this.to});
+
+  final int line;
+  final int from;
+  final int to;
+}
+
+/// `round:start` of a `BRIDGE` board (`08` §16.1): clubs row by row, the numbered lines, who picks
+/// first, and the first season of the goals behind the answers (shown on the board, DEC-85).
+class BridgeRoundStarted extends BattleServerEvent {
+  const BridgeRoundStarted({
+    required super.serverTime,
+    required super.battleId,
+    required super.seq,
+    required this.roundNo,
+    required this.size,
+    required this.clubs,
+    required this.lines,
+    required this.firstPickerId,
+    required this.goalsSince,
+  });
+
+  final int roundNo;
+  final int size;
+  final List<EntityRef> clubs;
+  final List<BridgeLine> lines;
+  final String firstPickerId;
+
+  /// For example `2012-13`.
+  final String goalsSince;
+}
+
+/// `bridge:turn`: who picks the next line, and until when.
+class BridgeTurnStarted extends BattleServerEvent {
+  const BridgeTurnStarted({
+    required super.serverTime,
+    required super.battleId,
+    required super.seq,
+    required this.roundNo,
+    required this.participantId,
+    required this.pickDeadlineAt,
+  });
+
+  final int roundNo;
+  final String participantId;
+  final DateTime pickDeadlineAt;
+}
+
+/// `bridge:question`: the picked line and its two clubs; [wasPickedByServer] after a missed pick.
+class BridgeQuestionAsked extends BattleServerEvent {
+  const BridgeQuestionAsked({
+    required super.serverTime,
+    required super.battleId,
+    required super.seq,
+    required this.roundNo,
+    required this.line,
+    required this.clubs,
+    required this.wasPickedByServer,
+    required this.answerDeadlineAt,
+  });
+
+  final int roundNo;
+  final int line;
+  final List<EntityRef> clubs;
+  final bool wasPickedByServer;
+  final DateTime answerDeadlineAt;
+}
+
+/// A square a line closed, and who got it (null: nobody).
+class BridgeSquareClosed {
+  const BridgeSquareClosed({required this.square, this.ownerId});
+
+  final int square;
+  final String? ownerId;
+}
+
+/// `bridge:drawn`: a line is drawn, in the player's name when [isRight], grey otherwise.
+class BridgeLineDrawn extends BattleServerEvent {
+  const BridgeLineDrawn({
+    required super.serverTime,
+    required super.battleId,
+    required super.seq,
+    required this.roundNo,
+    required this.line,
+    required this.participantId,
+    required this.isRight,
+    required this.result,
+    required this.closedSquares,
+    required this.scores,
+    this.scorer,
+    this.evidence = const [],
+    this.entity,
+  });
+
+  final int roundNo;
+  final int line;
+
+  /// Who answered: the line's owner when right, the one who drew it grey otherwise.
+  final String participantId;
+  final bool isRight;
+
+  /// `RIGHT`, `WRONG`, `USED` (a scorer already named right on this board) or `TIME_UP`.
+  final String result;
+
+  /// The scorer of a right line.
+  final EntityRef? scorer;
+
+  /// The two matches that make a right line true, one per club, in the viewer's language.
+  final List<String> evidence;
+
+  /// What a wrong or used answer matched. A wrong known player is shown as "not in our records":
+  /// the goals behind the answers start at the board's `goalsSince` (DEC-85).
+  final EntityRef? entity;
+  final List<BridgeSquareClosed> closedSquares;
+
+  /// Squares won so far times the points per square, by participant.
+  final Map<String, int> scores;
+}
+
 /// `round:start` of a `VAULT` round: one question per digit of the code (`08` §12.1).
 class VaultRoundStarted extends BattleServerEvent {
   const VaultRoundStarted({
@@ -1396,6 +1520,22 @@ BattleServerEvent parseBattleServerEvent(String eventName, Object? payload) {
         decidedBy: data.readOptionalString('decidedBy'),
       );
     case 'round:start':
+      if (data.json.containsKey('goalsSince')) {
+        return BridgeRoundStarted(
+          serverTime: serverTime,
+          battleId: id,
+          seq: sequence,
+          roundNo: data.readInt('roundNo'),
+          size: data.readInt('size'),
+          clubs: [
+            for (final club in data.readObjectList('clubs'))
+              _readEntityRef(club),
+          ],
+          lines: readBridgeLines(data.readObjectList('lines')),
+          firstPickerId: data.readString('firstPickerId'),
+          goalsSince: data.readString('goalsSince'),
+        );
+      }
       if (data.json.containsKey('seed')) {
         return OneTwoRoundStarted(
           serverTime: serverTime,
@@ -1739,6 +1879,54 @@ BattleServerEvent parseBattleServerEvent(String eventName, Object? payload) {
         reason: data.readString('reason'),
         entity: entity == null ? null : _readEntityRef(entity),
       );
+    case 'bridge:turn':
+      return BridgeTurnStarted(
+        serverTime: serverTime,
+        battleId: id,
+        seq: sequence,
+        roundNo: data.readInt('roundNo'),
+        participantId: data.readString('participantId'),
+        pickDeadlineAt: data.readTimestamp('pickDeadlineAt'),
+      );
+    case 'bridge:question':
+      return BridgeQuestionAsked(
+        serverTime: serverTime,
+        battleId: id,
+        seq: sequence,
+        roundNo: data.readInt('roundNo'),
+        line: data.readInt('line'),
+        clubs: [
+          for (final club in data.readObjectList('clubs')) _readEntityRef(club),
+        ],
+        wasPickedByServer: data.readBool('auto'),
+        answerDeadlineAt: data.readTimestamp('answerDeadlineAt'),
+      );
+    case 'bridge:drawn':
+      final scorer = data.readOptionalObject('scorer');
+      final matched = data.readOptionalObject('entity');
+      return BridgeLineDrawn(
+        serverTime: serverTime,
+        battleId: id,
+        seq: sequence,
+        roundNo: data.readInt('roundNo'),
+        line: data.readInt('line'),
+        participantId: data.readString('participantId'),
+        isRight: data.readBool('right'),
+        result: data.readString('result'),
+        scorer: scorer == null ? null : _readEntityRef(scorer),
+        evidence: data.json.containsKey('evidence')
+            ? data.readStringList('evidence')
+            : const [],
+        entity: matched == null ? null : _readEntityRef(matched),
+        closedSquares: [
+          for (final square in data.readObjectList('squares'))
+            BridgeSquareClosed(
+              square: square.readInt('square'),
+              ownerId: square.readOptionalString('ownerId'),
+            ),
+        ],
+        scores: readIntMap(data.readObject('scores')),
+      );
     case 'lineup:placed':
       return LineupNamePlaced(
         serverTime: serverTime,
@@ -1997,6 +2185,15 @@ Map<String, HexSide> readHexSides(JsonObjectReader sides) => {
       sides.readString(participantId.toString()),
     ),
 };
+
+List<BridgeLine> readBridgeLines(List<JsonObjectReader> lines) => [
+  for (final line in lines)
+    BridgeLine(
+      line: line.readInt('line'),
+      from: line.readInt('from'),
+      to: line.readInt('to'),
+    ),
+];
 
 Map<String, int> readIntMap(JsonObjectReader values) => {
   for (final key in values.json.keys)

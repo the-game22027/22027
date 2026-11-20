@@ -9,6 +9,7 @@ from pathlib import Path
 import psycopg
 
 from kb.auctions import auction_rounds, build_goal_lists
+from kb.bridges import bridge_rounds
 from kb.careers import Spell
 from kb.catalog import load_catalog_entries, write_catalog_file
 from kb.generate import (
@@ -40,6 +41,7 @@ CATEGORIES = [
     {"slug": "hexes", "names": {"en": "Hex boards", "ar": "الهجمة"}},
     {"slug": "lineups", "names": {"en": "Lineups", "ar": "التشكيلة"}},
     {"slug": "one-twos", "names": {"en": "One-twos", "ar": "وان تو"}},
+    {"slug": "bridges", "names": {"en": "Bridges", "ar": "الكوبري"}},
 ]
 
 
@@ -83,6 +85,10 @@ def build_bundle(
     links: bool = False,
     one_two_count: int = 0,
     links_min_player_sitelinks: int = 0,
+    bridge_count: int = 0,
+    bridge_clubs: int = 60,
+    bridge_min_answers: int = 3,
+    bridge_size: int = 4,
 ) -> BundleSummary:
     catalog = {entry["externalRef"]: entry for entry in load_catalog_entries(connection)}
     kb_version = _kb_version(connection)
@@ -129,7 +135,7 @@ def build_bundle(
             current_year=_year_of_kb_version(kb_version),
             min_answers=mines_min_answers,
             max_answers=mines_max_answers,
-            allowed_clubs=_most_popular_refs(catalog, "CLUB", mines_clubs),
+            allowed_clubs=frozenset(_most_popular_refs(catalog, "CLUB", mines_clubs)),
         )
         + auction_rounds(
             build_goal_lists(load_goal_rows(connection)) if auction_count else [],
@@ -205,7 +211,7 @@ def build_bundle(
     if catalog_min_player_sitelinks is not None:
         entries = _catalog_for_development(entries, players, lines, catalog_min_player_sitelinks)
     graph = None
-    if links or one_two_count:
+    if links or one_two_count or bridge_count:
         # The graph only joins entities the written catalog keeps, so every link can be imported (08 §15.4).
         kept = {
             entry["externalRef"]
@@ -224,7 +230,20 @@ def build_bundle(
         seeds = pick_spread_over_difficulties(
             one_two_rounds(graph, player_popularity_of, kb_version), one_two_count
         )
-        lines = sorted(lines + seeds, key=lambda line: line["externalKey"])
+        # Board clubs come from the written catalog, so every board's answers are in the written graph.
+        board_clubs = [ref for ref in _most_popular_refs(catalog, "CLUB", len(catalog)) if ref in kept]
+        boards = pick_spread_over_difficulties(
+            bridge_rounds(
+                graph,
+                board_clubs[:bridge_clubs],
+                kb_version,
+                count=bridge_count,
+                size=bridge_size,
+                min_answers=bridge_min_answers,
+            ),
+            bridge_count,
+        )
+        lines = sorted(lines + seeds + boards, key=lambda line: line["externalKey"])
     return _write_bundle(out_dir, bundle_version, kb_version, lines, entries, graph)
 
 
@@ -448,6 +467,8 @@ def _references_of_line(line: dict) -> set[str]:
         refs.update(criterion["entity"] for criterion in content["criteria"] if "entity" in criterion)
     if line["gameType"] == "ONE_TWO":
         refs.add(content["seed"])
+    if line["gameType"] == "BRIDGE":
+        refs.update(content["clubs"])
     return refs
 
 
@@ -516,12 +537,13 @@ def _kb_version(connection: psycopg.Connection) -> str:
     return f"wikidata-{last_ingest.isoformat() if last_ingest else 'empty'}"
 
 
-def _most_popular_refs(catalog: dict[str, dict], kind: str, limit: int) -> frozenset[str]:
+def _most_popular_refs(catalog: dict[str, dict], kind: str, limit: int) -> list[str]:
+    """Up to `limit` refs of this kind, the most popular first."""
     entries = sorted(
         (entry for entry in catalog.values() if entry["kind"] == kind),
         key=lambda entry: (-entry["popularity"], _qid_number(entry["externalRef"])),
     )
-    return frozenset(entry["externalRef"] for entry in entries[:limit])
+    return [entry["externalRef"] for entry in entries[:limit]]
 
 
 def _year_of_kb_version(kb_version: str) -> int:

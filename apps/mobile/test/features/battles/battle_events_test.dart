@@ -246,4 +246,100 @@ void main() {
       expect(convertGameTypeToCode(GameType.oneTwo), 'ONE_TWO');
     },
   );
+
+  test(
+    'bridge events read the board, the question, and a right and a grey line',
+    () {
+      final started =
+          parseBattleServerEvent(
+                'round:start',
+                battleEnvelope('round:start', 2, {
+                  'roundNo': 1,
+                  'gameType': 'BRIDGE',
+                  'size': 3,
+                  'clubs': [
+                    for (var index = 0; index < 9; index++)
+                      {'entityId': 'club$index', 'name': 'Club $index'},
+                  ],
+                  'lines': [
+                    {'line': 0, 'from': 0, 'to': 1},
+                    {'line': 6, 'from': 0, 'to': 3},
+                  ],
+                  'firstPickerId': 'p-human',
+                  'goalsSince': '2012-13',
+                }),
+              )
+              as BridgeRoundStarted;
+      expect(started.clubs, hasLength(9));
+      expect(started.lines.last.to, 3);
+      expect(started.goalsSince, '2012-13');
+      expect(findGameTypeByCode('BRIDGE'), GameType.bridge);
+      expect(convertGameTypeToCode(GameType.bridge), 'BRIDGE');
+
+      final question =
+          parseBattleServerEvent(
+                'bridge:question',
+                battleEnvelope('bridge:question', 4, {
+                  'roundNo': 1,
+                  'line': 6,
+                  'clubs': [
+                    {'entityId': 'club0', 'name': 'Club 0'},
+                    {'entityId': 'club3', 'name': 'Club 3'},
+                  ],
+                  'auto': true,
+                  'answerDeadlineAt': '2026-11-12T10:00:12.000Z',
+                }),
+              )
+              as BridgeQuestionAsked;
+      expect(question.wasPickedByServer, isTrue);
+      expect(question.clubs.last.entityId, 'club3');
+
+      final right =
+          parseBattleServerEvent(
+                'bridge:drawn',
+                battleEnvelope('bridge:drawn', 5, {
+                  'roundNo': 1,
+                  'line': 6,
+                  'participantId': 'p-human',
+                  'right': true,
+                  'result': 'RIGHT',
+                  'scorer': {'entityId': 'kane', 'name': 'Kane'},
+                  'evidence': [
+                    '2017-18 Premier League',
+                    '2019-20 Champions League',
+                  ],
+                  'squares': [
+                    {'square': 0, 'ownerId': 'p-human'},
+                  ],
+                  'scores': {'p-human': 1},
+                }),
+              )
+              as BridgeLineDrawn;
+      expect(right.scorer?.name, 'Kane');
+      expect(right.evidence, hasLength(2));
+      expect(right.closedSquares.single.ownerId, 'p-human');
+      expect(right.scores, {'p-human': 1});
+
+      final grey =
+          parseBattleServerEvent(
+                'bridge:drawn',
+                battleEnvelope('bridge:drawn', 6, {
+                  'roundNo': 1,
+                  'line': 0,
+                  'participantId': 'p-bot',
+                  'right': false,
+                  'result': 'TIME_UP',
+                  'squares': [
+                    {'square': 1, 'ownerId': null},
+                  ],
+                  'scores': <String, Object>{},
+                }),
+              )
+              as BridgeLineDrawn;
+      expect(grey.isRight, isFalse);
+      expect(grey.scorer, isNull);
+      expect(grey.evidence, isEmpty);
+      expect(grey.closedSquares.single.ownerId, isNull);
+    },
+  );
 }

@@ -258,6 +258,22 @@ export class PrismaQuestionImportRepository implements QuestionImportRepository 
     await tx.$executeRaw`DELETE FROM link_matches m WHERE NOT EXISTS (SELECT 1 FROM entity_links l WHERE l.match_id = m.id)`;
   }
 
+  async findClubPairsWithoutCommonScorer(pairs: readonly (readonly [string, string])[]): Promise<number[]> {
+    if (pairs.length === 0) return [];
+    const rows = await this.txHost.tx.$queryRaw<{ position: number }[]>`
+      SELECT p.position::int - 1 AS position
+      FROM unnest(${pairs.map(([first]) => first)}::uuid[], ${pairs.map(([, second]) => second)}::uuid[])
+        WITH ORDINALITY AS p(first_id, second_id, position)
+      WHERE NOT EXISTS (
+        SELECT 1 FROM entity_links first_link
+        JOIN entity_links second_link ON second_link.from_entity_id = p.second_id
+          AND second_link.pass_type = first_link.pass_type AND second_link.to_entity_id = first_link.to_entity_id
+        JOIN answer_entities e ON e.id = first_link.to_entity_id AND e.status = 'ACTIVE'
+        WHERE first_link.from_entity_id = p.first_id AND first_link.pass_type = 'CONCEDED_TO')
+      ORDER BY p.position`;
+    return rows.map((row) => row.position);
+  }
+
   async replaceLinkGraph(matches: readonly LinkMatchWrite[], readings: readonly PassReading[]): Promise<void> {
     const { tx } = this.txHost;
     // DELETE, not TRUNCATE: battles keep reading the old graph until this transaction commits.

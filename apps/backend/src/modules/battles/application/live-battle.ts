@@ -28,6 +28,7 @@ import type {
   HexGameSettings,
   LineupGameSettings,
   OneTwoGameSettings,
+  BridgeGameSettings,
   BattleConfigSnapshot,
   GridGameSettings,
   MinesGameSettings,
@@ -43,6 +44,7 @@ import { VaultRoundRunner } from './rounds/vault-round-runner';
 import { HexRoundRunner } from './rounds/hex-round-runner';
 import { LineupRoundRunner } from './rounds/lineup-round-runner';
 import { OneTwoRoundRunner } from './rounds/one-two-round-runner';
+import { BridgeRoundRunner } from './rounds/bridge-round-runner';
 import { MinesRoundRunner } from './rounds/mines-round-runner';
 import { RevealRoundRunner } from './rounds/reveal-round-runner';
 import type {
@@ -561,6 +563,15 @@ export class LiveBattle {
           roundNo,
           content,
           this.config.game as OneTwoGameSettings,
+          latencyGraceMs,
+          host,
+        );
+        break;
+      case 'BRIDGE':
+        this.runner = new BridgeRoundRunner(
+          roundNo,
+          content,
+          this.config.game as BridgeGameSettings,
           latencyGraceMs,
           host,
         );

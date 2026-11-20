@@ -2,6 +2,7 @@ import type { TypedAnswerRules } from '@modules/question-bank';
 import type { LeaderboardPointsRule } from '../domain/leaderboard-points';
 import type { BotProfile } from '../domain/bots/reveal-and-buzz-bot';
 import type { FirstMoverAfterRound1, FirstMoverMethod } from '../domain/first-mover/next-first-mover';
+import type { BridgeWrongLine } from '../domain/games/bridge-rules';
 import type { GridConfig } from '../domain/games/grid-rules';
 import type { OneTwoPassType } from '../domain/games/one-two-rules';
 import type { RevealAndBuzzConfig } from '../domain/games/reveal-and-buzz-rules';
@@ -113,6 +114,18 @@ export interface OneTwoGameSettings extends CommonGameSettings {
   points: { rallyWin: number };
 }
 
+/** The `BRIDGE` section of the battle config (08 §16.6). The board size comes with the content; answers from the link graph. */
+export interface BridgeGameSettings extends CommonGameSettings {
+  /** DEC-85. */
+  pickMs: number;
+  answerMs: number;
+  wrongLine: BridgeWrongLine;
+  /** The first season of the club goals behind the answers, shown on the board (DEC-85), e.g. `2012-13`. */
+  goalsSince: string;
+  showWrongAnswers: boolean;
+  points: { square: number };
+}
+
 /** One reveal-and-buzz game type's section of the battle config (08 §6). */
 export interface RevealGameSettings extends CommonGameSettings, Omit<RevealAndBuzzConfig, 'latencyGraceMs'> {
   /** CAREER only: show the years of each spell (08 §3.1). */
@@ -137,6 +150,7 @@ export interface BattleSettings {
     HEX?: HexGameSettings;
     LINEUP?: LineupGameSettings;
     ONE_TWO?: OneTwoGameSettings;
+    BRIDGE?: BridgeGameSettings;
   };
 }
 
@@ -148,7 +162,8 @@ export type GameSettings =
   | VaultGameSettings
   | HexGameSettings
   | LineupGameSettings
-  | OneTwoGameSettings;
+  | OneTwoGameSettings
+  | BridgeGameSettings;
 
 /** The config of a game type, or undefined when it has none. */
 export function findGameSettings(settings: BattleSettings, gameType: string): GameSettings | undefined {

@@ -212,6 +212,17 @@ describe('parseBundle with a ONE_TWO link graph', () => {
     expect(parseBundle(files([seedLine()])).linkGraph).toBeNull();
   });
 
+  it('reads a BRIDGE board line and refuses a malformed one', () => {
+    const clubs = Array.from({ length: 9 }, (_, index) => `wikidata:Q${100 + index}`);
+    const boardLine = (content: Record<string, unknown>) =>
+      JSON.stringify({ ...JSON.parse(seedLine()), externalKey: 'bridge:1', gameType: 'BRIDGE', content });
+    expect(parseBundle(files([boardLine({ size: 3, clubs })])).questions[0].content).toMatchObject({
+      body: { gameType: 'BRIDGE', size: 3, clubs },
+    });
+    expect(problemsOf(files([boardLine({ size: 3 })]))).toContain('clubs');
+    expect(problemsOf(files([boardLine({ size: 3, clubs, seed: 'wikidata:Q1' })]))).toContain('seed');
+  });
+
   it('refuses a seed with answer slots: its answers come from the graph', () => {
     expect(problemsOf(files([seedLine(undefined, [{ slot: 0, entities: ['wikidata:Q20'] }])]))).toContain(
       'a one-two seed has no answer slots',

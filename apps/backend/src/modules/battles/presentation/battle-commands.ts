@@ -48,6 +48,8 @@ export const hexPickCommand = z.object({
 export const vaultTryCommand = z.object({ clientMsgId, battleId, roundNo, code: z.string().regex(/^[0-9]{1,9}$/) });
 /** `mines:bury`, `mines:answer` and `mines:scan` share one shape (08 §10.3); so does `auction:answer`. */
 export const oneTwoPassCommand = z.object({ clientMsgId, battleId, roundNo, passType: z.enum(ONE_TWO_PASS_TYPES) });
+/** The line is checked against the board by the rules (`INVALID_LINE`); `bridge:answer` uses `minesTextCommand`. */
+export const bridgePickCommand = z.object({ clientMsgId, battleId, roundNo, line: z.number().int().min(0) });
 export const minesTextCommand = z.object({
   clientMsgId,
   battleId,

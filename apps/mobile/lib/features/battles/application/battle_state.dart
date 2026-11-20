@@ -414,6 +414,91 @@ class LineupRound extends CurrentRound {
   );
 }
 
+enum BridgePhase { picking, answering, closed }
+
+/// A drawn line of a `BRIDGE` board: right lines carry their scorer and the two matches.
+class BridgeDrawnLine {
+  const BridgeDrawnLine({
+    required this.drawnBy,
+    required this.isRight,
+    this.scorer,
+    this.evidence = const [],
+  });
+
+  final String drawnBy;
+  final bool isRight;
+  final EntityRef? scorer;
+  final List<String> evidence;
+}
+
+/// A `BRIDGE` board (`08` §16): dots and boxes on clubs; a line needs a player who scored against
+/// both of its clubs.
+class BridgeRound extends CurrentRound {
+  const BridgeRound({
+    required int roundNo,
+    required this.size,
+    required this.clubs,
+    required this.lines,
+    required this.goalsSince,
+    required this.turnId,
+    required this.phase,
+    required this.squares,
+    this.drawn = const {},
+    this.line,
+    this.deadline,
+    this.points = const {},
+  }) : super(roundNo);
+
+  final int size;
+
+  /// Row by row.
+  final List<EntityRef> clubs;
+  final List<BridgeLine> lines;
+
+  /// The first season of the goals behind the answers, e.g. `2012-13` (DEC-85).
+  final String goalsSince;
+
+  /// Who picks, or answers the picked line.
+  final String turnId;
+  final BridgePhase phase;
+
+  /// Square owners row by row over `(size − 1)²`; null while open or closed for nobody.
+  final List<String?> squares;
+
+  /// Line number → the drawn line; open lines are missing.
+  final Map<int, BridgeDrawnLine> drawn;
+
+  /// The picked line, while [phase] is answering.
+  final int? line;
+
+  /// The pick or answer deadline from the server; null once the board is over.
+  final DateTime? deadline;
+  final Map<String, int> points;
+
+  BridgeRound copyWith({
+    String? turnId,
+    BridgePhase? phase,
+    List<String?>? squares,
+    Map<int, BridgeDrawnLine>? drawn,
+    int? Function()? line,
+    DateTime? Function()? deadline,
+    Map<String, int>? points,
+  }) => BridgeRound(
+    roundNo: roundNo,
+    size: size,
+    clubs: clubs,
+    lines: lines,
+    goalsSince: goalsSince,
+    turnId: turnId ?? this.turnId,
+    phase: phase ?? this.phase,
+    squares: squares ?? this.squares,
+    drawn: drawn ?? this.drawn,
+    line: line != null ? line() : this.line,
+    deadline: deadline != null ? deadline() : this.deadline,
+    points: points ?? this.points,
+  );
+}
+
 enum OneTwoPhase { picking, answering, closed }
 
 /// One return of a `ONE_TWO` rally: the name that became the ball, the pass it answered, who returned
@@ -958,6 +1043,61 @@ BattleState _applyInOrder(BattleState state, BattleServerEvent event) {
       return state.copyWith(
         currentRound: () => round.copyWith(letters: event.letters),
       );
+    case BridgeRoundStarted():
+      return state.copyWith(
+        phase: BattlePhase.inProgress,
+        firstMoverDuel: () => null,
+        currentRound: () => BridgeRound(
+          roundNo: event.roundNo,
+          size: event.size,
+          clubs: event.clubs,
+          lines: event.lines,
+          goalsSince: event.goalsSince,
+          turnId: event.firstPickerId,
+          phase: BridgePhase.picking,
+          squares: List.filled((event.size - 1) * (event.size - 1), null),
+        ),
+      );
+    case BridgeTurnStarted() when round is BridgeRound:
+      return state.copyWith(
+        currentRound: () => round.copyWith(
+          turnId: event.participantId,
+          phase: BridgePhase.picking,
+          line: () => null,
+          deadline: () => event.pickDeadlineAt,
+        ),
+      );
+    case BridgeQuestionAsked() when round is BridgeRound:
+      return state.copyWith(
+        currentRound: () => round.copyWith(
+          phase: BridgePhase.answering,
+          line: () => event.line,
+          deadline: () => event.answerDeadlineAt,
+        ),
+      );
+    case BridgeLineDrawn() when round is BridgeRound:
+      final squares = [...round.squares];
+      for (final closed in event.closedSquares) {
+        if (closed.square >= 0 && closed.square < squares.length) {
+          squares[closed.square] = closed.ownerId;
+        }
+      }
+      return state.copyWith(
+        currentRound: () => round.copyWith(
+          drawn: {
+            ...round.drawn,
+            event.line: BridgeDrawnLine(
+              drawnBy: event.participantId,
+              isRight: event.isRight,
+              scorer: event.scorer,
+              evidence: event.evidence,
+            ),
+          },
+          squares: squares,
+          line: () => null,
+          points: event.scores,
+        ),
+      );
     case OneTwoRoundStarted():
       // Names are burned for the whole battle (`08` §15.1 step 10): keep the earlier rallies' ones.
       final earlier = round is OneTwoRound ? round.burned : const <EntityRef>[];
@@ -1397,6 +1537,9 @@ CurrentRound? _readSnapshotRound(
   CurrentRound? previous,
 ) {
   final roundNo = round.readInt('roundNo');
+  if (round.json.containsKey('goalsSince')) {
+    return _readSnapshotBridgeRound(round);
+  }
   if (round.json.containsKey('seed')) return _readSnapshotOneTwoRound(round);
   if (round.json.containsKey('shown')) return _readSnapshotLineupRound(round);
   if (round.json.containsKey('sides')) return _readSnapshotHexRound(round);
@@ -1629,6 +1772,54 @@ LineupRound _readSnapshotLineupRound(JsonObjectReader round) {
     fakeUnmaskedBy: fake?.readOptionalString('unmaskedBy'),
     yourLockedUntil: round.readOptionalTimestamp('lockedUntil'),
     hasUsedYourAccusation: round.readOptionalBool('accusationUsed') ?? false,
+  );
+}
+
+/// The server sends the board before the first turn, then the lines, squares, turn and phase.
+BridgeRound _readSnapshotBridgeRound(JsonObjectReader round) {
+  final size = round.readInt('size');
+  final hasStarted = round.json.containsKey('lines');
+  final lines = hasStarted
+      ? round.readObjectList('lines')
+      : const <JsonObjectReader>[];
+  return BridgeRound(
+    roundNo: round.readInt('roundNo'),
+    size: size,
+    clubs: [
+      for (final club in round.readObjectList('clubs')) readEntityRef(club),
+    ],
+    lines: readBridgeLines(lines),
+    goalsSince: round.readString('goalsSince'),
+    turnId: round.readOptionalString('turnId') ?? '',
+    phase: switch (round.readOptionalString('phase')) {
+      'ANSWERING' => BridgePhase.answering,
+      'CLOSED' => BridgePhase.closed,
+      _ => BridgePhase.picking,
+    },
+    squares: hasStarted
+        ? [
+            for (final owner in round.json['squares'] as List<Object?>)
+              owner as String?,
+          ]
+        : List.filled((size - 1) * (size - 1), null),
+    drawn: {
+      for (final line in lines)
+        if (line.readOptionalString('drawnBy') case final drawnBy?)
+          line.readInt('line'): BridgeDrawnLine(
+            drawnBy: drawnBy,
+            isRight: line.readOptionalBool('right') ?? false,
+            scorer: switch (line.readOptionalObject('scorer')) {
+              final scorer? => readEntityRef(scorer),
+              null => null,
+            },
+            evidence: line.json.containsKey('evidence')
+                ? line.readStringList('evidence')
+                : const [],
+          ),
+    },
+    line: round.readOptionalInt('line'),
+    deadline: round.readOptionalTimestamp('deadline'),
+    points: hasStarted ? readIntMap(round.readObject('points')) : const {},
   );
 }
 

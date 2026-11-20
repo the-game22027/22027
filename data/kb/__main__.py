@@ -92,6 +92,18 @@ def main(argv: list[str] | None = None) -> int:
         "--one-twos", type=int, default=0, help="ONE_TWO (وان تو) seed rounds; writes the link graph too"
     )
     bundle.add_argument(
+        "--bridges", type=int, default=0, help="BRIDGE (الكوبري) boards; writes the link graph too"
+    )
+    bundle.add_argument(
+        "--bridge-clubs", type=int, default=60, help="BRIDGE boards use only this many most popular clubs"
+    )
+    bundle.add_argument(
+        "--bridge-size", type=int, default=4, help="clubs per side of a BRIDGE board (DEC-85: 4, or 3)"
+    )
+    bundle.add_argument(
+        "--bridge-min-answers", type=int, default=3, help="fewest common scorers on every BRIDGE line"
+    )
+    bundle.add_argument(
         "--links-min-player-sitelinks",
         type=int,
         default=0,
@@ -181,6 +193,10 @@ def main(argv: list[str] | None = None) -> int:
                 links=args.links,
                 one_two_count=args.one_twos,
                 links_min_player_sitelinks=args.links_min_player_sitelinks,
+                bridge_count=args.bridges,
+                bridge_clubs=args.bridge_clubs,
+                bridge_min_answers=args.bridge_min_answers,
+                bridge_size=args.bridge_size,
             )
             print(
                 f"{args.version}: {summary.question_count} rounds {summary.by_game_type}, "

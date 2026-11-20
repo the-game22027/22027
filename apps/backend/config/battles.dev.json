@@ -350,6 +350,33 @@
       "selection": {
         "difficulties": null
       }
+    },
+    "BRIDGE": {
+      "enabled": true,
+      "roundCount": 1,
+      "targetScore": null,
+      "firstMover": "RPS",
+      "firstMoverAfterRound1": "LOSER_STARTS",
+      "rps": {
+        "pickMs": 5000,
+        "maxReplays": 2,
+        "revealMs": 2000,
+        "botPickDelayMs": {
+          "min": 800,
+          "max": 2500
+        }
+      },
+      "pickMs": 8000,
+      "answerMs": 12000,
+      "wrongLine": "GREY_GIVES_SQUARES",
+      "goalsSince": "2012-13",
+      "showWrongAnswers": true,
+      "points": {
+        "square": 1
+      },
+      "selection": {
+        "difficulties": null
+      }
     }
   }
 }
