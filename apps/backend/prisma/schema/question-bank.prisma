@@ -21,6 +21,7 @@ enum BattleGameType {
   HEX
   LINEUP
   ONE_TWO
+  BRIDGE
 
   @@map("battle_game_type")
 }

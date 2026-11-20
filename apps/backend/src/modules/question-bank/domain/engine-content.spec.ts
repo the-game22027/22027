@@ -68,6 +68,16 @@ describe('the engine view of stored content', () => {
     expect(listEntityReferencesOfBody(seed)).toEqual(['wd:ronaldo']);
   });
 
+  it('turns a BRIDGE board into entity ids, row by row', () => {
+    const board: GameBody = { gameType: 'BRIDGE', size: 3, clubs: ['wd:sporting', 'wd:united'] };
+    expect(toEngineBody(board, idOf, ['en'])).toEqual({
+      gameType: 'BRIDGE',
+      size: 3,
+      clubEntityIds: ['id-sporting', 'id-united'],
+    });
+    expect(listEntityReferencesOfBody(board)).toEqual(['wd:sporting', 'wd:united']);
+  });
+
   it('fails loudly when content lacks a locale or points outside the catalog', () => {
     const englishOnly: GameBody = { ...buzzer, steps: { en: ['a', 'b'] } };
     expect(() => toEngineBody(englishOnly, idOf, ['ar'])).toThrow('no text in locale ar');

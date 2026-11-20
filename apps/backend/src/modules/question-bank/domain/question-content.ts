@@ -12,6 +12,7 @@ export const GAME_TYPES = [
   'HEX',
   'LINEUP',
   'ONE_TWO',
+  'BRIDGE',
 ] as const;
 export type GameType = (typeof GAME_TYPES)[number];
 
@@ -109,7 +110,9 @@ export type GameBody =
   | { gameType: 'HEX'; size: number; cells: HexCell[] }
   | { gameType: 'LINEUP'; title: LocalizedText; slots: LineupSlot[]; shown: string[]; fake: string }
   /** A rally seed (08 §15.4): accepted answers come from the link graph, not from the question (ADR-0024). */
-  | { gameType: 'ONE_TWO'; seed: string };
+  | { gameType: 'ONE_TWO'; seed: string }
+  /** Dots and boxes on clubs, row by row (08 §16.4): a line's answers are the two clubs' common scorers in the link graph. */
+  | { gameType: 'BRIDGE'; size: number; clubs: string[] };
 
 /** Accepted answers of one slot: slot 0 for reveal games, 0..8 for grid cells (row * 3 + col). */
 export interface AnswerSlot {
@@ -174,6 +177,7 @@ export function localesOfQuestion(content: QuestionContent): Locale[] {
     case 'GRID':
     case 'MINES':
     case 'ONE_TWO':
+    case 'BRIDGE':
       return [...LOCALES].sort();
   }
 }
@@ -202,6 +206,7 @@ export function summaryTextOfQuestion(content: QuestionContent, locale: Locale):
     case 'GRID':
     case 'MINES':
     case 'ONE_TWO':
+    case 'BRIDGE':
       return '';
   }
 }

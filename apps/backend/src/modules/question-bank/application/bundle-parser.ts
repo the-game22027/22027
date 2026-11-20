@@ -137,6 +137,7 @@ const gameBodySchemas = {
     fake: externalRef,
   }),
   ONE_TWO: z.strictObject({ seed: externalRef }),
+  BRIDGE: z.strictObject({ size: z.number().int(), clubs: z.array(externalRef) }),
   VAULT: z.strictObject({
     questions: z.array(z.strictObject({ template: nonEmpty, text: localizedText, answerNumber: z.number().int() })),
   }),
@@ -274,6 +275,10 @@ const toGameBody = (gameType: GameBody['gameType'], content: unknown): { body: G
     }
     case 'ONE_TWO': {
       const result = gameBodySchemas.ONE_TWO.safeParse(content);
+      return result.success ? { body: { gameType, ...result.data } } : { issues: describeIssues(result.error) };
+    }
+    case 'BRIDGE': {
+      const result = gameBodySchemas.BRIDGE.safeParse(content);
       return result.success ? { body: { gameType, ...result.data } } : { issues: describeIssues(result.error) };
     }
     case 'VAULT': {

@@ -33,6 +33,9 @@ export const MAX_VAULT_QUESTION_LENGTH = 300;
 export const LINEUP_STARTERS = 11;
 export const MIN_HEX_SIZE = 3;
 export const MAX_HEX_SIZE = 7;
+// A bridge board is clubs per side: 3 (4 squares) up to 5 (16 squares); the played size is chosen in DEC-85.
+export const MIN_BRIDGE_SIZE = 3;
+export const MAX_BRIDGE_SIZE = 5;
 
 const checkText = (problems: string[], field: string, value: string, maxLength: number): void => {
   if (value.trim() === '') problems.push(`${field} is empty`);
@@ -275,6 +278,16 @@ function findGameShapeProblems(content: GameContent): string[] {
       if (answers.length > 0) problems.push('a one-two seed has no answer slots: its answers come from the link graph');
       break;
     }
+    case 'BRIDGE': {
+      if (!Number.isInteger(body.size) || body.size < MIN_BRIDGE_SIZE || body.size > MAX_BRIDGE_SIZE) {
+        problems.push(`a bridge board is ${MIN_BRIDGE_SIZE} to ${MAX_BRIDGE_SIZE} clubs wide`);
+      } else if (body.clubs.length !== body.size * body.size) {
+        problems.push(`a bridge board of size ${body.size} has ${body.size ** 2} clubs`);
+      }
+      for (const club of findRepeatedValues(body.clubs)) problems.push(`club ${club} appears twice on the board`);
+      if (answers.length > 0) problems.push('a bridge board has no answer slots: its answers come from the link graph');
+      break;
+    }
     case 'VAULT': {
       if (body.questions.length < MIN_VAULT_QUESTIONS || body.questions.length > MAX_VAULT_QUESTIONS) {
         problems.push(`a vault has ${MIN_VAULT_QUESTIONS} to ${MAX_VAULT_QUESTIONS} questions`);
@@ -394,6 +407,9 @@ export function findCatalogReferenceProblems(
         problems.push(`seed ${body.seed} is a ${seed.kind}, expected PLAYER or CLUB`);
       break;
     }
+    case 'BRIDGE':
+      body.clubs.forEach((club, index) => expect(club, 'CLUB', `board club ${index + 1}`));
+      break;
   }
   return problems;
 }

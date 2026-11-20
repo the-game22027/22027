@@ -54,7 +54,8 @@ export type EngineGameBody =
       shownEntityIds: string[];
       fakeEntityId: string;
     }
-  | { gameType: 'ONE_TWO'; seedEntityId: string };
+  | { gameType: 'ONE_TWO'; seedEntityId: string }
+  | { gameType: 'BRIDGE'; size: number; clubEntityIds: string[] };
 
 /** Everything the engine needs to play one round. Server side only: never sent to a client as is. */
 export interface EngineContent {
@@ -87,6 +88,8 @@ export function listEntityReferencesOfBody(body: GameBody): string[] {
       return [...body.slots.map((slot) => slot.player), body.fake];
     case 'ONE_TWO':
       return [body.seed];
+    case 'BRIDGE':
+      return body.clubs;
   }
 }
 
@@ -172,6 +175,8 @@ export function toEngineBody(
       };
     case 'ONE_TWO':
       return { gameType: 'ONE_TWO', seedEntityId: idOf(body.seed) };
+    case 'BRIDGE':
+      return { gameType: 'BRIDGE', size: body.size, clubEntityIds: body.clubs.map(idOf) };
     case 'VAULT':
       return {
         gameType: 'VAULT',

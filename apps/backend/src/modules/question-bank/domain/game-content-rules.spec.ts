@@ -182,6 +182,20 @@ describe('game content shape', () => {
     expect(localesOfQuestion(vault().content)).toEqual(['ar', 'en']);
   });
 
+  it('accepts a bridge board of size² different clubs with no answer slots', () => {
+    const clubs = Array.from({ length: 16 }, (_, index) => `wd:club${index}`);
+    const bridge = (size: number, boardClubs: string[], answers: AnswerSlot[] = []) =>
+      question({ body: { gameType: 'BRIDGE', size, clubs: boardClubs }, answers });
+    expect(findQuestionProblems(bridge(4, clubs), CATEGORIES)).toEqual([]);
+    expect(localesOfQuestion(bridge(4, clubs).content)).toEqual(['ar', 'en']);
+    expect(problemsOf(bridge(2, clubs.slice(0, 4)))).toContain('a bridge board is 3 to 5 clubs wide');
+    expect(problemsOf(bridge(4, clubs.slice(0, 9)))).toContain('a bridge board of size 4 has 16 clubs');
+    expect(problemsOf(bridge(3, [...clubs.slice(0, 8), 'wd:club0']))).toContain('club wd:club0 appears twice');
+    expect(problemsOf(bridge(3, clubs.slice(0, 9), [{ slot: 0, entities: ['wd:ronaldo'] }]))).toContain(
+      'a bridge board has no answer slots',
+    );
+  });
+
   it('accepts a valid buzzer, career and grid', () => {
     expect([buzzer(), career(), grid()].map((q) => findQuestionProblems(q, CATEGORIES))).toEqual([[], [], []]);
   });
@@ -234,6 +248,17 @@ describe('catalog references', () => {
     const problems = findCatalogReferenceProblems(career().content, find).join('\n');
     expect(problems).toContain('spell 2 club wd:united is a PLAYER, expected CLUB');
     expect(findCatalogReferenceProblems(grid().content, find)[0]).toContain('is not in the answer catalog');
+  });
+
+  it('requires every bridge club to be a catalog club', () => {
+    const board = question({
+      body: { gameType: 'BRIDGE', size: 3, clubs: ['wd:sporting', 'wd:united', 'wd:nowhere'] },
+      answers: [],
+    });
+    const problems = findCatalogReferenceProblems(board.content, find).join('\n');
+    expect(problems).toContain('board club 2 wd:united is a PLAYER, expected CLUB');
+    expect(problems).toContain('board club 3 wd:nowhere is not in the answer catalog');
+    expect(problems).not.toContain('board club 1');
   });
 
   it('reports a buzzer whose text contains the answer name, in any locale', () => {
