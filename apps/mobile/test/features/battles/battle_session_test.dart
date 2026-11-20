@@ -399,6 +399,47 @@ void main() {
     expect(result, isA<BattleCommandAccepted>());
   });
 
+  test('bridge picks and answers go out with the round number', () async {
+    final container = await createContainer();
+    final controller = controllerOf(container);
+
+    await receiveBattleFound(container);
+    socket.receive(
+      'round:start',
+      battleEnvelope('round:start', 2, {
+        'roundNo': 1,
+        'gameType': 'BRIDGE',
+        'size': 3,
+        'clubs': [
+          for (var index = 0; index < 9; index++)
+            {'entityId': 'club$index', 'name': 'Club $index'},
+        ],
+        'lines': [
+          {'line': 0, 'from': 0, 'to': 1},
+        ],
+        'firstPickerId': 'p-human',
+        'goalsSince': '2012-13',
+      }),
+    );
+    await pumpEventQueue();
+    await controller.pickBridgeLine(0);
+    var (event, payload) = socket.sentCommands.last;
+    expect(event, 'bridge:pick');
+    expect(payload['line'], 0);
+    expect(payload['roundNo'], 1);
+
+    socket.answerCommand = (_, payload) => BattleCommandAccepted({
+      ...payload,
+      'accepted': true,
+      'data': {'result': 'RIGHT'},
+    });
+    final result = await controller.answerOnBridge('Kane');
+    (event, payload) = socket.sentCommands.last;
+    expect(event, 'bridge:answer');
+    expect(payload['answer'], {'text': 'Kane'});
+    expect(result, isA<BattleCommandAccepted>());
+  });
+
   test(
     'a mine bury keeps the mines from the ack and counts wrong tries',
     () async {

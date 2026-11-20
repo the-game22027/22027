@@ -231,6 +231,18 @@ class BattleSessionController extends Notifier<BattleSessionState> {
         'answer': {'text': text},
       });
 
+  /// `bridge:pick`: the player on turn picks an open line of the board (`08` §16.1). The server
+  /// refuses a drawn line (`LINE_TAKEN`) or one off the board (`INVALID_LINE`).
+  Future<BattleCommandResult> pickBridgeLine(int line) =>
+      _sendRoundCommand('bridge:pick', {'line': line});
+
+  /// `bridge:answer`: the one try for the picked line: a player who scored against both clubs. The
+  /// ack's `data.result` is `RIGHT`, `WRONG` or `USED`; everyone sees the line in `bridge:drawn`.
+  Future<BattleCommandResult> answerOnBridge(String text) =>
+      _sendRoundCommand('bridge:answer', {
+        'answer': {'text': text},
+      });
+
   /// `vault:try`: the whole code, one digit per question (`08` §12.1). A wrong try's ack tells only
   /// you, with when you may try again; the others see your try count only.
   Future<BattleCommandResult> tryVaultCode(String code) async {

@@ -750,6 +750,164 @@ void main() {
     );
   });
 
+  group('a bridge board', () {
+    final clubs = [
+      for (var index = 0; index < 9; index++)
+        {'entityId': 'club$index', 'name': 'نادي $index'},
+    ];
+    BattleState playBridgeLines() => applyAll(foundBattle(), [
+      event('round:start', 2, {
+        'roundNo': 1,
+        'gameType': 'BRIDGE',
+        'size': 3,
+        'clubs': clubs,
+        'lines': [
+          {'line': 0, 'from': 0, 'to': 1},
+          {'line': 2, 'from': 3, 'to': 4},
+          {'line': 6, 'from': 0, 'to': 3},
+          {'line': 7, 'from': 1, 'to': 4},
+        ],
+        'firstPickerId': 'p-human',
+        'goalsSince': '2012-13',
+      }),
+      event('bridge:turn', 3, {
+        'roundNo': 1,
+        'participantId': 'p-human',
+        'pickDeadlineAt': '2026-11-12T10:00:08.000Z',
+      }),
+      event('bridge:question', 4, {
+        'roundNo': 1,
+        'line': 7,
+        'clubs': [clubs[1], clubs[4]],
+        'auto': false,
+        'answerDeadlineAt': '2026-11-12T10:00:20.000Z',
+      }),
+      event('bridge:drawn', 5, {
+        'roundNo': 1,
+        'line': 7,
+        'participantId': 'p-human',
+        'right': true,
+        'result': 'RIGHT',
+        'scorer': {'entityId': 'kane', 'name': 'كين'},
+        'evidence': ['مباراة ١', 'مباراة ٢'],
+        'squares': [
+          {'square': 0, 'ownerId': 'p-human'},
+        ],
+        'scores': {'p-human': 1},
+      }),
+      event('bridge:turn', 6, {
+        'roundNo': 1,
+        'participantId': 'p-human',
+        'pickDeadlineAt': '2026-11-12T10:00:30.000Z',
+      }),
+    ]);
+
+    test('a right line closes a square for its player, who picks again', () {
+      final round = playBridgeLines().currentRound! as BridgeRound;
+      expect(round.goalsSince, '2012-13');
+      expect(round.clubs, hasLength(9));
+      expect(round.squares, ['p-human', null, null, null]);
+      expect(round.drawn[7]?.scorer?.name, 'كين');
+      expect(round.drawn[7]?.evidence, hasLength(2));
+      expect(round.points, {'p-human': 1});
+      expect(round.turnId, 'p-human');
+      expect(round.phase, BridgePhase.picking);
+      expect(round.line, isNull);
+      expect(round.deadline, DateTime.utc(2026, 11, 12, 10, 0, 30));
+    });
+
+    test(
+      'a question puts the picked line in answering, and a grey line is drawn for nobody',
+      () {
+        final state = applyAll(playBridgeLines(), [
+          event('bridge:question', 7, {
+            'roundNo': 1,
+            'line': 0,
+            'clubs': [clubs[0], clubs[1]],
+            'auto': true,
+            'answerDeadlineAt': '2026-11-12T10:00:42.000Z',
+          }),
+        ]);
+        final answering = state.currentRound! as BridgeRound;
+        expect(answering.phase, BridgePhase.answering);
+        expect(answering.line, 0);
+
+        final drawn =
+            applyAll(state, [
+                  event('bridge:drawn', 8, {
+                    'roundNo': 1,
+                    'line': 0,
+                    'participantId': 'p-human',
+                    'right': false,
+                    'result': 'WRONG',
+                    'entity': {'entityId': 'messi', 'name': 'ميسي'},
+                    'squares': <Object>[],
+                    'scores': {'p-human': 1},
+                  }),
+                ]).currentRound!
+                as BridgeRound;
+        expect(drawn.drawn[0]?.isRight, isFalse);
+        expect(drawn.drawn[0]?.scorer, isNull);
+        expect(drawn.line, isNull);
+      },
+    );
+
+    test(
+      'a snapshot restores the lines, the squares, the turn and the phase',
+      () {
+        final restored = applyBattleSnapshot(playBridgeLines(), {
+          'status': 'IN_PROGRESS',
+          'gameType': 'BRIDGE',
+          'mode': 'MATCHMAKING',
+          'players': [humanPlayerJson, botPlayerJson],
+          'currentRound': {
+            'roundNo': 1,
+            'size': 3,
+            'clubs': clubs,
+            'goalsSince': '2012-13',
+            'lines': [
+              {'line': 0, 'from': 0, 'to': 1, 'drawnBy': null, 'right': null},
+              {
+                'line': 7,
+                'from': 1,
+                'to': 4,
+                'drawnBy': 'p-human',
+                'right': true,
+                'scorer': {'entityId': 'kane', 'name': 'كين'},
+                'evidence': ['مباراة ١', 'مباراة ٢'],
+              },
+              {
+                'line': 6,
+                'from': 0,
+                'to': 3,
+                'drawnBy': 'p-bot',
+                'right': false,
+              },
+            ],
+            'squares': ['p-human', null, null, null],
+            'turnId': 'p-bot',
+            'phase': 'ANSWERING',
+            'line': 0,
+            'deadline': '2026-11-12T10:00:42.000Z',
+            'points': {'p-human': 1},
+          },
+          'rounds': <Object>[],
+          'scores': <Object>[],
+          'seq': 8,
+        });
+        final round = restored.currentRound! as BridgeRound;
+        expect(round.phase, BridgePhase.answering);
+        expect(round.turnId, 'p-bot');
+        expect(round.line, 0);
+        expect(round.drawn.keys, unorderedEquals([7, 6]));
+        expect(round.drawn[6]?.isRight, isFalse);
+        expect(round.drawn[7]?.scorer?.entityId, 'kane');
+        expect(round.squares.first, 'p-human');
+        expect(round.points, {'p-human': 1});
+      },
+    );
+  });
+
   group('a vault round', () {
     BattleState playVaultRound() => applyAll(foundBattle(), [
       event('round:start', 2, {

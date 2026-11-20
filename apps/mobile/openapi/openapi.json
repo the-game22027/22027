@@ -312,7 +312,8 @@
               "VAULT",
               "HEX",
               "LINEUP",
-              "ONE_TWO"
+              "ONE_TWO",
+              "BRIDGE"
             ],
             "type": "string"
           }
