@@ -1,7 +1,7 @@
 import type { KnownEntity } from './answer-catalog';
 import {
   type AnswerKind,
-  answerKindOfGame,
+  answerKindOfSlot,
   type BundleQuestion,
   type EntityKind,
   type GameContent,
@@ -36,6 +36,10 @@ export const MAX_HEX_SIZE = 7;
 // A bridge board is clubs per side: 3 (4 squares) up to 5 (16 squares); the played size is chosen in DEC-85.
 export const MIN_BRIDGE_SIZE = 3;
 export const MAX_BRIDGE_SIZE = 5;
+// A thread is 3 to 7 rooms; the played length is a generator choice (DEC-86 default: 5).
+export const MIN_THREAD_ROOMS = 3;
+export const MAX_THREAD_ROOMS = 7;
+export const MAX_THREAD_TEXT_LENGTH = 300;
 
 /**
  * The two clubs of every line of a bridge board, numbered as the battle numbers them (08 §16.1): horizontal lines
@@ -293,6 +297,39 @@ function findGameShapeProblems(content: GameContent): string[] {
       if (answers.length > 0) problems.push('a one-two seed has no answer slots: its answers come from the link graph');
       break;
     }
+    case 'THREAD': {
+      const roomCount = body.rooms.length;
+      if (roomCount < MIN_THREAD_ROOMS || roomCount > MAX_THREAD_ROOMS) {
+        problems.push(`a thread has ${MIN_THREAD_ROOMS} to ${MAX_THREAD_ROOMS} rooms`);
+      }
+      const locales = Object.keys(body.rooms[0]?.text ?? {})
+        .sort()
+        .join();
+      body.rooms.forEach((room, index) => {
+        const isLast = index === roomCount - 1;
+        if (Object.keys(room.text).sort().join() !== locales) {
+          problems.push(`thread room ${index + 1} must have text in exactly the locales of room 1`);
+        }
+        for (const [locale, text] of Object.entries(room.text)) {
+          checkText(problems, `thread room ${index + 1} ${locale} text`, text, MAX_THREAD_TEXT_LENGTH);
+        }
+        if (isLast && room.jumpText !== null) problems.push('the last thread room has no jump question');
+        if (!isLast && room.jumpText !== null && Object.keys(room.jumpText).sort().join() !== locales) {
+          problems.push(`thread room ${index + 1} jump question must be in exactly the locales of room 1`);
+        }
+        for (const [locale, text] of Object.entries(room.jumpText ?? {})) {
+          checkText(problems, `thread room ${index + 1} ${locale} jump question`, text, MAX_THREAD_TEXT_LENGTH);
+        }
+        const answer = answers.find((slot) => slot.slot === index);
+        if (answer?.entities.length !== 1) problems.push(`thread room ${index + 1} needs exactly one answer`);
+      });
+      if (answers.some((answer) => answer.slot < 0 || answer.slot >= roomCount)) {
+        problems.push(`thread answer slots must be 0 to ${roomCount - 1}`);
+      }
+      const named = answers.flatMap((answer) => answer.entities);
+      for (const entity of findRepeatedValues(named)) problems.push(`${entity} answers two thread rooms`);
+      break;
+    }
     case 'BRIDGE': {
       if (!Number.isInteger(body.size) || body.size < MIN_BRIDGE_SIZE || body.size > MAX_BRIDGE_SIZE) {
         problems.push(`a bridge board is ${MIN_BRIDGE_SIZE} to ${MAX_BRIDGE_SIZE} clubs wide`);
@@ -376,8 +413,8 @@ export function findCatalogReferenceProblems(
   };
 
   const { body } = content;
-  const answerKind = answerKindOfGame(body);
   for (const answer of content.answers) {
+    const answerKind = answerKindOfSlot(body, answer.slot);
     for (const entity of answer.entities) expect(entity, answerKind, `answer (slot ${answer.slot})`);
   }
   switch (body.gameType) {

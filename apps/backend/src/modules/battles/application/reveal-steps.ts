@@ -49,6 +49,7 @@ export function revealStepsForLocale(
     case 'LINEUP':
     case 'ONE_TWO':
     case 'BRIDGE':
+    case 'THREAD':
       throw new Error(`A ${body.gameType} round has no reveal steps`);
   }
 }

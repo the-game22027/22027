@@ -13,6 +13,7 @@ export const GAME_TYPES = [
   'LINEUP',
   'ONE_TWO',
   'BRIDGE',
+  'THREAD',
 ] as const;
 export type GameType = (typeof GAME_TYPES)[number];
 
@@ -70,6 +71,16 @@ export interface VaultQuestion {
 }
 
 /** One HEX cell (08 §13.5): its letter in each locale and the lists asked behind it, in order. */
+/** One room of a thread (08 §17.4): its question points at the answer of the room before it. */
+export interface ThreadRoom {
+  hop: string;
+  /** What this room's one answer is: rooms of one thread mix clubs, players and countries. */
+  answerKind: EntityKind;
+  text: LocalizedText;
+  /** The room and the next folded into one harder question; null in the last room. */
+  jumpText: LocalizedText | null;
+}
+
 export interface HexCell {
   letter: LocalizedText;
   questions: AuctionList[];
@@ -112,7 +123,9 @@ export type GameBody =
   /** A rally seed (08 §15.4): accepted answers come from the link graph, not from the question (ADR-0024). */
   | { gameType: 'ONE_TWO'; seed: string }
   /** Dots and boxes on clubs, row by row (08 §16.4): a line's answers are the two clubs' common scorers in the link graph. */
-  | { gameType: 'BRIDGE'; size: number; clubs: string[] };
+  | { gameType: 'BRIDGE'; size: number; clubs: string[] }
+  /** Five rooms on one chain of facts (08 §17.4): slot `r` holds room `r`'s one answer. */
+  | { gameType: 'THREAD'; rooms: ThreadRoom[] };
 
 /** Accepted answers of one slot: slot 0 for reveal games, 0..8 for grid cells (row * 3 + col). */
 export interface AnswerSlot {
@@ -165,6 +178,12 @@ export function localesOfQuestion(content: QuestionContent): Locale[] {
       return LOCALES.filter((locale) => body.questions.every((question) => question.text[locale] !== undefined)).sort();
     case 'LINEUP':
       return LOCALES.filter((locale) => body.title[locale] !== undefined).sort();
+    case 'THREAD':
+      return LOCALES.filter((locale) =>
+        body.rooms.every(
+          (room) => room.text[locale] !== undefined && (room.jumpText === null || room.jumpText[locale] !== undefined),
+        ),
+      ).sort();
     case 'HEX':
       return LOCALES.filter((locale) =>
         body.cells.every(
@@ -202,6 +221,8 @@ export function summaryTextOfQuestion(content: QuestionContent, locale: Locale):
       return body.cells.map((cell) => cell.letter[locale] ?? '').join(' ');
     case 'LINEUP':
       return body.title[locale] ?? '';
+    case 'THREAD':
+      return body.rooms.map((room) => room.text[locale] ?? '').join(' · ');
     case 'CAREER':
     case 'GRID':
     case 'MINES':
@@ -213,7 +234,15 @@ export function summaryTextOfQuestion(content: QuestionContent, locale: Locale):
 
 /** What kind of entity (or a number) answers this round. */
 export function answerKindOfGame(body: GameBody): AnswerKind {
-  return body.gameType === 'BUZZER' ? body.answerKind : 'PLAYER';
+  if (body.gameType === 'BUZZER') return body.answerKind;
+  // A thread's rooms each have their own kind (`answerKindOfSlot`); the round's kind is the first room's.
+  if (body.gameType === 'THREAD') return body.rooms[0]?.answerKind ?? 'PLAYER';
+  return 'PLAYER';
+}
+
+/** What the answers of one slot must be: a thread room's own kind, otherwise the round's. */
+export function answerKindOfSlot(body: GameBody, slot: number): AnswerKind {
+  return body.gameType === 'THREAD' ? (body.rooms[slot]?.answerKind ?? 'PLAYER') : answerKindOfGame(body);
 }
 
 /** JSON with object keys sorted at every level, so the same content always gives the same text. */

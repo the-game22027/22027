@@ -1,6 +1,7 @@
 import type { Locale } from '@shared/kernel';
 import type {
   AnswerKind,
+  EntityKind,
   GameBody,
   GameType,
   GridCriterion,
@@ -55,7 +56,11 @@ export type EngineGameBody =
       fakeEntityId: string;
     }
   | { gameType: 'ONE_TWO'; seedEntityId: string }
-  | { gameType: 'BRIDGE'; size: number; clubEntityIds: string[] };
+  | { gameType: 'BRIDGE'; size: number; clubEntityIds: string[] }
+  | {
+      gameType: 'THREAD';
+      rooms: { hop: string; answerKind: EntityKind; text: LocalizedText; jumpText: LocalizedText | null }[];
+    };
 
 /** Everything the engine needs to play one round. Server side only: never sent to a client as is. */
 export interface EngineContent {
@@ -90,6 +95,8 @@ export function listEntityReferencesOfBody(body: GameBody): string[] {
       return [body.seed];
     case 'BRIDGE':
       return body.clubs;
+    case 'THREAD':
+      return [];
   }
 }
 
@@ -177,6 +184,16 @@ export function toEngineBody(
       return { gameType: 'ONE_TWO', seedEntityId: idOf(body.seed) };
     case 'BRIDGE':
       return { gameType: 'BRIDGE', size: body.size, clubEntityIds: body.clubs.map(idOf) };
+    case 'THREAD':
+      return {
+        gameType: 'THREAD',
+        rooms: body.rooms.map((room) => ({
+          hop: room.hop,
+          answerKind: room.answerKind,
+          text: keepLocales(room.text, locales),
+          jumpText: room.jumpText === null ? null : keepLocales(room.jumpText, locales),
+        })),
+      };
     case 'VAULT':
       return {
         gameType: 'VAULT',

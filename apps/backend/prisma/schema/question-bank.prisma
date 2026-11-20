@@ -22,6 +22,7 @@ enum BattleGameType {
   LINEUP
   ONE_TWO
   BRIDGE
+  THREAD
 
   @@map("battle_game_type")
 }

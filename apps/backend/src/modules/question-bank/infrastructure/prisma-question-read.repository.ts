@@ -95,13 +95,18 @@ export class PrismaQuestionReadRepository implements QuestionReadRepository {
         answerKind: true,
         answers: {
           where: { slot },
-          select: { entity: { select: { id: true, popularity: true, searchForms: true, nameWords: true } } },
+          select: {
+            entity: { select: { id: true, kind: true, popularity: true, searchForms: true, nameWords: true } },
+          },
         },
       },
     });
     if (!question?.answerKind) return null;
+    // A THREAD room has its own kind (a club, then a player…); its one accepted entity says which.
+    const slotKinds = new Set(question.answers.map(({ entity }) => entity.kind));
+    const [slotKind] = slotKinds;
     return {
-      roundAnswerKind: question.answerKind,
+      roundAnswerKind: slotKinds.size === 1 && slotKind !== undefined ? slotKind : question.answerKind,
       candidates: question.answers.map(({ entity }) => ({
         entityId: entity.id,
         popularity: entity.popularity,
