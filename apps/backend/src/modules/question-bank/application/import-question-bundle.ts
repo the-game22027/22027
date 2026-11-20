@@ -12,7 +12,7 @@ import {
   type GameContent,
   localesOfQuestion,
 } from '../domain/question-content';
-import { findCatalogReferenceProblems } from '../domain/question-rules';
+import { findCatalogReferenceProblems, listBridgeLineClubs } from '../domain/question-rules';
 import { type BundleFiles, type BundleLinkGraph, parseBundle } from './bundle-parser';
 import {
   type ActiveEntity,
@@ -120,6 +120,7 @@ export class ImportQuestionBundle {
     const entities = await this.findEntitiesUsedByGames(questions);
     if (linkGraph) await this.replaceLinkGraph(linkGraph);
     else if (manifest.catalogChecksum) await this.repository.pruneLinkGraphToActiveCatalog();
+    await this.checkBridgeLinesHaveScorers(questions, entities);
 
     const categoryIds = await this.repository.saveCategories(
       manifest.categories.map((category) => ({ id: this.ids.next(), ...category })),
@@ -207,6 +208,34 @@ export class ImportQuestionBundle {
     await this.repository.replaceLinkGraph(
       matches.map((match) => ({ id: this.ids.next(), ...match })),
       links.flatMap(readLinkFromBothEnds),
+    );
+  }
+
+  /**
+   * Every line of a BRIDGE board needs at least one player who scored against both clubs, in the graph as it stands
+   * after this import (08 §16.4): a line nobody can answer would make every answer on it grey.
+   */
+  private async checkBridgeLinesHaveScorers(
+    questions: readonly BundleQuestion[],
+    entities: ReadonlyMap<string, ActiveEntity>,
+  ): Promise<void> {
+    const idOf = (ref: string): string => {
+      const entity = entities.get(ref);
+      if (!entity) throw new Error(`Entity ${ref} was checked but not found`);
+      return entity.id;
+    };
+    const lines = questions.flatMap(({ content }, index) =>
+      content.type === 'GAME' && content.body.gameType === 'BRIDGE'
+        ? listBridgeLineClubs(content.body.size, content.body.clubs).map(([first, second], line) => ({
+            where: `line ${index + 1}: bridge line ${line} (${first} – ${second})`,
+            pair: [idOf(first), idOf(second)] as const,
+          }))
+        : [],
+    );
+    const unanswerable = await this.repository.findClubPairsWithoutCommonScorer(lines.map((line) => line.pair));
+    if (unanswerable.length === 0) return;
+    throw new InvalidBundleError(
+      unanswerable.map((position) => `${lines[position].where} has no player who scored against both clubs`),
     );
   }
 

@@ -37,6 +37,21 @@ export const MAX_HEX_SIZE = 7;
 export const MIN_BRIDGE_SIZE = 3;
 export const MAX_BRIDGE_SIZE = 5;
 
+/**
+ * The two clubs of every line of a bridge board, numbered as the battle numbers them (08 §16.1): horizontal lines
+ * row by row, then vertical lines row by row. `clubs` are row by row.
+ */
+export function listBridgeLineClubs<Club>(size: number, clubs: readonly Club[]): [Club, Club][] {
+  const pairs: [Club, Club][] = [];
+  for (let row = 0; row < size; row++) {
+    for (let col = 0; col < size - 1; col++) pairs.push([clubs[row * size + col], clubs[row * size + col + 1]]);
+  }
+  for (let row = 0; row < size - 1; row++) {
+    for (let col = 0; col < size; col++) pairs.push([clubs[row * size + col], clubs[(row + 1) * size + col]]);
+  }
+  return pairs;
+}
+
 const checkText = (problems: string[], field: string, value: string, maxLength: number): void => {
   if (value.trim() === '') problems.push(`${field} is empty`);
   else if (value.length > maxLength) problems.push(`${field} is longer than ${maxLength} characters`);

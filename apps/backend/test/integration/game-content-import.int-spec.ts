@@ -8,7 +8,7 @@ import {
 import { QuestionBankCliModule } from '../../src/modules/question-bank/question-bank-cli.module';
 import { CoreModule } from '../../src/shared/infrastructure/core.module';
 import { PrismaService } from '../../src/shared/infrastructure/persistence';
-import { buzzerLine, bundle, careerLine, entitySet, oneTwoFixture } from '../support/question-bundles';
+import { bridgeFixture, buzzerLine, bundle, careerLine, entitySet, oneTwoFixture } from '../support/question-bundles';
 import { testConfig } from '../support/test-app';
 
 describe('importing a bundle with an answer catalog and game content', () => {
@@ -239,6 +239,20 @@ describe('importing a bundle with an answer catalog and game content', () => {
     await expect(importer.importBundle(bundle(version, lines, graph.entities, graph))).resolves.toMatchObject({
       alreadyImported: true,
     });
+  });
+
+  it('imports a BRIDGE board whose lines all have scorers, and refuses one with a line nobody can answer', async () => {
+    const board = bridgeFixture();
+    await expect(
+      importer.importBundle(bundle(newVersion(), [board.line(newKey())], board.entities, board)),
+    ).resolves.toMatchObject({ counts: { inserted: 1 } });
+
+    // Club 4 sits in the middle of the board and conceded to nobody here: its four lines have no answer.
+    const lonely = board.clubs[4].externalRef;
+    const graph = { links: board.links.filter((link) => link.to !== lonely), matches: board.matches };
+    const attempt = importer.importBundle(bundle(newVersion(), [board.line(newKey())], board.entities, graph));
+    await expect(attempt).rejects.toThrow(InvalidBundleError);
+    await expect(attempt).rejects.toThrow(/bridge line 2 .* has no player who scored against both clubs/);
   });
 
   it('drops the links of names a newer catalog without a graph no longer lists', async () => {
