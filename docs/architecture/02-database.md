@@ -389,6 +389,27 @@ answer_entity_aliases (                 -- alternative names per locale, shown a
 
 The server judges typed text against the round's accepted answers (`08` §5.3, ADR-0021); the GIN index finds an exact match of another entity in one lookup. The catalog is not sent to phones.
 
+**The ONE_TWO link graph (N8, ADR-0024, built 2026-11-20).** A `ONE_TWO` question is a seed with no `question_answers`; its answers come from a graph between catalog entities that each bundle may replace as a whole.
+
+```sql
+entity_links (                          -- one row per pass-type reading of a link (08 §15.8)
+  from_entity_id uuid FK → answer_entities,
+  pass_type link_pass_type,             -- FACED_IN_FINAL | FACED_IN_KNOCKOUT | SCORED_IN_SAME_MATCH | ASSIST_GIVEN | ASSIST_RECEIVED | SCORED_AGAINST | CONCEDED_TO
+  to_entity_id uuid FK → answer_entities,
+  match_id uuid FK → link_matches ON DELETE CASCADE,
+  PRIMARY KEY (from_entity_id, pass_type, to_entity_id)   -- a ball's neighbours for one pass type in one range scan
+)
+link_matches (                          -- the evidence shown after a right answer
+  id uuid PK, external_key text UQ, evidence jsonb      -- {en, ar}
+)
+entity_link_counts (                    -- filled at import: an offer reads counts, not entity_links
+  entity_id uuid FK → answer_entities, pass_type link_pass_type, neighbour_count int,
+  PRIMARY KEY (entity_id, pass_type)
+)
+```
+
+The import deletes and refills the three tables in its transaction (DELETE, not TRUNCATE, so battles read the old graph until the commit).
+
 ```sql
 question_stats (
   question_id uuid PK FK → questions, times_served int DEFAULT 0, times_solved int DEFAULT 0,
