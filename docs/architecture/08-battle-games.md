@@ -898,7 +898,7 @@ stateDiagram-v2
   PICKING --> [*]: dead end (no pass type has an answer) or maxPasses reached (no winner)
 ```
 
-1. **Seed:** a round's content is one well-known catalog entity (§15.4). `round:start` shows it and who passes first.
+1. **Seed:** a round's content is one well-known catalog player (§15.4). `round:start` shows it and who passes first.
 2. **Who passes first:** round 1, the rock-paper-scissors winner (`firstMover: RPS`, §9.1). From round 2, the loser of the previous rally (`nextPasser: LOSER`, DEC-81), as the `AUCTION` picker: passing first is the edge.
 3. **The offer:** the server lists the pass types (§15.4) that fit the ball's kind (player or club) and have at least `minAnswers` (3) neighbours not yet named in this battle. It offers up to `offerCount` (3) of them, chosen at random, to both players (`oneTwo:offer`). The counts are never sent (DEC-81): the choice is about the opponent's knowledge, not about arithmetic.
 4. **The pass:** `oneTwo:pass { passType }` within `pickMs` (5 s). A type outside the offer is refused `NOT_OFFERED`. At the deadline the server picks one of the offered types at random.
@@ -929,7 +929,7 @@ stateDiagram-v2
 | S→C | `round:start` | `seed: EntityRef`, `passerId`; the first `oneTwo:offer` follows |
 | S→C | `oneTwo:offer` | `ball: EntityRef`, `passerId`, `passTypes: PassType[]`, `pickDeadlineAt` |
 | S→C | `oneTwo:passed` | `passType`, `receiverId`, `answerDeadlineAt`, `random: boolean` |
-| S→C | `oneTwo:returned` | `entity`, `evidence: { en, ar }`, `participantId` (the new passer) |
+| S→C | `oneTwo:returned` | `entity`, `passType`, `evidence` (one string in the viewer's language), `participantId` (the new passer) |
 | S→C | `oneTwo:missed` | `participantId`, `reason: WRONG \| BURNED \| TIME_UP`; `entity` (what the text matched) with `showWrongAnswers` |
 | S→C | `round:result` | `reveal: { seed, chain: [{ entity, passType, returnedBy, evidence }], endReason: MISSED \| DEAD_END \| MAX_PASSES \| FORFEIT, missed: { participantId, reason, passType } \| null, examples: EntityRef[] }` |
 
@@ -955,7 +955,7 @@ A player ball can get six pass types; a club ball only `CONCEDED_TO` for now, so
 |---|---|---|
 | `ONE_TWO` | `{ seed: entityRef }` | none stored: the link graph (`links.jsonl`) |
 
-**Seeds** (`kb bundle --one-twos N`): well-known players (sitelinks ≥ 40) and clubs with at least 3 pass types that have 5 or more neighbours each, so the first offer is always full. Difficulty from the seed's popularity and the size of its smallest offered list. DEC-44 keeps a player from getting the same seed twice; the rallies themselves are new every time.
+**Seeds** (`kb bundle --one-twos N`): well-known players (sitelinks ≥ 40) with at least 3 pass types that have 5 or more neighbours each, so the first offer is always full. Clubs are never seeds: a club ball has only `CONCEDED_TO`, so it cannot meet that bar. Difficulty from the seed's popularity and the size of its smallest offered list. DEC-44 keeps a player from getting the same seed twice; the rallies themselves are new every time.
 
 **The graph** (`kb bundle --links`, 07 §5.10 N8 slice): every link whose two ends are catalog entities, from tier-1 and tier-2 competitions (DEC-67). Each link points at its evidence match: when two names are linked by several matches, the most memorable one is kept (a final, then the latest knockout round, then the latest match).
 
@@ -1004,4 +1004,6 @@ Question-bank owns the graph, as it owns the catalog (§5):
 
 - Each link is stored once per pass-type reading, so every lookup starts from the ball: a symmetric link gives two rows of the same pass type, `ASSISTED` gives an `ASSIST_GIVEN` row and an `ASSIST_RECEIVED` row, `SCORED_AGAINST` a `SCORED_AGAINST` row and a `CONCEDED_TO` row. About 730,000 rows from the measured graph; the primary key finds a ball's neighbours for one pass type without reading the rest.
 - `entity_link_counts` is filled at import, so an offer needs the counts plus "how many of the burned names are neighbours", one query on the same key.
+- **Re-import:** the import batch keeps the graph's checksums next to the others, so the same bundle version with a rebuilt graph is refused as a reused version instead of being skipped as already imported.
+- **A catalog without a graph:** the import drops the links that touch an entity the new catalog hides and counts again, so a name that left the catalog is never a legal or counted answer.
 - The graph is a snapshot of the knowledge base, not a set of questions: importing a bundle that carries a graph replaces the whole graph in one transaction, under the content-change lock that question imports already take. A battle in progress keeps judging against the rows it read; a ball whose entity is gone from the new graph simply has no neighbours (`DEAD_END`).
