@@ -143,7 +143,7 @@ export class PrismaQuestionReadRepository implements QuestionReadRepository {
       SELECT e.id::text AS "entityId", e.popularity, e.search_forms AS "searchForms", e.name_words AS "nameWords",
              m.evidence
       FROM entity_links l
-      JOIN answer_entities e ON e.id = l.to_entity_id
+      JOIN answer_entities e ON e.id = l.to_entity_id AND e.status = 'ACTIVE'
       JOIN link_matches m ON m.id = l.match_id
       WHERE l.from_entity_id = ${ballEntityId}::uuid AND l.pass_type = ${passType}::link_pass_type
       ORDER BY e.popularity DESC, e.id`;

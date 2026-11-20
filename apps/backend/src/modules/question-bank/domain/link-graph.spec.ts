@@ -44,7 +44,7 @@ describe('the ONE_TWO link graph', () => {
     expect(problemsOf([link({ match: 'ucl:1999' })])).toContain('match ucl:1999 is not in link-matches.jsonl');
     expect(problemsOf([link({ to: 'wd:nobody' })])).toContain('to wd:nobody is not in the answer catalog');
     expect(problemsOf([link({ to: 'wd:atletico' })])).toContain('to wd:atletico is a CLUB, expected PLAYER');
-    expect(problemsOf([link({ to: 'wd:modric' })])).toContain('a link joins two different entities');
+    expect(problemsOf([link({ to: 'wd:modric' })])).toContain('a link must join two different entities');
     const faced = link({ type: 'SCORED_IN_SAME_MATCH' });
     expect(problemsOf([faced, { ...faced, from: faced.to, to: faced.from }])).toContain(
       'the same SCORED_IN_SAME_MATCH link appears twice',

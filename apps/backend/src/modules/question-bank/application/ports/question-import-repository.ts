@@ -17,6 +17,7 @@ export interface ImportBatchWrite {
   bundleVersion: string;
   checksum: string;
   catalogChecksum: string | null;
+  linkGraphChecksum: string | null;
   generatorVersion: string;
   kbVersion: string;
   stats: Record<string, number>;
@@ -26,6 +27,7 @@ export interface ImportBatchWrite {
 export interface ImportedBatchChecksums {
   checksum: string;
   catalogChecksum: string | null;
+  linkGraphChecksum: string | null;
 }
 
 /** A catalog entity with the id it gets if it is new (an existing entity keeps its id). */
@@ -84,6 +86,11 @@ export interface QuestionImportRepository {
   /** A question belongs to the last bundle that contained it, so publishing that bundle covers it (07 §5.5). */
   moveQuestionsToBatch(questionIds: readonly string[], batchId: string): Promise<void>;
   disableQuestions(questionIds: readonly string[], reason: string, at: Date): Promise<void>;
+  /**
+   * Drops the links that touch an entity the catalog no longer lists, and counts again (08 §15.8). Runs after a
+   * catalog without a graph, so a hidden name is never a legal ONE_TWO answer or a counted one.
+   */
+  pruneLinkGraphToActiveCatalog(): Promise<void>;
   /**
    * Makes the ONE_TWO link graph exactly these readings (08 §15.8): every old link, count and match is removed.
    * Every reference must be an active catalog entity and every match key one of `matches` (checked before).

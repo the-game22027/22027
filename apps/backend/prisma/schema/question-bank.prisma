@@ -52,17 +52,19 @@ model QuestionCategory {
 }
 
 model QuestionImportBatch {
-  id               String   @id @db.Uuid
-  bundleVersion    String   @unique @map("bundle_version")
-  checksum         String
+  id                String   @id @db.Uuid
+  bundleVersion     String   @unique @map("bundle_version")
+  checksum          String
   /// Checksum of catalog.jsonl when the bundle carried one.
-  catalogChecksum  String?  @map("catalog_checksum")
-  generatorVersion String   @map("generator_version")
-  kbVersion        String   @map("kb_version")
-  status           String
+  catalogChecksum   String?  @map("catalog_checksum")
+  /// linksChecksum and linkMatchesChecksum joined by "+" when the bundle carried a ONE_TWO link graph.
+  linkGraphChecksum String?  @map("link_graph_checksum")
+  generatorVersion  String   @map("generator_version")
+  kbVersion         String   @map("kb_version")
+  status            String
   /// How many questions each import outcome had (inserted, unchanged, replaced, ...).
-  stats            Json?
-  importedAt       DateTime @map("imported_at") @db.Timestamptz(3)
+  stats             Json?
+  importedAt        DateTime @map("imported_at") @db.Timestamptz(3)
 
   questions Question[]
 

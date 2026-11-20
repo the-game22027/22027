@@ -1,7 +1,10 @@
 import { Test, type TestingModule } from '@nestjs/testing';
 import { randomUUID } from 'node:crypto';
 import { ImportQuestionBundle } from '../../src/modules/question-bank/application/import-question-bundle';
-import { InvalidBundleError } from '../../src/modules/question-bank/domain/question-bank-errors';
+import {
+  BundleVersionReusedError,
+  InvalidBundleError,
+} from '../../src/modules/question-bank/domain/question-bank-errors';
 import { QuestionBankCliModule } from '../../src/modules/question-bank/question-bank-cli.module';
 import { CoreModule } from '../../src/shared/infrastructure/core.module';
 import { PrismaService } from '../../src/shared/infrastructure/persistence';
@@ -222,5 +225,37 @@ describe('importing a bundle with an answer catalog and game content', () => {
     await expect(attempt).rejects.toThrow(/is a CLUB, expected PLAYER/);
     const seed = await entityByRef(graph.seed.externalRef);
     expect(await prisma.entityLinkCount.count({ where: { entityId: seed.id } })).toBe(5);
+  });
+
+  it('refuses the same version with a rebuilt graph instead of skipping it as already imported', async () => {
+    const graph = oneTwoFixture();
+    const version = newVersion();
+    const lines = [graph.line(newKey())];
+    await importer.importBundle(bundle(version, lines, graph.entities, graph));
+    const rebuilt = { links: graph.links.slice(1), matches: graph.matches };
+    await expect(importer.importBundle(bundle(version, lines, graph.entities, rebuilt))).rejects.toThrow(
+      BundleVersionReusedError,
+    );
+    await expect(importer.importBundle(bundle(version, lines, graph.entities, graph))).resolves.toMatchObject({
+      alreadyImported: true,
+    });
+  });
+
+  it('drops the links of names a newer catalog without a graph no longer lists', async () => {
+    const graph = oneTwoFixture();
+    await importer.importBundle(bundle(newVersion(), [graph.line(newKey())], graph.entities, graph));
+    const withoutFirst = graph.entities.filter((entity) => entity !== graph.first);
+    await importer.importBundle(bundle(newVersion(), [graph.line(newKey())], withoutFirst));
+
+    const first = await entityByRef(graph.first.externalRef);
+    const seed = await entityByRef(graph.seed.externalRef);
+    expect(first.status).toBe('HIDDEN');
+    expect(
+      await prisma.entityLink.count({ where: { OR: [{ fromEntityId: first.id }, { toEntityId: first.id }] } }),
+    ).toBe(0);
+    const finals = await prisma.entityLinkCount.findUniqueOrThrow({
+      where: { entityId_passType: { entityId: seed.id, passType: 'FACED_IN_FINAL' } },
+    });
+    expect(finals.neighbourCount).toBe(2);
   });
 });

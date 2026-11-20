@@ -90,10 +90,20 @@ export class ImportQuestionBundle {
     const { bundleVersion } = manifest;
     const catalogChecksum = manifest.catalogChecksum ?? null;
     const catalogSize = manifest.catalogChecksum ? catalog.length : null;
+    const linkGraphChecksum =
+      manifest.linksChecksum && manifest.linkMatchesChecksum
+        ? `${manifest.linksChecksum}+${manifest.linkMatchesChecksum}`
+        : null;
     await this.repository.waitForOtherImports();
 
+    // Every file counts: the same version with a rebuilt graph is a reused version, not an import to skip.
     const previous = await this.repository.findBatchChecksums(bundleVersion);
-    if (previous && previous.checksum === manifest.checksum && previous.catalogChecksum === catalogChecksum) {
+    if (
+      previous &&
+      previous.checksum === manifest.checksum &&
+      previous.catalogChecksum === catalogChecksum &&
+      previous.linkGraphChecksum === linkGraphChecksum
+    ) {
       return { bundleVersion, alreadyImported: true, counts: emptyCounts(), catalogSize, linkCount: null };
     }
     if (previous !== null) throw new BundleVersionReusedError(bundleVersion);
@@ -109,6 +119,7 @@ export class ImportQuestionBundle {
     }
     const entities = await this.findEntitiesUsedByGames(questions);
     if (linkGraph) await this.replaceLinkGraph(linkGraph);
+    else if (manifest.catalogChecksum) await this.repository.pruneLinkGraphToActiveCatalog();
 
     const categoryIds = await this.repository.saveCategories(
       manifest.categories.map((category) => ({ id: this.ids.next(), ...category })),
@@ -174,6 +185,7 @@ export class ImportQuestionBundle {
       bundleVersion,
       checksum: manifest.checksum,
       catalogChecksum,
+      linkGraphChecksum,
       generatorVersion: manifest.generatorVersion,
       kbVersion: manifest.kbVersion,
       stats: { ...counts },

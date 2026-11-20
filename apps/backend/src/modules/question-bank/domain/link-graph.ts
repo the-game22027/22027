@@ -94,7 +94,7 @@ export function findLinkGraphProblems(
   links.forEach((link, index) => {
     const where = `links.jsonl line ${index + 1}`;
     if (!matchKeys.has(link.match)) problems.push(`${where}: match ${link.match} is not in link-matches.jsonl`);
-    if (link.from === link.to) problems.push(`${where}: a link joins two different entities`);
+    if (link.from === link.to) problems.push(`${where}: a link must join two different entities`);
     const [forward, backward] = readLinkFromBothEnds(link);
     for (const [end, ref, kind] of [
       ['from', link.from, PASS_TYPE_ENDS[forward.passType].ball],

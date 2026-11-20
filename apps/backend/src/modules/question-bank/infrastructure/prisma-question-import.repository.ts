@@ -99,7 +99,7 @@ export class PrismaQuestionImportRepository implements QuestionImportRepository 
   async findBatchChecksums(bundleVersion: string): Promise<ImportedBatchChecksums | null> {
     return this.txHost.tx.questionImportBatch.findUnique({
       where: { bundleVersion },
-      select: { checksum: true, catalogChecksum: true },
+      select: { checksum: true, catalogChecksum: true, linkGraphChecksum: true },
     });
   }
 
@@ -246,6 +246,18 @@ export class PrismaQuestionImportRepository implements QuestionImportRepository 
     });
   }
 
+  async pruneLinkGraphToActiveCatalog(): Promise<void> {
+    const { tx } = this.txHost;
+    const removed = await tx.$executeRaw`
+      DELETE FROM entity_links l
+      USING answer_entities e
+      WHERE e.status <> 'ACTIVE' AND (e.id = l.from_entity_id OR e.id = l.to_entity_id)`;
+    if (removed === 0) return;
+    await tx.$executeRaw`DELETE FROM entity_link_counts`;
+    await this.countLinks();
+    await tx.$executeRaw`DELETE FROM link_matches m WHERE NOT EXISTS (SELECT 1 FROM entity_links l WHERE l.match_id = m.id)`;
+  }
+
   async replaceLinkGraph(matches: readonly LinkMatchWrite[], readings: readonly PassReading[]): Promise<void> {
     const { tx } = this.txHost;
     // DELETE, not TRUNCATE: battles keep reading the old graph until this transaction commits.
@@ -270,7 +282,11 @@ export class PrismaQuestionImportRepository implements QuestionImportRepository 
         JOIN answer_entities t ON t.external_ref = row.to_ref AND t.status = 'ACTIVE'
         JOIN link_matches m ON m.external_key = row.match_key`;
     }
-    await tx.$executeRaw`
+    await this.countLinks();
+  }
+
+  private async countLinks(): Promise<void> {
+    await this.txHost.tx.$executeRaw`
       INSERT INTO entity_link_counts (entity_id, pass_type, neighbour_count)
       SELECT from_entity_id, pass_type, count(*)::int FROM entity_links GROUP BY from_entity_id, pass_type`;
   }
