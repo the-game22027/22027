@@ -21,6 +21,7 @@ Every number in this file is configuration (per game type), never a constant. Na
 | `TIME_MACHINE` (آلة الزمن) | Turns with hearts, years going back (N6) | A tournament edition per turn | One fact about that edition | 2 |
 | `THREAD` (الخيط) | Simultaneous chained race (N7) | Five rooms, each question pointing at the previous answer | Each room's single answer | 2 |
 | `ONE_TWO` (وان تو) | Turn-based rally on a link graph (N8) | A seed name, then each answer as the next ball | A name linked to the ball by the pass type the opponent picked | 2 |
+| `BRIDGE` (الكوبري) | Dots and boxes on a board of clubs (N9) | Nothing: the whole board is shown | A player who scored against both clubs of the picked line | 2 |
 
 The new game types (DEC-68, plus `ONE_TWO` chosen on 2026-11-20) are designed one by one in track N; §9 holds what they share. A battle has **one** game type, chosen when it is created: by the queue the player joined (DEC-59), or by the host in a room. A battle is `roundCount` rounds of that game (DEC-31, per game type).
 
@@ -321,7 +322,7 @@ Implementation notes (N0, built 2026-11-19):
 
 | Game type | `firstMover` | Why |
 |---|---|---|
-| `GRID`, `MINES`, `HEX`, `TIME_MACHINE`, `AUCTION`, `ONE_TWO` | `RPS` | One player moves, picks, bids or passes first |
+| `GRID`, `MINES`, `HEX`, `TIME_MACHINE`, `AUCTION`, `ONE_TWO`, `BRIDGE` | `RPS` | One player moves, picks, bids or passes first |
 | `VAULT`, `THREAD`, `LINEUP` | `NONE` | Both players race on the same content at the same time |
 | Reveal and buzz | `NONE` | The first buzz decides, not a turn order |
 
@@ -333,7 +334,7 @@ Plain TypeScript in `battles/domain/games/shared/`, called by each game's own ru
 |---|---|---|---|
 | `LockoutLadder` | wrong tries per player, locked-until time | `lockoutMs: number[]` (last value repeats) | `VAULT`, `HEX`, `THREAD` |
 | `HintSchedule` | which hints are out | `hints: { firstAtMs, everyMs, max }` | `VAULT` (digit leaks), `THREAD` (first letter), `LINEUP` (first letters) |
-| `UsedAnswers` | entity ids named this round (or this battle, through `carryOver`) | `repeatCountsAsWrong: boolean` | `MINES`, `AUCTION`, `LINEUP`, `HEX`, `ONE_TWO` (battle-wide) |
+| `UsedAnswers` | entity ids named this round (or this battle, through `carryOver`) | `repeatCountsAsWrong: boolean` | `MINES`, `AUCTION`, `LINEUP`, `HEX`, `ONE_TWO` (battle-wide), `BRIDGE` |
 | `Hearts` | lives per player | `hearts: number` | `MINES`, `TIME_MACHINE` |
 | `SecretChoices` | choices per player before play | `secretChoices: { count, deadlineMs }` | `MINES` |
 
@@ -344,7 +345,7 @@ Plain TypeScript in `battles/domain/games/shared/`, called by each game's own ru
 
 ### 9.4 Order of work
 
-N0 (this section and the first-mover phase in the engine, built 2026-11-19) comes first; the helpers arrive with their first game. Then N1 `MINES` (data ready today), N2 `AUCTION`, N3 `VAULT`, N4 `HEX`, N5 `LINEUP`, then N8 `ONE_TWO` (its data exists today), N6 `TIME_MACHINE`, N7 `THREAD` (ROADMAP track N). Each N phase writes its own section (§10 onward) before any code.
+N0 (this section and the first-mover phase in the engine, built 2026-11-19) comes first; the helpers arrive with their first game. Then N1 `MINES` (data ready today), N2 `AUCTION`, N3 `VAULT`, N4 `HEX`, N5 `LINEUP`, then N8 `ONE_TWO` (its data exists today), N9 `BRIDGE` (on the same link graph), N6 `TIME_MACHINE`, N7 `THREAD` (ROADMAP track N). Each N phase writes its own section (§10 onward) before any code.
 
 
 ## 10. `MINES` (لغم, N1)
@@ -1007,3 +1008,85 @@ Question-bank owns the graph, as it owns the catalog (§5):
 - **Re-import:** the import batch keeps the graph's checksums next to the others, so the same bundle version with a rebuilt graph is refused as a reused version instead of being skipped as already imported.
 - **A catalog without a graph:** the import drops the links that touch an entity the new catalog hides and counts again, so a name that left the catalog is never a legal or counted answer.
 - The graph is a snapshot of the knowledge base, not a set of questions: importing a bundle that carries a graph replaces the whole graph in one transaction, under the content-change lock that question imports already take. A battle in progress keeps judging against the rows it read; a ball whose entity is gone from the new graph simply has no neighbours (`DEAD_END`).
+
+## 16. `BRIDGE` (الكوبري, N9)
+
+Chosen by the product owner on 2026-11-20 (demo page: https://claude.ai/artifact/MbWyGPfnbyKbCRUax1cdnX). Dots and boxes on a board of clubs. To draw the line between two neighbouring clubs, a player types someone who scored against both. A line that closes a square wins it and gives another turn; a wrong answer still draws the line, in grey, and a square it closes goes to the opponent. Most squares wins.
+
+### 16.1 A round (one board)
+
+```mermaid
+stateDiagram-v2
+  [*] --> PICKING: round:start (board) + bridge:turn
+  PICKING --> ANSWERING: bridge:pick, or a random open line at pickDeadlineAt
+  ANSWERING --> PICKING: a right answer that closes a square (same player) or any other result (next player)
+  ANSWERING --> [*]: the last line is drawn
+```
+
+1. **The board:** `size × size` clubs (default 4 × 4: 24 lines, 9 squares, so no draw on squares). Every pair of neighbouring clubs has at least `minAnswersPerLine` (3) scorers in common (§16.4). Lines are numbered: horizontal ones row by row, then vertical ones.
+2. **Who starts:** the rock-paper-scissors winner (`firstMover: RPS`, §9.1).
+3. **The pick:** the player on turn picks an open line within `pickMs` (8 s): `bridge:pick { line }`. Both players see the two clubs (`bridge:question`). At the deadline the server picks a random open line, and the answer clock still runs.
+4. **The answer:** one typed try within `answerMs` (12 s): `bridge:answer { text }`, judged against the players who scored against both clubs (§16.7).
+   - **Right, and not used yet on this board:** the line is the player's, with the scorer's name on it. Every square it closes is theirs, and if it closed at least one, they play again.
+   - **Anything else** (wrong, a scorer already used on this board, or no answer): the line is drawn grey. Every square it closes goes to the opponent (DEC-85). The turn passes.
+5. **End:** when the last line is drawn. The most squares wins the round; equal squares (possible only on an even board) is a draw.
+6. **Battle:** `roundCount` boards (default 1, about 4–5 minutes). Points are squares, so the battle score is the squares won.
+7. **Players:** 2 now.
+
+### 16.2 Hidden information
+
+- The accepted scorers of every line stay on the server. After a right answer both players see the scorer and the two matches that make it true; after a grey line, nobody sees the answers until the reveal.
+- The board, the picks and the owners are public. Typed text is never shown; a wrong answer shows only the entity it matched (DEC-60).
+
+### 16.3 Protocol (details in `api/WEBSOCKET.md` with the build)
+
+| Direction | Message | Purpose |
+|---|---|---|
+| C→S | `bridge:pick { roundNo, line }` | The player on turn picks an open line |
+| C→S | `bridge:answer { roundNo, answer: { text } }` | The one try for that line |
+| S→C | ack of `bridge:answer` | Only to the sender: `data: { result: RIGHT \| WRONG \| USED }` |
+| S→C | `round:start` | `size`, `clubs: EntityRef[size × size]` (row by row), `lines: [{ line, from, to }]`, `firstPickerId` |
+| S→C | `bridge:turn` | `participantId`, `pickDeadlineAt` |
+| S→C | `bridge:question` | `line`, `clubs: [EntityRef, EntityRef]`, `auto`, `answerDeadlineAt` |
+| S→C | `bridge:drawn` | `line`, `participantId`, `right`, `scorer?: EntityRef` and `evidence?: string[2]` (right only), `entity?` (what a wrong text matched), `squares: [{ square, ownerId }]` closed by this line, `scores` |
+| S→C | `round:result` | `reveal: { lines: [{ line, drawnBy, right, scorer?, examples: EntityRef[] }], squares: (participantId \| null)[] }` |
+
+Refusals: `NOT_YOUR_TURN`, `LINE_TAKEN`, `INVALID_LINE`, `PICK_WINDOW_CLOSED`, `ANSWER_WINDOW_CLOSED`, `EMPTY_ANSWER`, `ROUND_CLOSED`.
+
+### 16.4 Content and generator
+
+| `gameType` | Content | Accepted answers |
+|---|---|---|
+| `BRIDGE` | `{ size, clubs: [entityRef × size²] }` (row by row) | none stored: the link graph (§16.7, ADR-0024) |
+
+- **Answers come from the `ONE_TWO` link graph:** the scorers of a line are the `CONCEDED_TO` neighbours both clubs have in common. Nothing new is stored per board, and every right answer has its evidence matches.
+- **Generator** (`kb bundle --bridges N`, 07 §5.10 N9 slice): boards of well-known clubs (the `--bridge-clubs` most popular, default 60) placed so that every neighbouring pair has at least `--bridge-min-answers` (3) common scorers. Deterministic: board `n` comes from a seeded shuffle and a repair search; boards with the same clubs in the same places are dropped.
+- **Difficulty:** from the smallest and median number of answers per line.
+- **Measured on 2026-11-20 (dev graph):** random 4 × 4 boards from the 60 most popular clubs already pass the 3-answer rule 71% of the time, with a median of 31 right answers per line and 7 on the hardest line (top 40: 59%, median 38; top 100: 39%, median 24). With 16 of 60 clubs in any order, the number of possible boards runs into the billions.
+- **The data's era:** the graph holds goals of tier-1 and tier-2 club competitions since 2012-13 (Transfermarkt). A scorer from before that is true but not in our records, so the board says "goals since 2012-13" and the reveal says "not in our records" instead of "wrong" for a known player with no link (DEC-85).
+
+### 16.5 Bot
+
+- **Picking:** it avoids a third side of a square when it can; when every line gives one away, it picks the line that gives away the fewest squares. It takes a closing line whenever one exists.
+- **Answering:** it knows an answer with its chance at the board's difficulty (more for lines with many answers); when it knows one, it types the best-known unused scorer after `typingDelayMs`, otherwise a wrong popular player now and then, or nothing.
+
+### 16.6 Configuration
+
+| Key | Default (dev) | Decision |
+|---|---|---|
+| `roundCount`, `targetScore` | 1, null | DEC-85 |
+| `size` | 4 | DEC-85 |
+| `firstMover` | `RPS` | owner, 2026-11-18 |
+| `pickMs`, `answerMs` | 8000, 12000 | DEC-85 (the demo: 12 s answers) |
+| `wrongLine` | `GREY_GIVES_SQUARES` | owner, 2026-11-20 (the demo) |
+| `showWrongAnswers` | true | DEC-60 |
+| `points.square` | 1 | DEC-85 |
+
+### 16.7 How it fits the engine
+
+- **Rules:** pure `battles/domain/games/bridge-rules.ts`: lines and their owners (a participant or grey), squares and owners, the turn and its phase, scorers used on this board; extra turn after a closing right answer. `BridgeRoundRunner` wraps them (§2.4), with `UsedAnswers` (§9.2) for the board's scorers.
+- **Judging:** `LinkGraphQuery.findCommonNeighbours(clubA, clubB, CONCEDED_TO)` loads a line's scorers once, when it is picked (one query on the primary key of `entity_links`, run for both clubs); then `AnswerChecker.judgeTypedTextAgainstLinks` judges against them, used scorers losing ties, exactly as `ONE_TWO` does.
+- **Evidence:** the `link_matches` of the two `SCORED_AGAINST` rows of the scorer.
+- **Timers:** one phase timer: `pick`, then `answer`.
+- **Actions:** `BRIDGE_PICK` (`auto`), `BRIDGE_ANSWER` (`is_correct`; a timeout is an answer with no entity). Question stats count a wrong, used or late answer as wrong for the board.
+- **Snapshot `currentRound`:** the board, every line's owner (with scorer and evidence for right ones), square owners, the turn, its phase, the picked line and the deadline.

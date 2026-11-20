@@ -442,6 +442,11 @@ Not used: StatsBomb open data (non-commercial), FBref and SofaScore (scraping fo
 - **Built 2026-11-20:** `kb bundle --one-twos N` writes the seeds and the graph; `--links` writes the graph alone; `--links-min-player-sitelinks` (development only) links only players at or above that many sitelinks, so a committed dev bundle stays small. The full graph is 281,231 links (40 MB `links.jsonl`, 8 MB `link-matches.jsonl`) and builds in about 17 s.
 - **Size:** about 365,000 links on the dev knowledge base, with at most 45,322 evidence matches (every usable tier-1 and tier-2 match) (`08` §15.4). The committed dev bundle keeps only links between the entities its trimmed catalog keeps (`--catalog-min-player-sitelinks`), so it stays small.
 
+**N9 slice: bridge boards (2026-11-20 design).** For `BRIDGE` (`08` §16.4):
+- **No new data:** a board's answers are the scorers two clubs have in common in the `ONE_TWO` link graph (`SCORED_AGAINST` links, N8 slice).
+- **`kb bundle --bridges N`** builds boards of `size × size` clubs (default 4) from the `--bridge-clubs` most popular catalog clubs (default 60): a seeded shuffle, then a repair search that swaps clubs until every neighbouring pair has `--bridge-min-answers` (default 3) common scorers; a board that cannot be repaired is dropped. Boards with the same clubs in the same places are written once. `--bridges` writes the link graph too, because the answers live there.
+- **Measured on 2026-11-20 (dev):** 71% of random 4 × 4 boards from the top 60 clubs pass without repair; median 31 answers per line, 7 on the hardest.
+
 **D.3d: typed match tables (resolved).**
 - `core.competition` (ref, kind `LEAGUE` | `CUP` | `INTERNATIONAL`, tier, country) and `core.edition` (competition, season label, final year, winner, runner-up, host).
 - `core.match`: edition, stage (`GROUP` … `FINAL`, `LEAGUE`), date, home and away team, goals, extra time, shootout score, venue.
