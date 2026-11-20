@@ -62,6 +62,12 @@ describe('the engine view of stored content', () => {
     expect(listEntityReferencesOfBody(lineup)).toEqual(['wd:ronaldo', 'wd:sporting']);
   });
 
+  it('turns a ONE_TWO seed into its entity id', () => {
+    const seed: GameBody = { gameType: 'ONE_TWO', seed: 'wd:ronaldo' };
+    expect(toEngineBody(seed, idOf, ['en'])).toEqual({ gameType: 'ONE_TWO', seedEntityId: 'id-ronaldo' });
+    expect(listEntityReferencesOfBody(seed)).toEqual(['wd:ronaldo']);
+  });
+
   it('fails loudly when content lacks a locale or points outside the catalog', () => {
     const englishOnly: GameBody = { ...buzzer, steps: { en: ['a', 'b'] } };
     expect(() => toEngineBody(englishOnly, idOf, ['ar'])).toThrow('no text in locale ar');

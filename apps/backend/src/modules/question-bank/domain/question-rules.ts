@@ -271,6 +271,10 @@ function findGameShapeProblems(content: GameContent): string[] {
       }
       break;
     }
+    case 'ONE_TWO': {
+      if (answers.length > 0) problems.push('a one-two seed has no answer slots: its answers come from the link graph');
+      break;
+    }
     case 'VAULT': {
       if (body.questions.length < MIN_VAULT_QUESTIONS || body.questions.length > MAX_VAULT_QUESTIONS) {
         problems.push(`a vault has ${MIN_VAULT_QUESTIONS} to ${MAX_VAULT_QUESTIONS} questions`);
@@ -382,6 +386,14 @@ export function findCatalogReferenceProblems(
         }
       }
       break;
+    case 'ONE_TWO': {
+      // A seed is a ball: a player or a club, the two kinds the link graph starts from (08 §15.4).
+      const seed = findEntity(body.seed);
+      if (!seed) problems.push(`seed ${body.seed} is not in the answer catalog`);
+      else if (seed.kind !== 'PLAYER' && seed.kind !== 'CLUB')
+        problems.push(`seed ${body.seed} is a ${seed.kind}, expected PLAYER or CLUB`);
+      break;
+    }
   }
   return problems;
 }

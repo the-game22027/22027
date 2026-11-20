@@ -4,6 +4,7 @@ import type { PrismaService, TransactionalAdapterPrisma } from '@shared/infrastr
 import { CLOCK, type Clock, ID_GENERATOR, type IdGenerator } from '@shared/kernel';
 import { listEntityReferencesOfBody } from '../domain/engine-content';
 import { decideImportAction, type ImportDecision } from '../domain/import-decision';
+import { findLinkGraphProblems, readLinkFromBothEnds } from '../domain/link-graph';
 import { BundleVersionReusedError, InvalidBundleError } from '../domain/question-bank-errors';
 import {
   type BundleQuestion,
@@ -12,7 +13,7 @@ import {
   localesOfQuestion,
 } from '../domain/question-content';
 import { findCatalogReferenceProblems } from '../domain/question-rules';
-import { type BundleFiles, parseBundle } from './bundle-parser';
+import { type BundleFiles, type BundleLinkGraph, parseBundle } from './bundle-parser';
 import {
   type ActiveEntity,
   QUESTION_IMPORT_REPOSITORY,
@@ -38,6 +39,8 @@ export interface ImportSummary {
   counts: ImportCounts;
   /** Entities in the bundle's catalog, or null when it carried none. */
   catalogSize: number | null;
+  /** Links in the bundle's ONE_TWO graph, or null when it carried none. */
+  linkCount: number | null;
 }
 
 const COUNT_FOR_ACTION: Record<ImportDecision['action'], keyof ImportCounts> = {
@@ -83,7 +86,7 @@ export class ImportQuestionBundle {
 
   @Transactional<TransactionalAdapterPrisma<PrismaService>>({ timeout: IMPORT_TRANSACTION_TIMEOUT_MS })
   async importBundle(files: BundleFiles): Promise<ImportSummary> {
-    const { manifest, questions, catalog } = parseBundle(files);
+    const { manifest, questions, catalog, linkGraph } = parseBundle(files);
     const { bundleVersion } = manifest;
     const catalogChecksum = manifest.catalogChecksum ?? null;
     const catalogSize = manifest.catalogChecksum ? catalog.length : null;
@@ -91,7 +94,7 @@ export class ImportQuestionBundle {
 
     const previous = await this.repository.findBatchChecksums(bundleVersion);
     if (previous && previous.checksum === manifest.checksum && previous.catalogChecksum === catalogChecksum) {
-      return { bundleVersion, alreadyImported: true, counts: emptyCounts(), catalogSize };
+      return { bundleVersion, alreadyImported: true, counts: emptyCounts(), catalogSize, linkCount: null };
     }
     if (previous !== null) throw new BundleVersionReusedError(bundleVersion);
 
@@ -105,6 +108,7 @@ export class ImportQuestionBundle {
       );
     }
     const entities = await this.findEntitiesUsedByGames(questions);
+    if (linkGraph) await this.replaceLinkGraph(linkGraph);
 
     const categoryIds = await this.repository.saveCategories(
       manifest.categories.map((category) => ({ id: this.ids.next(), ...category })),
@@ -180,7 +184,18 @@ export class ImportQuestionBundle {
     await this.repository.replaceContent(replacements);
     await this.repository.recordReviews(reviews, at);
     await this.repository.moveQuestionsToBatch(carriedOver, batchId);
-    return { bundleVersion, alreadyImported: false, counts, catalogSize };
+    return { bundleVersion, alreadyImported: false, counts, catalogSize, linkCount: linkGraph?.links.length ?? null };
+  }
+
+  /** Checks the graph against the catalog (now updated) and replaces the imported one (08 §15.8, ADR-0024). */
+  private async replaceLinkGraph({ links, matches }: BundleLinkGraph): Promise<void> {
+    const entities = await this.repository.findActiveEntities(links.flatMap((link) => [link.from, link.to]));
+    const problems = findLinkGraphProblems(links, matches, (ref) => entities.get(ref));
+    if (problems.length > 0) throw new InvalidBundleError(problems);
+    await this.repository.replaceLinkGraph(
+      matches.map((match) => ({ id: this.ids.next(), ...match })),
+      links.flatMap(readLinkFromBothEnds),
+    );
   }
 
   /**

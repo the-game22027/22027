@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { z } from 'zod';
 import { type Locale, LOCALES } from '@shared/kernel';
 import type { CatalogEntity } from '../domain/answer-catalog';
+import { type BundleLink, type BundleLinkMatch, LINK_TYPES } from '../domain/link-graph';
 import { InvalidBundleError } from '../domain/question-bank-errors';
 import {
   ANSWER_KINDS,
@@ -27,6 +28,10 @@ const manifestSchema = z.strictObject({
   checksum,
   /** Present when the bundle carries an answer catalog (catalog.jsonl). */
   catalogChecksum: checksum.optional(),
+  /** Present when the bundle carries a ONE_TWO link graph (links.jsonl and link-matches.jsonl, 08 §15.4). */
+  linkCount: z.number().int().nonnegative().optional(),
+  linksChecksum: checksum.optional(),
+  linkMatchesChecksum: checksum.optional(),
   categories: z.array(
     z.strictObject({
       slug: z.string().regex(/^[a-z0-9]+(-[a-z0-9]+)*$/, 'use lowercase words joined by dashes'),
@@ -131,6 +136,7 @@ const gameBodySchemas = {
     shown: z.array(externalRef),
     fake: externalRef,
   }),
+  ONE_TWO: z.strictObject({ seed: externalRef }),
   VAULT: z.strictObject({
     questions: z.array(z.strictObject({ template: nonEmpty, text: localizedText, answerNumber: z.number().int() })),
   }),
@@ -147,6 +153,18 @@ const catalogLineSchema = z.strictObject({
   nameWords: z.array(z.strictObject({ form: nonEmpty, sharedBy: z.number().int().positive() })).default([]),
 });
 
+const linkLineSchema = z.strictObject({
+  from: externalRef,
+  type: z.enum(LINK_TYPES),
+  to: externalRef,
+  match: nonEmpty,
+});
+
+const linkMatchLineSchema = z.strictObject({
+  key: nonEmpty,
+  evidence: z.strictObject({ en: nonEmpty, ar: nonEmpty }),
+});
+
 export type BundleManifest = z.infer<typeof manifestSchema>;
 
 export interface BundleFiles {
@@ -155,6 +173,15 @@ export interface BundleFiles {
   questionsJsonl: Uint8Array;
   /** catalog.jsonl when the bundle has one. */
   catalogJsonl?: Uint8Array;
+  /** links.jsonl and link-matches.jsonl when the bundle carries a link graph. */
+  linksJsonl?: Uint8Array;
+  linkMatchesJsonl?: Uint8Array;
+}
+
+/** The ONE_TWO link graph of a bundle: it replaces the imported graph as a whole (08 §15.8). */
+export interface BundleLinkGraph {
+  links: BundleLink[];
+  matches: BundleLinkMatch[];
 }
 
 export interface ParsedBundle {
@@ -162,6 +189,8 @@ export interface ParsedBundle {
   questions: BundleQuestion[];
   /** Empty when the bundle carries no catalog: content then refers to the catalog already imported. */
   catalog: CatalogEntity[];
+  /** Null when the bundle carries no graph: the imported graph stays as it is. */
+  linkGraph: BundleLinkGraph | null;
 }
 
 const describeIssues = (error: z.ZodError): string[] =>
@@ -243,6 +272,10 @@ const toGameBody = (gameType: GameBody['gameType'], content: unknown): { body: G
       const result = gameBodySchemas.LINEUP.safeParse(content);
       return result.success ? { body: { gameType, ...result.data } } : { issues: describeIssues(result.error) };
     }
+    case 'ONE_TWO': {
+      const result = gameBodySchemas.ONE_TWO.safeParse(content);
+      return result.success ? { body: { gameType, ...result.data } } : { issues: describeIssues(result.error) };
+    }
     case 'VAULT': {
       const result = gameBodySchemas.VAULT.safeParse(content);
       return result.success ? { body: { gameType, ...result.data } } : { issues: describeIssues(result.error) };
@@ -305,6 +338,48 @@ function parseCatalog(bytes: Uint8Array, problems: string[]): CatalogEntity[] {
   return entities;
 }
 
+function parseLines<T>(bytes: Uint8Array, file: string, schema: z.ZodType<T>, problems: string[]): T[] {
+  const items: T[] = [];
+  splitLines(bytes).forEach((text, index) => {
+    const where = `${file} line ${index + 1}`;
+    const json = parseJson(text);
+    if ('error' in json) return void problems.push(`${where}: ${json.error}`);
+    const result = schema.safeParse(json.value);
+    if (!result.success)
+      return void problems.push(...describeIssues(result.error).map((issue) => `${where}: ${issue}`));
+    items.push(result.data);
+  });
+  return items;
+}
+
+/** The link graph files, checked against the manifest and each other; null when the bundle has none. */
+function parseLinkGraph(files: BundleFiles, manifest: BundleManifest, problems: string[]): BundleLinkGraph | null {
+  const declared = [manifest.linkCount, manifest.linksChecksum, manifest.linkMatchesChecksum];
+  const present = [files.linksJsonl, files.linkMatchesJsonl];
+  if (declared.every((value) => value === undefined) && present.every((file) => file === undefined)) return null;
+  if (declared.some((value) => value === undefined) || present.some((file) => file === undefined)) {
+    problems.push('a link graph needs linkCount, linksChecksum and linkMatchesChecksum in the manifest and both files');
+    return null;
+  }
+  const linksJsonl = files.linksJsonl as Uint8Array;
+  const linkMatchesJsonl = files.linkMatchesJsonl as Uint8Array;
+  if (computeChecksum(linksJsonl) !== manifest.linksChecksum) {
+    problems.push('links.jsonl does not match the manifest linksChecksum');
+  }
+  if (computeChecksum(linkMatchesJsonl) !== manifest.linkMatchesChecksum) {
+    problems.push('link-matches.jsonl does not match the manifest linkMatchesChecksum');
+  }
+  const links = parseLines(linksJsonl, 'links.jsonl', linkLineSchema, problems);
+  const matches = parseLines(linkMatchesJsonl, 'link-matches.jsonl', linkMatchLineSchema, problems);
+  if (links.length !== manifest.linkCount) {
+    problems.push(`the manifest says ${manifest.linkCount} links but links.jsonl has ${links.length} lines`);
+  }
+  for (const key of findRepeatedValues(matches.map((match) => match.key))) {
+    problems.push(`link-matches.jsonl: ${key} appears more than once`);
+  }
+  return { links, matches };
+}
+
 export function computeChecksum(bytes: Uint8Array): string {
   return `sha256:${createHash('sha256').update(bytes).digest('hex')}`;
 }
@@ -338,6 +413,8 @@ export function parseBundle(files: BundleFiles): ParsedBundle {
     catalog = parseCatalog(files.catalogJsonl, problems);
   }
 
+  const linkGraph = parseLinkGraph(files, manifest, problems);
+
   const slugs = manifest.categories.map((category) => category.slug);
   for (const slug of findRepeatedValues(slugs)) problems.push(`manifest.json: category "${slug}" is listed twice`);
 
@@ -363,5 +440,5 @@ export function parseBundle(files: BundleFiles): ParsedBundle {
     problems.push(`externalKey "${key}" appears more than once`);
   }
   if (problems.length > 0) throw new InvalidBundleError(problems);
-  return { manifest, questions, catalog };
+  return { manifest, questions, catalog, linkGraph };
 }

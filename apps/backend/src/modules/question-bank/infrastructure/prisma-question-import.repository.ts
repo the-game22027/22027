@@ -3,6 +3,7 @@ import { TransactionHost } from '@nestjs-cls/transactional';
 import { Prisma } from '@generated/prisma/client';
 import type { PrismaService, TransactionalAdapterPrisma } from '@shared/infrastructure/persistence';
 import type { Locale } from '@shared/kernel';
+import type { PassReading } from '../domain/link-graph';
 import type { EntityKind } from '../domain/question-content';
 import { takeContentChangeLock } from './content-change-lock';
 import type { LatestQuestionVersion } from '../domain/import-decision';
@@ -13,6 +14,7 @@ import type {
   CategoryWrite,
   ImportBatchWrite,
   ImportedBatchChecksums,
+  LinkMatchWrite,
   QuestionImportRepository,
   QuestionWrite,
   ReviewUpdate,
@@ -20,6 +22,8 @@ import type {
 
 // Rows per statement when writing the catalog: big enough to be fast, small enough for Postgres' parameter limits.
 const CATALOG_CHUNK_SIZE = 2_000;
+// Link rows are four short values each: bigger chunks mean fewer round trips for about 730,000 rows.
+const LINK_CHUNK_SIZE = 20_000;
 
 const chunksOf = <T>(items: readonly T[], size: number): T[][] => {
   const chunks: T[][] = [];
@@ -240,6 +244,35 @@ export class PrismaQuestionImportRepository implements QuestionImportRepository 
       where: { id: { in: [...questionIds] }, status: { not: 'DISABLED' } },
       data: { status: 'DISABLED', disabledAt: at, disabledReason: reason, updatedAt: at },
     });
+  }
+
+  async replaceLinkGraph(matches: readonly LinkMatchWrite[], readings: readonly PassReading[]): Promise<void> {
+    const { tx } = this.txHost;
+    // DELETE, not TRUNCATE: battles keep reading the old graph until this transaction commits.
+    await tx.$executeRaw`DELETE FROM entity_links`;
+    await tx.$executeRaw`DELETE FROM entity_link_counts`;
+    await tx.$executeRaw`DELETE FROM link_matches`;
+    for (const chunk of chunksOf(matches, CATALOG_CHUNK_SIZE)) {
+      await tx.$executeRaw`
+        INSERT INTO link_matches (id, external_key, evidence)
+        SELECT row.id, row.external_key, row.evidence::jsonb
+        FROM unnest(${chunk.map((m) => m.id)}::uuid[], ${chunk.map((m) => m.key)}::text[],
+                    ${chunk.map((m) => JSON.stringify(m.evidence))}::text[]) AS row(id, external_key, evidence)`;
+    }
+    for (const chunk of chunksOf(readings, LINK_CHUNK_SIZE)) {
+      await tx.$executeRaw`
+        INSERT INTO entity_links (from_entity_id, pass_type, to_entity_id, match_id)
+        SELECT f.id, row.pass_type::link_pass_type, t.id, m.id
+        FROM unnest(${chunk.map((r) => r.fromRef)}::text[], ${chunk.map((r) => r.passType)}::text[],
+                    ${chunk.map((r) => r.toRef)}::text[], ${chunk.map((r) => r.matchKey)}::text[])
+             AS row(from_ref, pass_type, to_ref, match_key)
+        JOIN answer_entities f ON f.external_ref = row.from_ref AND f.status = 'ACTIVE'
+        JOIN answer_entities t ON t.external_ref = row.to_ref AND t.status = 'ACTIVE'
+        JOIN link_matches m ON m.external_key = row.match_key`;
+    }
+    await tx.$executeRaw`
+      INSERT INTO entity_link_counts (entity_id, pass_type, neighbour_count)
+      SELECT from_entity_id, pass_type, count(*)::int FROM entity_links GROUP BY from_entity_id, pass_type`;
   }
 
   private async insertChildren(questions: readonly QuestionWrite[]): Promise<void> {

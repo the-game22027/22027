@@ -1,7 +1,8 @@
 import type { Locale } from '@shared/kernel';
 import type { CatalogEntity, KnownEntity } from '../../domain/answer-catalog';
 import type { LatestQuestionVersion, QuestionStatus } from '../../domain/import-decision';
-import type { BundleQuestion } from '../../domain/question-content';
+import type { PassReading } from '../../domain/link-graph';
+import type { BundleQuestion, LocalizedText } from '../../domain/question-content';
 
 export const QUESTION_IMPORT_REPOSITORY = Symbol('QUESTION_IMPORT_REPOSITORY');
 
@@ -32,6 +33,13 @@ export type CatalogEntityWrite = CatalogEntity & { id: string };
 
 /** An entity the import found in the active catalog. */
 export type ActiveEntity = KnownEntity & { id: string };
+
+/** An evidence match with the id it gets (the whole graph is replaced, so every match is new). */
+export interface LinkMatchWrite {
+  id: string;
+  key: string;
+  evidence: LocalizedText;
+}
 
 /** A question row with its translations, options and accepted answers, ready to insert or to replace in place. */
 export interface QuestionWrite {
@@ -76,4 +84,9 @@ export interface QuestionImportRepository {
   /** A question belongs to the last bundle that contained it, so publishing that bundle covers it (07 §5.5). */
   moveQuestionsToBatch(questionIds: readonly string[], batchId: string): Promise<void>;
   disableQuestions(questionIds: readonly string[], reason: string, at: Date): Promise<void>;
+  /**
+   * Makes the ONE_TWO link graph exactly these readings (08 §15.8): every old link, count and match is removed.
+   * Every reference must be an active catalog entity and every match key one of `matches` (checked before).
+   */
+  replaceLinkGraph(matches: readonly LinkMatchWrite[], readings: readonly PassReading[]): Promise<void>;
 }
