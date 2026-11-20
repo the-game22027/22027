@@ -207,6 +207,12 @@ describe('pickLineForBot', () => {
     expect(pickLineForBot(withDrawn([0, 2, 6]), random())).toBe(7);
   });
 
+  it('prefers a line that closes two squares over one that closes one', () => {
+    // Line 7 is the shared side of squares 0 and 1, both on three sides; line 4 alone would close square 2.
+    const state = withDrawn([0, 2, 6, 1, 3, 8, 9, 10]);
+    for (let seed = 1; seed <= 20; seed++) expect(pickLineForBot(state, new SeededRandom(seed))).toBe(7);
+  });
+
   it('avoids a third side of a square when it can', () => {
     // Square 0 has two sides; lines 2 or 7 would give it away, every other line is safe.
     const line = pickLineForBot(withDrawn([0, 6]), random());

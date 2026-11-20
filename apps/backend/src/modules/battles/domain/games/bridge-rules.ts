@@ -396,8 +396,9 @@ export function listOpenLines(state: BridgeRoundState): number[] {
 }
 
 /**
- * The bot's pick (08 §16.5): a line that closes a square when there is one; otherwise a line that gives the
- * opponent no third side; otherwise the line that leaves the fewest squares one side from closing.
+ * The bot's pick (08 §16.5): the line that closes the most squares when one closes any; otherwise a line that gives
+ * the opponent no third side; otherwise the line that leaves the fewest squares one side from closing. Random among
+ * equally good lines.
  */
 export function pickLineForBot(state: BridgeRoundState, random: RandomSource): number | null {
   const open = listOpenLines(state);
@@ -413,10 +414,11 @@ export function pickLineForBot(state: BridgeRoundState, random: RandomSource): n
     };
   };
   const scored = open.map((line) => ({ line, ...effectOf(line) }));
-  const closing = scored.filter((entry) => entry.closes > 0);
+  const mostClosed = Math.max(...scored.map((entry) => entry.closes));
+  const fewestOpened = Math.min(...scored.map((entry) => entry.opens));
   const pool =
-    closing.length > 0
-      ? closing
-      : scored.filter((entry) => entry.opens === Math.min(...scored.map((candidate) => candidate.opens)));
+    mostClosed > 0
+      ? scored.filter((entry) => entry.closes === mostClosed)
+      : scored.filter((entry) => entry.opens === fewestOpened);
   return pool[Math.floor(random.next() * pool.length)].line;
 }
