@@ -358,6 +358,15 @@ New categories (e.g., MOTM accuracy) = new enum value + contribution mapping. Le
 
 ---
 
+## 6b. Sponsored monthly cup (planned, P13; ADR-0025, DEC-82, DEC-83)
+
+1. **Qualify:** when the monthly `BATTLES` period is `FINALIZED` (DEC-28), `tournaments` reads its snapshot and invites the top 32 (push + in-app). Each confirms within the entry window; an empty seat is offered to the next rank. Fewer than 8 confirmed → no cup that month.
+2. **Draw:** seeded by snapshot rank into a bracket of 8, 16 or 32. The cup carries its sponsorship, if any.
+3. **Play a round:** one round per evening window. For each tie, `tournaments` asks `battles` to open a `TOURNAMENT` battle for the two players; both get a push. Each player has a ready deadline (DB clock); a player who never gets ready loses by walkover; both absent → the higher seed goes through. A tie is best of 3 battles of different game types.
+4. **Advance:** `BattleCompleted` (outbox) → the tie's score → the next tie when it is decided. The handler is idempotent on `battleId`. Disconnects inside a battle follow the normal grace rules (WEBSOCKET.md §6).
+5. **Finish:** the final decides the winner; `TournamentFinished` records the champion and finalist for the prize (fulfillment stays manual, DEC-35).
+6. **Never:** a bot in a cup battle, leaderboard points from a cup battle, or entry for anyone outside the snapshot.
+
 ## 7. Friends and prediction visibility
 
 1. **Requests:** `POST /v1/friend-requests {userId}` → pending (partial unique index prevents duplicates in either direction). Accept creates a `friendships` row (low/high ordering) in the same transaction. Blocks prevent requests and visibility.

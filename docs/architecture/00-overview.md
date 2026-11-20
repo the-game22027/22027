@@ -44,7 +44,7 @@ All items below ship in the first public release. The list is the build order:
 
 ### 2.3 Future (architecturally supported, not built now)
 
-Activity feed, notifications (push), direct room invites to friends via push, share cards for X, achievements, head-to-head records, skill rating for matchmaking and bots, following/public profiles, admin dashboard, prize fulfillment, real football data provider, multi-instance WebSocket scaling, semantic question dedup with local embeddings.
+Sponsored monthly cup for the top 32 of the battles board (P13, ADR-0025; brings push notifications with it), activity feed, notifications (push), direct room invites to friends via push, share cards for X, achievements, head-to-head records, skill rating for matchmaking and bots, following/public profiles, admin dashboard, prize fulfillment, real football data provider, multi-instance WebSocket scaling, semantic question dedup with local embeddings.
 
 Not planned (rejected by the product owner, 2026-11-07): Daily Quiz, solo/practice quiz, async (turn-based) challenges.
 
@@ -85,7 +85,7 @@ Not planned (rejected by the product owner, 2026-11-07): Daily Quiz, solo/practi
 | K-04 | Real-time battles with few users online means long matchmaking waits | Bot fallback after a configured wait (DEC-39); private rooms for friends. Async play was rejected, so bots are the only cure for an empty queue |
 | K-05 | Small local LLMs produce weak Arabic | Templates write the canonical text; LLM output is optional and must pass validation + human review of Arabic before publish |
 | K-06 | Leaderboard disputes after result corrections | Ledger supersession + monthly finalization grace window before prize snapshot (DEC-28) |
-| K-07 | Prize competitions have legal/app-store requirements (official rules, store "not a sponsor" statement) | Non-technical; track before the first prize |
+| K-07 | Prize competitions have legal/app-store requirements (official rules, store "not a sponsor" statement) | Non-technical; track before the first prize. The sponsored cup (ADR-0025) keeps entry free and has no in-app payment; its official rules name the sponsor and the eligibility |
 | K-08 | Three OAuth providers (four with Apple, DEC-48) is a lot of security-sensitive code for a solo developer | Phase them; consider an identity broker (DEC-25) |
 | K-09 | **Question volume.** Battles can be played without limit, so an active player sees hundreds of questions a week. A small bank causes repeats, which reward memorizing over knowledge | Seen questions are never repeated while unseen ones remain (DEC-44); the knowledge-base pipeline targets thousands of questions before launch (Track D); `question_stats` flags overexposed questions |
 | K-10 | **Collusion and farming in prize-linked leaderboards:** friends throwing games in private rooms, second accounts, easy bot wins | Points per battle mode are rule-set values; none for rooms and bots (Decided, DEC-41); prize eligibility checks (`06-cross-cutting.md` §1.2). Second accounts are cheaper without phone sign-in (ADR-0012) |
