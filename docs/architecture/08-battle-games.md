@@ -1007,3 +1007,97 @@ Question-bank owns the graph, as it owns the catalog (§5):
 - **Re-import:** the import batch keeps the graph's checksums next to the others, so the same bundle version with a rebuilt graph is refused as a reused version instead of being skipped as already imported.
 - **A catalog without a graph:** the import drops the links that touch an entity the new catalog hides and counts again, so a name that left the catalog is never a legal or counted answer.
 - The graph is a snapshot of the knowledge base, not a set of questions: importing a bundle that carries a graph replaces the whole graph in one transaction, under the content-change lock that question imports already take. A battle in progress keeps judging against the rows it read; a ball whose entity is gone from the new graph simply has no neighbours (`DEAD_END`).
+
+## 16. `TIME_MACHINE` (آلة الزمن, N6)
+
+Chosen by the product owner on 2026-11-17 (DEC-68; demo page: https://claude.ai/artifact/StfsEs492mtPr1Ljzk8h77). The game travels back in time, one year per turn, from the latest covered year. On each turn the opponent picks a tournament that had an edition that year (World Cup, Euro, AFCON or Champions League), and the server asks one fact about that edition. A wrong or late answer costs a heart. Each player has 3 hearts; the last player with a heart wins.
+
+### 16.1 A round
+
+```mermaid
+stateDiagram-v2
+  [*] --> PICKING: round:start (year, hearts) + timeMachine:turn
+  PICKING --> ANSWERING: timeMachine:pick, or a random pick at pickDeadlineAt
+  ANSWERING --> PICKING: an answer or the deadline (next turn, one year back)
+  ANSWERING --> [*]: a player's last heart
+  PICKING --> [*]: maxTurns reached (more hearts wins; a tie is a draw)
+```
+
+1. **Content:** a round's content is a deck: one fact per tournament edition (§16.4). The deck never leaves the server; a turn reveals one fact.
+2. **Who answers first:** the rock-paper-scissors winner answers first (`firstMover: RPS`, §9.1); the other player picks for them. Turns alternate.
+3. **The year:** the first turn is the newest year with an edition in the deck. Every turn moves one year back. Past the oldest covered year the clock wraps to the newest year again, and facts already asked are skipped (DEC-84).
+4. **The pick:** the picker sees the tournaments that have an edition in the deck for that year and picks one within `pickMs` (5 s): `timeMachine:pick { tournament }`. At the deadline the server picks one at random. Only tournaments with a fact left count; a year with none is skipped.
+5. **"ارجعه للماضي" (send them back):** once per battle (`jumpBack.usesPerBattle`, 1), the picker may send this turn `jumpBack.years` (10) years further back: `timeMachine:pick { tournament, jumpBack: true }` picks from the editions of that older year. The clock then continues from the older year.
+6. **The answer:** the answerer has `answerMs` (12 s) for one typed try (`timeMachine:answer { text }`), judged against the fact's accepted answers (§5.3). A right answer keeps the hearts; a wrong answer or no answer costs one heart. Either way, the answer and the fact are revealed to both (`timeMachine:answered`) and the next turn starts.
+7. **End:** a player who loses their last heart loses the round (`LAST_HEART`). After `maxTurns` (40) the player with more hearts wins; equal hearts is a draw (`MAX_TURNS`).
+8. **Battle:** `roundCount` rounds (default 1, about 3–5 minutes); the jump back is counted per battle, so it is carried in `carryOver`.
+9. **Players:** 2 now.
+
+### 16.2 Hidden information
+
+- The deck stays on the server; only the asked fact's question, then its answers, are sent.
+- The pick is public (it is part of the duel); typed text never is, and a wrong answer shows only the entity it matched (DEC-60).
+
+### 16.3 Protocol (details in `api/WEBSOCKET.md` with the build)
+
+| Direction | Message | Purpose |
+|---|---|---|
+| C→S | `timeMachine:pick { roundNo, tournament, jumpBack? }` | The picker chooses the edition for the answerer |
+| C→S | `timeMachine:answer { roundNo, answer: { text } }` | The answerer's one try |
+| S→C | ack of `timeMachine:answer` | Only to the answerer: `data: { result: RIGHT \| WRONG }` |
+| S→C | `round:start` | `hearts: [{ participantId, hearts }]`, `year`, `firstAnswererId` |
+| S→C | `timeMachine:turn` | `year`, `answererId`, `pickerId`, `tournaments: string[]`, `jumpBackLeft`, `pickDeadlineAt` |
+| S→C | `timeMachine:question` | `year`, `tournament`, `edition` (title in the viewer's language), `question`, `jumpedBack`, `answerDeadlineAt` |
+| S→C | `timeMachine:answered` | `participantId`, `right`, `entity?` (what the text matched), `answers: EntityRef[]` (the right ones), `hearts` |
+| S→C | `round:result` | `reveal: { endReason, turns: [{ year, tournament, question, answers, answeredBy, right }] }` |
+
+Refusals: `NOT_YOUR_TURN`, `NOT_OFFERED` (a tournament with no edition left that year), `JUMP_BACK_USED`, `PICK_WINDOW_CLOSED`, `ANSWER_WINDOW_CLOSED`, `EMPTY_ANSWER`, `ROUND_CLOSED`.
+
+### 16.4 Content and generator
+
+**Facts** (D.3e `edition_summary`, 07 §5.10 N6 slice), one template per kind, each with its accepted answers:
+
+| Template | Question | Accepted answers | Needs |
+|---|---|---|---|
+| `WINNER` | "Who won the 2010 World Cup?" | the winner (a club, or a national team's country) | a usable final |
+| `RUNNER_UP` | "Who lost the 2014 Champions League final?" | the loser | a usable final |
+| `FINAL_SCORER` | "Name a scorer in the 2016 Euro final." | every scorer of the final (own goals not counted) | goals of the final that add up to the score |
+| `TOP_SCORER` | "Who was the top scorer of the 2018 World Cup?" | every player tied on the most goals | goals of every match of the edition that add up to the scores |
+| `KNOCKED_OUT` | "Who knocked Brazil out of the 2014 World Cup?" | the team that eliminated them | a usable knockout tie of a well-known team |
+
+National teams answer as their **country** (the catalog's `COUNTRY` entities), so "Spain" is judged as Spain; national teams themselves stay out of the catalog (DEC-69). Only facts whose every accepted answer is a catalog entity are kept.
+
+**A deck** (`gameType: TIME_MACHINE`): one fact per edition, chosen by the generator; decks differ in which fact each edition gets.
+
+| `gameType` | Content | Accepted answers |
+|---|---|---|
+| `TIME_MACHINE` | `{ editions: [{ tournament, year, title: { en, ar }, template, question: { en, ar } }] }` | one slot per edition, in the same order |
+
+`tournament` is a competition key (`world-cup`, `euro`, `africa-cup-of-nations`, `champions-league`); `year` is the year of the final. The engine picks the slot of the chosen edition.
+
+**Coverage measured on 2026-11-20 (dev):** editions with a usable final since 2000: Champions League 13 (2013–2025), AFCON 13, World Cup 7, Euro 7 (Copa América 8 kept for later, DEC-84). Goals of the final today: Champions League 13, World Cup 5, Euro 5, AFCON 0. Fjelstul's World Cup goals (1,561 since 2002, 60% of scorers linked) and martj42's international goals are in `raw` and not yet in `core.goal`; loading them is part of the N6 slice. The Champions League 2000–2012 needs the curated finals file of D.3e. Without both, the clock runs 2013–2026 for the Champions League only, with international editions sprinkled in.
+
+### 16.5 Bot
+
+- **Picking:** it picks the tournament whose fact it guesses is hardest (the highest difficulty), and uses the jump back once when the answerer has more hearts than it does.
+- **Answering:** it knows a fact with its chance at the fact's difficulty; when it knows it, it types the best-known accepted answer after `typingDelayMs`; otherwise a wrong popular entity of the same kind now and then, or nothing.
+
+### 16.6 Configuration
+
+| Key | Default (dev) | Decision |
+|---|---|---|
+| `roundCount`, `targetScore` | 1, null | DEC-84 |
+| `firstMover` | `RPS` | owner, 2026-11-18 |
+| `pickMs`, `answerMs` | 5000, 12000 | owner, 2026-11-17 (12 s); DEC-84 (5 s pick) |
+| `hearts` | 3 | owner, 2026-11-17 |
+| `jumpBack.usesPerBattle`, `jumpBack.years` | 1, 10 | owner, 2026-11-17 |
+| `maxTurns` | 40 | DEC-84 |
+| `tournaments` | `champions-league`, `world-cup`, `euro`, `africa-cup-of-nations` | owner, 2026-11-17 |
+| `showWrongAnswers` | true | DEC-60 |
+
+### 16.7 How it fits the engine
+
+- **Rules:** pure `battles/domain/games/time-machine-rules.ts`: the year, the turn, the picker and answerer, hearts (`Hearts`, §9.2), the facts asked, the jump back. `TimeMachineRoundRunner` wraps them (§2.4).
+- **Judging:** `AnswerChecker.judgeTypedText(contentId, slot, …)` on the chosen edition's slot, as every slot game does; the answer kind comes from the template (player, club or country).
+- **Timers:** one phase timer: `pick`, then `answer`.
+- **Actions:** `TIME_MACHINE_PICK` (`jumpBack`), `TIME_MACHINE_ANSWER` (`is_correct`; a timeout is an answer with no entity). Question stats count a wrong or late answer as wrong.
