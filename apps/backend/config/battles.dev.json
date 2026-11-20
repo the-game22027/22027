@@ -313,6 +313,43 @@
       "selection": {
         "difficulties": null
       }
+    },
+    "ONE_TWO": {
+      "enabled": true,
+      "roundCount": 7,
+      "targetScore": 3,
+      "firstMover": "RPS",
+      "firstMoverAfterRound1": "LOSER_STARTS",
+      "rps": {
+        "pickMs": 5000,
+        "maxReplays": 2,
+        "revealMs": 2000,
+        "botPickDelayMs": {
+          "min": 800,
+          "max": 2500
+        }
+      },
+      "pickMs": 5000,
+      "answerMs": 10000,
+      "offerCount": 3,
+      "minAnswers": 3,
+      "maxPasses": 20,
+      "passTypes": [
+        "FACED_IN_FINAL",
+        "FACED_IN_KNOCKOUT",
+        "SCORED_IN_SAME_MATCH",
+        "ASSIST_GIVEN",
+        "ASSIST_RECEIVED",
+        "SCORED_AGAINST",
+        "CONCEDED_TO"
+      ],
+      "showWrongAnswers": true,
+      "points": {
+        "rallyWin": 1
+      },
+      "selection": {
+        "difficulties": null
+      }
     }
   }
 }

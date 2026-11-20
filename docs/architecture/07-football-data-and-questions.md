@@ -439,6 +439,7 @@ Not used: StatsBomb open data (non-commercial), FBref and SofaScore (scraping fo
 - **`kb bundle --links`** reads `core.goal`, `core.lineup_slot` and `core.match` straight away, as N2, N3 and N5 do (no `derived` view yet), and writes `links.jsonl` and `link-matches.jsonl`. `--one-twos N` writes the seed rounds.
 - **Gates:** both ends are catalog entities; tier-1 and tier-2 competitions only (DEC-67); knockout links only from the round of 16 on; starters only for the `FACED_*` types; own goals never count; assists only from the scoring team's lineup (already true in `core.goal`, D.3d).
 - **Evidence:** one match per link, the most memorable: a final, then the latest knockout round, then the latest match. Its text is written by the pipeline in both languages (competition, season, stage, both teams, score), because national teams are not catalog entities.
+- **Built 2026-11-20:** `kb bundle --one-twos N` writes the seeds and the graph; `--links` writes the graph alone; `--links-min-player-sitelinks` (development only) links only players at or above that many sitelinks, so a committed dev bundle stays small. The full graph is 281,231 links (40 MB `links.jsonl`, 8 MB `link-matches.jsonl`) and builds in about 17 s.
 - **Size:** about 365,000 links on the dev knowledge base, with at most 45,322 evidence matches (every usable tier-1 and tier-2 match) (`08` §15.4). The committed dev bundle keeps only links between the entities its trimmed catalog keeps (`--catalog-min-player-sitelinks`), so it stays small.
 
 **D.3d: typed match tables (resolved).**

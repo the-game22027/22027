@@ -86,6 +86,7 @@ describe('importing a question bundle', () => {
       bundleVersion: version,
       alreadyImported: false,
       catalogSize: null,
+      linkCount: null,
       counts: { inserted: 2, unchanged: 0, reviewsRecorded: 0, contentReplaced: 0, newVersions: 0 },
     });
     const [stored] = await versionsOf(reviewed);

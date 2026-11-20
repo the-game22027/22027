@@ -54,7 +54,9 @@ export interface RoundAction {
     | 'HEX_CLEAR'
     | 'HEX_ANSWER'
     | 'LINEUP_ANSWER'
-    | 'LINEUP_ACCUSE';
+    | 'LINEUP_ACCUSE'
+    | 'ONE_TWO_PASS'
+    | 'ONE_TWO_ANSWER';
   answer?: JudgedAnswer;
   /** Grid only: row * 3 + col. */
   cell?: number;
@@ -91,6 +93,9 @@ export interface RoundResult {
     | 'CONNECTED'
     | 'LINEUP_COMPLETE'
     | 'TIME_UP'
+    | 'MISSED'
+    | 'DEAD_END'
+    | 'MAX_PASSES'
     | 'FORFEIT';
   /** Points earned in this round, by participant; missing means 0. */
   points: Record<ParticipantId, number>;

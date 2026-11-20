@@ -199,4 +199,51 @@ void main() {
       ),
     );
   });
+
+  test(
+    'one-two events read the ball, the pass types, the evidence and a miss',
+    () {
+      final missed =
+          parseBattleServerEvent(
+                'oneTwo:missed',
+                battleEnvelope('oneTwo:missed', 9, {
+                  'roundNo': 2,
+                  'participantId': 'p-bot',
+                  'reason': 'BURNED',
+                  'entity': {'entityId': 'godin', 'name': 'Godín'},
+                }),
+              )
+              as OneTwoMissed;
+      expect(missed.reason, 'BURNED');
+      expect(missed.entity?.entityId, 'godin');
+
+      final offer =
+          parseBattleServerEvent(
+                'oneTwo:offer',
+                battleEnvelope('oneTwo:offer', 3, {
+                  'roundNo': 1,
+                  'ball': {'entityId': 'ramos', 'name': 'Ramos'},
+                  'passerId': 'p-human',
+                  'passTypes': ['FACED_IN_FINAL', 'CONCEDED_TO'],
+                  'pickDeadlineAt': '2026-11-12T10:00:05.000Z',
+                }),
+              )
+              as OneTwoOffered;
+      expect(offer.passTypes, ['FACED_IN_FINAL', 'CONCEDED_TO']);
+      expect(offer.ball.name, 'Ramos');
+
+      final started = parseBattleServerEvent(
+        'round:start',
+        battleEnvelope('round:start', 2, {
+          'roundNo': 1,
+          'gameType': 'ONE_TWO',
+          'seed': {'entityId': 'ramos', 'name': 'Ramos'},
+          'passerId': 'p-human',
+        }),
+      );
+      expect(started, isA<OneTwoRoundStarted>());
+      expect(findGameTypeByCode('ONE_TWO'), GameType.oneTwo);
+      expect(convertGameTypeToCode(GameType.oneTwo), 'ONE_TWO');
+    },
+  );
 }

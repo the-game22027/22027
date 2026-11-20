@@ -3,11 +3,13 @@ import { TransactionHost } from '@nestjs-cls/transactional';
 import { Prisma } from '@generated/prisma/client';
 import type { PrismaService, TransactionalAdapterPrisma } from '@shared/infrastructure/persistence';
 import type { NameWord } from '../domain/answer-catalog';
-import type { AnswerKind, EntityKind, GameBody } from '../domain/question-content';
+import type { PassType } from '../domain/link-graph';
+import type { AnswerKind, EntityKind, GameBody, LocalizedText } from '../domain/question-content';
 import type {
   CatalogEntityView,
   ContentFilter,
   ContentSelectionCriteria,
+  LinkedAnswer,
   QuestionReadRepository,
   SlotAnswers,
   StoredGameContent,
@@ -131,6 +133,43 @@ export class PrismaQuestionReadRepository implements QuestionReadRepository {
       select: CATALOG_ENTITY_COLUMNS,
     });
     return rows.map(catalogEntityOf);
+  }
+
+  async findLinkedAnswers(ballEntityId: string, passType: PassType): Promise<LinkedAnswer[]> {
+    // The primary key (from_entity_id, pass_type, to_entity_id) finds these rows without reading the rest.
+    const rows = await this.txHost.tx.$queryRaw<
+      { entityId: string; popularity: number; searchForms: string[]; nameWords: unknown; evidence: unknown }[]
+    >`
+      SELECT e.id::text AS "entityId", e.popularity, e.search_forms AS "searchForms", e.name_words AS "nameWords",
+             m.evidence
+      FROM entity_links l
+      JOIN answer_entities e ON e.id = l.to_entity_id AND e.status = 'ACTIVE'
+      JOIN link_matches m ON m.id = l.match_id
+      WHERE l.from_entity_id = ${ballEntityId}::uuid AND l.pass_type = ${passType}::link_pass_type
+      ORDER BY e.popularity DESC, e.id`;
+    return rows.map((row) => ({
+      entityId: row.entityId,
+      popularity: row.popularity,
+      searchForms: row.searchForms,
+      nameWords: row.nameWords as NameWord[],
+      evidence: row.evidence as LocalizedText,
+    }));
+  }
+
+  async countUnusedLinks(
+    ballEntityId: string,
+    burnedEntityIds: readonly string[],
+  ): Promise<Partial<Record<PassType, number>>> {
+    const rows = await this.txHost.tx.$queryRaw<{ passType: PassType; unused: number }[]>`
+      SELECT c.pass_type::text AS "passType", c.neighbour_count - coalesce(burned.count, 0) AS unused
+      FROM entity_link_counts c
+      LEFT JOIN (
+        SELECT pass_type, count(*)::int AS count FROM entity_links
+        WHERE from_entity_id = ${ballEntityId}::uuid AND to_entity_id = ANY(${[...burnedEntityIds]}::uuid[])
+        GROUP BY pass_type
+      ) burned ON burned.pass_type = c.pass_type
+      WHERE c.entity_id = ${ballEntityId}::uuid`;
+    return Object.fromEntries(rows.filter((row) => row.unused > 0).map((row) => [row.passType, row.unused]));
   }
 
   async findPopularEntityIdsOfKind(kind: EntityKind, excludeIds: readonly string[], limit: number): Promise<string[]> {

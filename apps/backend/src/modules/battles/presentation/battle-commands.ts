@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { GAME_TYPES } from '@modules/question-bank';
 import { ROCK_PAPER_SCISSORS_CHOICES } from '../domain/first-mover/rock-paper-scissors-duel';
+import { ONE_TWO_PASS_TYPES } from '../domain/games/one-two-rules';
 
 /** Payloads of client commands (WEBSOCKET.md §3), checked before anything reaches the engine. */
 const clientMsgId = z.string().min(1).max(64);
@@ -46,6 +47,7 @@ export const hexPickCommand = z.object({
 /** The code is checked against the round's digit count by the rules (`INVALID_CODE`). */
 export const vaultTryCommand = z.object({ clientMsgId, battleId, roundNo, code: z.string().regex(/^[0-9]{1,9}$/) });
 /** `mines:bury`, `mines:answer` and `mines:scan` share one shape (08 §10.3); so does `auction:answer`. */
+export const oneTwoPassCommand = z.object({ clientMsgId, battleId, roundNo, passType: z.enum(ONE_TWO_PASS_TYPES) });
 export const minesTextCommand = z.object({
   clientMsgId,
   battleId,

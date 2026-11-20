@@ -898,7 +898,7 @@ stateDiagram-v2
   PICKING --> [*]: dead end (no pass type has an answer) or maxPasses reached (no winner)
 ```
 
-1. **Seed:** a round's content is one well-known catalog entity (§15.4). `round:start` shows it and who passes first.
+1. **Seed:** a round's content is one well-known catalog player (§15.4). `round:start` shows it and who passes first.
 2. **Who passes first:** round 1, the rock-paper-scissors winner (`firstMover: RPS`, §9.1). From round 2, the loser of the previous rally (`nextPasser: LOSER`, DEC-81), as the `AUCTION` picker: passing first is the edge.
 3. **The offer:** the server lists the pass types (§15.4) that fit the ball's kind (player or club) and have at least `minAnswers` (3) neighbours not yet named in this battle. It offers up to `offerCount` (3) of them, chosen at random, to both players (`oneTwo:offer`). The counts are never sent (DEC-81): the choice is about the opponent's knowledge, not about arithmetic.
 4. **The pass:** `oneTwo:pass { passType }` within `pickMs` (5 s). A type outside the offer is refused `NOT_OFFERED`. At the deadline the server picks one of the offered types at random.
@@ -924,16 +924,16 @@ stateDiagram-v2
 | Direction | Message | Purpose |
 |---|---|---|
 | C→S | `oneTwo:pass { roundNo, passType }` | The passer picks the link type for the receiver |
-| C→S | `oneTwo:answer { roundNo, text }` | The receiver's one try |
+| C→S | `oneTwo:answer { roundNo, answer: { text } }` | The receiver's one try |
 | S→C | ack of `oneTwo:answer` | Only to the receiver: `data: { result: RETURNED \| WRONG \| BURNED }` |
-| S→C | `round:start` | `seed: EntityRef`, `passerId` |
+| S→C | `round:start` | `seed: EntityRef`, `passerId`; the first `oneTwo:offer` follows |
 | S→C | `oneTwo:offer` | `ball: EntityRef`, `passerId`, `passTypes: PassType[]`, `pickDeadlineAt` |
 | S→C | `oneTwo:passed` | `passType`, `receiverId`, `answerDeadlineAt`, `random: boolean` |
-| S→C | `oneTwo:returned` | `entity`, `evidence: { en, ar }`, `participantId` (the new passer) |
+| S→C | `oneTwo:returned` | `entity`, `passType`, `evidence` (one string in the viewer's language), `participantId` (the new passer) |
 | S→C | `oneTwo:missed` | `participantId`, `reason: WRONG \| BURNED \| TIME_UP`; `entity` (what the text matched) with `showWrongAnswers` |
-| S→C | `round:result` | `chain: [{ entity, passType, returnedBy, evidence }]`, `endReason: MISSED \| DEAD_END \| MAX_PASSES`, `examples: EntityRef[]` |
+| S→C | `round:result` | `reveal: { seed, chain: [{ entity, passType, returnedBy, evidence }], endReason: MISSED \| DEAD_END \| MAX_PASSES \| FORFEIT, missed: { participantId, reason, passType } \| null, examples: EntityRef[] }` |
 
-Refusals: `NOT_YOUR_TURN` (a pass from the receiver or an answer from the passer), `NOT_OFFERED`, `ALREADY_PASSED`, `ALREADY_ANSWERED`, `EMPTY_ANSWER`, `ROUND_CLOSED`.
+Refusals: `NOT_YOUR_TURN` (a pass from the receiver, an answer from the passer, or a second answer to the same pass), `NOT_OFFERED`, `ALREADY_PASSED`, `PICK_WINDOW_CLOSED`, `ANSWER_WINDOW_CLOSED`, `EMPTY_ANSWER`, `ROUND_CLOSED`.
 
 ### 15.4 Content and generator
 
@@ -955,9 +955,11 @@ A player ball can get six pass types; a club ball only `CONCEDED_TO` for now, so
 |---|---|---|
 | `ONE_TWO` | `{ seed: entityRef }` | none stored: the link graph (`links.jsonl`) |
 
-**Seeds** (`kb bundle --one-twos N`): well-known players (sitelinks ≥ 40) and clubs with at least 3 pass types that have 5 or more neighbours each, so the first offer is always full. Difficulty from the seed's popularity and the size of its smallest offered list. DEC-44 keeps a player from getting the same seed twice; the rallies themselves are new every time.
+**Seeds** (`kb bundle --one-twos N`): well-known players (sitelinks ≥ 40) with at least 3 pass types that have 5 or more neighbours each, so the first offer is always full. Clubs are never seeds: a club ball has only `CONCEDED_TO`, so it cannot meet that bar. Difficulty from the seed's popularity and the size of its smallest offered list. DEC-44 keeps a player from getting the same seed twice; the rallies themselves are new every time.
 
 **The graph** (`kb bundle --links`, 07 §5.10 N8 slice): every link whose two ends are catalog entities, from tier-1 and tier-2 competitions (DEC-67). Each link points at its evidence match: when two names are linked by several matches, the most memorable one is kept (a final, then the latest knockout round, then the latest match).
+
+**Built 2026-11-20 (dev knowledge base, `kb bundle --one-twos`, full catalog):** 281,231 links (`FACED_IN_KNOCKOUT` 118,021, `SCORED_IN_SAME_MATCH` 56,653, `SCORED_AGAINST` 55,674, `ASSISTED` 32,909, `FACED_IN_FINAL` 17,974) and 33,677 evidence matches; fewer knockout links than measured below because knockout links count only from the round of 16 and a match whose teams have no names in both languages is never evidence. 1,079 seeds; difficulty from the seed's sitelinks (quintiles about 43, 47, 53 and 61), one step harder when its third pass type has fewer than 10 names. Check by hand: Godín and Modrić faced each other in the 2016 final (shootout), Modrić set up Ramos in the 2014 final, and a Champions League final beats a later Super Cup as evidence.
 
 **Measured on 2026-11-20 (dev knowledge base, both ends in the catalog, tier 1–2):** `FACED_IN_KNOCKOUT` 199,930; `SCORED_IN_SAME_MATCH` 57,500; `SCORED_AGAINST` (clubs) 56,015; `ASSISTED` 33,517; `FACED_IN_FINAL` 17,974. Total 364,936 links, about 730,000 pass readings, about 32 per catalog player or club on average. Without the catalog and tier filters the same queries give 854,219. Plain "faced him in a match" (2.95 million pairs) is left out: almost any answer would do.
 
@@ -986,7 +988,8 @@ A player ball can get six pass types; a club ball only `CONCEDED_TO` for now, so
 - **Offer:** the runner asks question-bank for the number of neighbours per pass type of the ball, minus the ones already named (one indexed query, §15.8), and picks the offer with the battle's seeded random.
 - **Judging:** a new `AnswerChecker.judgeTypedTextAgainstLinks(ballEntityId, passType, text, rules, usedEntityIds)`. It loads the ball's neighbours for that pass type with their search forms (one indexed query when the pass is made, kept by the runner until the answer), then follows §5.3 exactly as for a slot: closest accepted name with typo tolerance, and a text that is exactly another entity's name is wrong. Comparing against the neighbours only also settles most same-name cases: for a 2002 World Cup final ball only one Ronaldo is a neighbour.
 - **Timers:** one phase timer at a time: `pick` (`pickMs`), then `answer` (`answerMs`).
-- **Actions:** `ONE_TWO_PASS` (the pass type, `random`), `ONE_TWO_ANSWER` (`is_correct`, entity, typed text, the pass type). Question stats count a wrong, burned or late answer as wrong for the seed question (`ANSWERING_ACTIONS`).
+- **Actions:** `ONE_TWO_PASS` (`is_correct` false when the server picked at the deadline), `ONE_TWO_ANSWER` (`is_correct`, entity, typed text; a timeout is an answer with no entity). Question stats count a wrong, burned or late answer as wrong for the seed question (`ANSWERING_ACTIONS`).
+- **Built 2026-11-20:** `LinkGraphQuery` (question-bank) gives the unused link counts per pass type and a ball's neighbours with their evidence; `AnswerChecker.judgeTypedTextAgainstLinks` judges against those neighbours, with burned names losing ties. The runner loads the neighbours once per pass (also when the server picks at the deadline) and counts the next ball's links before the rules see a return. The bot passes the offered type with the fewest unused answers (a random one with its guess chance) and returns the best-known unused answer when it knows one.
 - **Snapshot `currentRound`:** the seed, the chain with evidence, the ball, the passer, the phase, the offer or the picked pass type, the deadline, rallies won per player, and the names burned in this battle.
 
 ### 15.8 The link graph in the app (question-bank)
@@ -1001,4 +1004,6 @@ Question-bank owns the graph, as it owns the catalog (§5):
 
 - Each link is stored once per pass-type reading, so every lookup starts from the ball: a symmetric link gives two rows of the same pass type, `ASSISTED` gives an `ASSIST_GIVEN` row and an `ASSIST_RECEIVED` row, `SCORED_AGAINST` a `SCORED_AGAINST` row and a `CONCEDED_TO` row. About 730,000 rows from the measured graph; the primary key finds a ball's neighbours for one pass type without reading the rest.
 - `entity_link_counts` is filled at import, so an offer needs the counts plus "how many of the burned names are neighbours", one query on the same key.
+- **Re-import:** the import batch keeps the graph's checksums next to the others, so the same bundle version with a rebuilt graph is refused as a reused version instead of being skipped as already imported.
+- **A catalog without a graph:** the import drops the links that touch an entity the new catalog hides and counts again, so a name that left the catalog is never a legal or counted answer.
 - The graph is a snapshot of the knowledge base, not a set of questions: importing a bundle that carries a graph replaces the whole graph in one transaction, under the content-change lock that question imports already take. A battle in progress keeps judging against the rows it read; a ball whose entity is gone from the new graph simply has no neighbours (`DEAD_END`).

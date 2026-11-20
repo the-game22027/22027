@@ -1,11 +1,14 @@
 import { Test, type TestingModule } from '@nestjs/testing';
 import { randomUUID } from 'node:crypto';
 import { ImportQuestionBundle } from '../../src/modules/question-bank/application/import-question-bundle';
-import { InvalidBundleError } from '../../src/modules/question-bank/domain/question-bank-errors';
+import {
+  BundleVersionReusedError,
+  InvalidBundleError,
+} from '../../src/modules/question-bank/domain/question-bank-errors';
 import { QuestionBankCliModule } from '../../src/modules/question-bank/question-bank-cli.module';
 import { CoreModule } from '../../src/shared/infrastructure/core.module';
 import { PrismaService } from '../../src/shared/infrastructure/persistence';
-import { buzzerLine, bundle, careerLine, entitySet } from '../support/question-bundles';
+import { buzzerLine, bundle, careerLine, entitySet, oneTwoFixture } from '../support/question-bundles';
 import { testConfig } from '../support/test-app';
 
 describe('importing a bundle with an answer catalog and game content', () => {
@@ -162,5 +165,97 @@ describe('importing a bundle with an answer catalog and game content', () => {
       prisma.$executeRaw`INSERT INTO answer_entities (id, external_ref, kind, names, search_forms, catalog_version, updated_at)
         VALUES (${randomUUID()}::uuid, ${`test:n-${randomUUID()}`}, 'NUMBER', '{}', '{}', 'test', now())`,
     ).rejects.toThrow(/answer_entities_kind_is_entity/);
+  });
+
+  it('stores a ONE_TWO graph as pass-type readings with counts, and replaces it as a whole', async () => {
+    const graph = oneTwoFixture();
+    const summary = await importer.importBundle(
+      bundle(newVersion(), [graph.line(newKey())], [...Object.values(entitySet()), ...graph.entities], graph),
+    );
+    expect(summary.linkCount).toBe(graph.links.length);
+    const seed = await entityByRef(graph.seed.externalRef);
+    const club = await entityByRef(graph.club.externalRef);
+    const counts = await prisma.entityLinkCount.findMany({ where: { entityId: { in: [seed.id, club.id] } } });
+    expect(
+      Object.fromEntries(
+        counts.map((row) => [`${row.entityId === seed.id ? 'seed' : 'club'}:${row.passType}`, row.neighbourCount]),
+      ),
+    ).toEqual({
+      'seed:FACED_IN_FINAL': 3,
+      'seed:SCORED_IN_SAME_MATCH': 3,
+      'seed:FACED_IN_KNOCKOUT': 4,
+      'seed:SCORED_AGAINST': 1,
+      'seed:ASSIST_RECEIVED': 1,
+      'club:CONCEDED_TO': 4,
+    });
+    const assist = await prisma.entityLink.findFirstOrThrow({
+      where: { toEntityId: seed.id, passType: 'ASSIST_GIVEN' },
+      include: { match: true },
+    });
+    expect(assist.match.evidence).toEqual(graph.matches[0].evidence);
+
+    // A newer graph replaces the old one: nothing of the first graph is left.
+    const next = oneTwoFixture();
+    await importer.importBundle(
+      bundle(newVersion(), [next.line(newKey())], [...graph.entities, ...next.entities], next),
+    );
+    expect(await prisma.entityLink.count({ where: { fromEntityId: seed.id } })).toBe(0);
+    expect(await prisma.entityLinkCount.count({ where: { entityId: seed.id } })).toBe(0);
+    expect(await prisma.linkMatch.count({ where: { externalKey: graph.matches[0].key } })).toBe(0);
+  });
+
+  it('rejects a graph that points outside the catalog or at the wrong kind, and keeps the old graph', async () => {
+    const graph = oneTwoFixture();
+    await importer.importBundle(bundle(newVersion(), [graph.line(newKey())], graph.entities, graph));
+    const broken = oneTwoFixture();
+    const links = [...broken.links, { ...broken.links[0], to: broken.club.externalRef }];
+    const attempt = importer.importBundle(
+      bundle(
+        newVersion(),
+        [broken.line(newKey())],
+        broken.entities.filter((e) => e !== broken.fourth),
+        {
+          links,
+          matches: broken.matches,
+        },
+      ),
+    );
+    await expect(attempt).rejects.toThrow(InvalidBundleError);
+    await expect(attempt).rejects.toThrow(/is not in the answer catalog/);
+    await expect(attempt).rejects.toThrow(/is a CLUB, expected PLAYER/);
+    const seed = await entityByRef(graph.seed.externalRef);
+    expect(await prisma.entityLinkCount.count({ where: { entityId: seed.id } })).toBe(5);
+  });
+
+  it('refuses the same version with a rebuilt graph instead of skipping it as already imported', async () => {
+    const graph = oneTwoFixture();
+    const version = newVersion();
+    const lines = [graph.line(newKey())];
+    await importer.importBundle(bundle(version, lines, graph.entities, graph));
+    const rebuilt = { links: graph.links.slice(1), matches: graph.matches };
+    await expect(importer.importBundle(bundle(version, lines, graph.entities, rebuilt))).rejects.toThrow(
+      BundleVersionReusedError,
+    );
+    await expect(importer.importBundle(bundle(version, lines, graph.entities, graph))).resolves.toMatchObject({
+      alreadyImported: true,
+    });
+  });
+
+  it('drops the links of names a newer catalog without a graph no longer lists', async () => {
+    const graph = oneTwoFixture();
+    await importer.importBundle(bundle(newVersion(), [graph.line(newKey())], graph.entities, graph));
+    const withoutFirst = graph.entities.filter((entity) => entity !== graph.first);
+    await importer.importBundle(bundle(newVersion(), [graph.line(newKey())], withoutFirst));
+
+    const first = await entityByRef(graph.first.externalRef);
+    const seed = await entityByRef(graph.seed.externalRef);
+    expect(first.status).toBe('HIDDEN');
+    expect(
+      await prisma.entityLink.count({ where: { OR: [{ fromEntityId: first.id }, { toEntityId: first.id }] } }),
+    ).toBe(0);
+    const finals = await prisma.entityLinkCount.findUniqueOrThrow({
+      where: { entityId_passType: { entityId: seed.id, passType: 'FACED_IN_FINAL' } },
+    });
+    expect(finals.neighbourCount).toBe(2);
   });
 });

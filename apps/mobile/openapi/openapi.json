@@ -311,7 +311,8 @@
               "AUCTION",
               "VAULT",
               "HEX",
-              "LINEUP"
+              "LINEUP",
+              "ONE_TWO"
             ],
             "type": "string"
           }
@@ -606,7 +607,8 @@
               "AUCTION",
               "VAULT",
               "HEX",
-              "LINEUP"
+              "LINEUP",
+              "ONE_TWO"
             ],
             "type": "string"
           },

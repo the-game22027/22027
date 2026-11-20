@@ -11,6 +11,7 @@ import {
   AnswerChecker,
   ContentSelector,
   type GameType,
+  LinkGraphQuery,
   RoundContentQuery,
 } from '@modules/question-bank';
 import { ScoringRuleSets } from '@modules/points';
@@ -63,6 +64,7 @@ export class BattleEngine implements OnApplicationBootstrap, BeforeApplicationSh
     private readonly rounds: RoundContentQuery,
     private readonly checker: AnswerChecker,
     private readonly catalog: AnswerCatalogQuery,
+    private readonly linkGraph: LinkGraphQuery,
     private readonly users: UsersFacade,
     private readonly scoringRuleSets: ScoringRuleSets,
   ) {}
@@ -219,6 +221,7 @@ export class BattleEngine implements OnApplicationBootstrap, BeforeApplicationSh
       rounds: this.rounds,
       checker: this.checker,
       catalog: this.catalog,
+      linkGraph: this.linkGraph,
       logger: this.logger,
       random,
       onFinished: (finished) => this.forgetBattle(finished),
@@ -358,6 +361,20 @@ export class BattleEngine implements OnApplicationBootstrap, BeforeApplicationSh
   ): Promise<Ack> {
     return this.withBattle(battleId, clientMsgId, (battle) =>
       battle.roundCommand(userId, socketId, roundNo, { type: 'LINEUP_ANSWER', answer: { text } }, clientMsgId),
+    );
+  }
+
+  /** `oneTwo:pass` and `oneTwo:answer` (08 §15.3). */
+  sendOneTwoCommand(
+    battleId: string,
+    userId: string,
+    socketId: string,
+    roundNo: number,
+    command: { type: 'ONE_TWO_PASS'; passType: string } | { type: 'ONE_TWO_ANSWER'; answer: { text: string } },
+    clientMsgId: string,
+  ): Promise<Ack> {
+    return this.withBattle(battleId, clientMsgId, (battle) =>
+      battle.roundCommand(userId, socketId, roundNo, command, clientMsgId),
     );
   }
 

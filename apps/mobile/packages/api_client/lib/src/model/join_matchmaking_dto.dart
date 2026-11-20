@@ -65,6 +65,8 @@ enum JoinMatchmakingDtoGameTypeEnum {
   HEX(r'HEX'),
   @JsonValue(r'LINEUP')
   LINEUP(r'LINEUP'),
+  @JsonValue(r'ONE_TWO')
+  ONE_TWO(r'ONE_TWO'),
   @JsonValue(r'unknown_default_open_api')
   unknownDefaultOpenApi(r'unknown_default_open_api');
 

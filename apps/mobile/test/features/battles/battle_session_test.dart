@@ -366,6 +366,39 @@ void main() {
     },
   );
 
+  test('one-two passes and answers go out with the round number', () async {
+    final container = await createContainer();
+    final controller = controllerOf(container);
+
+    await receiveBattleFound(container);
+    socket.receive(
+      'round:start',
+      battleEnvelope('round:start', 2, {
+        'roundNo': 1,
+        'gameType': 'ONE_TWO',
+        'seed': {'entityId': 'ramos', 'name': 'Ramos'},
+        'passerId': 'p-human',
+      }),
+    );
+    await pumpEventQueue();
+    await controller.passInOneTwo('FACED_IN_FINAL');
+    var (event, payload) = socket.sentCommands.last;
+    expect(event, 'oneTwo:pass');
+    expect(payload['passType'], 'FACED_IN_FINAL');
+    expect(payload['roundNo'], 1);
+
+    socket.answerCommand = (_, payload) => BattleCommandAccepted({
+      ...payload,
+      'accepted': true,
+      'data': {'result': 'RETURNED'},
+    });
+    final result = await controller.answerInOneTwo('Godin');
+    (event, payload) = socket.sentCommands.last;
+    expect(event, 'oneTwo:answer');
+    expect(payload['answer'], {'text': 'Godin'});
+    expect(result, isA<BattleCommandAccepted>());
+  });
+
   test(
     'a mine bury keeps the mines from the ack and counts wrong tries',
     () async {

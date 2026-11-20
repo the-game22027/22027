@@ -20,6 +20,7 @@ enum BattleGameType {
   VAULT
   HEX
   LINEUP
+  ONE_TWO
 
   @@map("battle_game_type")
 }
@@ -51,17 +52,19 @@ model QuestionCategory {
 }
 
 model QuestionImportBatch {
-  id               String   @id @db.Uuid
-  bundleVersion    String   @unique @map("bundle_version")
-  checksum         String
+  id                String   @id @db.Uuid
+  bundleVersion     String   @unique @map("bundle_version")
+  checksum          String
   /// Checksum of catalog.jsonl when the bundle carried one.
-  catalogChecksum  String?  @map("catalog_checksum")
-  generatorVersion String   @map("generator_version")
-  kbVersion        String   @map("kb_version")
-  status           String
+  catalogChecksum   String?  @map("catalog_checksum")
+  /// linksChecksum and linkMatchesChecksum joined by "+" when the bundle carried a ONE_TWO link graph.
+  linkGraphChecksum String?  @map("link_graph_checksum")
+  generatorVersion  String   @map("generator_version")
+  kbVersion         String   @map("kb_version")
+  status            String
   /// How many questions each import outcome had (inserted, unchanged, replaced, ...).
-  stats            Json?
-  importedAt       DateTime @map("imported_at") @db.Timestamptz(3)
+  stats             Json?
+  importedAt        DateTime @map("imported_at") @db.Timestamptz(3)
 
   questions Question[]
 
@@ -186,6 +189,9 @@ model AnswerEntity {
   aliases       AnswerEntityAlias[]
   answers       QuestionAnswer[]
   battleActions BattleRoundAction[]
+  linksFrom     EntityLink[]        @relation("EntityLinkFrom")
+  linksTo       EntityLink[]        @relation("EntityLinkTo")
+  linkCounts    EntityLinkCount[]
 
   @@index([kind])
   /// Finds the entity a typed text names exactly (08 §5.3 step 3).
@@ -242,4 +248,59 @@ model QuestionReport {
   /// One report per player per question; a repeat changes nothing.
   @@unique([questionId, userId])
   @@map("question_reports")
+}
+
+/// How a ONE_TWO receiver must be linked to the ball (08 §15.4): a stored link read from one of its ends.
+enum LinkPassType {
+  FACED_IN_FINAL
+  FACED_IN_KNOCKOUT
+  SCORED_IN_SAME_MATCH
+  ASSIST_GIVEN
+  ASSIST_RECEIVED
+  SCORED_AGAINST
+  CONCEDED_TO
+
+  @@map("link_pass_type")
+}
+
+/// The ONE_TWO link graph (08 §15.8, ADR-0024): one row per pass-type reading, so every lookup starts from the ball.
+/// A bundle that carries a graph replaces all rows of this table, link_matches and entity_link_counts.
+model EntityLink {
+  fromEntityId String       @map("from_entity_id") @db.Uuid
+  passType     LinkPassType @map("pass_type")
+  toEntityId   String       @map("to_entity_id") @db.Uuid
+  matchId      String       @map("match_id") @db.Uuid
+
+  from  AnswerEntity @relation("EntityLinkFrom", fields: [fromEntityId], references: [id])
+  to    AnswerEntity @relation("EntityLinkTo", fields: [toEntityId], references: [id])
+  match LinkMatch    @relation(fields: [matchId], references: [id], onDelete: Cascade)
+
+  /// A ball's neighbours for one pass type come from one range of this key.
+  @@id([fromEntityId, passType, toEntityId])
+  @@map("entity_links")
+}
+
+/// The match that makes a link true, shown after a right answer ("2014 Champions League final, ...").
+model LinkMatch {
+  id          String @id @db.Uuid
+  /// Stable key from the pipeline (competition, season, stage, date, teams).
+  externalKey String @unique @map("external_key")
+  /// {en, ar} text written by the pipeline.
+  evidence    Json
+
+  links EntityLink[]
+
+  @@map("link_matches")
+}
+
+/// Neighbours per entity and pass type, filled at import, so an offer needs no count over entity_links.
+model EntityLinkCount {
+  entityId       String       @map("entity_id") @db.Uuid
+  passType       LinkPassType @map("pass_type")
+  neighbourCount Int          @map("neighbour_count")
+
+  entity AnswerEntity @relation(fields: [entityId], references: [id])
+
+  @@id([entityId, passType])
+  @@map("entity_link_counts")
 }

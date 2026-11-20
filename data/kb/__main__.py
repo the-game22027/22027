@@ -86,6 +86,18 @@ def main(argv: list[str] | None = None) -> int:
         help="fewest right names per letter and language in a HEX question",
     )
     bundle.add_argument(
+        "--links", action="store_true", help="write the ONE_TWO link graph (links.jsonl, link-matches.jsonl)"
+    )
+    bundle.add_argument(
+        "--one-twos", type=int, default=0, help="ONE_TWO (وان تو) seed rounds; writes the link graph too"
+    )
+    bundle.add_argument(
+        "--links-min-player-sitelinks",
+        type=int,
+        default=0,
+        help="development only: link only players at or above this many sitelinks, so the graph stays small",
+    )
+    bundle.add_argument(
         "--catalog-min-player-sitelinks",
         type=int,
         default=None,
@@ -166,10 +178,13 @@ def main(argv: list[str] | None = None) -> int:
                 hex_min_answers=args.hex_min_answers,
                 lineup_count=args.lineups,
                 lineup_min_known=args.lineup_min_known,
+                links=args.links,
+                one_two_count=args.one_twos,
+                links_min_player_sitelinks=args.links_min_player_sitelinks,
             )
             print(
                 f"{args.version}: {summary.question_count} rounds {summary.by_game_type}, "
-                f"catalog {summary.catalog_size} entities → {args.out}"
+                f"catalog {summary.catalog_size} entities, {summary.link_count} links → {args.out}"
             )
         elif args.command == "link":
             client = WikidataClient(connection, refresh=args.refresh)

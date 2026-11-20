@@ -167,3 +167,66 @@ describe('parseBundle with game content and a catalog', () => {
     );
   });
 });
+
+describe('parseBundle with a ONE_TWO link graph', () => {
+  const seedLine = (content: Record<string, unknown> = { seed: 'wikidata:Q10' }, answers: unknown[] = []) =>
+    JSON.stringify({
+      externalKey: 'one-two:Q10',
+      type: 'GAME',
+      gameType: 'ONE_TWO',
+      category: 'world-cup',
+      difficulty: 2,
+      content,
+      answers,
+      provenance: { facts: [], sources: ['transfermarkt'], licenses: ['CC0-1.0'], kbVersion: 'none' },
+    });
+  const link = { from: 'wikidata:Q10', type: 'FACED_IN_FINAL', to: 'wikidata:Q20', match: 'ucl:2013-14:FINAL' };
+  const match = { key: 'ucl:2013-14:FINAL', evidence: { en: '2014 final', ar: 'نهائي 2014' } };
+  const jsonl = (items: unknown[]) => Buffer.from(items.map((item) => `${JSON.stringify(item)}\n`).join(''));
+  const withGraph = (
+    links: unknown[] = [link],
+    matches: unknown[] = [match],
+    manifest: Record<string, unknown> = {},
+  ) => {
+    const linksJsonl = jsonl(links);
+    const linkMatchesJsonl = jsonl(matches);
+    return {
+      ...files([seedLine()], {
+        linkCount: links.length,
+        linksChecksum: computeChecksum(linksJsonl),
+        linkMatchesChecksum: computeChecksum(linkMatchesJsonl),
+        ...manifest,
+      }),
+      linksJsonl,
+      linkMatchesJsonl,
+    };
+  };
+
+  it('reads seed lines and the graph', () => {
+    const { questions, linkGraph } = parseBundle(withGraph());
+    expect(questions[0].content).toMatchObject({ body: { gameType: 'ONE_TWO', seed: 'wikidata:Q10' } });
+    expect(linkGraph).toEqual({ links: [link], matches: [match] });
+  });
+
+  it('has no graph when the bundle carries none', () => {
+    expect(parseBundle(files([seedLine()])).linkGraph).toBeNull();
+  });
+
+  it('refuses a seed with answer slots: its answers come from the graph', () => {
+    expect(problemsOf(files([seedLine(undefined, [{ slot: 0, entities: ['wikidata:Q20'] }])]))).toContain(
+      'a one-two seed has no answer slots',
+    );
+  });
+
+  it('reports a graph whose files, checksums and counts do not agree', () => {
+    expect(problemsOf(withGraph([link], [match], { linksChecksum: `sha256:${'0'.repeat(64)}` }))).toContain(
+      'links.jsonl does not match the manifest linksChecksum',
+    );
+    expect(problemsOf(withGraph([link], [match], { linkCount: 2 }))).toContain('the manifest says 2 links');
+    expect(problemsOf(withGraph([link], [match, match]))).toContain('ucl:2013-14:FINAL appears more than once');
+    expect(problemsOf(withGraph([{ ...link, type: 'TEAMMATES' }]))).toContain('links.jsonl line 1: type');
+    const { linksJsonl, ...withoutLinks } = withGraph();
+    expect(linksJsonl).toBeDefined();
+    expect(problemsOf(withoutLinks)).toContain('a link graph needs linkCount');
+  });
+});

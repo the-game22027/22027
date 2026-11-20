@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { AnswerCatalogQuery } from './application/answer-catalog.query';
 import { AnswerChecker } from './application/answer-checker';
 import { ContentSelector } from './application/content-selector';
+import { LinkGraphQuery } from './application/link-graph.query';
 import { QUESTION_READ_REPOSITORY } from './application/ports/question-read-repository';
 import { QUESTION_REPORT_REPOSITORY } from './application/ports/question-report-repository';
 import { QuestionReports } from './application/question-reports';
@@ -15,11 +16,12 @@ import { PrismaQuestionReportRepository } from './infrastructure/prisma-question
     AnswerCatalogQuery,
     AnswerChecker,
     ContentSelector,
+    LinkGraphQuery,
     RoundContentQuery,
     QuestionReports,
     { provide: QUESTION_READ_REPOSITORY, useClass: PrismaQuestionReadRepository },
     { provide: QUESTION_REPORT_REPOSITORY, useClass: PrismaQuestionReportRepository },
   ],
-  exports: [AnswerCatalogQuery, AnswerChecker, ContentSelector, RoundContentQuery, QuestionReports],
+  exports: [AnswerCatalogQuery, AnswerChecker, ContentSelector, LinkGraphQuery, RoundContentQuery, QuestionReports],
 })
 export class QuestionBankModule {}

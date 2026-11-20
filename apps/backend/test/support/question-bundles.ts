@@ -78,11 +78,18 @@ export const whoLine = (key: string, e: Entities) => ({
   answers: [{ slot: 0, entities: [e.ronaldo.externalRef] }],
 });
 
-export const bundle = (bundleVersion: string, lines: object[], catalog?: object[]) => {
-  const questionsJsonl = Buffer.from(lines.map((value) => JSON.stringify(value)).join('\n') + '\n');
-  const catalogJsonl = catalog
-    ? Buffer.from(catalog.map((value) => JSON.stringify(value)).join('\n') + '\n')
-    : undefined;
+const jsonl = (items: readonly object[]) => Buffer.from(items.map((value) => JSON.stringify(value)).join('\n') + '\n');
+
+export const bundle = (
+  bundleVersion: string,
+  lines: object[],
+  catalog?: object[],
+  graph?: { links: object[]; matches: object[] },
+) => {
+  const questionsJsonl = jsonl(lines);
+  const catalogJsonl = catalog ? jsonl(catalog) : undefined;
+  const linksJsonl = graph ? jsonl(graph.links) : undefined;
+  const linkMatchesJsonl = graph ? jsonl(graph.matches) : undefined;
   const manifest = {
     bundleVersion,
     kbVersion: 'none',
@@ -90,9 +97,16 @@ export const bundle = (bundleVersion: string, lines: object[], catalog?: object[
     questionCount: lines.length,
     checksum: computeChecksum(questionsJsonl),
     ...(catalogJsonl ? { catalogChecksum: computeChecksum(catalogJsonl) } : {}),
+    ...(graph && linksJsonl && linkMatchesJsonl
+      ? {
+          linkCount: graph.links.length,
+          linksChecksum: computeChecksum(linksJsonl),
+          linkMatchesChecksum: computeChecksum(linkMatchesJsonl),
+        }
+      : {}),
     categories: [{ slug: 'players', names: { en: 'Players', ar: 'لاعبون' } }],
   };
-  return { manifestJson: JSON.stringify(manifest), questionsJsonl, catalogJsonl };
+  return { manifestJson: JSON.stringify(manifest), questionsJsonl, catalogJsonl, linksJsonl, linkMatchesJsonl };
 };
 
 /** Three clubs × three countries; every cell has one player, the top-left cell two. */
@@ -269,4 +283,56 @@ export const hexFixture = () => {
     answers: lists.map((names, slot) => ({ slot, entities: names.map((entry) => entry.externalRef) })),
   });
   return { entities: lists.flat(), line, lists };
+};
+
+/**
+ * A small ONE_TWO graph around one seed player (08 §15.4): the seed faced 3 players in a final, scored in the
+ * same match as 3, faced 4 in knockouts and scored against the club, so its first offer is full.
+ */
+export const oneTwoFixture = () => {
+  const id = randomUUID().slice(0, 8);
+  const entity = (name: string, kind = 'PLAYER') => ({
+    externalRef: `test:onetwo-${name}-${id}`,
+    kind,
+    names: { en: `${name}${id}`, ar: `${name}${id}` },
+    aliases: { en: [], ar: [] },
+    popularity: 50,
+    search: [`${name}${id}`],
+  });
+  const seed = entity('seed');
+  const [first, second, third, fourth] = ['alpha', 'bravo', 'charlie', 'delta'].map((name) => entity(name));
+  const club = entity('club', 'CLUB');
+  const final = `test:final-${id}`;
+  const link = (from: { externalRef: string }, type: string, to: { externalRef: string }) => ({
+    from: from.externalRef,
+    type,
+    to: to.externalRef,
+    match: final,
+  });
+  const links = [
+    ...[first, second, third].map((player) => link(seed, 'FACED_IN_FINAL', player)),
+    ...[first, second, fourth].map((player) => link(seed, 'SCORED_IN_SAME_MATCH', player)),
+    ...[first, second, third, fourth].map((player) => link(seed, 'FACED_IN_KNOCKOUT', player)),
+    ...[seed, first, second, third].map((player) => link(player, 'SCORED_AGAINST', club)),
+    link(fourth, 'ASSISTED', seed),
+  ];
+  const matches = [{ key: final, evidence: { en: `Final ${id}`, ar: `نهائي ${id}` } }];
+  const line = (key: string) => ({
+    ...common(key),
+    gameType: 'ONE_TWO',
+    content: { seed: seed.externalRef },
+    answers: [],
+  });
+  return {
+    entities: [seed, first, second, third, fourth, club],
+    seed,
+    first,
+    second,
+    third,
+    fourth,
+    club,
+    links,
+    matches,
+    line,
+  };
 };

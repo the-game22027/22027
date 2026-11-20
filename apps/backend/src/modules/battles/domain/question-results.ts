@@ -20,7 +20,7 @@ export interface QuestionResult {
   stepsRevealed: number | null;
 }
 
-// Every action that judges what a player knows: a wrong one is a wrong answer of the round (08 §12.7, §13.8, §14.7).
+// Every action that judges what a player knows: a wrong one is a wrong answer of the round (08 §12.7, §13.8, §14.7, §15.7).
 const ANSWERING_ACTIONS = new Set([
   'ANSWER',
   'GRID_CLAIM',
@@ -30,6 +30,7 @@ const ANSWERING_ACTIONS = new Set([
   'HEX_ANSWER',
   'LINEUP_ANSWER',
   'LINEUP_ACCUSE',
+  'ONE_TWO_ANSWER',
 ]);
 
 /**

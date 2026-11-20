@@ -1,17 +1,25 @@
 # Question bundles
 
-Each folder is one bundle: `manifest.json`, `questions.jsonl` and optionally `catalog.jsonl`. The format is the contract between the Python pipeline and the app (`docs/architecture/07-football-data-and-questions.md` §5.4-5.5).
+Each folder is one bundle: `manifest.json`, `questions.jsonl` and optionally `catalog.jsonl`, `links.jsonl` and `link-matches.jsonl` (the `ONE_TWO` link graph). The format is the contract between the Python pipeline and the app (`docs/architecture/07-football-data-and-questions.md` §5.4-5.5).
 
 Import one into the app database (from `apps/backend`):
 
 ```bash
-npm run cli -- questions:import ../../data/bundles/dev-0007
-npm run cli -- questions:publish dev-0007 --include-drafts   # development only: the rounds are unreviewed
+npm run cli -- questions:import ../../data/bundles/dev-0011
+npm run cli -- questions:publish dev-0011 --include-drafts   # development only: the rounds are unreviewed
 ```
 
 Importing the same bundle twice changes nothing. A bundle version is never reused: a changed bundle gets a new folder and a new `bundleVersion`.
 
-## dev-0007 (use this one)
+## dev-0011 (use this one)
+
+Every game type so far: 60 `CAREER`, 60 `BUZZER`, 60 `WHO_IS_PLAYER`, 19 `GRID`, 40 `MINES`, 60 `AUCTION`, 60 `VAULT`, 30 `HEX`, 60 `LINEUP` and 60 `ONE_TWO` seeds (509 rounds), a catalog of 8,187 entities, and a link graph of 22,876 links between players with 60+ sitelinks and clubs (08 §15.4). Importing it replaces the app's whole link graph. dev-0008 to dev-0010 are the same without the later game types.
+
+```bash
+.venv/bin/python -m kb bundle --version dev-0011 --out bundles/dev-0011 --careers 60 --buzzers 60 --who 60 --grids 30 --mines 40 --auctions 60 --vaults 60 --hexes 30 --lineups 60 --one-twos 60 --links-min-player-sitelinks 60 --catalog-min-player-sitelinks 40
+```
+
+## dev-0007
 
 Like dev-0006, plus **60 `AUCTION` rounds**: each a lot of 3 lists (a club's scorers or assist providers in one competition season, 6-30 names, every name in the catalog; 08 §11.4), built from the goals of `core.goal`. 299 rounds, catalog of 7,946 entities.
 

@@ -11,6 +11,7 @@ export const GAME_TYPES = [
   'VAULT',
   'HEX',
   'LINEUP',
+  'ONE_TWO',
 ] as const;
 export type GameType = (typeof GAME_TYPES)[number];
 
@@ -106,7 +107,9 @@ export type GameBody =
   | { gameType: 'AUCTION'; lists: AuctionList[] }
   | { gameType: 'VAULT'; questions: VaultQuestion[] }
   | { gameType: 'HEX'; size: number; cells: HexCell[] }
-  | { gameType: 'LINEUP'; title: LocalizedText; slots: LineupSlot[]; shown: string[]; fake: string };
+  | { gameType: 'LINEUP'; title: LocalizedText; slots: LineupSlot[]; shown: string[]; fake: string }
+  /** A rally seed (08 §15.4): accepted answers come from the link graph, not from the question (ADR-0024). */
+  | { gameType: 'ONE_TWO'; seed: string };
 
 /** Accepted answers of one slot: slot 0 for reveal games, 0..8 for grid cells (row * 3 + col). */
 export interface AnswerSlot {
@@ -170,6 +173,7 @@ export function localesOfQuestion(content: QuestionContent): Locale[] {
     case 'CAREER':
     case 'GRID':
     case 'MINES':
+    case 'ONE_TWO':
       return [...LOCALES].sort();
   }
 }
@@ -197,6 +201,7 @@ export function summaryTextOfQuestion(content: QuestionContent, locale: Locale):
     case 'CAREER':
     case 'GRID':
     case 'MINES':
+    case 'ONE_TWO':
       return '';
   }
 }

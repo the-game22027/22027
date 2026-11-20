@@ -12,6 +12,7 @@ enum GameType {
   vault,
   hex,
   lineup,
+  oneTwo,
   unknown,
 }
 
@@ -25,6 +26,7 @@ GameType findGameTypeByCode(String code) => switch (code) {
   'VAULT' => GameType.vault,
   'HEX' => GameType.hex,
   'LINEUP' => GameType.lineup,
+  'ONE_TWO' => GameType.oneTwo,
   _ => GameType.unknown,
 };
 
@@ -38,6 +40,7 @@ String convertGameTypeToCode(GameType gameType) => switch (gameType) {
   GameType.vault => 'VAULT',
   GameType.hex => 'HEX',
   GameType.lineup => 'LINEUP',
+  GameType.oneTwo => 'ONE_TWO',
   GameType.unknown => throw ArgumentError('unknown game type has no code'),
 };
 
@@ -904,6 +907,110 @@ class LineupHintsGiven extends BattleServerEvent {
   final Map<int, String> letters;
 }
 
+/// `round:start` of a `ONE_TWO` rally (`08` §15.1): the seed name and who passes first.
+class OneTwoRoundStarted extends BattleServerEvent {
+  const OneTwoRoundStarted({
+    required super.serverTime,
+    required super.battleId,
+    required super.seq,
+    required this.roundNo,
+    required this.seed,
+    required this.passerId,
+  });
+
+  final int roundNo;
+  final EntityRef seed;
+  final String passerId;
+}
+
+/// `oneTwo:offer`: the pass types the passer may pick for the next pass. Pass types are codes the
+/// app translates: `FACED_IN_FINAL`, `FACED_IN_KNOCKOUT`, `SCORED_IN_SAME_MATCH`, `ASSIST_GIVEN`,
+/// `ASSIST_RECEIVED`, `SCORED_AGAINST`, `CONCEDED_TO` (`08` §15.4). Answer counts are never sent.
+class OneTwoOffered extends BattleServerEvent {
+  const OneTwoOffered({
+    required super.serverTime,
+    required super.battleId,
+    required super.seq,
+    required this.roundNo,
+    required this.ball,
+    required this.passerId,
+    required this.passTypes,
+    required this.pickDeadlineAt,
+  });
+
+  final int roundNo;
+
+  /// The name the receiver must link to: the seed, then each returned answer.
+  final EntityRef ball;
+  final String passerId;
+  final List<String> passTypes;
+  final DateTime pickDeadlineAt;
+}
+
+/// `oneTwo:passed`: the passer picked (or the server picked at the deadline, [isRandom]).
+class OneTwoPassed extends BattleServerEvent {
+  const OneTwoPassed({
+    required super.serverTime,
+    required super.battleId,
+    required super.seq,
+    required this.roundNo,
+    required this.passType,
+    required this.receiverId,
+    required this.answerDeadlineAt,
+    required this.isRandom,
+  });
+
+  final int roundNo;
+  final String passType;
+  final String receiverId;
+  final DateTime answerDeadlineAt;
+  final bool isRandom;
+}
+
+/// `oneTwo:returned`: a right answer; it is the next ball and its sender passes next.
+class OneTwoReturned extends BattleServerEvent {
+  const OneTwoReturned({
+    required super.serverTime,
+    required super.battleId,
+    required super.seq,
+    required this.roundNo,
+    required this.entity,
+    required this.passType,
+    required this.evidence,
+    required this.participantId,
+  });
+
+  final int roundNo;
+  final EntityRef entity;
+  final String passType;
+
+  /// The match that makes the link true, in the viewer's language.
+  final String evidence;
+
+  /// Who returned it: the new passer.
+  final String participantId;
+}
+
+/// `oneTwo:missed`: the receiver lost the rally. [reason] is `WRONG`, `BURNED` or `TIME_UP`.
+class OneTwoMissed extends BattleServerEvent {
+  const OneTwoMissed({
+    required super.serverTime,
+    required super.battleId,
+    required super.seq,
+    required this.roundNo,
+    required this.participantId,
+    required this.reason,
+    this.entity,
+  });
+
+  final int roundNo;
+  final String participantId;
+  final String reason;
+
+  /// What the typed text matched, when the server shows wrong answers; never the text itself.
+  final EntityRef? entity;
+}
+
 /// `round:start` of a `VAULT` round: one question per digit of the code (`08` §12.1).
 class VaultRoundStarted extends BattleServerEvent {
   const VaultRoundStarted({
@@ -1289,6 +1396,16 @@ BattleServerEvent parseBattleServerEvent(String eventName, Object? payload) {
         decidedBy: data.readOptionalString('decidedBy'),
       );
     case 'round:start':
+      if (data.json.containsKey('seed')) {
+        return OneTwoRoundStarted(
+          serverTime: serverTime,
+          battleId: id,
+          seq: sequence,
+          roundNo: data.readInt('roundNo'),
+          seed: _readEntityRef(data.readObject('seed')),
+          passerId: data.readString('passerId'),
+        );
+      }
       if (data.json.containsKey('shown')) {
         return LineupRoundStarted(
           serverTime: serverTime,
@@ -1577,6 +1694,50 @@ BattleServerEvent parseBattleServerEvent(String eventName, Object? payload) {
           for (final name in data.readObjectList('rightNames'))
             _readEntityRef(name),
         ],
+      );
+    case 'oneTwo:offer':
+      return OneTwoOffered(
+        serverTime: serverTime,
+        battleId: id,
+        seq: sequence,
+        roundNo: data.readInt('roundNo'),
+        ball: _readEntityRef(data.readObject('ball')),
+        passerId: data.readString('passerId'),
+        passTypes: data.readStringList('passTypes'),
+        pickDeadlineAt: data.readTimestamp('pickDeadlineAt'),
+      );
+    case 'oneTwo:passed':
+      return OneTwoPassed(
+        serverTime: serverTime,
+        battleId: id,
+        seq: sequence,
+        roundNo: data.readInt('roundNo'),
+        passType: data.readString('passType'),
+        receiverId: data.readString('receiverId'),
+        answerDeadlineAt: data.readTimestamp('answerDeadlineAt'),
+        isRandom: data.readBool('random'),
+      );
+    case 'oneTwo:returned':
+      return OneTwoReturned(
+        serverTime: serverTime,
+        battleId: id,
+        seq: sequence,
+        roundNo: data.readInt('roundNo'),
+        entity: _readEntityRef(data.readObject('entity')),
+        passType: data.readString('passType'),
+        evidence: data.readString('evidence'),
+        participantId: data.readString('participantId'),
+      );
+    case 'oneTwo:missed':
+      final entity = data.readOptionalObject('entity');
+      return OneTwoMissed(
+        serverTime: serverTime,
+        battleId: id,
+        seq: sequence,
+        roundNo: data.readInt('roundNo'),
+        participantId: data.readString('participantId'),
+        reason: data.readString('reason'),
+        entity: entity == null ? null : _readEntityRef(entity),
       );
     case 'lineup:placed':
       return LineupNamePlaced(
