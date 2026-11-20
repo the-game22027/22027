@@ -29,11 +29,22 @@ export interface ThreadConfig {
 export interface ThreadProgress {
   room: number;
   enteredAt: Date;
-  /** Whether this room's hint is out. */
+  /** Whether this room's own hint is out. */
   hinted: boolean;
   /** True after `thread:jump` until the jump question is answered: the target is the next room's answer. */
   jumping: boolean;
+  /** When the jump question appeared: its own hint is due `hint.afterMs` later. */
+  jumpStartedAt: Date | null;
+  /** Whether the jump question's hint (the next room's first letter) is out. */
+  jumpHinted: boolean;
   jumpsLeft: number;
+}
+
+/** The hint of the question on a player's screen: the room's, or the jump question's while jumping (08 §17.1). */
+export interface QuestionHint {
+  hinted: boolean;
+  /** When it is due, or null once it is out. */
+  hintAt: Date | null;
 }
 
 export interface ThreadRoundState {
@@ -87,7 +98,15 @@ export class ThreadRules {
       progress: Object.fromEntries(
         participants.map((id) => [
           id,
-          { room: 0, enteredAt: now, hinted: false, jumping: false, jumpsLeft: this.config.jump.perThread },
+          {
+            room: 0,
+            enteredAt: now,
+            hinted: false,
+            jumping: false,
+            jumpStartedAt: null,
+            jumpHinted: false,
+            jumpsLeft: this.config.jump.perThread,
+          },
         ]),
       ),
       lockouts: noLockouts(participants),
@@ -112,6 +131,15 @@ export class ThreadRules {
     return progress.room + (progress.jumping ? 1 : 0);
   }
 
+  /** The hint of the question this player sees now; null once they finished. */
+  hintOf(state: ThreadRoundState, who: ParticipantId): QuestionHint | null {
+    const progress = state.progress[who];
+    if (!progress || progress.room >= state.roomCount) return null;
+    const hinted = progress.jumping ? progress.jumpHinted : progress.hinted;
+    const shownAt = progress.jumping && progress.jumpStartedAt ? progress.jumpStartedAt : progress.enteredAt;
+    return { hinted, hintAt: hinted ? null : this.after(shownAt, this.config.hint.afterMs) };
+  }
+
   /** Checks an answer before its text is judged: open round, the sender's room, in time, not locked out. */
   findAnswerRejection(state: ThreadRoundState, from: ParticipantId, room: number, receivedAt: Date): Rejection | null {
     return this.findCommonRejection(state, from, room, receivedAt) ?? this.findLockout(state, from, receivedAt);
@@ -133,11 +161,14 @@ export class ThreadRules {
     const who = timer.slice(HINT_TIMER_PREFIX.length);
     const progress = state.progress[who];
     const slot = this.targetSlotOf(state, who);
-    if (!progress || progress.hinted || slot === null || !state.participants.includes(who)) {
+    const hint = this.hintOf(state, who);
+    if (!progress || !hint || hint.hinted || slot === null || !state.participants.includes(who)) {
       return { state, effects: [] };
     }
+    // The hint belongs to the question on screen: the jump question's is the next room's first letter.
+    const given = progress.jumping ? { ...progress, jumpHinted: true } : { ...progress, hinted: true };
     return {
-      state: { ...state, progress: { ...state.progress, [who]: { ...progress, hinted: true } } },
+      state: { ...state, progress: { ...state.progress, [who]: given } },
       effects: [
         {
           type: 'EMIT',
@@ -195,13 +226,26 @@ export class ThreadRules {
       },
     };
     if (!command.right) {
-      // A wrong jump answer spends the jump (DEC-86): back to the room's own question.
       const lockouts = lockOutAfterWrongTry(state.lockouts, from, now, this.config.lockoutMs);
       const lockedUntil = lockouts[from]?.lockedUntil ?? now;
+      // A wrong jump answer spends the jump (DEC-86): back to the room's own question and its own hint, whose
+      // clock runs from when the player entered the room (due now if it passed during the jump).
+      const backInRoom = { ...progress, jumping: false, jumpStartedAt: null, jumpHinted: false };
+      const roomHintAt = new Date(Math.max(now.getTime(), progress.enteredAt.getTime() + this.config.hint.afterMs));
+      const restoreRoomHint: Effect<ThreadEvent>[] =
+        progress.jumping && !progress.hinted
+          ? [
+              { type: 'CANCEL', timer: hintTimerOf(from) },
+              { type: 'SCHEDULE', timer: hintTimerOf(from), at: roomHintAt },
+            ]
+          : progress.jumping
+            ? [{ type: 'CANCEL', timer: hintTimerOf(from) }]
+            : [];
       return {
-        state: { ...state, lockouts, progress: { ...state.progress, [from]: { ...progress, jumping: false } } },
+        state: { ...state, lockouts, progress: { ...state.progress, [from]: backInRoom } },
         effects: [
           recorded,
+          ...restoreRoomHint,
           {
             type: 'EMIT',
             event: {
@@ -219,7 +263,18 @@ export class ThreadRules {
     const room = Math.min(progress.room + (jumped ? 2 : 1), state.roomCount);
     const moved: ThreadRoundState = {
       ...state,
-      progress: { ...state.progress, [from]: { ...progress, room, enteredAt: now, hinted: false, jumping: false } },
+      progress: {
+        ...state.progress,
+        [from]: {
+          ...progress,
+          room,
+          enteredAt: now,
+          hinted: false,
+          jumping: false,
+          jumpStartedAt: null,
+          jumpHinted: false,
+        },
+      },
     };
     const effects: Effect<ThreadEvent>[] = [
       recorded,
@@ -244,10 +299,19 @@ export class ThreadRules {
         ...state,
         progress: {
           ...state.progress,
-          [from]: { ...progress, jumping: true, jumpsLeft: progress.jumpsLeft - 1 },
+          [from]: {
+            ...progress,
+            jumping: true,
+            jumpStartedAt: now,
+            jumpHinted: false,
+            jumpsLeft: progress.jumpsLeft - 1,
+          },
         },
       },
+      // The jump question is a new question on screen: its hint clock starts now.
       effects: [
+        { type: 'CANCEL', timer: hintTimerOf(from) },
+        this.scheduleHint(from, now),
         {
           type: 'RECORD_ACTION',
           action: { participantId: from, kind: 'THREAD_JUMP', cell: progress.room, points: 0, at: now },

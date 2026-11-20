@@ -1119,7 +1119,7 @@ stateDiagram-v2
 1. **The thread:** `roomCount` rooms (default 5). Room 1 names its subject in full ("the 2014 Champions League final"); every later room refers to the answer before it ("that player", "the club they beat"). Every room has exactly one right answer (§17.4).
 2. **Start:** both players get room 1 at `round:start`; nobody moves first (`firstMover: NONE`).
 3. **Answer:** typed text for your own current room, judged against that room's one answer (08 §5.3). **Right:** you move to the next room at once. **Wrong:** you are locked out of answering for the next step of `lockoutMs` (3, 6, 9 s; the last repeats), and you stay in the room. Tries are unlimited.
-4. **Hint:** after `hint.afterMs` (20 s) in the same room, you get the first letter of its answer in your language. One hint per room.
+4. **Hint:** after `hint.afterMs` (20 s) on the same question, you get the first letter of its answer in your language. The hint belongs to the question on screen: one for the room, and one for the jump question, whose 20 s start when you jump and whose letter is the next room's. After a wrong jump answer the room's own question comes back with the room's own hint (due at once if its 20 s passed during the jump).
 5. **The jump (القفزة):** once per thread (`jump.perThread`), instead of your current room you may ask for its jump question: one harder question that combines this room and the next ("who set up the first goal of the club they beat?"). Right: you skip both rooms. Wrong: the normal lockout, and the jump is spent. Not offered in the last room.
 6. **End of a thread:** the first player to answer the last room wins it (`THREAD_COMPLETE`). At `roundDeadlineAt` (`roundMs`, default 150 s), the player in the higher room wins; the same room is a draw (DEC-86).
 7. **Battle:** best of 3 threads (`roundCount` 3, `targetScore` 2), about 4 minutes. Points: `points.thread` per thread won.
@@ -1141,8 +1141,8 @@ stateDiagram-v2
 | S→C | ack of `thread:jump` | Only to the sender: `data: { question, slot }` (the jump question; `slot` is the next room, whose answer it asks for) |
 | S→C | `round:start` | `roomCount`, `room: { room: 0, question, jumping, hintAt }`, `roundDeadlineAt`, `jumpsLeft` (the same room 0 for both) |
 | S→C | `thread:progress` | `participantId`, `room` (`roomCount` when finished), `jumped`. To the mover it also carries `question`: their new room `{ room, question, jumping, hintAt }`; the opponent gets the room number only |
-| S→C | `thread:locked` | `participantId`, `lockedUntil`, and `entity` (what the text matched) only when `showWrongAnswers` is on; the typed text is never sent |
-| S→C | `thread:jumped` | `participantId`, `room`: the opponent sees that the jump was used |
+| S→C | `thread:locked` | `participantId`, `lockedUntil`, and `entity` (what the text matched) only when `showWrongAnswers` is on; the typed text is never sent. The locked player also gets `question`: the question now on their screen (after a wrong jump answer, the room's own with its own hint) |
+| S→C | `thread:jumped` | `participantId`, `room`: the opponent sees that the jump was used. The jumper also gets `question`: the jump question with its own `hintAt` and no letter |
 | S→C | `thread:hint` | `participantId`, `room`; to that player also the `letter` |
 | S→C | `round:result` | `reveal: { rooms: [{ room, hop, question, answer: EntityRef }], reached: { [participantId]: room } }` |
 

@@ -1075,6 +1075,11 @@ describe('battles over WebSocket (e2e)', () => {
       const jump = await player.send('thread:jump', { battleId, roundNo: 1, room: 1 });
       expect(jump).toMatchObject({ accepted: true, data: { slot: 2 } });
       expect((jump as unknown as { data: { question: string } }).data.question).toMatch(/(jump 1\?|قفزة 1؟)$/);
+      // The jump question is a new question: no letter carried over, its own hint clock.
+      const jumped = await player.waitFor('thread:jumped', (event) => event.data['participantId'] === me);
+      expect(jumped.data['question']).toMatchObject({ room: 1, jumping: true });
+      expect(jumped.data['question']).not.toHaveProperty('letter');
+      expect((jumped.data['question'] as { hintAt: string }).hintAt).toBeTruthy();
       expect(await answer(1, 1, nameOf(2))).toMatchObject({ accepted: true, data: { result: 'RIGHT' } });
       await player.waitFor(
         'thread:progress',

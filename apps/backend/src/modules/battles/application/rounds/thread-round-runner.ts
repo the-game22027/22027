@@ -212,7 +212,10 @@ export class ThreadRoundRunner implements RoundRunner {
         this.scheduleBotTry(event.participantId, false);
         return;
       }
-      case 'LOCKED':
+      case 'LOCKED': {
+        const state = this.state;
+        // The locked player also gets the question now on their screen: after a wrong jump answer, the room's own
+        // question with the room's own hint.
         await this.host.emit('thread:locked', (viewer) => ({
           roundNo: event.roundNo,
           participantId: event.participantId,
@@ -220,15 +223,21 @@ export class ThreadRoundRunner implements RoundRunner {
           ...(this.settings.showWrongAnswers && event.entityId
             ? { entity: entityRef(this.names, event.entityId, viewer) }
             : {}),
+          ...(viewer.id === event.participantId && state ? { question: this.roomFor(viewer, state) } : {}),
         }));
         return;
-      case 'JUMPED':
-        await this.host.emit('thread:jumped', () => ({
+      }
+      case 'JUMPED': {
+        const state = this.state;
+        // The jumper gets the jump question with its own hint clock; the others see that the jump was used.
+        await this.host.emit('thread:jumped', (viewer) => ({
           roundNo: event.roundNo,
           participantId: event.participantId,
           room: event.room,
+          ...(viewer.id === event.participantId && state ? { question: this.roomFor(viewer, state) } : {}),
         }));
         return;
+      }
       case 'HINTED':
         await this.host.emit('thread:hint', (viewer) => ({
           roundNo: event.roundNo,
@@ -246,16 +255,16 @@ export class ThreadRoundRunner implements RoundRunner {
     const progress = state.progress[viewer.id];
     if (!progress || progress.room >= this.rooms.length) return null;
     const slot = this.rules.targetSlotOf(state, viewer.id) ?? progress.room;
+    // The hint belongs to the question on screen: the jump question has its own clock and letter.
+    const hint = this.rules.hintOf(state, viewer.id);
     return {
       room: progress.room,
       question: progress.jumping
         ? (this.jumpTextOf(progress.room, viewer.locale) ?? '')
         : (this.rooms[progress.room]?.text[viewer.locale] ?? ''),
       jumping: progress.jumping,
-      hintAt: progress.hinted
-        ? null
-        : new Date(progress.enteredAt.getTime() + this.settings.hint.afterMs).toISOString(),
-      ...(progress.hinted ? { letter: this.letterOf(slot, viewer.locale) } : {}),
+      hintAt: hint?.hintAt?.toISOString() ?? null,
+      ...(hint?.hinted ? { letter: this.letterOf(slot, viewer.locale) } : {}),
     };
   }
 

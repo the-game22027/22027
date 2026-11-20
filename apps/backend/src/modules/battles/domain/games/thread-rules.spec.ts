@@ -133,6 +133,41 @@ describe('ThreadRules', () => {
     ]);
   });
 
+  it('a jump is a new question: its hint clock starts at the jump, not at the room', () => {
+    const jumped = ok(send(start(), 'a', { type: 'THREAD_JUMP', room: 0 }, 15_000));
+    expect(jumped.effects).toEqual(
+      expect.arrayContaining([
+        { type: 'CANCEL', timer: hintTimerOf('a') },
+        { type: 'SCHEDULE', timer: hintTimerOf('a'), at: at(35_000) },
+      ]),
+    );
+    expect(rules.hintOf(jumped.state, 'a')).toEqual({ hinted: false, hintAt: at(35_000) });
+  });
+
+  it('a room hint already out does not carry over to the jump question, and comes back after a wrong jump', () => {
+    const hinted = rules.handleTimer(start(), hintTimerOf('a')).state;
+    expect(rules.hintOf(hinted, 'a')).toEqual({ hinted: true, hintAt: null });
+    const jumped = ok(send(hinted, 'a', { type: 'THREAD_JUMP', room: 0 }, 25_000)).state;
+    expect(rules.hintOf(jumped, 'a')).toEqual({ hinted: false, hintAt: at(45_000) });
+    const jumpHint = rules.handleTimer(jumped, hintTimerOf('a'));
+    expect(events(jumpHint)).toEqual([{ type: 'HINTED', roundNo: 1, participantId: 'a', room: 0, slot: 1 }]);
+    const back = ok(answer(jumpHint.state, 'a', false, 50_000));
+    expect(rules.hintOf(back.state, 'a')).toEqual({ hinted: true, hintAt: null });
+    expect(rules.targetSlotOf(back.state, 'a')).toBe(0);
+    expect(back.effects).not.toContainEqual(expect.objectContaining({ type: 'SCHEDULE' }));
+  });
+
+  it('a wrong jump before the room hint brings the room hint back on its own clock, at once if it passed', () => {
+    const jumped = ok(send(start(), 'a', { type: 'THREAD_JUMP', room: 0 }, 15_000)).state;
+    const back = ok(answer(jumped, 'a', false, 30_000));
+    expect(back.effects).toContainEqual({ type: 'SCHEDULE', timer: hintTimerOf('a'), at: at(30_000) });
+    expect(events(rules.handleTimer(back.state, hintTimerOf('a')))).toEqual([
+      { type: 'HINTED', roundNo: 1, participantId: 'a', room: 0, slot: 0 },
+    ]);
+    const early = ok(answer(ok(send(start(), 'a', { type: 'THREAD_JUMP', room: 0 }, 5_000)).state, 'a', false, 8_000));
+    expect(early.effects).toContainEqual({ type: 'SCHEDULE', timer: hintTimerOf('a'), at: at(20_000) });
+  });
+
   it('at the deadline the player further along wins, and the same room is a draw', () => {
     const ahead = advance(advance(start(), 'a', 3), 'b', 1);
     expect(endOf(rules.handleTimer(ahead, ROUND_TIMER))).toMatchObject({

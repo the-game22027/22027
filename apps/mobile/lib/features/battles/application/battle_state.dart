@@ -1118,39 +1118,24 @@ BattleState _applyInOrder(BattleState state, BattleServerEvent event) {
         ),
       );
     case ThreadLockedOut() when round is ThreadRound:
-      final yourRoom = round.yourRoom;
       if (event.participantId != state.youParticipantId) return state;
+      // The server sends the question now on your screen: after a wrong jump answer, the room's own
+      // question with the room's own hint, never the jump question's letter.
+      final question = event.question;
       return state.copyWith(
         currentRound: () => round.copyWith(
           yourLockedUntil: () => event.lockedUntil,
-          // A wrong answer while jumping spends the jump: back to the room's own question.
-          yourRoom: yourRoom == null
-              ? null
-              : () => ThreadRoomView(
-                  room: yourRoom.room,
-                  question: yourRoom.question,
-                  isJumping: false,
-                  hintAt: yourRoom.hintAt,
-                  letter: yourRoom.letter,
-                ),
+          yourRoom: question == null ? null : () => question,
         ),
       );
     case ThreadJumped() when round is ThreadRound:
-      final yourRoom = round.yourRoom;
       if (event.participantId != state.youParticipantId) return state;
-      // The jump question itself arrives in the ack of `thread:jump` (and in a snapshot).
+      // The jump question is a new question: its own hint clock, no letter yet.
+      final question = event.question;
       return state.copyWith(
         currentRound: () => round.copyWith(
           jumpsLeft: round.jumpsLeft - 1,
-          yourRoom: yourRoom == null
-              ? null
-              : () => ThreadRoomView(
-                  room: yourRoom.room,
-                  question: yourRoom.question,
-                  isJumping: true,
-                  hintAt: yourRoom.hintAt,
-                  letter: yourRoom.letter,
-                ),
+          yourRoom: question == null ? null : () => question,
         ),
       );
     case ThreadHinted() when round is ThreadRound:

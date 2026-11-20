@@ -1096,6 +1096,7 @@ class ThreadLockedOut extends BattleServerEvent {
     required this.participantId,
     required this.lockedUntil,
     this.entity,
+    this.question,
   });
 
   final int roundNo;
@@ -1104,6 +1105,10 @@ class ThreadLockedOut extends BattleServerEvent {
 
   /// What the text matched, only when the server shows wrong answers (off by default, DEC-86).
   final EntityRef? entity;
+
+  /// Only to the locked player: the question now on their screen (after a wrong jump answer, the
+  /// room's own question with the room's own hint).
+  final ThreadRoomView? question;
 }
 
 /// `thread:jumped`: [participantId] asked for the jump question of [room].
@@ -1115,11 +1120,15 @@ class ThreadJumped extends BattleServerEvent {
     required this.roundNo,
     required this.participantId,
     required this.room,
+    this.question,
   });
 
   final int roundNo;
   final String participantId;
   final int room;
+
+  /// Only to the jumper: the jump question, with its own hint clock (no letter yet).
+  final ThreadRoomView? question;
 }
 
 /// `thread:hint`: [participantId] was stuck in [room]; only they get [letter].
@@ -2038,6 +2047,7 @@ BattleServerEvent parseBattleServerEvent(String eventName, Object? payload) {
         participantId: data.readString('participantId'),
         lockedUntil: data.readTimestamp('lockedUntil'),
         entity: matched == null ? null : _readEntityRef(matched),
+        question: readThreadRoomView(data.readOptionalObject('question')),
       );
     case 'thread:jumped':
       return ThreadJumped(
@@ -2047,6 +2057,7 @@ BattleServerEvent parseBattleServerEvent(String eventName, Object? payload) {
         roundNo: data.readInt('roundNo'),
         participantId: data.readString('participantId'),
         room: data.readInt('room'),
+        question: readThreadRoomView(data.readOptionalObject('question')),
       );
     case 'thread:hint':
       return ThreadHinted(

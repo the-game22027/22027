@@ -809,11 +809,19 @@ void main() {
             'roundNo': 1,
             'participantId': 'p-human',
             'room': 1,
+            'question': {
+              'room': 1,
+              'question': 'من سجّل أول هدف لصالح الفريق الذي واجههم؟',
+              'jumping': true,
+              'hintAt': '2026-11-12T10:00:50.000Z',
+            },
           }),
         ]);
         final jumping = jumped.currentRound! as ThreadRound;
         expect(jumping.jumpsLeft, 0);
         expect(jumping.yourRoom?.isJumping, isTrue);
+        expect(jumping.yourRoom?.letter, isNull);
+        expect(jumping.yourRoom?.hintAt, DateTime.utc(2026, 11, 12, 10, 0, 50));
 
         final missed =
             applyAll(jumped, [
@@ -821,6 +829,12 @@ void main() {
                     'roundNo': 1,
                     'participantId': 'p-human',
                     'lockedUntil': '2026-11-12T10:00:40.000Z',
+                    'question': {
+                      'room': 1,
+                      'question': 'من واجههم في ذلك النهائي؟',
+                      'jumping': false,
+                      'hintAt': '2026-11-12T10:00:35.000Z',
+                    },
                   }),
                   event('thread:hint', 8, {
                     'roundNo': 1,
@@ -831,6 +845,7 @@ void main() {
                 ]).currentRound!
                 as ThreadRound;
         expect(missed.yourRoom?.isJumping, isFalse);
+        expect(missed.yourRoom?.question, 'من واجههم في ذلك النهائي؟');
         expect(missed.yourLockedUntil, DateTime.utc(2026, 11, 12, 10, 0, 40));
         expect(missed.yourRoom?.letter, 'أ');
       },
