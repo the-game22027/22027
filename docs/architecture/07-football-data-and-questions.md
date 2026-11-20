@@ -442,6 +442,12 @@ Not used: StatsBomb open data (non-commercial), FBref and SofaScore (scraping fo
 - **Built 2026-11-20:** `kb bundle --one-twos N` writes the seeds and the graph; `--links` writes the graph alone; `--links-min-player-sitelinks` (development only) links only players at or above that many sitelinks, so a committed dev bundle stays small. The full graph is 281,231 links (40 MB `links.jsonl`, 8 MB `link-matches.jsonl`) and builds in about 17 s.
 - **Size:** about 365,000 links on the dev knowledge base, with at most 45,322 evidence matches (every usable tier-1 and tier-2 match) (`08` §15.4). The committed dev bundle keeps only links between the entities its trimmed catalog keeps (`--catalog-min-player-sitelinks`), so it stays small.
 
+**N6 slice: edition facts for TIME_MACHINE (2026-11-20 design; the first part of D.3e).** For `TIME_MACHINE` (`08` §16.4):
+- **More goals into `core.goal`:** Fjelstul World Cup goals (player ids, linked through `core.entity_xref`, source `fjelstul`) and martj42 international goals (scorer names, linked by name among the players of that national team, ambiguous names left out and listed in `.out/review-goal-names.csv`). One goal list per match: Transfermarkt first, then Fjelstul, then martj42, the same rule as lineups (N5 slice); a disagreement on the scorers of a match is listed and that match's goals are not used.
+- **National team → country:** each national team entity points at its country (Wikidata P17), so a winner is answered as a catalog `COUNTRY`.
+- **`kb bundle --time-machines N`** reads `core.match` and `core.goal` straight away and builds the facts of `08` §16.4 per edition: winner and runner-up from the final (the shootout decides a draw), the final's scorers, the edition's top scorers (only when every match of the edition has goals that add up to its score), and the elimination of well-known teams in the knockouts. A fact is kept only when every accepted answer is a catalog entity.
+- **Not in this slice:** the curated Champions League finals 2000–2012 (the rest of D.3e), venues and hosts (no source yet), Copa América (DEC-84).
+
 **D.3d: typed match tables (resolved).**
 - `core.competition` (ref, kind `LEAGUE` | `CUP` | `INTERNATIONAL`, tier, country) and `core.edition` (competition, season label, final year, winner, runner-up, host).
 - `core.match`: edition, stage (`GROUP` … `FINAL`, `LEAGUE`), date, home and away team, goals, extra time, shootout score, venue.
