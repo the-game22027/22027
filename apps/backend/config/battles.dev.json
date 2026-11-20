@@ -377,6 +377,28 @@
       "selection": {
         "difficulties": null
       }
+    },
+    "THREAD": {
+      "enabled": true,
+      "roundCount": 3,
+      "targetScore": 2,
+      "firstMover": "NONE",
+      "roundMs": 150000,
+      "lockoutMs": [3000, 6000, 9000],
+      "hint": {
+        "afterMs": 20000
+      },
+      "jump": {
+        "perThread": 1
+      },
+      "timeUp": "HIGHER_ROOM_WINS",
+      "showWrongAnswers": false,
+      "points": {
+        "thread": 1
+      },
+      "selection": {
+        "difficulties": null
+      }
     }
   }
 }

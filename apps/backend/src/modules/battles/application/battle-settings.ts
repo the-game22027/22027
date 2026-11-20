@@ -6,6 +6,7 @@ import type { BridgeWrongLine } from '../domain/games/bridge-rules';
 import type { GridConfig } from '../domain/games/grid-rules';
 import type { OneTwoPassType } from '../domain/games/one-two-rules';
 import type { RevealAndBuzzConfig } from '../domain/games/reveal-and-buzz-rules';
+import type { ThreadTimeUp } from '../domain/games/thread-rules';
 
 export const BATTLE_SETTINGS = Symbol('BATTLE_SETTINGS');
 
@@ -126,6 +127,18 @@ export interface BridgeGameSettings extends CommonGameSettings {
   points: { square: number };
 }
 
+/** The `THREAD` section of the battle config (08 §17.6). The rooms come with the content. */
+export interface ThreadGameSettings extends CommonGameSettings {
+  /** DEC-86. */
+  roundMs: number;
+  lockoutMs: number[];
+  hint: { afterMs: number };
+  jump: { perThread: number };
+  timeUp: ThreadTimeUp;
+  showWrongAnswers: boolean;
+  points: { thread: number };
+}
+
 /** One reveal-and-buzz game type's section of the battle config (08 §6). */
 export interface RevealGameSettings extends CommonGameSettings, Omit<RevealAndBuzzConfig, 'latencyGraceMs'> {
   /** CAREER only: show the years of each spell (08 §3.1). */
@@ -151,6 +164,7 @@ export interface BattleSettings {
     LINEUP?: LineupGameSettings;
     ONE_TWO?: OneTwoGameSettings;
     BRIDGE?: BridgeGameSettings;
+    THREAD?: ThreadGameSettings;
   };
 }
 
@@ -163,7 +177,8 @@ export type GameSettings =
   | HexGameSettings
   | LineupGameSettings
   | OneTwoGameSettings
-  | BridgeGameSettings;
+  | BridgeGameSettings
+  | ThreadGameSettings;
 
 /** The config of a game type, or undefined when it has none. */
 export function findGameSettings(settings: BattleSettings, gameType: string): GameSettings | undefined {

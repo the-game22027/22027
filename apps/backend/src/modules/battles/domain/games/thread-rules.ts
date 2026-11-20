@@ -54,7 +54,8 @@ export type ThreadEndReason = 'THREAD_COMPLETE' | 'TIME_UP' | 'FORFEIT';
 export type ThreadEvent =
   /** A right answer: `room` is where the player is now (`roomCount` when finished). */
   | { type: 'PROGRESSED'; roundNo: number; participantId: ParticipantId; room: number; jumped: boolean }
-  | { type: 'LOCKED'; roundNo: number; participantId: ParticipantId; lockedUntil: Date }
+  /** `entityId`: what the wrong text matched; the runner shows it only when `showWrongAnswers` is on (DEC-86). */
+  | { type: 'LOCKED'; roundNo: number; participantId: ParticipantId; lockedUntil: Date; entityId: string | null }
   | { type: 'JUMPED'; roundNo: number; participantId: ParticipantId; room: number }
   /** `slot` is the answer the hint is for: the room's, or the next room's while jumping. */
   | { type: 'HINTED'; roundNo: number; participantId: ParticipantId; room: number; slot: number };
@@ -201,7 +202,16 @@ export class ThreadRules {
         state: { ...state, lockouts, progress: { ...state.progress, [from]: { ...progress, jumping: false } } },
         effects: [
           recorded,
-          { type: 'EMIT', event: { type: 'LOCKED', roundNo: state.roundNo, participantId: from, lockedUntil } },
+          {
+            type: 'EMIT',
+            event: {
+              type: 'LOCKED',
+              roundNo: state.roundNo,
+              participantId: from,
+              lockedUntil,
+              entityId: command.answer.entityId,
+            },
+          },
         ],
       };
     }

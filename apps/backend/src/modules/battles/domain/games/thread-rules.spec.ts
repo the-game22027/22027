@@ -71,7 +71,9 @@ describe('ThreadRules', () => {
 
   it('locks out a wrong answer on the ladder and keeps the player in the room', () => {
     const first = ok(answer(start(), 'a', false, 1_000));
-    expect(events(first)).toEqual([{ type: 'LOCKED', roundNo: 1, participantId: 'a', lockedUntil: at(4_000) }]);
+    expect(events(first)).toEqual([
+      { type: 'LOCKED', roundNo: 1, participantId: 'a', lockedUntil: at(4_000), entityId: 'x' },
+    ]);
     expect(first.state.progress['a'].room).toBe(0);
     expect(codeOf(answer(first.state, 'a', true, 3_999))).toBe('LOCKED_OUT');
     const second = ok(answer(first.state, 'a', false, 4_000));

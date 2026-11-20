@@ -24,6 +24,7 @@ import {
   lineupFixture,
   oneTwoFixture,
   bridgeFixture,
+  threadFixture,
   vaultLine,
   whoLine,
 } from '../support/question-bundles';
@@ -67,6 +68,7 @@ function writeBattleConfig(bot: { knows: number; guess: number }, botFallbackAft
       LINEUP: lineup,
       ONE_TWO: oneTwo,
       BRIDGE: bridge,
+      THREAD: thread,
       ...revealGames
     } = config.gameTypes;
     if (grid) {
@@ -141,6 +143,15 @@ function writeBattleConfig(bot: { knows: number; guess: number }, botFallbackAft
         rps: { pickMs: 600, maxReplays: 2, revealMs: 50, botPickDelayMs: { min: 200, max: 200 } },
       });
     }
+    if (thread) {
+      Object.assign(thread, {
+        roundCount: 3,
+        targetScore: 2,
+        roundMs: 8_000,
+        lockoutMs: [300, 600],
+        hint: { afterMs: 1_200 },
+      });
+    }
     for (const game of Object.values(revealGames)) {
       Object.assign(game, {
         roundCount: 2,
@@ -163,6 +174,7 @@ describe('battles over WebSocket (e2e)', () => {
   const lineup = lineupFixture();
   const oneTwo = oneTwoFixture();
   const bridge = bridgeFixture();
+  const thread = threadFixture();
   const gridPlayerIds: string[] = [];
   let spainId: string;
   let naniId: string;
@@ -204,6 +216,9 @@ describe('battles over WebSocket (e2e)', () => {
             oneTwo.line(`test:${randomUUID()}`),
             bridge.line(`test:${randomUUID()}`),
             bridge.line(`test:${randomUUID()}`, 'REVERSED'),
+            thread.line(`test:${randomUUID()}`, 1),
+            thread.line(`test:${randomUUID()}`, 2),
+            thread.line(`test:${randomUUID()}`, 3),
           ],
           [
             ...Object.values(e),
@@ -214,6 +229,7 @@ describe('battles over WebSocket (e2e)', () => {
             ...lineup.entities,
             ...oneTwo.entities,
             ...bridge.entities,
+            ...thread.entities,
           ],
           { links: [...oneTwo.links, ...bridge.links], matches: [...oneTwo.matches, ...bridge.matches] },
         ),
@@ -1031,6 +1047,61 @@ describe('battles over WebSocket (e2e)', () => {
       expect((await player.waitFor('battle:completed')).data).toMatchObject({ you: { score: mySquares } });
     });
 
+    it('plays THREAD: a wrong name locks me out, a jump skips two rooms, the hint gives a letter; first to 2 threads', async () => {
+      const player = await connectPlayer();
+      await player.send('matchmaking:join', { gameType: 'THREAD' });
+      const found = await player.waitFor('battle:found');
+      const battleId = found.battleId as string;
+      const me = found.data['youParticipantId'] as string;
+      await player.send('battle:ready', { battleId });
+      const nameOf = (room: number) => thread.answers[room]?.names.en ?? '';
+      const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+      // Thread 1: a wrong name, a refused early retry, a room ahead refused, a jump, then the end.
+      const start = await player.waitFor('round:start', (event) => event.data['roundNo'] === 1);
+      expect(start.data).toMatchObject({ roomCount: 5, jumpsLeft: 1, room: { room: 0, jumping: false } });
+      expect((start.data['room'] as { question: string }).question).toMatch(/^(Thread \d room 0\?|خيط \d غرفة 0؟)$/);
+      const answer = (roundNo: number, room: number, text: string) =>
+        player.send('thread:answer', { battleId, roundNo, room, answer: { text } });
+      const wrong = await answer(1, 0, nameOf(1));
+      expect(wrong).toMatchObject({ accepted: true, data: { result: 'WRONG' } });
+      expect((wrong as unknown as { data: { lockedUntil: string | null } }).data.lockedUntil).not.toBeNull();
+      expect(await answer(1, 0, nameOf(0))).toMatchObject({ accepted: false, code: 'LOCKED_OUT' });
+      expect(await answer(1, 3, nameOf(3))).toMatchObject({ accepted: false, code: 'NOT_YOUR_ROOM' });
+      await sleep(350);
+      expect(await answer(1, 0, nameOf(0))).toMatchObject({ accepted: true, data: { result: 'RIGHT' } });
+      const moved = await player.waitFor('thread:progress', (event) => event.data['participantId'] === me);
+      expect(moved.data).toMatchObject({ room: 1, jumped: false, question: { room: 1 } });
+      const jump = await player.send('thread:jump', { battleId, roundNo: 1, room: 1 });
+      expect(jump).toMatchObject({ accepted: true, data: { slot: 2 } });
+      expect((jump as unknown as { data: { question: string } }).data.question).toMatch(/(jump 1\?|قفزة 1؟)$/);
+      expect(await answer(1, 1, nameOf(2))).toMatchObject({ accepted: true, data: { result: 'RIGHT' } });
+      await player.waitFor(
+        'thread:progress',
+        (event) => event.data['participantId'] === me && event.data['room'] === 3,
+      );
+      expect(await player.send('thread:jump', { battleId, roundNo: 1, room: 3 })).toMatchObject({
+        accepted: false,
+        code: 'NO_JUMP_LEFT',
+      });
+      await answer(1, 3, nameOf(3));
+      await answer(1, 4, nameOf(4));
+      const first = await player.waitFor('round:result', (event) => event.data['roundNo'] === 1);
+      expect(first.data['winnerParticipantIds']).toEqual([me]);
+      const reveal = first.data['reveal'] as { rooms: { answer: { name: string } }[]; reached: Record<string, number> };
+      expect(reveal.rooms.map((room) => room.answer.name)).toEqual([0, 1, 2, 3, 4].map(nameOf));
+      expect(reveal.reached[me]).toBe(5);
+
+      // Thread 2: wait for the hint's first letter, then answer every room.
+      await player.waitFor('round:start', (event) => event.data['roundNo'] === 2);
+      const hint = await player.waitFor('thread:hint', (event) => event.data['roundNo'] === 2);
+      expect(hint.data).toMatchObject({ participantId: me, room: 0, letter: nameOf(0)[0] });
+      for (const room of [0, 1, 2, 3, 4]) {
+        expect(await answer(2, room, nameOf(room))).toMatchObject({ accepted: true, data: { result: 'RIGHT' } });
+      }
+      expect((await player.waitFor('battle:completed')).data).toMatchObject({ you: { outcome: 'WIN', score: 2 } });
+    });
+
     it('picks for a player who does not throw in time, and still starts the round', async () => {
       const player = await connectPlayer();
       await player.send('matchmaking:join', { gameType: 'GRID' });
@@ -1227,6 +1298,25 @@ describe('battles over WebSocket (e2e)', () => {
       expect(new Set(scorers).size).toBe(scorers.length);
       const mine = drawn.filter((event) => event.data['participantId'] === me);
       expect(mine.every((event) => event.data['result'] === 'TIME_UP')).toBe(true);
+    });
+
+    it('a bot that knows every room reaches the end of each thread first', async () => {
+      const player = await connectPlayer();
+      await player.send('matchmaking:join', { gameType: 'THREAD' });
+      const found = await player.waitFor('battle:found');
+      const me = found.data['youParticipantId'];
+      await player.send('battle:ready', { battleId: found.battleId });
+
+      const deadline = Date.now() + 20_000;
+      while (!player.events.some((event) => event.type === 'battle:completed') && Date.now() < deadline) {
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+      expect((await player.waitFor('battle:completed')).data).toMatchObject({ you: { outcome: 'LOSS', score: 0 } });
+      const progress = player.events.filter((event) => event.type === 'thread:progress');
+      expect(progress.every((event) => event.data['participantId'] !== me)).toBe(true);
+      expect(progress.some((event) => event.data['room'] === 5)).toBe(true);
+      // The bot's question is never sent to me.
+      expect(progress.every((event) => !('question' in event.data))).toBe(true);
     });
 
     it('a bot that knows every digit opens each vault first', async () => {

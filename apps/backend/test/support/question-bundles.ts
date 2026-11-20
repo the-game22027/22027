@@ -375,3 +375,50 @@ export const bridgeFixture = () => {
   });
   return { entities: [...clubs, ...scorers, outsider], clubs, scorers, outsider, links, matches, line };
 };
+
+/**
+ * THREAD rounds (08 §17.4) over five entities of three kinds: a club, the club it beat, a captain, the player who
+ * set up a goal, a country. `variant` changes the texts, so several threads of the same answers are different content.
+ */
+export const threadFixture = () => {
+  const id = randomUUID().slice(0, 8);
+  const entity = (name: string, kind: string) => ({
+    externalRef: `test:thread-${name}-${id}`,
+    kind,
+    names: { en: `${name}${id}`, ar: `${name}${id}` },
+    aliases: { en: [], ar: [] },
+    popularity: 50,
+    search: [`${name}${id}`],
+  });
+  const answers = [
+    entity('winner', 'CLUB'),
+    entity('beaten', 'CLUB'),
+    entity('captain', 'PLAYER'),
+    entity('provider', 'PLAYER'),
+    entity('homeland', 'COUNTRY'),
+  ];
+  const hops = ['FINAL_WINNER', 'FINAL_OPPONENT', 'CAPTAIN', 'ASSIST', 'NATIONALITY'];
+  const line = (key: string, variant = 1) => ({
+    ...common(key),
+    gameType: 'THREAD',
+    content: {
+      rooms: answers.map((answer, room) => ({
+        hop: hops[room],
+        answerKind: answer.kind,
+        text: {
+          en: `Thread ${String(variant)} room ${String(room)}?`,
+          ar: `خيط ${String(variant)} غرفة ${String(room)}؟`,
+        },
+        jumpText:
+          room === answers.length - 1
+            ? null
+            : {
+                en: `Thread ${String(variant)} jump ${String(room)}?`,
+                ar: `خيط ${String(variant)} قفزة ${String(room)}؟`,
+              },
+      })),
+    },
+    answers: answers.map((answer, slot) => ({ slot, entities: [answer.externalRef] })),
+  });
+  return { entities: answers, answers, line };
+};
