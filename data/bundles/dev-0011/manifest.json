@@ -1,0 +1,90 @@
+{
+  "bundleVersion": "dev-0011",
+  "kbVersion": "wikidata-2026-11-19",
+  "generatorVersion": "kb-generate-3",
+  "questionCount": 509,
+  "checksum": "sha256:dcc3521389b09b94581e8d90ee22453118783792e7b745667ee2a80955c372b3",
+  "catalogChecksum": "sha256:5ee9a4b5211da83f51c9c16f8c9b9dc5ecb80d32a9dc271587978d87f2c4cc5e",
+  "categories": [
+    {
+      "slug": "careers",
+      "names": {
+        "en": "Careers",
+        "ar": "المسيرة"
+      }
+    },
+    {
+      "slug": "transfers",
+      "names": {
+        "en": "Transfers",
+        "ar": "الانتقالات"
+      }
+    },
+    {
+      "slug": "nationalities",
+      "names": {
+        "en": "Nationalities",
+        "ar": "الجنسيات"
+      }
+    },
+    {
+      "slug": "players",
+      "names": {
+        "en": "Players",
+        "ar": "اللاعبون"
+      }
+    },
+    {
+      "slug": "grids",
+      "names": {
+        "en": "Grids",
+        "ar": "الشبكات"
+      }
+    },
+    {
+      "slug": "mines",
+      "names": {
+        "en": "Mines",
+        "ar": "لغم"
+      }
+    },
+    {
+      "slug": "auctions",
+      "names": {
+        "en": "Auctions",
+        "ar": "المزاد"
+      }
+    },
+    {
+      "slug": "vaults",
+      "names": {
+        "en": "Vaults",
+        "ar": "الخزنة"
+      }
+    },
+    {
+      "slug": "hexes",
+      "names": {
+        "en": "Hex boards",
+        "ar": "الهجمة"
+      }
+    },
+    {
+      "slug": "lineups",
+      "names": {
+        "en": "Lineups",
+        "ar": "التشكيلة"
+      }
+    },
+    {
+      "slug": "one-twos",
+      "names": {
+        "en": "One-twos",
+        "ar": "وان تو"
+      }
+    }
+  ],
+  "linkCount": 22876,
+  "linksChecksum": "sha256:bbb46db12fb8de02d046ae6358476dcb8b458a449bf9d9eef2d6816eec06ad7d",
+  "linkMatchesChecksum": "sha256:44bc6092aacadbffec2cdd4c73265e19e5f219e54b111139aa65e078feea3af6"
+}
