@@ -414,6 +414,53 @@ class LineupRound extends CurrentRound {
   );
 }
 
+/// A `THREAD` round (`08` §17): both players race along the same five rooms; you see only your own
+/// room's question and the others' room numbers.
+class ThreadRound extends CurrentRound {
+  const ThreadRound({
+    required int roundNo,
+    required this.roomCount,
+    required this.roundDeadlineAt,
+    required this.jumpsLeft,
+    this.yourRoom,
+    this.roomsByParticipant = const {},
+    this.yourLockedUntil,
+    this.isClosed = false,
+  }) : super(roundNo);
+
+  final int roomCount;
+  final DateTime roundDeadlineAt;
+  final int jumpsLeft;
+
+  /// Your room and its question; null once you finished.
+  final ThreadRoomView? yourRoom;
+
+  /// Every player's room number (`roomCount` = finished).
+  final Map<String, int> roomsByParticipant;
+
+  /// When you may answer again after a wrong answer.
+  final DateTime? yourLockedUntil;
+  final bool isClosed;
+
+  ThreadRound copyWith({
+    int? jumpsLeft,
+    ThreadRoomView? Function()? yourRoom,
+    Map<String, int>? roomsByParticipant,
+    DateTime? Function()? yourLockedUntil,
+  }) => ThreadRound(
+    roundNo: roundNo,
+    roomCount: roomCount,
+    roundDeadlineAt: roundDeadlineAt,
+    jumpsLeft: jumpsLeft ?? this.jumpsLeft,
+    yourRoom: yourRoom != null ? yourRoom() : this.yourRoom,
+    roomsByParticipant: roomsByParticipant ?? this.roomsByParticipant,
+    yourLockedUntil: yourLockedUntil != null
+        ? yourLockedUntil()
+        : this.yourLockedUntil,
+    isClosed: isClosed,
+  );
+}
+
 enum BridgePhase { picking, answering, closed }
 
 /// A drawn line of a `BRIDGE` board: right lines carry their scorer and the two matches.
@@ -1043,6 +1090,84 @@ BattleState _applyInOrder(BattleState state, BattleServerEvent event) {
       return state.copyWith(
         currentRound: () => round.copyWith(letters: event.letters),
       );
+    case ThreadRoundStarted():
+      return state.copyWith(
+        phase: BattlePhase.inProgress,
+        firstMoverDuel: () => null,
+        currentRound: () => ThreadRound(
+          roundNo: event.roundNo,
+          roomCount: event.roomCount,
+          roundDeadlineAt: event.roundDeadlineAt,
+          jumpsLeft: event.jumpsLeft,
+          yourRoom: event.room,
+          roomsByParticipant: {
+            for (final player in state.players) player.participantId: 0,
+          },
+        ),
+      );
+    case ThreadProgressed() when round is ThreadRound:
+      final isYou = event.participantId == state.youParticipantId;
+      return state.copyWith(
+        currentRound: () => round.copyWith(
+          roomsByParticipant: {
+            ...round.roomsByParticipant,
+            event.participantId: event.room,
+          },
+          yourRoom: isYou ? () => event.question : null,
+          yourLockedUntil: isYou ? () => null : null,
+        ),
+      );
+    case ThreadLockedOut() when round is ThreadRound:
+      final yourRoom = round.yourRoom;
+      if (event.participantId != state.youParticipantId) return state;
+      return state.copyWith(
+        currentRound: () => round.copyWith(
+          yourLockedUntil: () => event.lockedUntil,
+          // A wrong answer while jumping spends the jump: back to the room's own question.
+          yourRoom: yourRoom == null
+              ? null
+              : () => ThreadRoomView(
+                  room: yourRoom.room,
+                  question: yourRoom.question,
+                  isJumping: false,
+                  hintAt: yourRoom.hintAt,
+                  letter: yourRoom.letter,
+                ),
+        ),
+      );
+    case ThreadJumped() when round is ThreadRound:
+      final yourRoom = round.yourRoom;
+      if (event.participantId != state.youParticipantId) return state;
+      // The jump question itself arrives in the ack of `thread:jump` (and in a snapshot).
+      return state.copyWith(
+        currentRound: () => round.copyWith(
+          jumpsLeft: round.jumpsLeft - 1,
+          yourRoom: yourRoom == null
+              ? null
+              : () => ThreadRoomView(
+                  room: yourRoom.room,
+                  question: yourRoom.question,
+                  isJumping: true,
+                  hintAt: yourRoom.hintAt,
+                  letter: yourRoom.letter,
+                ),
+        ),
+      );
+    case ThreadHinted() when round is ThreadRound:
+      final yourRoom = round.yourRoom;
+      if (event.participantId != state.youParticipantId || yourRoom == null) {
+        return state;
+      }
+      return state.copyWith(
+        currentRound: () => round.copyWith(
+          yourRoom: () => ThreadRoomView(
+            room: yourRoom.room,
+            question: yourRoom.question,
+            isJumping: yourRoom.isJumping,
+            letter: event.letter,
+          ),
+        ),
+      );
     case BridgeRoundStarted():
       return state.copyWith(
         phase: BattlePhase.inProgress,
@@ -1537,6 +1662,9 @@ CurrentRound? _readSnapshotRound(
   CurrentRound? previous,
 ) {
   final roundNo = round.readInt('roundNo');
+  if (round.json.containsKey('roomCount')) {
+    return _readSnapshotThreadRound(round);
+  }
   if (round.json.containsKey('goalsSince')) {
     return _readSnapshotBridgeRound(round);
   }
@@ -1772,6 +1900,25 @@ LineupRound _readSnapshotLineupRound(JsonObjectReader round) {
     fakeUnmaskedBy: fake?.readOptionalString('unmaskedBy'),
     yourLockedUntil: round.readOptionalTimestamp('lockedUntil'),
     hasUsedYourAccusation: round.readOptionalBool('accusationUsed') ?? false,
+  );
+}
+
+/// The server sends the room count before the thread starts, then your room and everyone's progress.
+ThreadRound _readSnapshotThreadRound(JsonObjectReader round) {
+  final hasStarted = round.json.containsKey('rooms');
+  return ThreadRound(
+    roundNo: round.readInt('roundNo'),
+    roomCount: round.readInt('roomCount'),
+    roundDeadlineAt:
+        round.readOptionalTimestamp('roundDeadlineAt') ??
+        DateTime.fromMillisecondsSinceEpoch(0, isUtc: true),
+    jumpsLeft: round.readOptionalInt('jumpsLeft') ?? 0,
+    yourRoom: readThreadRoomView(round.readOptionalObject('room')),
+    roomsByParticipant: hasStarted
+        ? readIntMap(round.readObject('rooms'))
+        : const {},
+    yourLockedUntil: round.readOptionalTimestamp('lockedUntil'),
+    isClosed: round.readOptionalString('phase') == 'CLOSED',
   );
 }
 

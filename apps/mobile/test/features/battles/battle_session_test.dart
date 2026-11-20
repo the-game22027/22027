@@ -399,6 +399,39 @@ void main() {
     expect(result, isA<BattleCommandAccepted>());
   });
 
+  test(
+    'thread answers and jumps go out with the room and the round number',
+    () async {
+      final container = await createContainer();
+      final controller = controllerOf(container);
+
+      await receiveBattleFound(container);
+      socket.receive(
+        'round:start',
+        battleEnvelope('round:start', 2, {
+          'roundNo': 1,
+          'gameType': 'THREAD',
+          'roomCount': 5,
+          'room': {'room': 0, 'question': 'Who won?', 'jumping': false},
+          'roundDeadlineAt': '2026-11-12T10:02:30.000Z',
+          'jumpsLeft': 1,
+        }),
+      );
+      await pumpEventQueue();
+      await controller.jumpInThread(0);
+      var (event, payload) = socket.sentCommands.last;
+      expect(event, 'thread:jump');
+      expect(payload['room'], 0);
+      expect(payload['roundNo'], 1);
+
+      await controller.answerInThread(0, 'Real Madrid');
+      (event, payload) = socket.sentCommands.last;
+      expect(event, 'thread:answer');
+      expect(payload['answer'], {'text': 'Real Madrid'});
+      expect(payload['room'], 0);
+    },
+  );
+
   test('bridge picks and answers go out with the round number', () async {
     final container = await createContainer();
     final controller = controllerOf(container);

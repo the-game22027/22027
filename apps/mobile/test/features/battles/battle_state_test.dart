@@ -750,6 +750,129 @@ void main() {
     );
   });
 
+  group('a thread', () {
+    BattleState playThreadRooms() => applyAll(foundBattle(), [
+      event('round:start', 2, {
+        'roundNo': 1,
+        'gameType': 'THREAD',
+        'roomCount': 5,
+        'room': {
+          'room': 0,
+          'question': 'من فاز بنهائي 2014؟',
+          'jumping': false,
+          'hintAt': '2026-11-12T10:00:20.000Z',
+        },
+        'roundDeadlineAt': '2026-11-12T10:02:30.000Z',
+        'jumpsLeft': 1,
+      }),
+      event('thread:locked', 3, {
+        'roundNo': 1,
+        'participantId': 'p-human',
+        'lockedUntil': '2026-11-12T10:00:13.000Z',
+      }),
+      event('thread:progress', 4, {
+        'roundNo': 1,
+        'participantId': 'p-bot',
+        'room': 1,
+        'jumped': false,
+      }),
+      event('thread:progress', 5, {
+        'roundNo': 1,
+        'participantId': 'p-human',
+        'room': 1,
+        'jumped': false,
+        'question': {
+          'room': 1,
+          'question': 'من واجههم في ذلك النهائي؟',
+          'jumping': false,
+          'hintAt': '2026-11-12T10:00:35.000Z',
+        },
+      }),
+    ]);
+
+    test(
+      'my right answer brings my next question; the bot shows only as a room number',
+      () {
+        final round = playThreadRooms().currentRound! as ThreadRound;
+        expect(round.yourRoom?.room, 1);
+        expect(round.yourRoom?.question, 'من واجههم في ذلك النهائي؟');
+        expect(round.yourLockedUntil, isNull);
+        expect(round.roomsByParticipant, {'p-human': 1, 'p-bot': 1});
+      },
+    );
+
+    test(
+      'a jump marks me as jumping and spends it; a wrong answer then ends the jump',
+      () {
+        final jumped = applyAll(playThreadRooms(), [
+          event('thread:jumped', 6, {
+            'roundNo': 1,
+            'participantId': 'p-human',
+            'room': 1,
+          }),
+        ]);
+        final jumping = jumped.currentRound! as ThreadRound;
+        expect(jumping.jumpsLeft, 0);
+        expect(jumping.yourRoom?.isJumping, isTrue);
+
+        final missed =
+            applyAll(jumped, [
+                  event('thread:locked', 7, {
+                    'roundNo': 1,
+                    'participantId': 'p-human',
+                    'lockedUntil': '2026-11-12T10:00:40.000Z',
+                  }),
+                  event('thread:hint', 8, {
+                    'roundNo': 1,
+                    'participantId': 'p-human',
+                    'room': 1,
+                    'letter': 'أ',
+                  }),
+                ]).currentRound!
+                as ThreadRound;
+        expect(missed.yourRoom?.isJumping, isFalse);
+        expect(missed.yourLockedUntil, DateTime.utc(2026, 11, 12, 10, 0, 40));
+        expect(missed.yourRoom?.letter, 'أ');
+      },
+    );
+
+    test(
+      'a snapshot restores my room, the rooms of everyone and my lockout',
+      () {
+        final restored = applyBattleSnapshot(playThreadRooms(), {
+          'status': 'IN_PROGRESS',
+          'gameType': 'THREAD',
+          'mode': 'MATCHMAKING',
+          'players': [humanPlayerJson, botPlayerJson],
+          'currentRound': {
+            'roundNo': 1,
+            'roomCount': 5,
+            'room': {
+              'room': 3,
+              'question': 'ما جنسيته؟',
+              'jumping': false,
+              'hintAt': null,
+              'letter': 'إ',
+            },
+            'jumpsLeft': 0,
+            'lockedUntil': '2026-11-12T10:01:00.000Z',
+            'rooms': {'p-human': 3, 'p-bot': 4},
+            'roundDeadlineAt': '2026-11-12T10:02:30.000Z',
+            'phase': 'OPEN',
+          },
+          'rounds': <Object>[],
+          'scores': <Object>[],
+          'seq': 9,
+        });
+        final round = restored.currentRound! as ThreadRound;
+        expect(round.yourRoom?.letter, 'إ');
+        expect(round.roomsByParticipant['p-bot'], 4);
+        expect(round.yourLockedUntil, DateTime.utc(2026, 11, 12, 10, 1));
+        expect(round.isClosed, isFalse);
+      },
+    );
+  });
+
   group('a bridge board', () {
     final clubs = [
       for (var index = 0; index < 9; index++)

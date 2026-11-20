@@ -248,6 +248,74 @@ void main() {
   );
 
   test(
+    'thread events read the room, progress with and without a question, lockouts and hints',
+    () {
+      final started =
+          parseBattleServerEvent(
+                'round:start',
+                battleEnvelope('round:start', 2, {
+                  'roundNo': 1,
+                  'gameType': 'THREAD',
+                  'roomCount': 5,
+                  'room': {
+                    'room': 0,
+                    'question': 'Who won the 2014 final?',
+                    'jumping': false,
+                    'hintAt': '2026-11-12T10:00:20.000Z',
+                  },
+                  'roundDeadlineAt': '2026-11-12T10:02:30.000Z',
+                  'jumpsLeft': 1,
+                }),
+              )
+              as ThreadRoundStarted;
+      expect(started.roomCount, 5);
+      expect(started.room.question, 'Who won the 2014 final?');
+      expect(started.room.hintAt, DateTime.utc(2026, 11, 12, 10, 0, 20));
+      expect(findGameTypeByCode('THREAD'), GameType.thread);
+      expect(convertGameTypeToCode(GameType.thread), 'THREAD');
+
+      final theirs =
+          parseBattleServerEvent(
+                'thread:progress',
+                battleEnvelope('thread:progress', 3, {
+                  'roundNo': 1,
+                  'participantId': 'p-bot',
+                  'room': 2,
+                  'jumped': true,
+                }),
+              )
+              as ThreadProgressed;
+      expect(theirs.question, isNull);
+      expect(theirs.hasJumped, isTrue);
+
+      final locked =
+          parseBattleServerEvent(
+                'thread:locked',
+                battleEnvelope('thread:locked', 4, {
+                  'roundNo': 1,
+                  'participantId': 'p-human',
+                  'lockedUntil': '2026-11-12T10:00:13.000Z',
+                }),
+              )
+              as ThreadLockedOut;
+      expect(locked.entity, isNull);
+
+      final hint =
+          parseBattleServerEvent(
+                'thread:hint',
+                battleEnvelope('thread:hint', 5, {
+                  'roundNo': 1,
+                  'participantId': 'p-human',
+                  'room': 0,
+                  'letter': 'R',
+                }),
+              )
+              as ThreadHinted;
+      expect(hint.letter, 'R');
+    },
+  );
+
+  test(
     'bridge events read the board, the question, and a right and a grey line',
     () {
       final started =

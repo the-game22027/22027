@@ -231,6 +231,19 @@ class BattleSessionController extends Notifier<BattleSessionState> {
         'answer': {'text': text},
       });
 
+  /// `thread:answer`: an answer to your current [room] (`08` §17.1). The ack's `data.result` is
+  /// `RIGHT` or `WRONG` with `lockedUntil`; your next room arrives in `thread:progress`.
+  Future<BattleCommandResult> answerInThread(int room, String text) =>
+      _sendRoundCommand('thread:answer', {
+        'room': room,
+        'answer': {'text': text},
+      });
+
+  /// `thread:jump`: once per thread, swap [room]'s question for its jump question (the ack's
+  /// `data.question`); a right answer skips two rooms.
+  Future<BattleCommandResult> jumpInThread(int room) =>
+      _sendRoundCommand('thread:jump', {'room': room});
+
   /// `bridge:pick`: the player on turn picks an open line of the board (`08` §16.1). The server
   /// refuses a drawn line (`LINE_TAKEN`) or one off the board (`INVALID_LINE`).
   Future<BattleCommandResult> pickBridgeLine(int line) =>
