@@ -1,7 +1,17 @@
 import { createHash } from 'node:crypto';
 import { type Locale, LOCALES } from '@shared/kernel';
 
-export const GAME_TYPES = ['BUZZER', 'CAREER', 'WHO_IS_PLAYER', 'GRID', 'MINES', 'AUCTION', 'VAULT', 'HEX'] as const;
+export const GAME_TYPES = [
+  'BUZZER',
+  'CAREER',
+  'WHO_IS_PLAYER',
+  'GRID',
+  'MINES',
+  'AUCTION',
+  'VAULT',
+  'HEX',
+  'LINEUP',
+] as const;
 export type GameType = (typeof GAME_TYPES)[number];
 
 /** Kinds of answer catalog entities (08 §5). */
@@ -63,6 +73,19 @@ export interface HexCell {
   questions: AuctionList[];
 }
 
+export const LINEUP_LINES = ['GK', 'DEF', 'MID', 'FWD'] as const;
+export type LineupLine = (typeof LINEUP_LINES)[number];
+
+/** One slot of a LINEUP formation (08 §14.4): where it is drawn and who started there. */
+export interface LineupSlot {
+  line: LineupLine;
+  /** A role code the app translates (`CB`, `LW`), or null when the source only knows the line. */
+  role: string | null;
+  shirtNumber: number | null;
+  captain: boolean;
+  player: string;
+}
+
 /** The game-specific part of a round (08 §4). Entities are referenced by catalog `externalRef`. */
 export type GameBody =
   | {
@@ -82,7 +105,8 @@ export type GameBody =
   | { gameType: 'MINES'; criteria: MinesCriterion[] }
   | { gameType: 'AUCTION'; lists: AuctionList[] }
   | { gameType: 'VAULT'; questions: VaultQuestion[] }
-  | { gameType: 'HEX'; size: number; cells: HexCell[] };
+  | { gameType: 'HEX'; size: number; cells: HexCell[] }
+  | { gameType: 'LINEUP'; title: LocalizedText; slots: LineupSlot[]; shown: string[]; fake: string };
 
 /** Accepted answers of one slot: slot 0 for reveal games, 0..8 for grid cells (row * 3 + col). */
 export interface AnswerSlot {
@@ -133,6 +157,8 @@ export function localesOfQuestion(content: QuestionContent): Locale[] {
       return LOCALES.filter((locale) => body.lists.every((list) => list.title[locale] !== undefined)).sort();
     case 'VAULT':
       return LOCALES.filter((locale) => body.questions.every((question) => question.text[locale] !== undefined)).sort();
+    case 'LINEUP':
+      return LOCALES.filter((locale) => body.title[locale] !== undefined).sort();
     case 'HEX':
       return LOCALES.filter((locale) =>
         body.cells.every(
@@ -166,6 +192,8 @@ export function summaryTextOfQuestion(content: QuestionContent, locale: Locale):
       return body.questions.map((question) => question.text[locale] ?? '').join(' · ');
     case 'HEX':
       return body.cells.map((cell) => cell.letter[locale] ?? '').join(' ');
+    case 'LINEUP':
+      return body.title[locale] ?? '';
     case 'CAREER':
     case 'GRID':
     case 'MINES':

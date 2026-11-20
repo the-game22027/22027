@@ -457,6 +457,159 @@ void main() {
     });
   });
 
+  group('a lineup round', () {
+    Map<String, Object?> slot(int index, String line, {bool captain = false}) =>
+        {'slot': index, 'line': line, 'role': null, 'captain': captain};
+    final slots = [
+      slot(0, 'GK'),
+      for (var index = 1; index <= 4; index++) slot(index, 'DEF'),
+      slot(5, 'MID', captain: true),
+      for (var index = 6; index <= 7; index++) slot(index, 'MID'),
+      for (var index = 8; index <= 10; index++) slot(index, 'FWD'),
+    ];
+    final shown = [
+      {'entityId': 'p1', 'name': 'لاعب ١'},
+      {'entityId': 'fake', 'name': 'البديل'},
+      {'entityId': 'p2', 'name': 'لاعب ٢'},
+    ];
+    BattleState playLineupRound() => applyAll(foundBattle(), [
+      event('round:start', 2, {
+        'roundNo': 1,
+        'gameType': 'LINEUP',
+        'title': 'ليفربول أمام توتنهام، النهائي',
+        'slots': slots,
+        'shown': shown,
+        'roundDeadlineAt': '2026-11-12T10:01:00.000Z',
+        'hintsAt': '2026-11-12T10:00:30.000Z',
+      }),
+      event('lineup:placed', 3, {
+        'roundNo': 1,
+        'slot': 5,
+        'player': {'entityId': 'p5', 'name': 'القائد'},
+        'participantId': 'p-bot',
+      }),
+      event('lineup:hint', 4, {
+        'roundNo': 1,
+        'letters': [
+          {'slot': 0, 'letter': 'أ'},
+          {'slot': 3, 'letter': 'م'},
+        ],
+      }),
+    ]);
+
+    test('the formation, the shown names, a placed captain and the hints', () {
+      final round = playLineupRound().currentRound! as LineupRound;
+      expect(round.title, contains('النهائي'));
+      expect(round.slots, hasLength(11));
+      expect(round.slots[5].spec.isCaptain, isTrue);
+      expect(round.slots[5].placed?.name, 'القائد');
+      expect(round.slots[5].placedBy, 'p-bot');
+      expect(round.shown.map((name) => name.entityId), ['p1', 'fake', 'p2']);
+      expect(round.letters, {0: 'أ', 3: 'م'});
+      expect(round.hasUsedYourAccusation, isFalse);
+    });
+
+    test(
+      'a placed name drops its hint; unmasking the fake places the real shown names for nobody',
+      () {
+        final state = applyAll(playLineupRound(), [
+          event('lineup:placed', 5, {
+            'roundNo': 1,
+            'slot': 3,
+            'player': {'entityId': 'p3', 'name': 'مدافع'},
+            'participantId': 'p-human',
+          }),
+          event('lineup:accused', 6, {
+            'roundNo': 1,
+            'participantId': 'p-human',
+            'right': true,
+            'player': {'entityId': 'fake', 'name': 'البديل'},
+          }),
+          event('lineup:placed', 7, {
+            'roundNo': 1,
+            'slot': 1,
+            'player': {'entityId': 'p1', 'name': 'لاعب ١'},
+            'participantId': null,
+          }),
+        ]);
+        final round = state.currentRound! as LineupRound;
+        expect(round.letters, {0: 'أ'});
+        expect(round.fake?.entityId, 'fake');
+        expect(round.fakeUnmaskedBy, 'p-human');
+        expect(round.hasUsedYourAccusation, isTrue);
+        expect(round.slots[1].placed?.entityId, 'p1');
+        expect(round.slots[1].placedBy, isNull);
+      },
+    );
+
+    test(
+      "the opponent's wrong accusation names nobody and leaves your accusation",
+      () {
+        final state = applyAll(playLineupRound(), [
+          event('lineup:accused', 5, {
+            'roundNo': 1,
+            'participantId': 'p-bot',
+            'right': false,
+          }),
+        ]);
+        final round = state.currentRound! as LineupRound;
+        expect(round.fake, isNull);
+        expect(round.hasUsedYourAccusation, isFalse);
+      },
+    );
+
+    test(
+      'a snapshot restores placed names, hints, the fake and your own state',
+      () {
+        final restored = applyBattleSnapshot(playLineupRound(), {
+          'status': 'IN_PROGRESS',
+          'gameType': 'LINEUP',
+          'mode': 'MATCHMAKING',
+          'players': [humanPlayerJson, botPlayerJson],
+          'currentRound': {
+            'roundNo': 1,
+            'title': 'ليفربول أمام توتنهام، النهائي',
+            'slots': [
+              for (final entry in slots)
+                {
+                  ...entry,
+                  'placed': entry['slot'] == 5
+                      ? {
+                          'player': {'entityId': 'p5', 'name': 'القائد'},
+                          'participantId': 'p-bot',
+                        }
+                      : null,
+                },
+            ],
+            'shown': shown,
+            'fake': {
+              'player': {'entityId': 'fake', 'name': 'البديل'},
+              'unmaskedBy': 'p-bot',
+            },
+            'hints': [
+              {'slot': 0, 'letter': 'أ'},
+            ],
+            'lockedUntil': '2026-11-12T10:00:20.000Z',
+            'accusationUsed': true,
+            'points': {'p-bot': 5},
+            'roundDeadlineAt': '2026-11-12T10:01:00.000Z',
+            'hintsAt': null,
+          },
+          'rounds': <Object>[],
+          'scores': <Object>[],
+          'seq': 8,
+        });
+        final round = restored.currentRound! as LineupRound;
+        expect(round.slots[5].placed?.name, 'القائد');
+        expect(round.slots[0].placed, isNull);
+        expect(round.fakeUnmaskedBy, 'p-bot');
+        expect(round.letters, {0: 'أ'});
+        expect(round.yourLockedUntil, DateTime.utc(2026, 11, 12, 10, 0, 20));
+        expect(round.hasUsedYourAccusation, isTrue);
+      },
+    );
+  });
+
   group('a vault round', () {
     BattleState playVaultRound() => applyAll(foundBattle(), [
       event('round:start', 2, {

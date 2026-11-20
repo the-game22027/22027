@@ -310,6 +310,63 @@ void main() {
   );
 
   test(
+    'a lineup answer keeps your lockout and your spent accusation from the ack',
+    () async {
+      final container = await createContainer();
+      final controller = controllerOf(container);
+
+      await receiveBattleFound(container);
+      socket.receive(
+        'round:start',
+        battleEnvelope('round:start', 2, {
+          'roundNo': 1,
+          'gameType': 'LINEUP',
+          'title': 'final',
+          'slots': [
+            for (var index = 0; index < 11; index++)
+              {'slot': index, 'line': 'DEF', 'role': null, 'captain': false},
+          ],
+          'shown': [
+            {'entityId': 'p1', 'name': 'One'},
+            {'entityId': 'fake', 'name': 'Bench'},
+            {'entityId': 'p2', 'name': 'Two'},
+          ],
+          'roundDeadlineAt': '2026-11-12T10:01:00.000Z',
+          'hintsAt': null,
+        }),
+      );
+      await pumpEventQueue();
+      socket.answerCommand = (_, payload) => BattleCommandAccepted({
+        ...payload,
+        'accepted': true,
+        'data': {'result': 'ACCUSED_WRONG', 'lockedUntil': null},
+      });
+      await controller.answerInLineup('One');
+
+      final (event, payload) = socket.sentCommands.last;
+      expect(event, 'lineup:answer');
+      expect(payload['answer'], {'text': 'One'});
+      expect(payload['roundNo'], 1);
+      var round =
+          container.read(battleSessionProvider).battle!.currentRound!
+              as LineupRound;
+      expect(round.hasUsedYourAccusation, isTrue);
+      expect(round.yourLockedUntil, isNull);
+
+      socket.answerCommand = (_, payload) => BattleCommandAccepted({
+        ...payload,
+        'accepted': true,
+        'data': {'result': 'WRONG', 'lockedUntil': '2026-11-12T10:00:12.000Z'},
+      });
+      await controller.answerInLineup('Nobody');
+      round =
+          container.read(battleSessionProvider).battle!.currentRound!
+              as LineupRound;
+      expect(round.yourLockedUntil, DateTime.utc(2026, 11, 12, 10, 0, 12));
+    },
+  );
+
+  test(
     'a mine bury keeps the mines from the ack and counts wrong tries',
     () async {
       final container = await createContainer();

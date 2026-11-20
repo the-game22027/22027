@@ -3,7 +3,14 @@ import { z } from 'zod';
 import { type Locale, LOCALES } from '@shared/kernel';
 import type { CatalogEntity } from '../domain/answer-catalog';
 import { InvalidBundleError } from '../domain/question-bank-errors';
-import { ANSWER_KINDS, type BundleQuestion, ENTITY_KINDS, type GameBody } from '../domain/question-content';
+import {
+  ANSWER_KINDS,
+  type BundleQuestion,
+  ENTITY_KINDS,
+  GAME_TYPES,
+  type GameBody,
+  LINEUP_LINES,
+} from '../domain/question-content';
 import { findQuestionProblems, findRepeatedValues } from '../domain/question-rules';
 
 const nonEmpty = z.string().trim().min(1);
@@ -71,7 +78,7 @@ const minesCriterion = z.union([
 const gameLineSchema = z.strictObject({
   ...commonLineFields,
   type: z.literal('GAME'),
-  gameType: z.enum(['BUZZER', 'CAREER', 'WHO_IS_PLAYER', 'GRID', 'MINES', 'AUCTION', 'VAULT', 'HEX']),
+  gameType: z.enum(GAME_TYPES),
   content: z.record(z.string(), z.unknown()),
   answers: z.array(z.strictObject({ slot: z.number().int(), entities: z.array(externalRef) })).default([]),
 });
@@ -109,6 +116,20 @@ const gameBodySchemas = {
         questions: z.array(z.strictObject({ kind: nonEmpty, title: localizedText })),
       }),
     ),
+  }),
+  LINEUP: z.strictObject({
+    title: localizedText,
+    slots: z.array(
+      z.strictObject({
+        line: z.enum(LINEUP_LINES),
+        role: nonEmpty.nullable(),
+        shirtNumber: z.number().int().nullable(),
+        captain: z.boolean(),
+        player: externalRef,
+      }),
+    ),
+    shown: z.array(externalRef),
+    fake: externalRef,
   }),
   VAULT: z.strictObject({
     questions: z.array(z.strictObject({ template: nonEmpty, text: localizedText, answerNumber: z.number().int() })),
@@ -216,6 +237,10 @@ const toGameBody = (gameType: GameBody['gameType'], content: unknown): { body: G
     }
     case 'HEX': {
       const result = gameBodySchemas.HEX.safeParse(content);
+      return result.success ? { body: { gameType, ...result.data } } : { issues: describeIssues(result.error) };
+    }
+    case 'LINEUP': {
+      const result = gameBodySchemas.LINEUP.safeParse(content);
       return result.success ? { body: { gameType, ...result.data } } : { issues: describeIssues(result.error) };
     }
     case 'VAULT': {

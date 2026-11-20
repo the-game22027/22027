@@ -482,7 +482,7 @@ battle_rounds (
   started_at timestamptz NULL, closed_at timestamptz NULL,
   steps_revealed smallint NULL,         -- reveal-and-buzz: how far the reveal got
   winner_participant_id uuid NULL FK → battle_participants,   -- NULL = nobody won / grid draw
-  end_reason text NULL,                 -- CORRECT | NO_WINNER | ALL_LOCKED_OUT | GRID_LINE | GRID_FULL | MAX_TURNS | SKIP_LIMIT | LAST_HEART | NO_SAFE_ANSWERS | PROVED | STOLEN | BUST | FORFEIT
+  end_reason text NULL,                 -- CORRECT | NO_WINNER | ALL_LOCKED_OUT | GRID_LINE | GRID_FULL | MAX_TURNS | SKIP_LIMIT | LAST_HEART | NO_SAFE_ANSWERS | PROVED | STOLEN | BUST | OPENED | CONNECTED | LINEUP_COMPLETE | TIME_UP | FORFEIT
   PRIMARY KEY (battle_id, round_no),
   UNIQUE (battle_id, question_id)       -- no repeated content inside one battle
 )
@@ -490,7 +490,7 @@ battle_round_actions (                  -- everything players did in a round, in
   battle_id uuid, round_no smallint,
   action_no smallint,                   -- 1, 2, 3... per round: the engine's acceptance order
   participant_id uuid FK → battle_participants,
-  kind text,                            -- BUZZ | ANSWER | ANSWER_TIMEOUT | GRID_CLAIM | GRID_SKIP | TURN_TIMEOUT | MINE_BURY | MINE_AUTO_BURY | MINE_ANSWER | MINE_HIT | MINE_SCAN | AUCTION_PICK | AUCTION_BID | AUCTION_CALL | AUCTION_ANSWER | AUCTION_STEAL
+  kind text,                            -- BUZZ | ANSWER | ANSWER_TIMEOUT | GRID_CLAIM | GRID_SKIP | TURN_TIMEOUT | MINE_BURY | MINE_AUTO_BURY | MINE_ANSWER | MINE_HIT | MINE_SCAN | AUCTION_PICK | AUCTION_BID | AUCTION_CALL | AUCTION_ANSWER | AUCTION_STEAL | VAULT_TRY | HEX_PICK | HEX_CLEAR | HEX_ANSWER | LINEUP_ANSWER | LINEUP_ACCUSE
   entity_id uuid NULL FK → answer_entities,   -- ANSWER / GRID_CLAIM: the entity the text matched
   answer_text text NULL,                -- what the player typed (humans); never shown to others
   answer_match text NULL,               -- EXACT | TYPO | OTHER_ENTITY | NONE: for tuning the tolerance

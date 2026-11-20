@@ -347,6 +347,20 @@ export class BattleEngine implements OnApplicationBootstrap, BeforeApplicationSh
     );
   }
 
+  /** `lineup:answer` (08 §14.3). */
+  sendLineupAnswer(
+    battleId: string,
+    userId: string,
+    socketId: string,
+    roundNo: number,
+    text: string,
+    clientMsgId: string,
+  ): Promise<Ack> {
+    return this.withBattle(battleId, clientMsgId, (battle) =>
+      battle.roundCommand(userId, socketId, roundNo, { type: 'LINEUP_ANSWER', answer: { text } }, clientMsgId),
+    );
+  }
+
   /** `vault:try` (08 §12.3). */
   sendVaultTry(
     battleId: string,

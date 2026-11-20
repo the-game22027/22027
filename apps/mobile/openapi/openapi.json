@@ -310,7 +310,8 @@
               "MINES",
               "AUCTION",
               "VAULT",
-              "HEX"
+              "HEX",
+              "LINEUP"
             ],
             "type": "string"
           }
@@ -604,7 +605,8 @@
               "MINES",
               "AUCTION",
               "VAULT",
-              "HEX"
+              "HEX",
+              "LINEUP"
             ],
             "type": "string"
           },

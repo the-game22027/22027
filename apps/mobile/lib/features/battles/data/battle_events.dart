@@ -11,6 +11,7 @@ enum GameType {
   auction,
   vault,
   hex,
+  lineup,
   unknown,
 }
 
@@ -23,6 +24,7 @@ GameType findGameTypeByCode(String code) => switch (code) {
   'AUCTION' => GameType.auction,
   'VAULT' => GameType.vault,
   'HEX' => GameType.hex,
+  'LINEUP' => GameType.lineup,
   _ => GameType.unknown,
 };
 
@@ -35,6 +37,7 @@ String convertGameTypeToCode(GameType gameType) => switch (gameType) {
   GameType.auction => 'AUCTION',
   GameType.vault => 'VAULT',
   GameType.hex => 'HEX',
+  GameType.lineup => 'LINEUP',
   GameType.unknown => throw ArgumentError('unknown game type has no code'),
 };
 
@@ -781,6 +784,126 @@ class HexRaceExpired extends BattleServerEvent {
   final List<EntityRef> rightNames;
 }
 
+/// One slot of a `LINEUP` formation: where the app draws it. Names stay on the server until placed.
+class LineupSlotSpec {
+  const LineupSlotSpec({
+    required this.slot,
+    required this.line,
+    required this.isCaptain,
+    this.role,
+  });
+
+  final int slot;
+
+  /// `GK`, `DEF`, `MID` or `FWD`.
+  final String line;
+
+  /// A role code to translate (`CB`, `LW`), or null when the source only knows the line.
+  final String? role;
+
+  /// The armband: this slot's player is worth more.
+  final bool isCaptain;
+}
+
+/// `round:start` of a `LINEUP` round: one team's XI in a famous match (`08` §14.1).
+class LineupRoundStarted extends BattleServerEvent {
+  const LineupRoundStarted({
+    required super.serverTime,
+    required super.battleId,
+    required super.seq,
+    required this.roundNo,
+    required this.title,
+    required this.slots,
+    required this.shown,
+    required this.roundDeadlineAt,
+    this.hintsAt,
+  });
+
+  final int roundNo;
+
+  /// The match and the team, in the viewer's language.
+  final String title;
+  final List<LineupSlotSpec> slots;
+
+  /// Three names beside the pitch; one of them was on the bench (the fake).
+  final List<EntityRef> shown;
+  final DateTime roundDeadlineAt;
+
+  /// When the first letters come out; null when the round has no hints.
+  final DateTime? hintsAt;
+}
+
+/// `lineup:placed`: a name went on the board. [participantId] is null for the real shown names
+/// placed after the fake was unmasked.
+class LineupNamePlaced extends BattleServerEvent {
+  const LineupNamePlaced({
+    required super.serverTime,
+    required super.battleId,
+    required super.seq,
+    required this.roundNo,
+    required this.slot,
+    required this.player,
+    this.participantId,
+  });
+
+  final int roundNo;
+  final int slot;
+  final EntityRef player;
+  final String? participantId;
+}
+
+/// `lineup:wrong`: a name that is not in the XI; that player is locked out for a moment.
+class LineupWrongName extends BattleServerEvent {
+  const LineupWrongName({
+    required super.serverTime,
+    required super.battleId,
+    required super.seq,
+    required this.roundNo,
+    required this.participantId,
+    this.player,
+  });
+
+  final int roundNo;
+  final String participantId;
+
+  /// The player the name matched, only when `showWrongAnswers` is on; never the typed text.
+  final EntityRef? player;
+}
+
+/// `lineup:accused`: someone typed a shown name. [player] (the fake) only when the accusation was right.
+class LineupAccused extends BattleServerEvent {
+  const LineupAccused({
+    required super.serverTime,
+    required super.battleId,
+    required super.seq,
+    required this.roundNo,
+    required this.participantId,
+    required this.isRight,
+    this.player,
+  });
+
+  final int roundNo;
+  final String participantId;
+  final bool isRight;
+  final EntityRef? player;
+}
+
+/// `lineup:hint`: the first letter of each empty slot's player, in the viewer's language.
+class LineupHintsGiven extends BattleServerEvent {
+  const LineupHintsGiven({
+    required super.serverTime,
+    required super.battleId,
+    required super.seq,
+    required this.roundNo,
+    required this.letters,
+  });
+
+  final int roundNo;
+
+  /// Slot → letter.
+  final Map<int, String> letters;
+}
+
 /// `round:start` of a `VAULT` round: one question per digit of the code (`08` §12.1).
 class VaultRoundStarted extends BattleServerEvent {
   const VaultRoundStarted({
@@ -1166,6 +1289,22 @@ BattleServerEvent parseBattleServerEvent(String eventName, Object? payload) {
         decidedBy: data.readOptionalString('decidedBy'),
       );
     case 'round:start':
+      if (data.json.containsKey('shown')) {
+        return LineupRoundStarted(
+          serverTime: serverTime,
+          battleId: id,
+          seq: sequence,
+          roundNo: data.readInt('roundNo'),
+          title: data.readString('title'),
+          slots: readLineupSlots(data.readObjectList('slots')),
+          shown: [
+            for (final name in data.readObjectList('shown'))
+              _readEntityRef(name),
+          ],
+          roundDeadlineAt: data.readTimestamp('roundDeadlineAt'),
+          hintsAt: data.readOptionalTimestamp('hintsAt'),
+        );
+      }
       if (data.json.containsKey('sides')) {
         return HexRoundStarted(
           serverTime: serverTime,
@@ -1439,6 +1578,45 @@ BattleServerEvent parseBattleServerEvent(String eventName, Object? payload) {
             _readEntityRef(name),
         ],
       );
+    case 'lineup:placed':
+      return LineupNamePlaced(
+        serverTime: serverTime,
+        battleId: id,
+        seq: sequence,
+        roundNo: data.readInt('roundNo'),
+        slot: data.readInt('slot'),
+        player: _readEntityRef(data.readObject('player')),
+        participantId: data.readOptionalString('participantId'),
+      );
+    case 'lineup:wrong':
+      final wrongName = data.readOptionalObject('player');
+      return LineupWrongName(
+        serverTime: serverTime,
+        battleId: id,
+        seq: sequence,
+        roundNo: data.readInt('roundNo'),
+        participantId: data.readString('participantId'),
+        player: wrongName == null ? null : _readEntityRef(wrongName),
+      );
+    case 'lineup:accused':
+      final fake = data.readOptionalObject('player');
+      return LineupAccused(
+        serverTime: serverTime,
+        battleId: id,
+        seq: sequence,
+        roundNo: data.readInt('roundNo'),
+        participantId: data.readString('participantId'),
+        isRight: data.readBool('right'),
+        player: fake == null ? null : _readEntityRef(fake),
+      );
+    case 'lineup:hint':
+      return LineupHintsGiven(
+        serverTime: serverTime,
+        battleId: id,
+        seq: sequence,
+        roundNo: data.readInt('roundNo'),
+        letters: readLineupLetters(data.readObjectList('letters')),
+      );
     case 'vault:tried':
       return VaultTried(
         serverTime: serverTime,
@@ -1709,6 +1887,21 @@ Map<String, int> readCountsByParticipant(
 };
 
 EntityRef readEntityRef(JsonObjectReader entity) => _readEntityRef(entity);
+
+List<LineupSlotSpec> readLineupSlots(List<JsonObjectReader> slots) => [
+  for (final slot in slots)
+    LineupSlotSpec(
+      slot: slot.readInt('slot'),
+      line: slot.readString('line'),
+      role: slot.readOptionalString('role'),
+      isCaptain: slot.readBool('captain'),
+    ),
+];
+
+Map<int, String> readLineupLetters(List<JsonObjectReader> letters) => {
+  for (final letter in letters)
+    letter.readInt('slot'): letter.readString('letter'),
+};
 
 GridCell readGridCell(JsonObjectReader cell) => _readCell(cell);
 

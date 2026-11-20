@@ -139,6 +139,30 @@ const vaultGame = z.strictObject({
   }),
 });
 
+const lineupGame = z.strictObject({
+  ...firstMoverFields,
+  enabled: z.boolean(),
+  roundCount: z.number().int().positive(),
+  roundMs: positiveMs,
+  lockoutMs: z.array(z.number().int().nonnegative()).min(1),
+  hints: z.strictObject({
+    firstAtMs: positiveMs,
+    everyMs: z.number().int().nonnegative(),
+    max: z.number().int().nonnegative(),
+  }),
+  accuse: z.strictObject({ perPlayer: z.number().int().nonnegative() }),
+  showWrongAnswers: z.boolean(),
+  points: z.strictObject({
+    correct: z.number().int(),
+    captain: z.number().int(),
+    accuseRight: z.number().int(),
+    accuseWrong: z.number().int(),
+  }),
+  selection: z.strictObject({
+    difficulties: z.array(z.number().int().min(1).max(5)).min(1).nullable(),
+  }),
+});
+
 const answers = z.strictObject({
   maxLength: z.number().int().positive(),
   typoTolerance: z
@@ -178,6 +202,7 @@ const settingsSchema = z
       AUCTION: auctionGame.optional(),
       VAULT: vaultGame.optional(),
       HEX: hexGame.optional(),
+      LINEUP: lineupGame.optional(),
     }),
   })
   .superRefine((settings, context) => {

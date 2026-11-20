@@ -294,6 +294,7 @@ class LiveBattleRun {
             }
           case final HexRound round:
             await _pickOrAnswerHex(battle, round);
+          case LineupRound():
           case null:
             break;
         }

@@ -69,6 +69,13 @@ def main(argv: list[str] | None = None) -> int:
         "--vault-max-per-template", type=int, default=2, help="most questions of one template in a VAULT"
     )
     bundle.add_argument("--hexes", type=int, default=0, help="HEX (الهجمة) boards")
+    bundle.add_argument("--lineups", type=int, default=0, help="LINEUP (التشكيلة) rounds: one team's XI each")
+    bundle.add_argument(
+        "--lineup-min-known",
+        type=int,
+        default=6,
+        help="fewest known players (sitelinks >= 40) in a LINEUP XI",
+    )
     bundle.add_argument(
         "--hex-questions-per-cell", type=int, default=3, help="questions behind each HEX cell"
     )
@@ -157,6 +164,8 @@ def main(argv: list[str] | None = None) -> int:
                 hex_count=args.hexes,
                 hex_questions_per_cell=args.hex_questions_per_cell,
                 hex_min_answers=args.hex_min_answers,
+                lineup_count=args.lineups,
+                lineup_min_known=args.lineup_min_known,
             )
             print(
                 f"{args.version}: {summary.question_count} rounds {summary.by_game_type}, "

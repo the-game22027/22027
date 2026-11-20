@@ -29,6 +29,8 @@ export const MAX_AUCTION_TITLE_LENGTH = 200;
 export const MIN_VAULT_QUESTIONS = 2;
 export const MAX_VAULT_QUESTIONS = 9;
 export const MAX_VAULT_QUESTION_LENGTH = 300;
+// A starting XI: football's rule, not a game setting.
+export const LINEUP_STARTERS = 11;
 export const MIN_HEX_SIZE = 3;
 export const MAX_HEX_SIZE = 7;
 
@@ -241,6 +243,31 @@ function findGameShapeProblems(content: GameContent): string[] {
       });
       if (answers.some((answer) => answer.slot < 0 || answer.slot >= body.cells.length * perCell)) {
         problems.push(`hex answer slots must be 0 to ${body.cells.length * perCell - 1}`);
+      }
+      break;
+    }
+    case 'LINEUP': {
+      for (const [locale, title] of Object.entries(body.title)) {
+        checkText(problems, `lineup ${locale} title`, title, MAX_QUESTION_TEXT_LENGTH);
+      }
+      const starters = body.slots.map((slot) => slot.player);
+      if (body.slots.length !== LINEUP_STARTERS) problems.push(`a lineup has ${LINEUP_STARTERS} slots`);
+      for (const repeated of findRepeatedValues(starters)) problems.push(`${repeated} starts in two slots`);
+      if (body.slots.filter((slot) => slot.captain).length > 1) problems.push('a lineup has at most one captain');
+      if (starters.includes(body.fake)) problems.push('the fake must not be a starter');
+      if (!body.shown.includes(body.fake)) problems.push('the fake must be one of the shown names');
+      for (const repeated of findRepeatedValues(body.shown)) problems.push(`${repeated} is shown twice`);
+      for (const name of body.shown) {
+        if (name !== body.fake && !starters.includes(name)) problems.push(`shown name ${name} is not a starter`);
+      }
+      const xi = answers.find((answer) => answer.slot === 0)?.entities ?? [];
+      const fakes = answers.find((answer) => answer.slot === 1)?.entities ?? [];
+      if (xi.length !== starters.length || starters.some((player) => !xi.includes(player))) {
+        problems.push('lineup slot 0 must hold exactly the starters');
+      }
+      if (fakes.length !== 1 || fakes[0] !== body.fake) problems.push('lineup slot 1 must hold exactly the fake');
+      if (answers.some((answer) => answer.slot !== 0 && answer.slot !== 1)) {
+        problems.push('lineup answer slots are 0 (the XI) and 1 (the fake)');
       }
       break;
     }

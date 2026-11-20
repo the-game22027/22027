@@ -20,7 +20,17 @@ export interface QuestionResult {
   stepsRevealed: number | null;
 }
 
-const ANSWERING_ACTIONS = new Set(['ANSWER', 'GRID_CLAIM', 'MINE_ANSWER', 'AUCTION_ANSWER']);
+// Every action that judges what a player knows: a wrong one is a wrong answer of the round (08 §12.7, §13.8, §14.7).
+const ANSWERING_ACTIONS = new Set([
+  'ANSWER',
+  'GRID_CLAIM',
+  'MINE_ANSWER',
+  'AUCTION_ANSWER',
+  'VAULT_TRY',
+  'HEX_ANSWER',
+  'LINEUP_ANSWER',
+  'LINEUP_ACCUSE',
+]);
 
 /**
  * What a round says about its question, counting humans only: a bot's answers come from its profile,

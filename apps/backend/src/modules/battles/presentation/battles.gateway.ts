@@ -263,6 +263,20 @@ export class BattlesGateway
     );
   }
 
+  @SubscribeMessage('lineup:answer')
+  answerInLineup(socket: Socket, body: unknown): Promise<Ack> {
+    return this.withPayload(minesTextCommand, body, (command) =>
+      this.engine.sendLineupAnswer(
+        command.battleId,
+        userIdOf(socket),
+        socket.id,
+        command.roundNo,
+        command.answer.text,
+        command.clientMsgId,
+      ),
+    );
+  }
+
   @SubscribeMessage('vault:try')
   tryVaultCode(socket: Socket, body: unknown): Promise<Ack> {
     return this.withPayload(vaultTryCommand, body, (command) =>

@@ -18,7 +18,7 @@ A football-focused **social gaming platform** (not a CRUD app, not a simple quiz
 - Friends (mutual), privacy-aware prediction visibility.
 - A fact-first football knowledge database that feeds an offline question generator.
 
-Current phase: **Phases 0-2, P3.1 (prediction submit), P5, D.1-D.2, D.3a-d (match data, goals, lineups), P6.1-P6.6, P7, and track N up to N4 implemented (N0 rock-paper-scissors first mover, N1 `MINES`, N2 `AUCTION`, N3 `VAULT`, N4 `HEX`); mobile M0-M1.5 done (data and application layers only, no new UI); DEC-44 done (a player never gets a seen question while unseen ones remain); next: N5 `LINEUP`, N6 `TIME_MACHINE`, N7 `THREAD`, then P8 private rooms (DEC-58 Imposter rules first) (prediction scoring P3.2+ postponed, see `docs/ROADMAP.md`)**. See `docs/ROADMAP.md`.
+Current phase: **Phases 0-2, P3.1 (prediction submit), P5, D.1-D.2, D.3a-d (match data, goals, lineups), P6.1-P6.6, P7, and track N up to N5 implemented (N0 rock-paper-scissors first mover, N1 `MINES`, N2 `AUCTION`, N3 `VAULT`, N4 `HEX`, N5 `LINEUP`); mobile M0-M1.5 done (data and application layers only, no new UI); DEC-44 done (a player never gets a seen question while unseen ones remain); next: N6 `TIME_MACHINE`, N7 `THREAD`, then P8 private rooms (DEC-58 Imposter rules first) (prediction scoring P3.2+ postponed, see `docs/ROADMAP.md`)**. See `docs/ROADMAP.md`.
 
 ## 2. Hard constraints (do not violate)
 
@@ -147,9 +147,9 @@ Question bank (from `apps/backend`; available in every environment, not only dev
 
 ```bash
 npm run cli -- questions:import ../../data/bundles/dev-0001   # validate + import a bundle; re-import is a no-op
-npm run cli -- questions:import ../../data/bundles/dev-0009   # generated game content + its catalog (07 §5.8), MINES, AUCTION, VAULT and HEX included
-npm run cli -- questions:publish dev-0009                     # APPROVED questions of that bundle → PUBLISHED (battles pick only these)
-npm run cli -- questions:publish dev-0009 --include-drafts    # development: also the unreviewed rounds (refused in production)
+npm run cli -- questions:import ../../data/bundles/dev-0010   # generated game content + its catalog (07 §5.8), MINES, AUCTION, VAULT, HEX and LINEUP included
+npm run cli -- questions:publish dev-0010                     # APPROVED questions of that bundle → PUBLISHED (battles pick only these)
+npm run cli -- questions:publish dev-0010 --include-drafts    # development: also the unreviewed rounds (refused in production)
 npm run cli -- questions:disable <questionId> --reason "…"     # battles stop picking it at once
 npm run cli -- questions:reports [--limit 20]                  # most reported questions with their latest reasons (08 §5.7)
 python3 -I ../../data/generate/dev_bundle.py                  # rebuild the hand-written dev bundle (bump its version first)
@@ -170,10 +170,10 @@ python3 -m venv .venv && .venv/bin/pip install 'psycopg[binary]>=3.2' pytest ruf
 .venv/bin/python -m kb ingest --scope config/scope.toml           # 9 leagues; --refresh refetches from Wikidata
 .venv/bin/python -m kb sources:fetch                             # D.3a: download config/sources.toml files into raw_downloads/ and load raw.*; --source <id>, --refresh
 .venv/bin/python -m kb link                                      # D.3b: source ids → Wikidata entities (core.entity_xref); --source transfermarkt|fjelstul; run again after every ingest; unlinked ids → .out/link-review-<source>.csv
-.venv/bin/python -m kb ingest:matches                            # D.3c/d: claims → core.match (resolved results), core.goal and core.lineup_slot, offline; rerun after ingest or link
+.venv/bin/python -m kb ingest:matches                            # D.3c/d: claims → core.match (resolved results), core.goal and core.lineup_slot (Transfermarkt, then Fjelstul World Cup lineups), offline; rerun after ingest or link
 .venv/bin/python -m kb names:missing --locale ar                  # entities without an Arabic name → .out/names-missing-ar.csv
 .venv/bin/python -m kb catalog --out .out/catalog                 # write catalog.jsonl
-.venv/bin/python -m kb bundle --version dev-0010 --out bundles/dev-0010 --careers 60 --buzzers 60 --who 60 --grids 30 --mines 40 --auctions 60 --vaults 60 --hexes 30 --catalog-min-player-sitelinks 40   # generated bundle (07 §5.8)
+.venv/bin/python -m kb bundle --version dev-0011 --out bundles/dev-0011 --careers 60 --buzzers 60 --who 60 --grids 30 --mines 40 --auctions 60 --vaults 60 --hexes 30 --lineups 60 --catalog-min-player-sitelinks 40   # generated bundle (07 §5.8)
 FOOTBALL_KB_TEST_URL=postgresql://game:game@localhost:5440/football_kb_test .venv/bin/python -m pytest   # needs CREATE DATABASE football_kb_test once
 .venv/bin/ruff check . && .venv/bin/ruff format --check .
 ```

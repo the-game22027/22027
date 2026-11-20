@@ -1,5 +1,13 @@
 import type { Locale } from '@shared/kernel';
-import type { AnswerKind, GameBody, GameType, GridCriterion, LocalizedText, MinesCriterion } from './question-content';
+import type {
+  AnswerKind,
+  GameBody,
+  GameType,
+  GridCriterion,
+  LineupLine,
+  LocalizedText,
+  MinesCriterion,
+} from './question-content';
 
 export interface EngineGridCriterion {
   kind: GridCriterion['kind'];
@@ -32,6 +40,19 @@ export type EngineGameBody =
       gameType: 'HEX';
       size: number;
       cells: { letter: LocalizedText; questions: { kind: string; title: LocalizedText }[] }[];
+    }
+  | {
+      gameType: 'LINEUP';
+      title: LocalizedText;
+      slots: {
+        line: LineupLine;
+        role: string | null;
+        shirtNumber: number | null;
+        captain: boolean;
+        playerEntityId: string;
+      }[];
+      shownEntityIds: string[];
+      fakeEntityId: string;
     };
 
 /** Everything the engine needs to play one round. Server side only: never sent to a client as is. */
@@ -61,6 +82,8 @@ export function listEntityReferencesOfBody(body: GameBody): string[] {
       return [...body.rows, ...body.cols].map((criterion) => criterion.entity);
     case 'MINES':
       return body.criteria.flatMap((criterion) => ('entity' in criterion ? [criterion.entity] : []));
+    case 'LINEUP':
+      return [...body.slots.map((slot) => slot.player), body.fake];
   }
 }
 
@@ -135,6 +158,14 @@ export function toEngineBody(
             title: keepLocales(question.title, locales),
           })),
         })),
+      };
+    case 'LINEUP':
+      return {
+        gameType: 'LINEUP',
+        title: keepLocales(body.title, locales),
+        slots: body.slots.map(({ player, ...slot }) => ({ ...slot, playerEntityId: idOf(player) })),
+        shownEntityIds: body.shown.map(idOf),
+        fakeEntityId: idOf(body.fake),
       };
     case 'VAULT':
       return {
