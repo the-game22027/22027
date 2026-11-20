@@ -1105,6 +1105,8 @@ Refusals: `NOT_YOUR_TURN`, `LINE_TAKEN`, `INVALID_LINE`, `PICK_WINDOW_CLOSED`, `
 
 Chosen by the product owner on 2026-11-18 (demo page: https://claude.ai/artifact/S7aGkxim3RBeG3QwkE4ccD). One thread through five rooms. Both players race along the same thread at the same time. Each room's question points at the previous room's answer without naming it ("who set up that goal?"), so you cannot skip a link you do not know. First to the end of the thread wins it.
 
+**Built 2026-11-21** (as below; changes from the design are folded in: rooms are 0-based on the wire, a `thread:jumped` event, the jump ack carries the answer slot, each room carries its own `answerKind`, the reveal shows each room's hop instead of a source match).
+
 ### 17.1 A round (one thread)
 
 ```mermaid
@@ -1129,19 +1131,20 @@ stateDiagram-v2
 - Wrong answers are never shown to the opponent (`showWrongAnswers: false`): both players may be in the same room, and a wrong name would help the other rule it out (DEC-86).
 - The answers stay on the server until the reveal, which shows the whole thread: each room's question, answer and the match it comes from.
 
-### 17.3 Protocol (details in `api/WEBSOCKET.md` with the build)
+### 17.3 Protocol (`api/WEBSOCKET.md`)
 
 | Direction | Message | Purpose |
 |---|---|---|
-| C→S | `thread:answer { roundNo, room, answer: { text } }` | An answer to your current room (or to its jump question after `thread:jump`) |
+| C→S | `thread:answer { roundNo, room, answer: { text } }` | An answer to your current room, 0-based (or to its jump question after `thread:jump`) |
 | C→S | `thread:jump { roundNo, room }` | Swap your current room's question for its jump question |
 | S→C | ack of `thread:answer` | Only to the sender: `data: { result: RIGHT \| WRONG, lockedUntil? }` |
-| S→C | ack of `thread:jump` | Only to the sender: `data: { question }` |
-| S→C | `round:start` | `roomCount`, `room: { room: 1, question, hintAt }`, `roundDeadlineAt`, `jumpsLeft` (the same room 1 for both) |
-| S→C | `thread:progress` | `participantId`, `room`, `jumped`. To the mover it also carries their new `question` and `hintAt`; the opponent gets the room number only |
-| S→C | `thread:locked` | `participantId`, `lockedUntil` (both see lockouts, never the text) |
+| S→C | ack of `thread:jump` | Only to the sender: `data: { question, slot }` (the jump question; `slot` is the next room, whose answer it asks for) |
+| S→C | `round:start` | `roomCount`, `room: { room: 0, question, jumping, hintAt }`, `roundDeadlineAt`, `jumpsLeft` (the same room 0 for both) |
+| S→C | `thread:progress` | `participantId`, `room` (`roomCount` when finished), `jumped`. To the mover it also carries `question`: their new room `{ room, question, jumping, hintAt }`; the opponent gets the room number only |
+| S→C | `thread:locked` | `participantId`, `lockedUntil`, and `entity` (what the text matched) only when `showWrongAnswers` is on; the typed text is never sent |
+| S→C | `thread:jumped` | `participantId`, `room`: the opponent sees that the jump was used |
 | S→C | `thread:hint` | `participantId`, `room`; to that player also the `letter` |
-| S→C | `round:result` | `reveal: { rooms: [{ room, question, answer: EntityRef, source }], reached: { [participantId]: room } }` |
+| S→C | `round:result` | `reveal: { rooms: [{ room, hop, question, answer: EntityRef }], reached: { [participantId]: room } }` |
 
 - One event goes to every player with data per viewer, so private parts (your question, your letter) ride on events everyone receives and the `seq` stays continuous.
 - Refusals: `NOT_YOUR_ROOM`, `LOCKED_OUT`, `NO_JUMP_LEFT`, `JUMP_NOT_ALLOWED` (last room), `EMPTY_ANSWER`, `ROUND_CLOSED`.
@@ -1150,7 +1153,7 @@ stateDiagram-v2
 
 | `gameType` | Content | Accepted answers |
 |---|---|---|
-| `THREAD` | `{ rooms: [{ hop, text: LocalizedText, jumpText: LocalizedText \| null }] }` | slot `r` = exactly one entity: room `r`'s answer |
+| `THREAD` | `{ rooms: [{ hop, answerKind, text: LocalizedText, jumpText: LocalizedText \| null }] }` | slot `r` = exactly one entity of the room's `answerKind`: room `r`'s answer |
 
 **Hops (v1, from the data we have today):** every hop goes from the previous answer to exactly one new answer.
 
@@ -1169,6 +1172,9 @@ stateDiagram-v2
 - **A thread is valid when:** every room has exactly one answer given the room before it; the five answers are all different; every answer is a catalog entity with an English and an Arabic name; players are well known (`--thread-min-player-sitelinks`, default 30); no two rooms in a row use the same hop.
 - **Jump text:** each hop has a question form and a noun-phrase form ("the club they beat in that final"); the jump question is room `r + 1`'s question with room `r`'s noun phrase as its subject. Written by the generator in both languages.
 - **Difficulty:** from the least known answer of the thread.
+- **Import checks:** 3 to 7 rooms with text in the same locales; a jump question in every room but the last; exactly one answer per room, all different, each a catalog entity of its room's `answerKind`. Judging a room uses that kind for the "exactly another entity's name" rule (08 §5.3).
+- **Safety rules found while building:** a final with an own goal, a goal without a minute or a goal by an unlinked scorer has no scorer hops ("their first goal" would be unclear or wrong); two goals in the same minute have no first or last scorer; finals played over two legs are skipped; a final needs a winner (a shootout counts).
+- **Built 2026-11-21 (full catalog):** 313 threads from 154 finals at `--threads-per-final 3`, difficulty 1–5: 89, 104, 75, 34, 11. Hops used: `SCORED_IN_FINAL_AGAINST` 289, `CAPTAIN` 249, `FIRST_SCORER` 215, `FINAL_OPPONENT` 165, `NATIONALITY` 148, `LAST_SCORER` 102, `ASSIST` 84. Super cups count as finals.
 - **Coaches and venues:** the demo's "the coach of that team that night" needs coaches as catalog entities (Transfermarkt has 6,137 manager names as text, not linked yet) and stadiums as a new entity kind. They come as a later data slice with their own hops (DEC-86); v1 does without them.
 - **Measured on 2026-11-21 (dev knowledge base):** 2,266 tier-1 and tier-2 knockout matches (252 finals), 6,361 goals in them (3,945 with an assist), 3,571 team lineups with a captain, 46,709 players with one citizenship. A prototype walk over the v1 hops from the finals alone finds **7,740 five-room threads from 193 of 248 finals** (median 24 per final) with answers of 30+ sitelinks, and 5,867 from 166 finals at 50+.
 - **Variety:** threads of the same final share room 1, so the generator keeps at most `--threads-per-final` (default 3) per final, each different from room 2 on: about 580 threads from finals alone. Knockout rounds as room 1 ("the 2019 semi-final second leg") would multiply that, and are the first thing to add if the bank runs short.
@@ -1177,6 +1183,7 @@ stateDiagram-v2
 
 - It knows each room's answer with its chance at the thread's difficulty and answers after `typingDelayMs`; when it does not, it sends a wrong popular name now and then (and serves the lockout) or waits for the hint, which raises its chance.
 - It never jumps in v1 (`TODO(DEC-86)`).
+- Built: one try per room after `typingDelayMs`, another when the hint comes out (+0.3 chance); a wrong popular name of the room's kind with `guessChance`.
 
 ### 17.6 Configuration
 
@@ -1197,5 +1204,6 @@ stateDiagram-v2
 - **Rules:** pure `battles/domain/games/thread-rules.ts`: each participant's room, lockout (`LockoutLadder`, §9.2), hint due time (`HintSchedule`), jump state; the round ends at the last room or the deadline. `ThreadRoundRunner` wraps them (§2.4).
 - **Judging:** the room's answer slot with `AnswerChecker.judgeTypedText` (08 §5.3), like any slot game; no link graph.
 - **Timers:** one round deadline, one hint timer per participant.
-- **Actions:** `THREAD_ANSWER` (`slot` = room, `is_correct`), `THREAD_JUMP`. `THREAD_ANSWER` is an answering action for question stats.
+- **Actions:** `THREAD_ANSWER` (`cell` = the answer slot, `is_correct`), `THREAD_JUMP` (`cell` = the room). `THREAD_ANSWER` is an answering action for question stats.
+- **End:** `THREAD_COMPLETE`, `TIME_UP` or `FORFEIT` (no points on a forfeit).
 - **Snapshot `currentRound`:** your room, its question (or its jump question), your lockout and hint, `jumpsLeft`, and the opponent's room.
