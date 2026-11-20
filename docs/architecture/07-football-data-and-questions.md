@@ -448,6 +448,12 @@ Not used: StatsBomb open data (non-commercial), FBref and SofaScore (scraping fo
 - **Measured on 2026-11-20 (dev):** 71% of random 4 × 4 boards from the top 60 clubs pass without repair; median 31 answers per line, 7 on the hardest.
 - **Built 2026-11-21:** `kb/bridges.py`; flags `--bridges`, `--bridge-clubs`, `--bridge-size`, `--bridge-min-answers`. Board clubs are taken from the written catalog (with `--links-min-player-sitelinks`, the graph only links the kept players), so every board's answers are in the written graph. 200 boards from the full graph in 24 s.
 
+**N7 slice: threads (2026-11-21 design).** For `THREAD` (`08` §17.4):
+- **No new source for v1:** hops run on `core.match` (tier-1 and tier-2 finals and knockouts), `core.goal` (scorers by minute, assists), `core.lineup_slot` (captains) and `core.player_country` (one citizenship).
+- **`kb bundle --threads N`** (`kb/threads.py`): walks from every final, hop by hop, and keeps a thread only when each room has exactly one answer given the room before it, the answers are all different and known (`--thread-min-player-sitelinks`, default 30), and no hop repeats in a row. Every hop names its match or stays in the current one, so nothing claims "ever" outside our data. Questions and jump questions are written from templates in both languages. Deterministic.
+- **Measured 2026-11-21 (prototype on the dev knowledge base):** 7,740 threads from 193 finals at 30+ sitelinks; at most 3 per final (`--threads-per-final`) gives about 580.
+- **Later slice (DEC-86):** coaches linked to Wikidata (Transfermarkt manager names, Fjelstul World Cup managers) and stadiums as a new catalog kind, each with their own hops.
+
 **D.3d: typed match tables (resolved).**
 - `core.competition` (ref, kind `LEAGUE` | `CUP` | `INTERNATIONAL`, tier, country) and `core.edition` (competition, season label, final year, winner, runner-up, host).
 - `core.match`: edition, stage (`GROUP` … `FINAL`, `LEAGUE`), date, home and away team, goals, extra time, shootout score, venue.
