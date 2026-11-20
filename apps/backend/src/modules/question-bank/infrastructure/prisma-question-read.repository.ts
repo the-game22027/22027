@@ -7,6 +7,7 @@ import type { PassType } from '../domain/link-graph';
 import type { AnswerKind, EntityKind, GameBody, LocalizedText } from '../domain/question-content';
 import type {
   CatalogEntityView,
+  CommonNeighbour,
   ContentFilter,
   ContentSelectionCriteria,
   LinkedAnswer,
@@ -153,6 +154,41 @@ export class PrismaQuestionReadRepository implements QuestionReadRepository {
       searchForms: row.searchForms,
       nameWords: row.nameWords as NameWord[],
       evidence: row.evidence as LocalizedText,
+    }));
+  }
+
+  async findCommonNeighbours(
+    firstEntityId: string,
+    secondEntityId: string,
+    passType: PassType,
+  ): Promise<CommonNeighbour[]> {
+    // Both sides are primary-key lookups (from_entity_id, pass_type, …), joined on the neighbour.
+    const rows = await this.txHost.tx.$queryRaw<
+      {
+        entityId: string;
+        popularity: number;
+        searchForms: string[];
+        nameWords: unknown;
+        firstEvidence: unknown;
+        secondEvidence: unknown;
+      }[]
+    >`
+      SELECT e.id::text AS "entityId", e.popularity, e.search_forms AS "searchForms", e.name_words AS "nameWords",
+             first_match.evidence AS "firstEvidence", second_match.evidence AS "secondEvidence"
+      FROM entity_links first_link
+      JOIN entity_links second_link ON second_link.from_entity_id = ${secondEntityId}::uuid
+        AND second_link.pass_type = first_link.pass_type AND second_link.to_entity_id = first_link.to_entity_id
+      JOIN answer_entities e ON e.id = first_link.to_entity_id AND e.status = 'ACTIVE'
+      JOIN link_matches first_match ON first_match.id = first_link.match_id
+      JOIN link_matches second_match ON second_match.id = second_link.match_id
+      WHERE first_link.from_entity_id = ${firstEntityId}::uuid AND first_link.pass_type = ${passType}::link_pass_type
+      ORDER BY e.popularity DESC, e.id`;
+    return rows.map((row) => ({
+      entityId: row.entityId,
+      popularity: row.popularity,
+      searchForms: row.searchForms,
+      nameWords: row.nameWords as NameWord[],
+      evidence: [row.firstEvidence as LocalizedText, row.secondEvidence as LocalizedText],
     }));
   }
 

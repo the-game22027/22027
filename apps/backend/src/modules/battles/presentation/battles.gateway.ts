@@ -18,6 +18,7 @@ import {
   auctionBidCommand,
   auctionCallCommand,
   auctionPickCommand,
+  bridgePickCommand,
   buzzCommand,
   forfeitCommand,
   gridClaimCommand,
@@ -301,6 +302,34 @@ export class BattlesGateway
         socket.id,
         command.roundNo,
         { type: 'ONE_TWO_ANSWER', answer: { text: command.answer.text } },
+        command.clientMsgId,
+      ),
+    );
+  }
+
+  @SubscribeMessage('bridge:pick')
+  pickBridgeLine(socket: Socket, body: unknown): Promise<Ack> {
+    return this.withPayload(bridgePickCommand, body, (command) =>
+      this.engine.sendBridgeCommand(
+        command.battleId,
+        userIdOf(socket),
+        socket.id,
+        command.roundNo,
+        { type: 'BRIDGE_PICK', line: command.line },
+        command.clientMsgId,
+      ),
+    );
+  }
+
+  @SubscribeMessage('bridge:answer')
+  answerOnBridge(socket: Socket, body: unknown): Promise<Ack> {
+    return this.withPayload(minesTextCommand, body, (command) =>
+      this.engine.sendBridgeCommand(
+        command.battleId,
+        userIdOf(socket),
+        socket.id,
+        command.roundNo,
+        { type: 'BRIDGE_ANSWER', answer: { text: command.answer.text } },
         command.clientMsgId,
       ),
     );

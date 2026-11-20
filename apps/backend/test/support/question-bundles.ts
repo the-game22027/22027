@@ -336,3 +336,42 @@ export const oneTwoFixture = () => {
     line,
   };
 };
+
+/**
+ * A 3 × 3 BRIDGE board (08 §16.4) whose clubs all conceded to the same 14 scorers, so every line has every scorer;
+ * the outsider is a catalog player who scored against one club only: a known name that is wrong on every line.
+ */
+export const bridgeFixture = () => {
+  const id = randomUUID().slice(0, 8);
+  const entity = (name: string, kind = 'PLAYER') => ({
+    externalRef: `test:bridge-${name}-${id}`,
+    kind,
+    names: { en: `${name}${id}`, ar: `${name}${id}` },
+    aliases: { en: [], ar: [] },
+    popularity: 50,
+    search: [`${name}${id}`],
+  });
+  const clubs = Array.from({ length: 9 }, (_, index) => entity(`club${String(index)}`, 'CLUB'));
+  const scorers = Array.from({ length: 14 }, (_, index) => entity(`scorer${String(index)}`));
+  const outsider = entity('outsider');
+  const match = `test:bridge-match-${id}`;
+  const scored = (player: { externalRef: string }, club: { externalRef: string }) => ({
+    from: player.externalRef,
+    type: 'SCORED_AGAINST',
+    to: club.externalRef,
+    match,
+  });
+  const links = [...scorers.flatMap((player) => clubs.map((club) => scored(player, club))), scored(outsider, clubs[0])];
+  const matches = [{ key: match, evidence: { en: `Goal ${id}`, ar: `هدف ${id}` } }];
+  /** `order` reorders the clubs, so a second board of the same clubs is different content. */
+  const line = (key: string, order: 'AS_IS' | 'REVERSED' = 'AS_IS') => ({
+    ...common(key),
+    gameType: 'BRIDGE',
+    content: {
+      size: 3,
+      clubs: (order === 'AS_IS' ? clubs : [...clubs].reverse()).map((club) => club.externalRef),
+    },
+    answers: [],
+  });
+  return { entities: [...clubs, ...scorers, outsider], clubs, scorers, outsider, links, matches, line };
+};

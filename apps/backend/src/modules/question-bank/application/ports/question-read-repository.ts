@@ -46,6 +46,11 @@ export interface LinkedAnswer extends AnswerCandidate {
   evidence: LocalizedText;
 }
 
+/** An entity linked to both of two balls by one pass type, with the evidence of each link (08 §16.7). */
+export interface CommonNeighbour extends AnswerCandidate {
+  evidence: [LocalizedText, LocalizedText];
+}
+
 export interface QuestionReadRepository {
   /** Random ids of published, unexpired content matching the criteria; fewer when the bank is short. */
   pickRandomContentIds(criteria: ContentSelectionCriteria): Promise<string[]>;
@@ -63,6 +68,8 @@ export interface QuestionReadRepository {
   findPopularEntityIdsOfKind(kind: EntityKind, excludeIds: readonly string[], limit: number): Promise<string[]>;
   /** Every neighbour of the ball for this pass type (08 §15.8), the best known first. */
   findLinkedAnswers(ballEntityId: string, passType: PassType): Promise<LinkedAnswer[]>;
+  /** Every entity linked to both balls by this pass type (08 §16.7), the best known first. */
+  findCommonNeighbours(firstEntityId: string, secondEntityId: string, passType: PassType): Promise<CommonNeighbour[]>;
   /** Neighbours per pass type of the ball that are not among `burnedEntityIds`; pass types with none are left out. */
   countUnusedLinks(
     ballEntityId: string,

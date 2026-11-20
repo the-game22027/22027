@@ -9,7 +9,7 @@ import {
   type TypedAnswerRules,
   type TypedTextJudgement,
 } from '../domain/typed-text-judgement';
-import type { LinkedAnswers } from './link-graph.query';
+import type { LinkCandidates } from './link-graph.query';
 import { QUESTION_READ_REPOSITORY, type QuestionReadRepository } from './ports/question-read-repository';
 
 /** Judges typed answers against the accepted answers of one slot only (08 §5.3, ADR-0021). */
@@ -33,11 +33,12 @@ export class AnswerChecker {
   }
 
   /**
-   * Judges a ONE_TWO answer against the ball's neighbours for the picked pass type, loaded when the pass was made
-   * (08 §15.7). The same rules as a slot: comparing with the neighbours only settles most same-name cases.
+   * Judges an answer against link-graph candidates loaded once per question: a ONE_TWO ball's neighbours for the
+   * picked pass type (08 §15.7), or the scorers both clubs of a BRIDGE line conceded to (08 §16.7). The same rules
+   * as a slot: comparing with the candidates only settles most same-name cases.
    */
   async judgeTypedTextAgainstLinks(
-    linked: LinkedAnswers,
+    linked: LinkCandidates,
     text: string,
     rules: TypedAnswerRules,
     usedEntityIds: readonly string[] = [],
