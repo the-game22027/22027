@@ -414,6 +414,90 @@ class LineupRound extends CurrentRound {
   );
 }
 
+enum OneTwoPhase { picking, answering, closed }
+
+/// One return of a `ONE_TWO` rally: the name that became the ball, the pass it answered, who returned
+/// it and the match that makes the link true.
+class OneTwoReturn {
+  const OneTwoReturn({
+    required this.entity,
+    required this.passType,
+    required this.returnedBy,
+    required this.evidence,
+  });
+
+  final EntityRef entity;
+  final String passType;
+  final String returnedBy;
+  final String evidence;
+}
+
+/// A `ONE_TWO` rally (`08` §15): the ball goes back and forth; each right answer is the next ball.
+class OneTwoRound extends CurrentRound {
+  const OneTwoRound({
+    required int roundNo,
+    required this.seed,
+    required this.ball,
+    required this.passerId,
+    required this.phase,
+    this.offer = const [],
+    this.passType,
+    this.deadline,
+    this.chain = const [],
+    this.burned = const [],
+    this.missReason,
+  }) : super(roundNo);
+
+  final EntityRef seed;
+
+  /// The name the next answer must link to.
+  final EntityRef ball;
+
+  /// Who picks the pass type; the other player answers.
+  final String passerId;
+  final OneTwoPhase phase;
+
+  /// The pass types the passer may pick, while [phase] is picking.
+  final List<String> offer;
+
+  /// The picked pass type, while [phase] is answering.
+  final String? passType;
+
+  /// The pick or answer deadline from the server; null once the rally is over.
+  final DateTime? deadline;
+  final List<OneTwoReturn> chain;
+
+  /// Names said in this battle, the seeds included: naming one again loses the rally.
+  final List<EntityRef> burned;
+
+  /// `WRONG`, `BURNED` or `TIME_UP` once the receiver missed.
+  final String? missReason;
+
+  OneTwoRound copyWith({
+    EntityRef? ball,
+    String? passerId,
+    OneTwoPhase? phase,
+    List<String>? offer,
+    String? Function()? passType,
+    DateTime? Function()? deadline,
+    List<OneTwoReturn>? chain,
+    List<EntityRef>? burned,
+    String? Function()? missReason,
+  }) => OneTwoRound(
+    roundNo: roundNo,
+    seed: seed,
+    ball: ball ?? this.ball,
+    passerId: passerId ?? this.passerId,
+    phase: phase ?? this.phase,
+    offer: offer ?? this.offer,
+    passType: passType != null ? passType() : this.passType,
+    deadline: deadline != null ? deadline() : this.deadline,
+    chain: chain ?? this.chain,
+    burned: burned ?? this.burned,
+    missReason: missReason != null ? missReason() : this.missReason,
+  );
+}
+
 /// A digit of a `VAULT` code revealed to everyone.
 class VaultLeakedDigit {
   const VaultLeakedDigit({required this.position, required this.digit});
@@ -874,6 +958,66 @@ BattleState _applyInOrder(BattleState state, BattleServerEvent event) {
       return state.copyWith(
         currentRound: () => round.copyWith(letters: event.letters),
       );
+    case OneTwoRoundStarted():
+      // Names are burned for the whole battle (`08` §15.1 step 10): keep the earlier rallies' ones.
+      final earlier = round is OneTwoRound ? round.burned : const <EntityRef>[];
+      return state.copyWith(
+        phase: BattlePhase.inProgress,
+        firstMoverDuel: () => null,
+        currentRound: () => OneTwoRound(
+          roundNo: event.roundNo,
+          seed: event.seed,
+          ball: event.seed,
+          passerId: event.passerId,
+          phase: OneTwoPhase.picking,
+          burned: [...earlier, event.seed],
+        ),
+      );
+    case OneTwoOffered() when round is OneTwoRound:
+      return state.copyWith(
+        currentRound: () => round.copyWith(
+          ball: event.ball,
+          passerId: event.passerId,
+          phase: OneTwoPhase.picking,
+          offer: event.passTypes,
+          passType: () => null,
+          deadline: () => event.pickDeadlineAt,
+        ),
+      );
+    case OneTwoPassed() when round is OneTwoRound:
+      return state.copyWith(
+        currentRound: () => round.copyWith(
+          phase: OneTwoPhase.answering,
+          offer: const [],
+          passType: () => event.passType,
+          deadline: () => event.answerDeadlineAt,
+        ),
+      );
+    case OneTwoReturned() when round is OneTwoRound:
+      return state.copyWith(
+        currentRound: () => round.copyWith(
+          ball: event.entity,
+          passerId: event.participantId,
+          chain: [
+            ...round.chain,
+            OneTwoReturn(
+              entity: event.entity,
+              passType: event.passType,
+              returnedBy: event.participantId,
+              evidence: event.evidence,
+            ),
+          ],
+          burned: [...round.burned, event.entity],
+        ),
+      );
+    case OneTwoMissed() when round is OneTwoRound:
+      return state.copyWith(
+        currentRound: () => round.copyWith(
+          phase: OneTwoPhase.closed,
+          deadline: () => null,
+          missReason: () => event.reason,
+        ),
+      );
     case VaultRoundStarted():
       return state.copyWith(
         phase: BattlePhase.inProgress,
@@ -1253,6 +1397,7 @@ CurrentRound? _readSnapshotRound(
   CurrentRound? previous,
 ) {
   final roundNo = round.readInt('roundNo');
+  if (round.json.containsKey('seed')) return _readSnapshotOneTwoRound(round);
   if (round.json.containsKey('shown')) return _readSnapshotLineupRound(round);
   if (round.json.containsKey('sides')) return _readSnapshotHexRound(round);
   if (round.json.containsKey('questions')) {
@@ -1484,5 +1629,41 @@ LineupRound _readSnapshotLineupRound(JsonObjectReader round) {
     fakeUnmaskedBy: fake?.readOptionalString('unmaskedBy'),
     yourLockedUntil: round.readOptionalTimestamp('lockedUntil'),
     hasUsedYourAccusation: round.readOptionalBool('accusationUsed') ?? false,
+  );
+}
+
+/// The server sends only the round number and the seed before the rally starts; the rest after.
+OneTwoRound _readSnapshotOneTwoRound(JsonObjectReader round) {
+  final seed = readEntityRef(round.readObject('seed'));
+  final hasStarted = round.json.containsKey('chain');
+  return OneTwoRound(
+    roundNo: round.readInt('roundNo'),
+    seed: seed,
+    ball: round.json.containsKey('ball')
+        ? readEntityRef(round.readObject('ball'))
+        : seed,
+    passerId: round.readOptionalString('passerId') ?? '',
+    phase: switch (round.readOptionalString('phase')) {
+      'ANSWERING' => OneTwoPhase.answering,
+      'CLOSED' => OneTwoPhase.closed,
+      _ => OneTwoPhase.picking,
+    },
+    offer: hasStarted ? round.readStringList('offer') : const [],
+    passType: round.readOptionalString('passType'),
+    deadline: round.readOptionalTimestamp('deadline'),
+    chain: [
+      if (hasStarted)
+        for (final link in round.readObjectList('chain'))
+          OneTwoReturn(
+            entity: readEntityRef(link.readObject('entity')),
+            passType: link.readString('passType'),
+            returnedBy: link.readString('returnedBy'),
+            evidence: link.readString('evidence'),
+          ),
+    ],
+    burned: [
+      if (hasStarted)
+        for (final name in round.readObjectList('burned')) readEntityRef(name),
+    ],
   );
 }

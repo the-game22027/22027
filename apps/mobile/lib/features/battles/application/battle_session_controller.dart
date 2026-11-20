@@ -219,6 +219,18 @@ class BattleSessionController extends Notifier<BattleSessionState> {
     return result;
   }
 
+  /// `oneTwo:pass`: the passer picks one of the offered pass types for the receiver (`08` §15.1).
+  /// The server refuses a type it did not offer (`NOT_OFFERED`).
+  Future<BattleCommandResult> passInOneTwo(String passType) =>
+      _sendRoundCommand('oneTwo:pass', {'passType': passType});
+
+  /// `oneTwo:answer`: the receiver's one try. The ack's `data.result` is `RETURNED`, `WRONG` or
+  /// `BURNED`; everyone learns the outcome from `oneTwo:returned` or `oneTwo:missed`.
+  Future<BattleCommandResult> answerInOneTwo(String text) =>
+      _sendRoundCommand('oneTwo:answer', {
+        'answer': {'text': text},
+      });
+
   /// `vault:try`: the whole code, one digit per question (`08` §12.1). A wrong try's ack tells only
   /// you, with when you may try again; the others see your try count only.
   Future<BattleCommandResult> tryVaultCode(String code) async {

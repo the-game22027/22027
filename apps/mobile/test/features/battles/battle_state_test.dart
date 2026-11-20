@@ -610,6 +610,146 @@ void main() {
     );
   });
 
+  group('a one-two rally', () {
+    const seed = {'entityId': 'ramos', 'name': 'راموس'};
+    const godin = {'entityId': 'godin', 'name': 'جودين'};
+    BattleState playOneTwoRally() => applyAll(foundBattle(), [
+      event('round:start', 2, {
+        'roundNo': 1,
+        'gameType': 'ONE_TWO',
+        'seed': seed,
+        'passerId': 'p-bot',
+      }),
+      event('oneTwo:offer', 3, {
+        'roundNo': 1,
+        'ball': seed,
+        'passerId': 'p-bot',
+        'passTypes': ['FACED_IN_FINAL', 'SCORED_IN_SAME_MATCH'],
+        'pickDeadlineAt': '2026-11-12T10:00:05.000Z',
+      }),
+      event('oneTwo:passed', 4, {
+        'roundNo': 1,
+        'passType': 'SCORED_IN_SAME_MATCH',
+        'receiverId': 'p-human',
+        'answerDeadlineAt': '2026-11-12T10:00:15.000Z',
+        'random': false,
+      }),
+      event('oneTwo:returned', 5, {
+        'roundNo': 1,
+        'entity': godin,
+        'passType': 'SCORED_IN_SAME_MATCH',
+        'evidence': 'نهائي دوري أبطال أوروبا 2013-14',
+        'participantId': 'p-human',
+      }),
+      event('oneTwo:offer', 6, {
+        'roundNo': 1,
+        'ball': godin,
+        'passerId': 'p-human',
+        'passTypes': ['FACED_IN_FINAL'],
+        'pickDeadlineAt': '2026-11-12T10:00:21.000Z',
+      }),
+    ]);
+
+    test(
+      'a return becomes the ball, and the one who returned it passes next',
+      () {
+        final round = playOneTwoRally().currentRound! as OneTwoRound;
+        expect(round.seed.name, 'راموس');
+        expect(round.ball.entityId, 'godin');
+        expect(round.passerId, 'p-human');
+        expect(round.phase, OneTwoPhase.picking);
+        expect(round.offer, ['FACED_IN_FINAL']);
+        expect(round.passType, isNull);
+        expect(round.deadline, DateTime.utc(2026, 11, 12, 10, 0, 21));
+        expect(round.chain.single.evidence, contains('2013-14'));
+        expect(round.chain.single.returnedBy, 'p-human');
+        expect(round.burned.map((name) => name.entityId), ['ramos', 'godin']);
+      },
+    );
+
+    test(
+      'a miss closes the rally, and the next rally keeps the burned names',
+      () {
+        final state = applyAll(playOneTwoRally(), [
+          event('oneTwo:passed', 7, {
+            'roundNo': 1,
+            'passType': 'FACED_IN_FINAL',
+            'receiverId': 'p-bot',
+            'answerDeadlineAt': '2026-11-12T10:00:31.000Z',
+            'random': true,
+          }),
+          event('oneTwo:missed', 8, {
+            'roundNo': 1,
+            'participantId': 'p-bot',
+            'reason': 'TIME_UP',
+          }),
+        ]);
+        final missed = state.currentRound! as OneTwoRound;
+        expect(missed.phase, OneTwoPhase.closed);
+        expect(missed.missReason, 'TIME_UP');
+        expect(missed.deadline, isNull);
+
+        final next =
+            applyAll(state, [
+                  event('round:start', 9, {
+                    'roundNo': 2,
+                    'gameType': 'ONE_TWO',
+                    'seed': {'entityId': 'modric', 'name': 'مودريتش'},
+                    'passerId': 'p-bot',
+                  }),
+                ]).currentRound!
+                as OneTwoRound;
+        expect(next.burned.map((name) => name.entityId), [
+          'ramos',
+          'godin',
+          'modric',
+        ]);
+        expect(next.chain, isEmpty);
+      },
+    );
+
+    test(
+      'a snapshot restores the chain, the ball, the phase and the burned names',
+      () {
+        final restored = applyBattleSnapshot(playOneTwoRally(), {
+          'status': 'IN_PROGRESS',
+          'gameType': 'ONE_TWO',
+          'mode': 'MATCHMAKING',
+          'players': [humanPlayerJson, botPlayerJson],
+          'currentRound': {
+            'roundNo': 1,
+            'seed': seed,
+            'chain': [
+              {
+                'entity': godin,
+                'passType': 'SCORED_IN_SAME_MATCH',
+                'returnedBy': 'p-human',
+                'evidence': 'نهائي 2014',
+              },
+            ],
+            'ball': godin,
+            'passerId': 'p-human',
+            'phase': 'ANSWERING',
+            'offer': <Object>[],
+            'passType': 'FACED_IN_FINAL',
+            'deadline': '2026-11-12T10:00:31.000Z',
+            'burned': [seed, godin],
+            'points': <String, Object>{},
+          },
+          'rounds': <Object>[],
+          'scores': <Object>[],
+          'seq': 7,
+        });
+        final round = restored.currentRound! as OneTwoRound;
+        expect(round.phase, OneTwoPhase.answering);
+        expect(round.passType, 'FACED_IN_FINAL');
+        expect(round.ball.name, 'جودين');
+        expect(round.chain.single.passType, 'SCORED_IN_SAME_MATCH');
+        expect(round.burned, hasLength(2));
+      },
+    );
+  });
+
   group('a vault round', () {
     BattleState playVaultRound() => applyAll(foundBattle(), [
       event('round:start', 2, {
