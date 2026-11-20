@@ -133,6 +133,7 @@ Changes vs the original proposed order, and why:
 
 ### Track N — New game types (DEC-68; before P8)
 - **Order change (2026-11-18, product owner):** D.3 and track N come before P8 private rooms. The new 1v1 games are the product's edge, and P8 waits for DEC-58 (Imposter rules) anyway.
+- **Order change (2026-11-20, product owner):** N8 `ONE_TWO` is built right after N5 and before N6 and N7. Its data is already in the knowledge base, while N6 waits for D.3e `edition_summary`.
 - **Every N phase starts with its design section in `08`** (rules, messages, config, open rules as DECs), then the generator, the engine rules, the bot and tests, and a dev bundle. About 3-5 focused days each.
 
 | Phase | Game type | Data it needs | Starts after |
@@ -145,6 +146,7 @@ Changes vs the original proposed order, and why:
 | N5 `LINEUP` (التشكيلة) (**design done 2026-11-19**: 08 §14, 07 §5.10 N5 slice, DEC-80; **World Cup lineups, generator and backend built 2026-11-20**) | starting XIs of famous matches, captains, a bench player as the fake | D.3d lineups (N3) plus Fjelstul World Cup lineups (N5 slice); D.3e `famous_match` and the curated 2000–2011 finals come later | N3 |
 | N6 `TIME_MACHINE` (آلة الزمن) | one tournament edition per year (finals, scorers, top scorers, knockout paths) | D.3e `edition_summary` | D.3e |
 | N7 `THREAD` (الخيط) | 5-hop chains where every hop has exactly one answer | the whole fact graph, coaches and venues | N6 (hardest generator) |
+| N8 `ONE_TWO` (وان تو) (**design done 2026-11-20**: 08 §15, 07 §5.10 N8 slice, DEC-81; **built next, before N6**) | a rally on a link graph between catalog entities: faced in a final or a knockout, scored in the same match, assists, scored against a club | D.3d goals and lineups (built); no new source | N5 |
 
 - **Between N4 and N5: never repeat a question (DEC-44, decided 2026-11-19).** Battles skip every question a player was shown, not only those of their last 20 battles, and refill from the ones seen longest ago when the bank is short (03 §4.3, 08 §5.4). The same fact in two different questions waits for D.3e fact keys.
 - **Exit per phase:** the game can be walked through message by message from `08`; its bot plays it; a dev bundle with generated content imports and plays end to end; every open rule is config plus a Pending DEC.
