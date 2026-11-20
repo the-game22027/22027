@@ -1099,7 +1099,11 @@ describe('battles over WebSocket (e2e)', () => {
 
       // Thread 2: wait for the hint's first letter, then answer every room.
       await player.waitFor('round:start', (event) => event.data['roundNo'] === 2);
-      const hint = await player.waitFor('thread:hint', (event) => event.data['roundNo'] === 2);
+      // Both players' hints fire at the same moment; mine is the one with my id (and the letter).
+      const hint = await player.waitFor(
+        'thread:hint',
+        (event) => event.data['roundNo'] === 2 && event.data['participantId'] === me,
+      );
       expect(hint.data).toMatchObject({ participantId: me, room: 0, letter: nameOf(0)[0] });
       for (const room of [0, 1, 2, 3, 4]) {
         expect(await answer(2, room, nameOf(room))).toMatchObject({ accepted: true, data: { result: 'RIGHT' } });
