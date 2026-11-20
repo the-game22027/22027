@@ -885,7 +885,7 @@ Generator (`kb bundle --lineups N`, 07 §5.8), from `core.lineup_slot` (07 §5.1
 
 Chosen by the product owner on 2026-11-20 (demo page: https://claude.ai/artifact/RvTPcYBeXDZQC946nVmvpX). A round is one rally between the two players, starting from a seed name. The player on the ball (the passer) picks the kind of link for the opponent; the opponent (the receiver) types a name that has that link with the ball, and that name becomes the next ball. Your answer is your opponent's question. A receiver who cannot return the pass loses the rally. The first to win `targetScore` (3) rallies wins.
 
-Unlike every game so far, the answers are not stored per question: they come from a **link graph** between catalog entities (§15.4), and the server judges each answer against the ball's neighbours of the picked link type. A rally is never a stored question, so content does not run out.
+Unlike every game so far, the answers are not stored per question: they come from a **link graph** between catalog entities (§15.4, ADR-0024), and the server judges each answer against the ball's neighbours of the picked link type. A rally is never a stored question, so content does not run out.
 
 ### 15.1 A round (one rally)
 
