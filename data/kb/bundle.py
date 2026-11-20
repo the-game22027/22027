@@ -26,6 +26,7 @@ from kb.hexes import hex_rounds, letter_lists
 from kb.lineup_rounds import LineupPlayer, SourcedLineup, lineup_rounds, without_sort_fields
 from kb.links import LinkGraph, LinkMatch, build_link_graph, one_two_rounds
 from kb.mines import mines_rounds
+from kb.threads import FinalGoal, collect_thread_facts, thread_rounds
 from kb.vaults import KNOCKOUT_STAGES, VaultMatch, vault_facts, vault_rounds
 
 GENERATOR_VERSION = "kb-generate-3"  # 2: catalog lines carry nameWords (ADR-0021); 3: optional link graph
@@ -42,6 +43,7 @@ CATEGORIES = [
     {"slug": "lineups", "names": {"en": "Lineups", "ar": "التشكيلة"}},
     {"slug": "one-twos", "names": {"en": "One-twos", "ar": "وان تو"}},
     {"slug": "bridges", "names": {"en": "Bridges", "ar": "الكوبري"}},
+    {"slug": "threads", "names": {"en": "Threads", "ar": "الخيط"}},
 ]
 
 
@@ -89,6 +91,9 @@ def build_bundle(
     bridge_clubs: int = 60,
     bridge_min_answers: int = 3,
     bridge_size: int = 4,
+    thread_count: int = 0,
+    thread_min_player_sitelinks: int = 30,
+    threads_per_final: int = 3,
 ) -> BundleSummary:
     catalog = {entry["externalRef"]: entry for entry in load_catalog_entries(connection)}
     kb_version = _kb_version(connection)
@@ -207,6 +212,25 @@ def build_bundle(
         key=lambda line: line["externalKey"],
     )
 
+    if thread_count:
+        facts = collect_thread_facts(
+            load_link_matches(connection),
+            load_final_goals(connection),
+            load_final_captains(connection),
+            ((player.external_ref, country) for player in players for country in player.country_refs),
+        )
+        threads = thread_rounds(
+            facts,
+            lambda ref: catalog[ref]["kind"] if ref in catalog else None,
+            lambda ref: catalog[ref]["popularity"] if ref in catalog else 0,
+            kb_version,
+            min_player_sitelinks=thread_min_player_sitelinks,
+            threads_per_final=threads_per_final,
+        )
+        lines = sorted(
+            lines + pick_spread_over_difficulties(threads, thread_count), key=lambda line: line["externalKey"]
+        )
+
     entries = list(catalog.values())
     if catalog_min_player_sitelinks is not None:
         entries = _catalog_for_development(entries, players, lines, catalog_min_player_sitelinks)
@@ -290,6 +314,24 @@ def load_link_goals(connection: psycopg.Connection) -> list[tuple]:
     return connection.execute(
         """SELECT g.match_id, g.team_ref, g.scorer_ref, g.assist_ref FROM core.goal g JOIN core.match m ON m.id = g.match_id
            WHERE m.usable AND NOT g.own_goal AND g.scorer_ref IS NOT NULL ORDER BY g.id"""
+    ).fetchall()
+
+
+def load_final_goals(connection: psycopg.Connection) -> list[FinalGoal]:
+    """Every goal of a usable final, own goals and unlinked scorers included: THREAD drops scorer hops for them."""
+    rows = connection.execute(
+        """SELECT g.match_id, g.team_ref, coalesce(g.scorer_ref, ''), g.minute, g.assist_ref, g.own_goal
+           FROM core.goal g JOIN core.match m ON m.id = g.match_id
+           WHERE m.usable AND m.stage = 'FINAL' ORDER BY g.id"""
+    ).fetchall()
+    return [FinalGoal(*row) for row in rows]
+
+
+def load_final_captains(connection: psycopg.Connection) -> list[tuple]:
+    """(match, team, player) for the captain of each team in a usable final."""
+    return connection.execute(
+        """SELECT l.match_id, l.team_ref, l.player_ref FROM core.lineup_slot l JOIN core.match m ON m.id = l.match_id
+           WHERE m.usable AND m.stage = 'FINAL' AND l.captain AND l.player_ref IS NOT NULL ORDER BY l.id"""
     ).fetchall()
 
 

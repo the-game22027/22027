@@ -103,6 +103,13 @@ def main(argv: list[str] | None = None) -> int:
     bundle.add_argument(
         "--bridge-min-answers", type=int, default=3, help="fewest common scorers on every BRIDGE line"
     )
+    bundle.add_argument("--threads", type=int, default=0, help="THREAD (الخيط) chains of five rooms")
+    bundle.add_argument(
+        "--thread-min-player-sitelinks", type=int, default=30, help="how known every THREAD answer must be"
+    )
+    bundle.add_argument(
+        "--threads-per-final", type=int, default=3, help="most THREAD chains that start from one final"
+    )
     bundle.add_argument(
         "--links-min-player-sitelinks",
         type=int,
@@ -197,6 +204,9 @@ def main(argv: list[str] | None = None) -> int:
                 bridge_clubs=args.bridge_clubs,
                 bridge_min_answers=args.bridge_min_answers,
                 bridge_size=args.bridge_size,
+                thread_count=args.threads,
+                thread_min_player_sitelinks=args.thread_min_player_sitelinks,
+                threads_per_final=args.threads_per_final,
             )
             print(
                 f"{args.version}: {summary.question_count} rounds {summary.by_game_type}, "
