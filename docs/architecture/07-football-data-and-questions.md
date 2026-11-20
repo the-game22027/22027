@@ -258,6 +258,14 @@ A bundle is a directory `data/bundles/<bundleVersion>/` with two files:
   "answers": [{ "slot": 0, "entities": ["wikidata:<spain-nt-qid>"] }], "…": "…" }
 ```
 
+- `links.jsonl` and `link-matches.jsonl` (N8 `ONE_TWO`, optional, each listed in the manifest with its own checksum `linksChecksum`, `linkMatchesChecksum`): the link graph between catalog entities (`08` §15.4). One link per line, written once, with its evidence match:
+
+```json
+{ "from": "wikidata:Q<ramos>", "type": "SCORED_IN_SAME_MATCH", "to": "wikidata:Q<godin>", "match": "champions-league:2013-14:FINAL:Q8682-Q8701" }
+{ "key": "champions-league:2013-14:FINAL:Q8682-Q8701", "evidence": { "en": "2014 Champions League final, Real Madrid 4–1 Atlético Madrid", "ar": "نهائي دوري أبطال أوروبا 2014، ريال مدريد 4–1 أتلتيكو مدريد" } }
+```
+
+  Symmetric types (`FACED_IN_FINAL`, `FACED_IN_KNOCKOUT`, `SCORED_IN_SAME_MATCH`) are written with `from` < `to`; `ASSISTED` goes from the assist provider to the scorer, `SCORED_AGAINST` from the player to the club. A bundle with a graph replaces the app's whole graph (`08` §15.8).
   `GRID` content holds `rows` and `cols` criteria (`{ "kind": "CLUB", "entity": "wikidata:Q8682" }`) and `answers` has one slot per cell (0..8) with every valid player. `WHO_IS_PLAYER` content holds ordered `clues` with `kind` and `text {en, ar}`.
 
 ### 5.5 Import and publish (app side, `question-bank`)
@@ -426,6 +434,12 @@ Not used: StatsBomb open data (non-commercial), FBref and SofaScore (scraping fo
 - **Not in N5:** the 2000–2011 Champions League finals (the curated CSV of D.3e) and Euro lineups (no source yet).
 - **Measured on 2026-11-19 (dev, before the Fjelstul load):** 542 tier-1 knockout lineups and 228 tier-2 final lineups have all 11 starters in the catalog; Fjelstul has 220 World Cup knockout lineups 2002–2022 with 11 starters, to be counted again after linking.
 - **Built 2026-11-20 (dev):** `kb ingest:matches` keeps 736 Fjelstul team lineups (World Cups 2002–2022, every stage) next to 80,374 Transfermarkt ones; the two sources share no World Cup lineup today (Transfermarkt's World Cup lineups are the 2026 group stage), so the disagreement gate found nothing yet. `kb bundle --lineups N` builds the rounds (08 §14.4).
+
+**N8 slice: the link graph (2026-11-20 design).** For `ONE_TWO` (`08` §15.4):
+- **`kb bundle --links`** reads `core.goal`, `core.lineup_slot` and `core.match` straight away, as N2, N3 and N5 do (no `derived` view yet), and writes `links.jsonl` and `link-matches.jsonl`. `--one-twos N` writes the seed rounds.
+- **Gates:** both ends are catalog entities; tier-1 and tier-2 competitions only (DEC-67); knockout links only from the round of 16 on; starters only for the `FACED_*` types; own goals never count; assists only from the scoring team's lineup (already true in `core.goal`, D.3d).
+- **Evidence:** one match per link, the most memorable: a final, then the latest knockout round, then the latest match. Its text is written by the pipeline in both languages (competition, season, stage, both teams, score), because national teams are not catalog entities.
+- **Size:** about 365,000 links on the dev knowledge base, with at most 45,322 evidence matches (every usable tier-1 and tier-2 match) (`08` §15.4). The committed dev bundle keeps only links between the entities its trimmed catalog keeps (`--catalog-min-player-sitelinks`), so it stays small.
 
 **D.3d: typed match tables (resolved).**
 - `core.competition` (ref, kind `LEAGUE` | `CUP` | `INTERNATIONAL`, tier, country) and `core.edition` (competition, season label, final year, winner, runner-up, host).

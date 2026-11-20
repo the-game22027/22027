@@ -20,8 +20,9 @@ Every number in this file is configuration (per game type), never a constant. Na
 | `LINEUP` (التشكيلة) | Simultaneous slot filling (N5) | A famous match's formation, 3 shown names (one fake) | The starting XI; accuse the fake | 2 |
 | `TIME_MACHINE` (آلة الزمن) | Turns with hearts, years going back (N6) | A tournament edition per turn | One fact about that edition | 2 |
 | `THREAD` (الخيط) | Simultaneous chained race (N7) | Five rooms, each question pointing at the previous answer | Each room's single answer | 2 |
+| `ONE_TWO` (وان تو) | Turn-based rally on a link graph (N8) | A seed name, then each answer as the next ball | A name linked to the ball by the pass type the opponent picked | 2 |
 
-The seven new game types (DEC-68) are designed one by one in track N; §9 holds what they share. A battle has **one** game type, chosen when it is created: by the queue the player joined (DEC-59), or by the host in a room. A battle is `roundCount` rounds of that game (DEC-31, per game type).
+The new game types (DEC-68, plus `ONE_TWO` chosen on 2026-11-20) are designed one by one in track N; §9 holds what they share. A battle has **one** game type, chosen when it is created: by the queue the player joined (DEC-59), or by the host in a room. A battle is `roundCount` rounds of that game (DEC-31, per game type).
 
 ## 2. Engine and game rules
 
@@ -320,7 +321,7 @@ Implementation notes (N0, built 2026-11-19):
 
 | Game type | `firstMover` | Why |
 |---|---|---|
-| `GRID`, `MINES`, `HEX`, `TIME_MACHINE`, `AUCTION` | `RPS` | One player moves, picks or bids first |
+| `GRID`, `MINES`, `HEX`, `TIME_MACHINE`, `AUCTION`, `ONE_TWO` | `RPS` | One player moves, picks, bids or passes first |
 | `VAULT`, `THREAD`, `LINEUP` | `NONE` | Both players race on the same content at the same time |
 | Reveal and buzz | `NONE` | The first buzz decides, not a turn order |
 
@@ -332,7 +333,7 @@ Plain TypeScript in `battles/domain/games/shared/`, called by each game's own ru
 |---|---|---|---|
 | `LockoutLadder` | wrong tries per player, locked-until time | `lockoutMs: number[]` (last value repeats) | `VAULT`, `HEX`, `THREAD` |
 | `HintSchedule` | which hints are out | `hints: { firstAtMs, everyMs, max }` | `VAULT` (digit leaks), `THREAD` (first letter), `LINEUP` (first letters) |
-| `UsedAnswers` | entity ids named this round | `repeatCountsAsWrong: boolean` | `MINES`, `AUCTION`, `LINEUP`, `HEX` |
+| `UsedAnswers` | entity ids named this round (or this battle, through `carryOver`) | `repeatCountsAsWrong: boolean` | `MINES`, `AUCTION`, `LINEUP`, `HEX`, `ONE_TWO` (battle-wide) |
 | `Hearts` | lives per player | `hearts: number` | `MINES`, `TIME_MACHINE` |
 | `SecretChoices` | choices per player before play | `secretChoices: { count, deadlineMs }` | `MINES` |
 
@@ -343,7 +344,7 @@ Plain TypeScript in `battles/domain/games/shared/`, called by each game's own ru
 
 ### 9.4 Order of work
 
-N0 (this section and the first-mover phase in the engine, built 2026-11-19) comes first; the helpers arrive with their first game. Then N1 `MINES` (data ready today), N2 `AUCTION`, N3 `VAULT`, N4 `HEX`, N5 `LINEUP`, N6 `TIME_MACHINE`, N7 `THREAD` (ROADMAP track N). Each N phase writes its own section (§10 onward) before any code.
+N0 (this section and the first-mover phase in the engine, built 2026-11-19) comes first; the helpers arrive with their first game. Then N1 `MINES` (data ready today), N2 `AUCTION`, N3 `VAULT`, N4 `HEX`, N5 `LINEUP`, then N8 `ONE_TWO` (its data exists today), N6 `TIME_MACHINE`, N7 `THREAD` (ROADMAP track N). Each N phase writes its own section (§10 onward) before any code.
 
 
 ## 10. `MINES` (لغم, N1)
@@ -879,3 +880,125 @@ Generator (`kb bundle --lineups N`, 07 §5.8), from `core.lineup_slot` (07 §5.1
 - **Actions:** `LINEUP_ANSWER` (`is_correct`, entity, typed text), `LINEUP_ACCUSE` (`is_correct`, points `accuseRight` or `accuseWrong`). Question stats count a wrong answer or a wrong accusation as wrong.
 - **Bot (built):** it accuses the fake first when it knows it, then types the starters it knows (captain first), one per `typingDelayMs`; when it knows no more, it tries one popular wrong player with its guess chance, then stops.
 - **Snapshot `currentRound`:** the header, the slots with their placed names and owners, the shown names (the fake crossed out once found), the hints out, the viewer's own `lockedUntil` and whether their accusation is spent, every player's score this round, `roundDeadlineAt`, `hintsAt`.
+
+## 15. `ONE_TWO` (وان تو, N8)
+
+Chosen by the product owner on 2026-11-20 (demo page: https://claude.ai/artifact/RvTPcYBeXDZQC946nVmvpX). A round is one rally between the two players, starting from a seed name. The player on the ball (the passer) picks the kind of link for the opponent; the opponent (the receiver) types a name that has that link with the ball, and that name becomes the next ball. Your answer is your opponent's question. A receiver who cannot return the pass loses the rally. The first to win `targetScore` (3) rallies wins.
+
+Unlike every game so far, the answers are not stored per question: they come from a **link graph** between catalog entities (§15.4), and the server judges each answer against the ball's neighbours of the picked link type. A rally is never a stored question, so content does not run out.
+
+### 15.1 A round (one rally)
+
+```mermaid
+stateDiagram-v2
+  [*] --> PICKING: round:start (seed, passer) + oneTwo:offer
+  PICKING --> ANSWERING: oneTwo:pass, or a random pass at pickDeadlineAt
+  ANSWERING --> PICKING: a right, unused name (it becomes the ball; roles swap)
+  ANSWERING --> [*]: a wrong, used or late answer (the passer wins the rally)
+  PICKING --> [*]: dead end (no pass type has an answer) or maxPasses reached (no winner)
+```
+
+1. **Seed:** a round's content is one well-known catalog entity (§15.4). `round:start` shows it and who passes first.
+2. **Who passes first:** round 1, the rock-paper-scissors winner (`firstMover: RPS`, §9.1). From round 2, the loser of the previous rally (`nextPasser: LOSER`, DEC-81), as the `AUCTION` picker: passing first is the edge.
+3. **The offer:** the server lists the pass types (§15.4) that fit the ball's kind (player or club) and have at least `minAnswers` (3) neighbours not yet named in this battle. It offers up to `offerCount` (3) of them, chosen at random, to both players (`oneTwo:offer`). The counts are never sent (DEC-81): the choice is about the opponent's knowledge, not about arithmetic.
+4. **The pass:** `oneTwo:pass { passType }` within `pickMs` (5 s). A type outside the offer is refused `NOT_OFFERED`. At the deadline the server picks one of the offered types at random.
+5. **The answer:** the receiver has `answerMs` (10 s) for one `oneTwo:answer { text }` (one try per pass, DEC-81). The server judges it against the neighbours of the ball for that pass type (§15.7):
+   - **A right name not named before in this battle:** it becomes the ball, the receiver becomes the passer, and both players see the name with its evidence ("2014 Champions League final, Real Madrid 4–1 Atlético", `oneTwo:returned`). Then a new offer (step 3).
+   - **A right name already named in this battle** (the seed counts): `BURNED`, the rally is lost (DEC-81).
+   - **Anything else, or no answer by the deadline:** `WRONG` or `TIME_UP`, the rally is lost. With `showWrongAnswers` (DEC-60) the passer sees which entity the text matched, never the text itself (ADR-0021).
+6. **Dead end:** if no pass type has `minAnswers` unused neighbours, the offer falls back to types with at least one. With none at all, the rally ends with no winner (`DEAD_END`) and the next round starts from a new seed (DEC-81). A rule that gave the point to anyone would make players hunt for names with no links.
+7. **Long rallies:** after `maxPasses` (20) returns the rally ends with no winner (`MAX_PASSES`). This bounds a round; it should almost never happen.
+8. **Reveal:** `round:result` carries the chain (each ball, the pass type, who returned it and the evidence), the failed answer, and up to 3 right answers that were not named, the best known first.
+9. **End of the battle:** the first player to win `targetScore` (3) rallies. Rounds with no winner do not count, so the battle stops after `maxRounds` (7): the most rallies won wins, ties as in DEC-33.
+10. **Names are burned for the whole battle,** not only the rally: `UsedAnswers` (§9.2) lives in the round's `carryOver`, so a name used in rally 1 is still burned in rally 3.
+11. **Players:** 2 now. With more players (rooms, P8) the ball would go round the table; that is not designed yet.
+
+### 15.2 Hidden information
+
+- The neighbour lists and their sizes never leave the server; the offer carries pass types only.
+- Typed text is never shown to the opponent (ADR-0021); a wrong answer shows only the entity it matched (DEC-60).
+- Everything else is public: the ball, the offer, the chain and the scores. That is the game: both players see the ball and think about the same names.
+
+### 15.3 Protocol (details in `api/WEBSOCKET.md`)
+
+| Direction | Message | Purpose |
+|---|---|---|
+| C→S | `oneTwo:pass { roundNo, passType }` | The passer picks the link type for the receiver |
+| C→S | `oneTwo:answer { roundNo, text }` | The receiver's one try |
+| S→C | ack of `oneTwo:answer` | Only to the receiver: `data: { result: RETURNED \| WRONG \| BURNED }` |
+| S→C | `round:start` | `seed: EntityRef`, `passerId` |
+| S→C | `oneTwo:offer` | `ball: EntityRef`, `passerId`, `passTypes: PassType[]`, `pickDeadlineAt` |
+| S→C | `oneTwo:passed` | `passType`, `receiverId`, `answerDeadlineAt`, `random: boolean` |
+| S→C | `oneTwo:returned` | `entity`, `evidence: { en, ar }`, `participantId` (the new passer) |
+| S→C | `oneTwo:missed` | `participantId`, `reason: WRONG \| BURNED \| TIME_UP`; `entity` (what the text matched) with `showWrongAnswers` |
+| S→C | `round:result` | `chain: [{ entity, passType, returnedBy, evidence }]`, `endReason: MISSED \| DEAD_END \| MAX_PASSES`, `examples: EntityRef[]` |
+
+Refusals: `NOT_YOUR_TURN` (a pass from the receiver or an answer from the passer), `NOT_OFFERED`, `ALREADY_PASSED`, `ALREADY_ANSWERED`, `EMPTY_ANSWER`, `ROUND_CLOSED`.
+
+### 15.4 Content and generator
+
+**Pass types.** Five stored link types, read in one or both directions; each reading is a pass type the passer can pick:
+
+| Link type (stored) | Between | Pass types (the question the receiver answers) |
+|---|---|---|
+| `FACED_IN_FINAL` | player – player, both starters on opposite sides of a final | `FACED_IN_FINAL`: "a player who faced him in a final" |
+| `FACED_IN_KNOCKOUT` | player – player, both starters on opposite sides of a knockout match from the round of 16 | `FACED_IN_KNOCKOUT` |
+| `SCORED_IN_SAME_MATCH` | player – player, both scored in one match (own goals do not count) | `SCORED_IN_SAME_MATCH` |
+| `ASSISTED` | player → player, the assist provider → the scorer | `ASSIST_GIVEN`: "a player he set up"; `ASSIST_RECEIVED`: "a player who set him up" |
+| `SCORED_AGAINST` | player → club | `SCORED_AGAINST`: "a club he scored against" (ball: player); `CONCEDED_TO`: "a player who scored against them" (ball: club) |
+
+A player ball can get six pass types; a club ball only `CONCEDED_TO` for now, so a club is offered one pass. National teams are not catalog entities yet (DEC-69), so they are never a ball; World Cup and Euro matches still create links between players, and their evidence names the countries.
+
+**Content.** A `ONE_TWO` question is a seed only; its accepted answers come from the graph, so `answers` is empty:
+
+| `gameType` | Content | Accepted answers |
+|---|---|---|
+| `ONE_TWO` | `{ seed: entityRef }` | none stored: the link graph (`links.jsonl`) |
+
+**Seeds** (`kb bundle --one-twos N`): well-known players (sitelinks ≥ 40) and clubs with at least 3 pass types that have 5 or more neighbours each, so the first offer is always full. Difficulty from the seed's popularity and the size of its smallest offered list. DEC-44 keeps a player from getting the same seed twice; the rallies themselves are new every time.
+
+**The graph** (`kb bundle --links`, 07 §5.10 N8 slice): every link whose two ends are catalog entities, from tier-1 and tier-2 competitions (DEC-67). Each link points at its evidence match: when two names are linked by several matches, the most memorable one is kept (a final, then the latest knockout round, then the latest match).
+
+**Measured on 2026-11-20 (dev knowledge base, both ends in the catalog, tier 1–2):** `FACED_IN_KNOCKOUT` 199,930; `SCORED_IN_SAME_MATCH` 57,500; `SCORED_AGAINST` (clubs) 56,015; `ASSISTED` 33,517; `FACED_IN_FINAL` 17,974. Total 364,936 links, about 730,000 pass readings, about 32 per catalog player or club on average. Without the catalog and tier filters the same queries give 854,219. Plain "faced him in a match" (2.95 million pairs) is left out: almost any answer would do.
+
+### 15.5 Bot
+
+- **Passing:** it picks the offered type with the fewest unused answers (it is allowed to know the counts; players are not), with a chance of a random pick from its profile so it is not perfect.
+- **Answering:** it knows an answer with its chance at the round's difficulty, more often when the ball is well known. When it knows one, it types the best-known unused neighbour after `typingDelayMs`; when it does not, it types a wrong popular name now and then, or lets the clock run out.
+- It never reads the neighbour list in a way a player could not: its only advantage is the pass counts, as above.
+
+### 15.6 Configuration
+
+| Key | Default (dev) | Decision |
+|---|---|---|
+| `targetScore`, `maxRounds` | 3, 7 | owner, 2026-11-20 (first to 3, the demo); DEC-81 (the cap) |
+| `firstMover`, `nextPasser` | `RPS`, `LOSER` | owner, 2026-11-18 (rock-paper-scissors); DEC-81 |
+| `pickMs`, `answerMs` | 5000, 10000 | owner, 2026-11-20 (10 s, the demo); DEC-81 (5 s pick) |
+| `offerCount`, `minAnswers` | 3, 3 | owner, 2026-11-20 (3 offers); DEC-81 |
+| `maxPasses` | 20 | DEC-81 |
+| `passTypes` | the 7 of §15.4 | DEC-81 |
+| `showWrongAnswers` | true | DEC-60 |
+| `latencyGraceMs` | 300 | §2.3 |
+
+### 15.7 How it fits the engine
+
+- **Rules:** pure `battles/domain/games/one-two-rules.ts`: the ball, the passer, the phase (`PICKING` or `ANSWERING`), the offer, the chain and the rallies won. `OneTwoRoundRunner` wraps them (§2.4); `UsedAnswers` (§9.2) is carried across rounds in `carryOver` (§15.1 step 10).
+- **Offer:** the runner asks question-bank for the number of neighbours per pass type of the ball, minus the ones already named (one indexed query, §15.8), and picks the offer with the battle's seeded random.
+- **Judging:** a new `AnswerChecker.judgeTypedTextAgainstLinks(ballEntityId, passType, text, rules, usedEntityIds)`. It loads the ball's neighbours for that pass type with their search forms (one indexed query when the pass is made, kept by the runner until the answer), then follows §5.3 exactly as for a slot: closest accepted name with typo tolerance, and a text that is exactly another entity's name is wrong. Comparing against the neighbours only also settles most same-name cases: for a 2002 World Cup final ball only one Ronaldo is a neighbour.
+- **Timers:** one phase timer at a time: `pick` (`pickMs`), then `answer` (`answerMs`).
+- **Actions:** `ONE_TWO_PASS` (the pass type, `random`), `ONE_TWO_ANSWER` (`is_correct`, entity, typed text, the pass type). Question stats count a wrong, burned or late answer as wrong for the seed question (`ANSWERING_ACTIONS`).
+- **Snapshot `currentRound`:** the seed, the chain with evidence, the ball, the passer, the phase, the offer or the picked pass type, the deadline, rallies won per player, and the names burned in this battle.
+
+### 15.8 The link graph in the app (question-bank)
+
+Question-bank owns the graph, as it owns the catalog (§5):
+
+| Table | Columns | Key and indexes |
+|---|---|---|
+| `entity_links` | `from_entity_id`, `pass_type`, `to_entity_id`, `match_id` | primary key `(from_entity_id, pass_type, to_entity_id)` |
+| `link_matches` | `id`, `external_key`, `evidence` (`{ en, ar }`) | `external_key` unique |
+| `entity_link_counts` | `entity_id`, `pass_type`, `neighbour_count` | primary key `(entity_id, pass_type)` |
+
+- Each link is stored once per pass-type reading, so every lookup starts from the ball: a symmetric link gives two rows of the same pass type, `ASSISTED` gives an `ASSIST_GIVEN` row and an `ASSIST_RECEIVED` row, `SCORED_AGAINST` a `SCORED_AGAINST` row and a `CONCEDED_TO` row. About 730,000 rows from the measured graph; the primary key finds a ball's neighbours for one pass type without reading the rest.
+- `entity_link_counts` is filled at import, so an offer needs the counts plus "how many of the burned names are neighbours", one query on the same key.
+- The graph is a snapshot of the knowledge base, not a set of questions: importing a bundle that carries a graph replaces the whole graph in one transaction, under the content-change lock that question imports already take. A battle in progress keeps judging against the rows it read; a ball whose entity is gone from the new graph simply has no neighbours (`DEAD_END`).
