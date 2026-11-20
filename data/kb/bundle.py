@@ -23,10 +23,11 @@ from kb.generate import (
 from kb.grids import grid_rounds
 from kb.hexes import hex_rounds, letter_lists
 from kb.lineup_rounds import LineupPlayer, SourcedLineup, lineup_rounds, without_sort_fields
+from kb.links import LinkGraph, LinkMatch, build_link_graph, one_two_rounds
 from kb.mines import mines_rounds
 from kb.vaults import KNOCKOUT_STAGES, VaultMatch, vault_facts, vault_rounds
 
-GENERATOR_VERSION = "kb-generate-2"  # 2: catalog lines carry nameWords (ADR-0021)
+GENERATOR_VERSION = "kb-generate-3"  # 2: catalog lines carry nameWords (ADR-0021); 3: optional link graph
 CATEGORIES = [
     {"slug": "careers", "names": {"en": "Careers", "ar": "المسيرة"}},
     {"slug": "transfers", "names": {"en": "Transfers", "ar": "الانتقالات"}},
@@ -38,6 +39,7 @@ CATEGORIES = [
     {"slug": "vaults", "names": {"en": "Vaults", "ar": "الخزنة"}},
     {"slug": "hexes", "names": {"en": "Hex boards", "ar": "الهجمة"}},
     {"slug": "lineups", "names": {"en": "Lineups", "ar": "التشكيلة"}},
+    {"slug": "one-twos", "names": {"en": "One-twos", "ar": "وان تو"}},
 ]
 
 
@@ -48,6 +50,8 @@ class BundleSummary:
     catalog_size: int
     checksum: str
     catalog_checksum: str
+    link_count: int = 0
+    links_checksum: str | None = None
 
 
 def build_bundle(
@@ -76,6 +80,9 @@ def build_bundle(
     hex_min_answers: int = 1,
     lineup_count: int = 0,
     lineup_min_known: int = 6,
+    links: bool = False,
+    one_two_count: int = 0,
+    links_min_player_sitelinks: int = 0,
 ) -> BundleSummary:
     catalog = {entry["externalRef"]: entry for entry in load_catalog_entries(connection)}
     kb_version = _kb_version(connection)
@@ -197,7 +204,28 @@ def build_bundle(
     entries = list(catalog.values())
     if catalog_min_player_sitelinks is not None:
         entries = _catalog_for_development(entries, players, lines, catalog_min_player_sitelinks)
-    return _write_bundle(out_dir, bundle_version, kb_version, lines, entries)
+    graph = None
+    if links or one_two_count:
+        # The graph only joins entities the written catalog keeps, so every link can be imported (08 §15.4).
+        kept = {
+            entry["externalRef"]
+            for entry in entries
+            if entry["kind"] == "CLUB"
+            or (entry["kind"] == "PLAYER" and entry["popularity"] >= links_min_player_sitelinks)
+        }
+        graph = build_link_graph(
+            load_link_matches(connection),
+            load_link_starters(connection),
+            load_link_goals(connection),
+            lambda ref: ref in kept and catalog[ref]["kind"] == "PLAYER",
+            lambda ref: ref in kept and catalog[ref]["kind"] == "CLUB",
+            load_label_lookup(connection),
+        )
+        seeds = pick_spread_over_difficulties(
+            one_two_rounds(graph, player_popularity_of, kb_version), one_two_count
+        )
+        lines = sorted(lines + seeds, key=lambda line: line["externalKey"])
+    return _write_bundle(out_dir, bundle_version, kb_version, lines, entries, graph)
 
 
 def pick_buzzer_rounds(
@@ -216,6 +244,34 @@ def pick_buzzer_rounds(
     for index, candidates in enumerate((first_clubs, transfers, nationalities)):
         picked += pick_spread_over_difficulties(candidates, share + (1 if index < extra else 0))
     return picked
+
+
+def load_link_matches(connection: psycopg.Connection) -> list[LinkMatch]:
+    """Usable matches of tier-1 and tier-2 competitions (DEC-67), every stage: what ONE_TWO links come from."""
+    rows = connection.execute(
+        """SELECT m.id, co.key, co.name_en, co.name_ar, co.tier, e.season_label, m.stage, m.leg, m.match_date,
+                  m.home_team_ref, m.away_team_ref, m.home_goals, m.away_goals, m.shootout_home, m.shootout_away
+           FROM core.match m JOIN core.edition e ON e.id = m.edition_id
+           JOIN core.competition co ON co.competition_ref = e.competition_ref
+           WHERE m.usable AND co.tier <= 2 ORDER BY m.id"""
+    ).fetchall()
+    return [LinkMatch(row[0], row[1], {"en": row[2], "ar": row[3]}, *row[4:]) for row in rows]
+
+
+def load_link_starters(connection: psycopg.Connection) -> list[tuple]:
+    """(match_id, team_ref, player_ref) of every linked starter of a usable match."""
+    return connection.execute(
+        """SELECT s.match_id, s.team_ref, s.player_ref FROM core.lineup_slot s JOIN core.match m ON m.id = s.match_id
+           WHERE m.usable AND s.starter AND s.player_ref IS NOT NULL ORDER BY s.id"""
+    ).fetchall()
+
+
+def load_link_goals(connection: psycopg.Connection) -> list[tuple]:
+    """(match_id, team_ref, scorer_ref, assist_ref) of every goal with a linked scorer; own goals never count."""
+    return connection.execute(
+        """SELECT g.match_id, g.team_ref, g.scorer_ref, g.assist_ref FROM core.goal g JOIN core.match m ON m.id = g.match_id
+           WHERE m.usable AND NOT g.own_goal AND g.scorer_ref IS NOT NULL ORDER BY g.id"""
+    ).fetchall()
 
 
 def load_goal_rows(connection: psycopg.Connection) -> list[tuple]:
@@ -390,11 +446,18 @@ def _references_of_line(line: dict) -> set[str]:
         refs.update(content["shown"])
     if line["gameType"] == "MINES":
         refs.update(criterion["entity"] for criterion in content["criteria"] if "entity" in criterion)
+    if line["gameType"] == "ONE_TWO":
+        refs.add(content["seed"])
     return refs
 
 
 def _write_bundle(
-    out_dir: Path, bundle_version: str, kb_version: str, lines: list[dict], entries: list[dict]
+    out_dir: Path,
+    bundle_version: str,
+    kb_version: str,
+    lines: list[dict],
+    entries: list[dict],
+    graph: LinkGraph | None = None,
 ) -> BundleSummary:
     out_dir.mkdir(parents=True, exist_ok=True)
     body = "".join(json.dumps(line, ensure_ascii=False, sort_keys=True) + "\n" for line in lines).encode(
@@ -412,13 +475,38 @@ def _write_bundle(
         "catalogChecksum": catalog_checksum,
         "categories": CATEGORIES,
     }
+    links_checksum = None
+    if graph is not None:
+        links_checksum = _write_lines(out_dir / "links.jsonl", graph.links)
+        manifest |= {
+            "linkCount": len(graph.links),
+            "linksChecksum": links_checksum,
+            "linkMatchesChecksum": _write_lines(out_dir / "link-matches.jsonl", graph.matches),
+        }
     (out_dir / "manifest.json").write_text(
         json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
     )
     by_game_type: dict[str, int] = {}
     for line in lines:
         by_game_type[line["gameType"]] = by_game_type.get(line["gameType"], 0) + 1
-    return BundleSummary(len(lines), by_game_type, len(entries), checksum, catalog_checksum)
+    return BundleSummary(
+        len(lines),
+        by_game_type,
+        len(entries),
+        checksum,
+        catalog_checksum,
+        len(graph.links) if graph else 0,
+        links_checksum,
+    )
+
+
+def _write_lines(path: Path, items: list[dict]) -> str:
+    """One compact JSON object per line; returns the `sha256:<hex>` checksum of the exact bytes (07 §5.4)."""
+    body = "".join(
+        json.dumps(item, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n" for item in items
+    ).encode("utf-8")
+    path.write_bytes(body)
+    return "sha256:" + hashlib.sha256(body).hexdigest()
 
 
 def _kb_version(connection: psycopg.Connection) -> str:
