@@ -1,0 +1,104 @@
+{
+  "bundleVersion": "dev-0013",
+  "kbVersion": "wikidata-2026-11-19",
+  "generatorVersion": "kb-generate-3",
+  "questionCount": 649,
+  "checksum": "sha256:d0d3617d6db2ce553d1501c56244356b1f10268f61cadb42c393260851eefa19",
+  "catalogChecksum": "sha256:292d89ed46eb36f7086620b6047a3c293df158a8da027ad2259dce393992983c",
+  "categories": [
+    {
+      "slug": "careers",
+      "names": {
+        "en": "Careers",
+        "ar": "المسيرة"
+      }
+    },
+    {
+      "slug": "transfers",
+      "names": {
+        "en": "Transfers",
+        "ar": "الانتقالات"
+      }
+    },
+    {
+      "slug": "nationalities",
+      "names": {
+        "en": "Nationalities",
+        "ar": "الجنسيات"
+      }
+    },
+    {
+      "slug": "players",
+      "names": {
+        "en": "Players",
+        "ar": "اللاعبون"
+      }
+    },
+    {
+      "slug": "grids",
+      "names": {
+        "en": "Grids",
+        "ar": "الشبكات"
+      }
+    },
+    {
+      "slug": "mines",
+      "names": {
+        "en": "Mines",
+        "ar": "لغم"
+      }
+    },
+    {
+      "slug": "auctions",
+      "names": {
+        "en": "Auctions",
+        "ar": "المزاد"
+      }
+    },
+    {
+      "slug": "vaults",
+      "names": {
+        "en": "Vaults",
+        "ar": "الخزنة"
+      }
+    },
+    {
+      "slug": "hexes",
+      "names": {
+        "en": "Hex boards",
+        "ar": "الهجمة"
+      }
+    },
+    {
+      "slug": "lineups",
+      "names": {
+        "en": "Lineups",
+        "ar": "التشكيلة"
+      }
+    },
+    {
+      "slug": "one-twos",
+      "names": {
+        "en": "One-twos",
+        "ar": "وان تو"
+      }
+    },
+    {
+      "slug": "bridges",
+      "names": {
+        "en": "Bridges",
+        "ar": "الكوبري"
+      }
+    },
+    {
+      "slug": "threads",
+      "names": {
+        "en": "Threads",
+        "ar": "الخيط"
+      }
+    }
+  ],
+  "linkCount": 22876,
+  "linksChecksum": "sha256:bbb46db12fb8de02d046ae6358476dcb8b458a449bf9d9eef2d6816eec06ad7d",
+  "linkMatchesChecksum": "sha256:44bc6092aacadbffec2cdd4c73265e19e5f219e54b111139aa65e078feea3af6"
+}
