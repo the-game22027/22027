@@ -12,14 +12,14 @@ Every number in this file is configuration (per game type), never a constant. Na
 | `CAREER` | Reveal and buzz | A player's clubs, oldest first, with years if `showYears` | A player | 2..N |
 | `WHO_IS_PLAYER` | Reveal and buzz | Clues about one player (nationality, position, birth year, a club, a trophy...), hardest first | A player | 2..N |
 | `GRID` | Turns on a board | Nothing: the whole 3×3 board of criteria is shown | A player who fits a cell's row and column | exactly 2 (DEC-61) |
-| `IMPOSTER` | Chat and vote (P8, DEC-58) | Not designed yet | — | rooms only |
+| `IMPOSTER` (المندس) | Clue turns and a vote (P8b, §18) | A footballer's name to all but the imposter; each player's clues | The imposter, by vote; a caught imposter guesses the name | 4..`maxPlayers`, rooms only |
 | `MINES` (لغم) | Turns with hearts, hidden mines (N1) | A category; each player first buries mines in secret | Players of the category, no repeats | 2 |
 | `AUCTION` (المزاد) | Bidding, then proof (N2) | A list title and its answer count | As many names of the list as you bid | 2 |
-| `VAULT` (الخزنة) | Simultaneous race (N3) | Four questions whose answers are digits 0–9; leaks on a timer | The whole 4-digit code, all or nothing | 2 |
+| `VAULT` (الخزنة) | Simultaneous race (N3) | Four questions whose answers are digits 0–9; leaks on a timer | The whole 4-digit code, all or nothing | 2; 2..`maxPlayers` in rooms (§18.1) |
 | `HEX` (الهجمة) | Hex board race (N4) | A board of letters; a question per picked cell | A name starting with the cell's letter | 2 |
 | `LINEUP` (التشكيلة) | Simultaneous slot filling (N5) | A famous match's formation, 3 shown names (one fake) | The starting XI; accuse the fake | 2 |
 | `TIME_MACHINE` (آلة الزمن) | Turns with hearts, years going back (N6) | A tournament edition per turn | One fact about that edition | 2 |
-| `THREAD` (الخيط) | Simultaneous chained race (N7) | Five rooms, each question pointing at the previous answer | Each room's single answer | 2 |
+| `THREAD` (الخيط) | Simultaneous chained race (N7) | Five rooms, each question pointing at the previous answer | Each room's single answer | 2; 2..`maxPlayers` in rooms (§18.1) |
 | `ONE_TWO` (وان تو) | Turn-based rally on a link graph (N8) | A seed name, then each answer as the next ball | A name linked to the ball by the pass type the opponent picked | 2 |
 | `BRIDGE` (الكوبري) | Dots and boxes on a board of clubs (N9) | Nothing: the whole board is shown | A player who scored against both clubs of the picked line | 2 |
 
@@ -1207,3 +1207,92 @@ stateDiagram-v2
 - **Actions:** `THREAD_ANSWER` (`cell` = the answer slot, `is_correct`), `THREAD_JUMP` (`cell` = the room). `THREAD_ANSWER` is an answering action for question stats.
 - **End:** `THREAD_COMPLETE`, `TIME_UP` or `FORFEIT` (no points on a forfeit).
 - **Snapshot `currentRound`:** your room, its question (or its jump question), your lockout and hint, `jumpsLeft`, and the opponent's room.
+
+## 18. `IMPOSTER` (المندس, P8b) and players per game type in rooms
+
+Rules chosen by the product owner on 2026-11-21 (DEC-58): everyone but the imposter sees a footballer's name; players give one short clue each in turn, twice; then everyone votes for who they think the imposter is. If the imposter is caught, they get one last guess at the name. Rooms only (friends who joined with a code), no bots.
+
+### 18.1 Players per game type in a room
+
+`GAME_TYPE_PLAYER_COUNT` (03 §3.4 step 6) is config per game type: `players: { min, max }`, where `max` is capped by the room's `maxPlayers` (DEC-38: config, dev 8).
+
+| Game types | Players | Why |
+|---|---|---|
+| `BUZZER`, `CAREER`, `WHO_IS_PLAYER` | 2 to `maxPlayers` | Reveal and buzz already plays with any number |
+| `VAULT`, `THREAD` | 2 to `maxPlayers` (owner, 2026-11-21) | Races: everyone plays at once on the same content, so more players change nothing in the rules. First to open the vault, or to reach the end of the thread, wins; at time up the highest room wins, ties are a draw |
+| `IMPOSTER` | 4 to `maxPlayers` (owner, 2026-11-21) | With 3, two clues give the imposter away too easily |
+| `GRID`, `MINES`, `AUCTION`, `HEX`, `LINEUP`, `ONE_TWO`, `BRIDGE` | exactly 2 | Turn-based duels |
+
+- **Leaving a race with 3 or more players:** the leaver is out of the round and the race goes on; the round ends on a forfeit only when one player is left (today's two-player rule is that case).
+
+### 18.2 A round (one secret)
+
+```mermaid
+stateDiagram-v2
+  [*] --> CLUES: round:start (the secret to all but the imposter)
+  CLUES --> CLUES: each player gives one clue in turn, clueRounds times
+  CLUES --> VOTING: the last clue, or its deadline
+  VOTING --> GUESSING: the imposter has the most votes (caught)
+  VOTING --> [*]: someone else has the most votes, or a tie (not caught)
+  GUESSING --> [*]: the imposter's guess, or its deadline
+```
+
+1. **Roles:** one player is the imposter, chosen at random so nobody is imposter twice before everyone has been once in the battle. Everyone else sees the secret: a well-known footballer (`EntityRef`). The imposter sees only "you are the imposter".
+2. **Clues:** `clueRounds` (2) rounds; in each, every player in a random order (the same order both rounds) gives one clue within `clueMs` (20 s): `imposter:clue { text }`, 1 to `maxClueLength` (40) characters. Everyone sees every clue with who gave it. A missed turn shows as "no clue".
+3. **No player names in clues:** the server refuses a clue that names any catalog player (a full name or alternative name, or a distinctive name word such as "Messi"; the same matching as typed answers, 08 §5.3): `CLUE_NAMES_A_PLAYER`, and the player may try again within their time. It refuses every player name, not only the secret's, so a refusal tells the imposter nothing. Clubs, countries, positions and numbers are allowed ("Argentina", "number 10").
+4. **Vote:** within `voteMs` (30 s) every player votes for one other player: `imposter:vote { participantId }`, changeable until the deadline. Who voted is shown at once, whom they voted for only at the reveal. A missing vote counts for nobody.
+5. **Reveal:** the imposter is **caught** when they alone have the most votes; a tie at the top is not a catch (DEC-58).
+6. **Last guess:** a caught imposter has `guessMs` (15 s) to type the secret: `imposter:guess { text }`, judged like any typed answer (typo tolerance, 08 §5.3). A right guess wins the round back.
+7. **Points (owner's outline):** each player who voted for the imposter: `points.rightVote` (1), plus `points.onlyRightVote` (1) if they were the only one. The imposter: `points.perMissedVote` (1) for every other player who did not vote for them, plus `points.rightGuess` (2) for a right last guess. The round's winner is the imposter when not caught or after a right guess; otherwise nobody (the right voters still score).
+8. **Battle:** `roundCount` rounds (default: the number of players, so everyone is imposter once, capped by `maxRounds` 6). Most points wins; equal points share the place.
+
+### 18.3 Hidden information
+
+- The secret never reaches the imposter, before or during the round; the imposter's identity reaches nobody before the reveal; whom each player voted for stays hidden until the reveal.
+- Clues are public: they are the game. Typed guesses are never shown, only whether the guess was right.
+- **Moderation:** rooms are friends who share a code, and clues are 40 characters with no player names. Report and mute tools are needed before IMPOSTER is ever offered to strangers (it is not, and DEC-65 keeps matchmaking unfiltered).
+
+### 18.4 Protocol (details in `api/WEBSOCKET.md` with the build)
+
+| Direction | Message | Purpose |
+|---|---|---|
+| C→S | `imposter:clue { roundNo, text }` | Your clue, on your turn |
+| C→S | `imposter:vote { roundNo, participantId }` | Your vote (changeable until the deadline) |
+| C→S | `imposter:guess { roundNo, answer: { text } }` | The caught imposter's last guess |
+| S→C | `round:start` | `{ roundNo, gameType, order: participantId[], clueRounds, secret?: EntityRef, isImposter }`: `secret` to everyone but the imposter, `isImposter: true` only to the imposter |
+| S→C | `imposter:turn` | `{ participantId, clueRound, clueDeadlineAt }` |
+| S→C | `imposter:clue` | `{ participantId, clueRound, text \| null }` (null: missed turn) |
+| S→C | `imposter:vote-open` | `{ voteDeadlineAt }` |
+| S→C | `imposter:voted` | `{ participantId }` (that they voted, not whom) |
+| S→C | `imposter:revealed` | `{ imposterId, votes: { [voterId]: participantId \| null }, caught }`; when caught, `guessDeadlineAt` |
+| S→C | `round:result` | `reveal: { secret: EntityRef, imposterId, votes, caught, guess: { right, entity? } \| null, clues: [{ participantId, clueRound, text \| null }] }` |
+
+Refusals: `NOT_YOUR_TURN`, `CLUE_NAMES_A_PLAYER`, `CLUE_TOO_LONG`, `EMPTY_CLUE`, `VOTE_WINDOW_CLOSED`, `CANNOT_VOTE_FOR_YOURSELF`, `NOT_THE_IMPOSTER`, `GUESS_WINDOW_CLOSED`, `ROUND_CLOSED`.
+
+### 18.5 Content and generator
+
+| `gameType` | Content | Accepted answers |
+|---|---|---|
+| `IMPOSTER` | `{ secret: entityRef }` (a `PLAYER`) | slot 0 = `[secret]`, for the last guess |
+
+- **Generator** (`kb bundle --imposters N`): the best-known catalog players (`--imposter-min-sitelinks`, default 60), spread over difficulties by sitelinks. A secret everyone at the table can describe is the point of the game.
+- No round text: the clues are written by the players.
+
+### 18.6 Configuration
+
+| Key | Default (dev) | Decision |
+|---|---|---|
+| `players` | `{ min: 4, max: 8 }` | owner, 2026-11-21 (max capped by `room.maxPlayers`) |
+| `roundCount`, `maxRounds` | one per player, 6 | DEC-58 |
+| `clueRounds`, `clueMs`, `maxClueLength` | 2, 20000, 40 | owner, 2026-11-21 (clue turns); values DEC-58 |
+| `voteMs`, `guessMs` | 30000, 15000 | DEC-58 |
+| `tieIsCatch` | false | DEC-58 |
+| `points` | `{ rightVote: 1, onlyRightVote: 1, perMissedVote: 1, rightGuess: 2 }` | owner's outline; values DEC-58 |
+
+### 18.7 How it fits the engine
+
+- **Rules:** pure `battles/domain/games/imposter-rules.ts`: the order, the clue turns, the votes, the catch, the last guess, points. `ImposterRoundRunner` wraps them (§2.4).
+- **First mover:** `NONE` (the order is part of the round). **Bots:** none (rooms only, 03 §3.5).
+- **Clue check:** a new `AnswerCatalogQuery.findPlayerNamedInText(text)` (question-bank): every one- to three-word run of the normalized clue against player search forms and distinctive name words.
+- **Judging the guess:** slot 0 with `AnswerChecker.judgeTypedText`.
+- **Actions:** `IMPOSTER_CLUE`, `IMPOSTER_VOTE`, `IMPOSTER_GUESS` (answering). Question stats count a caught imposter's wrong or missing guess as wrong.
