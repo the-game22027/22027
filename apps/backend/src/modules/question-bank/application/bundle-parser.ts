@@ -138,6 +138,16 @@ const gameBodySchemas = {
   }),
   ONE_TWO: z.strictObject({ seed: externalRef }),
   BRIDGE: z.strictObject({ size: z.number().int(), clubs: z.array(externalRef) }),
+  THREAD: z.strictObject({
+    rooms: z.array(
+      z.strictObject({
+        hop: nonEmpty,
+        answerKind: z.enum(ENTITY_KINDS),
+        text: localizedText,
+        jumpText: localizedText.nullable(),
+      }),
+    ),
+  }),
   VAULT: z.strictObject({
     questions: z.array(z.strictObject({ template: nonEmpty, text: localizedText, answerNumber: z.number().int() })),
   }),
@@ -279,6 +289,10 @@ const toGameBody = (gameType: GameBody['gameType'], content: unknown): { body: G
     }
     case 'BRIDGE': {
       const result = gameBodySchemas.BRIDGE.safeParse(content);
+      return result.success ? { body: { gameType, ...result.data } } : { issues: describeIssues(result.error) };
+    }
+    case 'THREAD': {
+      const result = gameBodySchemas.THREAD.safeParse(content);
       return result.success ? { body: { gameType, ...result.data } } : { issues: describeIssues(result.error) };
     }
     case 'VAULT': {

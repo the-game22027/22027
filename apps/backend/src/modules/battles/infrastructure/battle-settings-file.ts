@@ -198,6 +198,23 @@ const bridgeGame = z.strictObject({
   }),
 });
 
+const threadGame = z.strictObject({
+  ...firstMoverFields,
+  enabled: z.boolean(),
+  roundCount: z.number().int().positive(),
+  targetScore: z.number().int().positive().nullable(),
+  roundMs: positiveMs,
+  lockoutMs: z.array(z.number().int().nonnegative()).min(1),
+  hint: z.strictObject({ afterMs: positiveMs }),
+  jump: z.strictObject({ perThread: z.number().int().nonnegative() }),
+  timeUp: z.enum(['HIGHER_ROOM_WINS', 'DRAW']),
+  showWrongAnswers: z.boolean(),
+  points: z.strictObject({ thread: z.number().int() }),
+  selection: z.strictObject({
+    difficulties: z.array(z.number().int().min(1).max(5)).min(1).nullable(),
+  }),
+});
+
 const answers = z.strictObject({
   maxLength: z.number().int().positive(),
   typoTolerance: z
@@ -240,6 +257,7 @@ const settingsSchema = z
       LINEUP: lineupGame.optional(),
       ONE_TWO: oneTwoGame.optional(),
       BRIDGE: bridgeGame.optional(),
+      THREAD: threadGame.optional(),
     }),
   })
   .superRefine((settings, context) => {

@@ -58,9 +58,11 @@ export interface RoundAction {
     | 'ONE_TWO_PASS'
     | 'ONE_TWO_ANSWER'
     | 'BRIDGE_PICK'
-    | 'BRIDGE_ANSWER';
+    | 'BRIDGE_ANSWER'
+    | 'THREAD_ANSWER'
+    | 'THREAD_JUMP';
   answer?: JudgedAnswer;
-  /** Grid: row * 3 + col; bridge: the line. */
+  /** Grid: row * 3 + col; bridge: the line; thread: the answer slot (room). */
   cell?: number;
   isCorrect?: boolean;
   points: number;
@@ -99,6 +101,7 @@ export interface RoundResult {
     | 'DEAD_END'
     | 'MAX_PASSES'
     | 'BOARD_COMPLETE'
+    | 'THREAD_COMPLETE'
     | 'FORFEIT';
   /** Points earned in this round, by participant; missing means 0. */
   points: Record<ParticipantId, number>;

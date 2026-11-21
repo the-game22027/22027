@@ -19,6 +19,8 @@ import {
   auctionCallCommand,
   auctionPickCommand,
   bridgePickCommand,
+  threadAnswerCommand,
+  threadJumpCommand,
   buzzCommand,
   forfeitCommand,
   gridClaimCommand,
@@ -330,6 +332,34 @@ export class BattlesGateway
         socket.id,
         command.roundNo,
         { type: 'BRIDGE_ANSWER', answer: { text: command.answer.text } },
+        command.clientMsgId,
+      ),
+    );
+  }
+
+  @SubscribeMessage('thread:answer')
+  answerInThread(socket: Socket, body: unknown): Promise<Ack> {
+    return this.withPayload(threadAnswerCommand, body, (command) =>
+      this.engine.sendThreadCommand(
+        command.battleId,
+        userIdOf(socket),
+        socket.id,
+        command.roundNo,
+        { type: 'THREAD_ANSWER', room: command.room, answer: { text: command.answer.text } },
+        command.clientMsgId,
+      ),
+    );
+  }
+
+  @SubscribeMessage('thread:jump')
+  jumpInThread(socket: Socket, body: unknown): Promise<Ack> {
+    return this.withPayload(threadJumpCommand, body, (command) =>
+      this.engine.sendThreadCommand(
+        command.battleId,
+        userIdOf(socket),
+        socket.id,
+        command.roundNo,
+        { type: 'THREAD_JUMP', room: command.room },
         command.clientMsgId,
       ),
     );

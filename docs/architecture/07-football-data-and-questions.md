@@ -452,6 +452,7 @@ Not used: StatsBomb open data (non-commercial), FBref and SofaScore (scraping fo
 - **No new source for v1:** hops run on `core.match` (tier-1 and tier-2 finals and knockouts), `core.goal` (scorers by minute, assists), `core.lineup_slot` (captains) and `core.player_country` (one citizenship).
 - **`kb bundle --threads N`** (`kb/threads.py`): walks from every final, hop by hop, and keeps a thread only when each room has exactly one answer given the room before it, the answers are all different and known (`--thread-min-player-sitelinks`, default 30), and no hop repeats in a row. Every hop names its match or stays in the current one, so nothing claims "ever" outside our data. Questions and jump questions are written from templates in both languages. Deterministic.
 - **Measured 2026-11-21 (prototype on the dev knowledge base):** 7,740 threads from 193 finals at 30+ sitelinks; at most 3 per final (`--threads-per-final`) gives about 580.
+- **Built 2026-11-21:** `kb/threads.py`; flags `--threads`, `--thread-min-player-sitelinks`, `--threads-per-final`. 313 threads from 154 finals on the full catalog (fewer than the prototype's 580: scorer hops are dropped in finals with an own goal, a missing minute or an unlinked scorer). Thread answers are added to a trimmed development catalog like any other answer.
 - **Later slice (DEC-86):** coaches linked to Wikidata (Transfermarkt manager names, Fjelstul World Cup managers) and stadiums as a new catalog kind, each with their own hops.
 
 **D.3d: typed match tables (resolved).**

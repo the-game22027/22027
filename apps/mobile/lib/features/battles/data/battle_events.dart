@@ -14,6 +14,7 @@ enum GameType {
   lineup,
   oneTwo,
   bridge,
+  thread,
   unknown,
 }
 
@@ -29,6 +30,7 @@ GameType findGameTypeByCode(String code) => switch (code) {
   'LINEUP' => GameType.lineup,
   'ONE_TWO' => GameType.oneTwo,
   'BRIDGE' => GameType.bridge,
+  'THREAD' => GameType.thread,
   _ => GameType.unknown,
 };
 
@@ -44,6 +46,7 @@ String convertGameTypeToCode(GameType gameType) => switch (gameType) {
   GameType.lineup => 'LINEUP',
   GameType.oneTwo => 'ONE_TWO',
   GameType.bridge => 'BRIDGE',
+  GameType.thread => 'THREAD',
   GameType.unknown => throw ArgumentError('unknown game type has no code'),
 };
 
@@ -1014,6 +1017,138 @@ class OneTwoMissed extends BattleServerEvent {
   final EntityRef? entity;
 }
 
+/// The room a `THREAD` player is in (`08` §17.1): 0-based, with its question (the jump question
+/// while jumping) in the viewer's language. [letter] is the hint once it is out.
+class ThreadRoomView {
+  const ThreadRoomView({
+    required this.room,
+    required this.question,
+    required this.isJumping,
+    this.hintAt,
+    this.letter,
+  });
+
+  final int room;
+  final String question;
+  final bool isJumping;
+  final DateTime? hintAt;
+  final String? letter;
+}
+
+ThreadRoomView? readThreadRoomView(JsonObjectReader? room) => room == null
+    ? null
+    : ThreadRoomView(
+        room: room.readInt('room'),
+        question: room.readString('question'),
+        isJumping: room.readOptionalBool('jumping') ?? false,
+        hintAt: room.readOptionalTimestamp('hintAt'),
+        letter: room.readOptionalString('letter'),
+      );
+
+/// `round:start` of a `THREAD` (`08` §17.1): both players start in room 0.
+class ThreadRoundStarted extends BattleServerEvent {
+  const ThreadRoundStarted({
+    required super.serverTime,
+    required super.battleId,
+    required super.seq,
+    required this.roundNo,
+    required this.roomCount,
+    required this.room,
+    required this.roundDeadlineAt,
+    required this.jumpsLeft,
+  });
+
+  final int roundNo;
+  final int roomCount;
+  final ThreadRoomView room;
+  final DateTime roundDeadlineAt;
+  final int jumpsLeft;
+}
+
+/// `thread:progress`: a right answer moved [participantId] to [room] (`roomCount` = finished).
+/// Only the mover gets [question], their new room.
+class ThreadProgressed extends BattleServerEvent {
+  const ThreadProgressed({
+    required super.serverTime,
+    required super.battleId,
+    required super.seq,
+    required this.roundNo,
+    required this.participantId,
+    required this.room,
+    required this.hasJumped,
+    this.question,
+  });
+
+  final int roundNo;
+  final String participantId;
+  final int room;
+  final bool hasJumped;
+  final ThreadRoomView? question;
+}
+
+/// `thread:locked`: a wrong answer; [participantId] may answer again at [lockedUntil].
+class ThreadLockedOut extends BattleServerEvent {
+  const ThreadLockedOut({
+    required super.serverTime,
+    required super.battleId,
+    required super.seq,
+    required this.roundNo,
+    required this.participantId,
+    required this.lockedUntil,
+    this.entity,
+    this.question,
+  });
+
+  final int roundNo;
+  final String participantId;
+  final DateTime lockedUntil;
+
+  /// What the text matched, only when the server shows wrong answers (off by default, DEC-86).
+  final EntityRef? entity;
+
+  /// Only to the locked player: the question now on their screen (after a wrong jump answer, the
+  /// room's own question with the room's own hint).
+  final ThreadRoomView? question;
+}
+
+/// `thread:jumped`: [participantId] asked for the jump question of [room].
+class ThreadJumped extends BattleServerEvent {
+  const ThreadJumped({
+    required super.serverTime,
+    required super.battleId,
+    required super.seq,
+    required this.roundNo,
+    required this.participantId,
+    required this.room,
+    this.question,
+  });
+
+  final int roundNo;
+  final String participantId;
+  final int room;
+
+  /// Only to the jumper: the jump question, with its own hint clock (no letter yet).
+  final ThreadRoomView? question;
+}
+
+/// `thread:hint`: [participantId] was stuck in [room]; only they get [letter].
+class ThreadHinted extends BattleServerEvent {
+  const ThreadHinted({
+    required super.serverTime,
+    required super.battleId,
+    required super.seq,
+    required this.roundNo,
+    required this.participantId,
+    required this.room,
+    this.letter,
+  });
+
+  final int roundNo;
+  final String participantId;
+  final int room;
+  final String? letter;
+}
+
 /// A line of a `BRIDGE` board: the two clubs it joins, as indexes into the board's clubs.
 class BridgeLine {
   const BridgeLine({required this.line, required this.from, required this.to});
@@ -1520,6 +1655,18 @@ BattleServerEvent parseBattleServerEvent(String eventName, Object? payload) {
         decidedBy: data.readOptionalString('decidedBy'),
       );
     case 'round:start':
+      if (data.json.containsKey('roomCount')) {
+        return ThreadRoundStarted(
+          serverTime: serverTime,
+          battleId: id,
+          seq: sequence,
+          roundNo: data.readInt('roundNo'),
+          roomCount: data.readInt('roomCount'),
+          room: readThreadRoomView(data.readObject('room'))!,
+          roundDeadlineAt: data.readTimestamp('roundDeadlineAt'),
+          jumpsLeft: data.readInt('jumpsLeft'),
+        );
+      }
       if (data.json.containsKey('goalsSince')) {
         return BridgeRoundStarted(
           serverTime: serverTime,
@@ -1878,6 +2025,49 @@ BattleServerEvent parseBattleServerEvent(String eventName, Object? payload) {
         participantId: data.readString('participantId'),
         reason: data.readString('reason'),
         entity: entity == null ? null : _readEntityRef(entity),
+      );
+    case 'thread:progress':
+      return ThreadProgressed(
+        serverTime: serverTime,
+        battleId: id,
+        seq: sequence,
+        roundNo: data.readInt('roundNo'),
+        participantId: data.readString('participantId'),
+        room: data.readInt('room'),
+        hasJumped: data.readBool('jumped'),
+        question: readThreadRoomView(data.readOptionalObject('question')),
+      );
+    case 'thread:locked':
+      final matched = data.readOptionalObject('entity');
+      return ThreadLockedOut(
+        serverTime: serverTime,
+        battleId: id,
+        seq: sequence,
+        roundNo: data.readInt('roundNo'),
+        participantId: data.readString('participantId'),
+        lockedUntil: data.readTimestamp('lockedUntil'),
+        entity: matched == null ? null : _readEntityRef(matched),
+        question: readThreadRoomView(data.readOptionalObject('question')),
+      );
+    case 'thread:jumped':
+      return ThreadJumped(
+        serverTime: serverTime,
+        battleId: id,
+        seq: sequence,
+        roundNo: data.readInt('roundNo'),
+        participantId: data.readString('participantId'),
+        room: data.readInt('room'),
+        question: readThreadRoomView(data.readOptionalObject('question')),
+      );
+    case 'thread:hint':
+      return ThreadHinted(
+        serverTime: serverTime,
+        battleId: id,
+        seq: sequence,
+        roundNo: data.readInt('roundNo'),
+        participantId: data.readString('participantId'),
+        room: data.readInt('room'),
+        letter: data.readOptionalString('letter'),
       );
     case 'bridge:turn':
       return BridgeTurnStarted(

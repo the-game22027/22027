@@ -313,7 +313,8 @@
               "HEX",
               "LINEUP",
               "ONE_TWO",
-              "BRIDGE"
+              "BRIDGE",
+              "THREAD"
             ],
             "type": "string"
           }
@@ -609,7 +610,9 @@
               "VAULT",
               "HEX",
               "LINEUP",
-              "ONE_TWO"
+              "ONE_TWO",
+              "BRIDGE",
+              "THREAD"
             ],
             "type": "string"
           },

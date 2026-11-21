@@ -78,6 +78,29 @@ describe('the engine view of stored content', () => {
     expect(listEntityReferencesOfBody(board)).toEqual(['wd:sporting', 'wd:united']);
   });
 
+  it("keeps the viewers' locales of every THREAD room and its jump question", () => {
+    const thread: GameBody = {
+      gameType: 'THREAD',
+      rooms: [
+        {
+          hop: 'FINAL_WINNER',
+          answerKind: 'CLUB',
+          text: { en: 'Who won?', ar: 'من فاز؟' },
+          jumpText: { en: 'J', ar: 'ق' },
+        },
+        { hop: 'CAPTAIN', answerKind: 'PLAYER', text: { en: 'Captain?', ar: 'القائد؟' }, jumpText: null },
+      ],
+    };
+    expect(toEngineBody(thread, idOf, ['ar'])).toEqual({
+      gameType: 'THREAD',
+      rooms: [
+        { hop: 'FINAL_WINNER', answerKind: 'CLUB', text: { ar: 'من فاز؟' }, jumpText: { ar: 'ق' } },
+        { hop: 'CAPTAIN', answerKind: 'PLAYER', text: { ar: 'القائد؟' }, jumpText: null },
+      ],
+    });
+    expect(listEntityReferencesOfBody(thread)).toEqual([]);
+  });
+
   it('fails loudly when content lacks a locale or points outside the catalog', () => {
     const englishOnly: GameBody = { ...buzzer, steps: { en: ['a', 'b'] } };
     expect(() => toEngineBody(englishOnly, idOf, ['ar'])).toThrow('no text in locale ar');

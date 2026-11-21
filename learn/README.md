@@ -31,6 +31,7 @@ Rules: no history lessons, no filler, max ~30 lines. If it needs more, it is two
 | [devops/](devops/) | CI/CD, Docker, health checks, monitoring, deployment |
 | [mobile/](mobile/) | Flutter side: API client, state, real-time, store release |
 | [redis/](redis/) | Redis and in-memory tools: data types, atomicity, TTLs, queues, persistence, production |
+| [data/](data/) | The Python pipeline: turning football facts into questions |
 
 New tracks are added when the first card needs one.
 
@@ -123,6 +124,7 @@ About 35 minutes in total. Cards marked *later* explain tools we have not needed
 | [database/keep-array-order-with-ordinality](database/keep-array-order-with-ordinality.md) | DEC-44 | `unnest ... WITH ORDINALITY` keeps a list's order; refill with what was seen longest ago |
 | [database/one-record-from-several-sources](database/one-record-from-several-sources.md) | N5 | Source priority plus a disagreement gate: one lineup per match and team |
 | [database/graph-in-a-table](database/graph-in-a-table.md) | N8 | Edges as rows keyed `(from, type, to)`: a one-hop lookup is one index range; counts kept at import |
+| [data/backtracking-search](data/backtracking-search.md) | N7 | Walk a path step by step, prune early, undo with `pop()`: every five-room thread from a final |
 | [database/self-join-intersection](database/self-join-intersection.md) | N9 | Join a table to itself on the neighbour: "in both lists" is one query on two index ranges |
 | [mobile/generated-rest-client](mobile/generated-rest-client.md) | M0 | The contract generates the client; regenerate, never hand-edit |
 | [mobile/build-runner-part-files](mobile/build-runner-part-files.md) | M1.5 | What `.g.dart` files are: JSON and `copyWith` code written by `build_runner` |

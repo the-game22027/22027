@@ -223,6 +223,27 @@ describe('parseBundle with a ONE_TWO link graph', () => {
     expect(problemsOf(files([boardLine({ size: 3, clubs, seed: 'wikidata:Q1' })]))).toContain('seed');
   });
 
+  it('reads a THREAD line with its rooms and refuses a room without its answer kind', () => {
+    const rooms = [
+      { hop: 'FINAL_WINNER', answerKind: 'CLUB', text: { en: 'Who won?' }, jumpText: { en: 'Jump?' } },
+      { hop: 'CAPTAIN', answerKind: 'PLAYER', text: { en: 'Captain?' }, jumpText: { en: 'Jump?' } },
+      { hop: 'NATIONALITY', answerKind: 'COUNTRY', text: { en: 'Country?' }, jumpText: null },
+    ];
+    const threadLine = (content: Record<string, unknown>) =>
+      JSON.stringify({
+        ...JSON.parse(seedLine()),
+        externalKey: 'thread:1',
+        gameType: 'THREAD',
+        content,
+        answers: ['wikidata:Q1', 'wikidata:Q2', 'wikidata:Q3'].map((entity, slot) => ({ slot, entities: [entity] })),
+      });
+    expect(parseBundle(files([threadLine({ rooms })])).questions[0].content).toMatchObject({
+      body: { gameType: 'THREAD', rooms },
+    });
+    const withoutKind = rooms.map(({ hop, text, jumpText }) => ({ hop, text, jumpText }));
+    expect(problemsOf(files([threadLine({ rooms: withoutKind })]))).toContain('answerKind');
+  });
+
   it('refuses a seed with answer slots: its answers come from the graph', () => {
     expect(problemsOf(files([seedLine(undefined, [{ slot: 0, entities: ['wikidata:Q20'] }])]))).toContain(
       'a one-two seed has no answer slots',

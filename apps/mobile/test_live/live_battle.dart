@@ -138,6 +138,7 @@ class LiveBattleRun {
   final _playedHexPicks = <DateTime>{};
   final _answeredHexRaces = <DateTime>{};
   final _playedBridgeMoves = <DateTime>{};
+  final _answeredThreadRooms = <(int, int)>{};
   bool _hasAnsweredHexWhileLockedOut = false;
   bool _hasStartedBurying = false;
   bool _isMoving = true;
@@ -297,6 +298,8 @@ class LiveBattleRun {
             await _pickOrAnswerHex(battle, round);
           case final BridgeRound round:
             await _pickOrAnswerBridge(battle, round);
+          case final ThreadRound round:
+            await _answerThreadRoom(round);
           case LineupRound():
           case OneTwoRound():
           case null:
@@ -541,6 +544,19 @@ class LiveBattleRun {
       case HexPhase.closed:
         break;
     }
+  }
+
+  /// THREAD: one probably wrong guess per room (a lockout), then nothing until the round ends.
+  Future<void> _answerThreadRoom(ThreadRound round) async {
+    final room = round.yourRoom;
+    if (room == null || !_answeredThreadRooms.add((round.roundNo, room.room))) {
+      return;
+    }
+    final answer = await controller.answerInThread(room.room, _guess);
+    log.add(
+      'thread answer $_guess room ${room.room} round ${round.roundNo}: '
+      '${describeCommandResult(answer)}',
+    );
   }
 
   /// BRIDGE: the first open line on my turn, then a guess that is probably wrong (a grey line).

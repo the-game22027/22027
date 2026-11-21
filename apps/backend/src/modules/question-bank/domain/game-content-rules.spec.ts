@@ -196,6 +196,30 @@ describe('game content shape', () => {
     );
   });
 
+  it('accepts a thread of rooms with one different answer each, and a jump question in every room but the last', () => {
+    const room = (index: number, answerKind: 'CLUB' | 'PLAYER' | 'COUNTRY', last = false) => ({
+      hop: index === 0 ? 'FINAL_WINNER' : 'CAPTAIN',
+      answerKind,
+      text: { en: `Room ${String(index + 1)}?`, ar: `غرفة ${String(index + 1)}؟` },
+      jumpText: last ? null : { en: `Jump ${String(index + 1)}?`, ar: `قفزة ${String(index + 1)}؟` },
+    });
+    const thread = (answers: AnswerSlot[], rooms = [room(0, 'CLUB'), room(1, 'PLAYER'), room(2, 'COUNTRY', true)]) =>
+      question({ body: { gameType: 'THREAD', rooms }, answers });
+    const three = ['wd:real', 'wd:ramos', 'wd:spain'].map((entity, slot) => ({ slot, entities: [entity] }));
+    expect(findQuestionProblems(thread(three), CATEGORIES)).toEqual([]);
+    expect(localesOfQuestion(thread(three).content)).toEqual(['ar', 'en']);
+    expect(problemsOf(thread(three.slice(0, 2)))).toContain('thread room 3 needs exactly one answer');
+    expect(problemsOf(thread([...three.slice(0, 2), { slot: 2, entities: ['wd:real'] }]))).toContain(
+      'wd:real answers two thread rooms',
+    );
+    expect(problemsOf(thread(three, [room(0, 'CLUB'), room(1, 'PLAYER'), room(2, 'COUNTRY')]))).toContain(
+      'the last thread room has no jump question',
+    );
+    expect(problemsOf(thread(three.slice(0, 2), [room(0, 'CLUB'), room(1, 'PLAYER', true)]))).toContain(
+      'a thread has 3 to 7 rooms',
+    );
+  });
+
   it('accepts a valid buzzer, career and grid', () => {
     expect([buzzer(), career(), grid()].map((q) => findQuestionProblems(q, CATEGORIES))).toEqual([[], [], []]);
   });
@@ -248,6 +272,23 @@ describe('catalog references', () => {
     const problems = findCatalogReferenceProblems(career().content, find).join('\n');
     expect(problems).toContain('spell 2 club wd:united is a PLAYER, expected CLUB');
     expect(findCatalogReferenceProblems(grid().content, find)[0]).toContain('is not in the answer catalog');
+  });
+
+  it('checks each thread answer against the kind of its own room', () => {
+    const rooms = (['CLUB', 'PLAYER', 'COUNTRY'] as const).map((answerKind, index) => ({
+      hop: 'HOP',
+      answerKind,
+      text: { en: 'Q?' },
+      jumpText: index === 2 ? null : { en: 'J?' },
+    }));
+    const thread = question({
+      body: { gameType: 'THREAD', rooms },
+      answers: ['wd:sporting', 'wd:ronaldo', 'wd:spain'].map((entity, slot) => ({ slot, entities: [entity] })),
+    });
+    const problems = findCatalogReferenceProblems(thread.content, find).join('\n');
+    expect(problems).toContain('answer (slot 2) wd:spain is a NATIONAL_TEAM, expected COUNTRY');
+    expect(problems).not.toContain('slot 0');
+    expect(problems).not.toContain('slot 1');
   });
 
   it('requires every bridge club to be a catalog club', () => {

@@ -30,6 +30,7 @@ export interface StoredGameContent {
 }
 
 export interface SlotAnswers {
+  /** What answers of this slot are: the kind its accepted entities share (a THREAD room's own kind), else the round's. */
   roundAnswerKind: AnswerKind;
   candidates: AnswerCandidate[];
 }

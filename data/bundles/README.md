@@ -5,13 +5,21 @@ Each folder is one bundle: `manifest.json`, `questions.jsonl` and optionally `ca
 Import one into the app database (from `apps/backend`):
 
 ```bash
-npm run cli -- questions:import ../../data/bundles/dev-0012
-npm run cli -- questions:publish dev-0012 --include-drafts   # development only: the rounds are unreviewed
+npm run cli -- questions:import ../../data/bundles/dev-0013
+npm run cli -- questions:publish dev-0013 --include-drafts   # development only: the rounds are unreviewed
 ```
 
 Importing the same bundle twice changes nothing. A bundle version is never reused: a changed bundle gets a new folder and a new `bundleVersion`.
 
-## dev-0012 (use this one)
+## dev-0013 (use this one)
+
+dev-0012 plus **100 `THREAD` chains** (08 §17.4): five rooms from a final, one answer per room, at most 3 threads per final, spread over difficulties 1–5 (23, 22, 22, 22, 11). 649 rounds; the catalog grows to 8,192 entities (thread answers below the development cut are kept), the 22,876-link graph is the same.
+
+```bash
+.venv/bin/python -m kb bundle --version dev-0013 --out bundles/dev-0013 --careers 60 --buzzers 60 --who 60 --grids 30 --mines 40 --auctions 60 --vaults 60 --hexes 30 --lineups 60 --one-twos 60 --bridges 40 --threads 100 --links-min-player-sitelinks 60 --catalog-min-player-sitelinks 40
+```
+
+## dev-0012
 
 dev-0011 plus **40 `BRIDGE` boards** (08 §16.4): 4 × 4 boards of the 60 most popular catalog clubs, every neighbouring pair with at least 3 common scorers in the bundle's own link graph. 549 rounds; the catalog and the 22,876-link graph are the same as dev-0011. Because this graph links only players with 60+ sitelinks, the boards come out hard (difficulty 3–5: 6, 15, 19); boards from the full graph spread over 1–5.
 

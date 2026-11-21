@@ -29,7 +29,9 @@ export type PlayerCommand =
   | { type: 'ONE_TWO_PASS'; passType: string }
   | { type: 'ONE_TWO_ANSWER'; answer: { text: string } | BotAnswer }
   | { type: 'BRIDGE_PICK'; line: number }
-  | { type: 'BRIDGE_ANSWER'; answer: { text: string } | BotAnswer };
+  | { type: 'BRIDGE_ANSWER'; answer: { text: string } | BotAnswer }
+  | { type: 'THREAD_ANSWER'; room: number; answer: { text: string } | BotAnswer }
+  | { type: 'THREAD_JUMP'; room: number };
 
 /** null when accepted, a string for the ack's error code, or an accepted ack that carries data (08 §10.3). */
 export type RoundCommandOutcome = string | null | { accepted: true; data: Record<string, unknown> };

@@ -392,6 +392,20 @@ export class BattleEngine implements OnApplicationBootstrap, BeforeApplicationSh
     );
   }
 
+  /** `thread:answer` and `thread:jump` (08 §17.3). */
+  sendThreadCommand(
+    battleId: string,
+    userId: string,
+    socketId: string,
+    roundNo: number,
+    command: { type: 'THREAD_ANSWER'; room: number; answer: { text: string } } | { type: 'THREAD_JUMP'; room: number },
+    clientMsgId: string,
+  ): Promise<Ack> {
+    return this.withBattle(battleId, clientMsgId, (battle) =>
+      battle.roundCommand(userId, socketId, roundNo, command, clientMsgId),
+    );
+  }
+
   /** `vault:try` (08 §12.3). */
   sendVaultTry(
     battleId: string,
