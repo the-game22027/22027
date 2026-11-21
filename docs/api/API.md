@@ -101,7 +101,7 @@ Content-Type: application/problem+json
 | `ROOM_NOT_HOST` | 403 | Host-only action |
 | `ROOM_NOT_ENOUGH_PLAYERS` | 409 | Start with fewer than 2 members |
 | `GAME_TYPE_UNAVAILABLE` | 409 | The game type is switched off in config (matchmaking join, room create or update) |
-| `GAME_TYPE_PLAYER_COUNT` | 409 | The room's member count does not fit the game type (`GRID` needs exactly 2, DEC-61) |
+| `GAME_TYPE_PLAYER_COUNT` | 409 | The room's member count does not fit the game type (08 §18.1: the duels need exactly 2, `IMPOSTER` at least 4) |
 | `FRIEND_REQUEST_EXISTS` / `ALREADY_FRIENDS` | 409 | Social; `FRIEND_REQUEST_EXISTS` carries the existing `requestId` (03 §7.1) |
 | `FRIEND_REQUEST_NOT_FOUND` | 404 | Unknown request, or not yours to answer or cancel |
 | `FRIEND_REQUEST_NOT_PENDING` | 409 | Already accepted, declined or cancelled |

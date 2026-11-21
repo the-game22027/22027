@@ -153,6 +153,12 @@ Changes vs the original proposed order, and why:
 - **Exit per phase:** the game can be walked through message by message from `08`; its bot plays it; a dev bundle with generated content imports and plays end to end; every open rule is config plus a Pending DEC.
 
 ### P8 — Private battle rooms
+
+Split in three PRs (2026-11-21), in this order:
+- **P8a rooms:** the lobby below, players per game type (08 §18.1, with `VAULT` and `THREAD` open to 2..`maxPlayers`), and the host's difficulty filter.
+- **P8b `IMPOSTER`:** 08 §18 (DEC-58 rules chosen 2026-11-21), its generator and the clue check.
+- **P8c topics:** topic tags in the generator and the bundle, `GET /v1/battle-topics`, the topic filter (ADR-0020, DEC-64).
+
 - `battle_rooms` + members; topic and difficulty filters set by the host (ADR-0020, DEC-64); code generation; create/join/leave/remove/start/close endpoints; lobby pushes (`room:*`); host transfer; rematch back to `LOBBY` (DEC-42); idle timers + backstop sweeper; block checks on join; join rate limits.
 - **Exit:** concurrency tests (last seat, join vs start, double start); blocked user gets `ROOM_NOT_FOUND`; room survives an API restart and returns to `LOBBY`; two `maxPlayers` configs work (DEC-38); a room with 3 or more players plays a full battle and a rematch.
 
